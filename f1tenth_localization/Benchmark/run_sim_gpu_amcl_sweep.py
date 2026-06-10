@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from run_sim_gpu_amcl_benchmark import raceline_heading_near_pose, stop_process
 
@@ -106,6 +106,183 @@ def add_single_param_cases(cases: List[SweepCase],
             name=safe_name(f'{group}_{param}_{value_name(value)}'),
             group=group,
             params=with_base(**{param: value})))
+
+
+def add_single_param_cases_from_base(cases: List[SweepCase],
+                                     group: str,
+                                     param: str,
+                                     values: Iterable[float],
+                                     base_params: Dict[str, float]) -> None:
+    base_value = base_params[param]
+    for value in values:
+        if value == base_value:
+            continue
+        params = dict(base_params)
+        params[param] = value
+        add_case(
+            cases,
+            f'{group}_{param}_{value_name(value)}',
+            group,
+            params)
+
+
+def taguchi_l81_levels(num_factors: int) -> List[List[int]]:
+    """Return an 81-run, three-level orthogonal design for up to 9 factors."""
+    columns: List[Tuple[int, int, int, int]] = [
+        (1, 0, 0, 0),
+        (0, 1, 0, 0),
+        (0, 0, 1, 0),
+        (0, 0, 0, 1),
+        (1, 1, 0, 0),
+        (1, 2, 0, 0),
+        (1, 0, 1, 0),
+        (1, 0, 2, 0),
+        (1, 0, 0, 1),
+    ]
+    if num_factors > len(columns):
+        raise ValueError(f'taguchi_l81 supports at most {len(columns)} factors')
+
+    rows: List[List[int]] = []
+    for a in range(3):
+        for b in range(3):
+            for c in range(3):
+                for d in range(3):
+                    base = (a, b, c, d)
+                    rows.append([
+                        sum(coef * value for coef, value in zip(column, base)) % 3
+                        for column in columns[:num_factors]
+                    ])
+    return rows
+
+
+def taguchi_l81_cases() -> List[SweepCase]:
+    fixed_params = {
+        'transform_tolerance': 0.02,
+        'max_beams': 270,
+    }
+    factors: List[Tuple[str, List[Dict[str, float]]]] = [
+        ('s', [
+            {'sigma_hit': 0.06},
+            {'sigma_hit': 0.08},
+            {'sigma_hit': 0.10},
+        ]),
+        ('z', [
+            {'z_hit': 0.95, 'z_rand': 0.05},
+            {'z_hit': 0.90, 'z_rand': 0.10},
+            {'z_hit': 0.85, 'z_rand': 0.15},
+        ]),
+        ('l', [
+            {'likelihood_scale': 0.75},
+            {'likelihood_scale': 1.0},
+            {'likelihood_scale': 3.0},
+        ]),
+        ('a1', [
+            {'alpha1': 0.1},
+            {'alpha1': 0.2},
+            {'alpha1': 0.4},
+        ]),
+        ('a2', [
+            {'alpha2': 0.1},
+            {'alpha2': 0.2},
+            {'alpha2': 0.4},
+        ]),
+        ('a3', [
+            {'alpha3': 0.1},
+            {'alpha3': 0.15},
+            {'alpha3': 0.2},
+        ]),
+        ('a4', [
+            {'alpha4': 0.1},
+            {'alpha4': 0.15},
+            {'alpha4': 0.2},
+        ]),
+        ('q', [
+            {'process_noise_scale': 0.05},
+            {'process_noise_scale': 0.2},
+            {'process_noise_scale': 0.5},
+        ]),
+        ('r', [
+            {'resample_threshold': 0.3},
+            {'resample_threshold': 0.5},
+            {'resample_threshold': 0.7},
+        ]),
+    ]
+
+    cases: List[SweepCase] = []
+    for index, levels in enumerate(taguchi_l81_levels(len(factors))):
+        params = dict(fixed_params)
+        level_names: List[str] = []
+        for (factor_name, choices), level in zip(factors, levels):
+            params.update(choices[level])
+            level_names.append(f'{factor_name}{level + 1}')
+        cases.append(SweepCase(
+            safe_name(f'taguchi_l81_{index:03d}_{"_".join(level_names)}'),
+            'taguchi_l81',
+            params))
+    return cases
+
+
+def focused_amcl_l81_cases() -> List[SweepCase]:
+    fixed_params = {
+        'transform_tolerance': 0.02,
+        'max_beams': 270,
+        'process_noise_scale': 0.2,
+    }
+    factors: List[Tuple[str, List[Dict[str, float]]]] = [
+        ('s', [
+            {'sigma_hit': 0.05},
+            {'sigma_hit': 0.06},
+            {'sigma_hit': 0.07},
+        ]),
+        ('z', [
+            {'z_hit': 0.85, 'z_rand': 0.15},
+            {'z_hit': 0.90, 'z_rand': 0.10},
+            {'z_hit': 0.95, 'z_rand': 0.05},
+        ]),
+        ('l', [
+            {'likelihood_scale': 2.0},
+            {'likelihood_scale': 3.0},
+            {'likelihood_scale': 4.0},
+        ]),
+        ('a1', [
+            {'alpha1': 0.1},
+            {'alpha1': 0.2},
+            {'alpha1': 0.4},
+        ]),
+        ('a2', [
+            {'alpha2': 0.1},
+            {'alpha2': 0.2},
+            {'alpha2': 0.4},
+        ]),
+        ('a3', [
+            {'alpha3': 0.1},
+            {'alpha3': 0.15},
+            {'alpha3': 0.2},
+        ]),
+        ('a4', [
+            {'alpha4': 0.15},
+            {'alpha4': 0.2},
+            {'alpha4': 0.25},
+        ]),
+        ('r', [
+            {'resample_threshold': 0.3},
+            {'resample_threshold': 0.5},
+            {'resample_threshold': 0.7},
+        ]),
+    ]
+
+    cases: List[SweepCase] = []
+    for index, levels in enumerate(taguchi_l81_levels(len(factors))):
+        params = dict(fixed_params)
+        level_names: List[str] = []
+        for (factor_name, choices), level in zip(factors, levels):
+            params.update(choices[level])
+            level_names.append(f'{factor_name}{level + 1}')
+        cases.append(SweepCase(
+            safe_name(f'focused_amcl_l81_{index:03d}_{"_".join(level_names)}'),
+            'focused_amcl_l81',
+            params))
+    return cases
 
 
 def build_cases(mode: str) -> List[SweepCase]:
@@ -201,6 +378,66 @@ def build_cases(mode: str) -> List[SweepCase]:
                             likelihood_scale=likelihood_scale))
         return cases
 
+    if mode == 'wide':
+        wide_base = {
+            'sigma_hit': 0.10,
+            'z_hit': 0.95,
+            'z_rand': 0.05,
+            'alpha1': 0.4,
+            'alpha2': 0.4,
+            'alpha3': 0.2,
+            'alpha4': 0.2,
+            'likelihood_scale': 0.75,
+            'resample_threshold': 0.3,
+            'process_noise_scale': 0.2,
+            'transform_tolerance': 0.02,
+            'max_beams': 270,
+        }
+        cases = [SweepCase('baseline', 'baseline', dict(wide_base))]
+
+        add_single_param_cases_from_base(
+            cases, 'sensor', 'sigma_hit', [0.06, 0.08, 0.10, 0.12], wide_base)
+        for z_hit, z_rand in ((0.99, 0.01), (0.95, 0.05), (0.90, 0.10), (0.85, 0.15)):
+            params = dict(wide_base)
+            params.update({'z_hit': z_hit, 'z_rand': z_rand})
+            add_case(
+                cases,
+                f'sensor_z_hit_{value_name(z_hit)}_z_rand_{value_name(z_rand)}',
+                'sensor',
+                params)
+        add_single_param_cases_from_base(
+            cases, 'sensor', 'likelihood_scale',
+            [0.25, 0.5, 0.75, 1.5, 2.0, 3.0],
+            wide_base)
+        add_single_param_cases_from_base(
+            cases, 'sensor', 'max_beams', [180, 270, 540], wide_base)
+
+        add_single_param_cases_from_base(
+            cases, 'motion', 'alpha1', [0.1, 0.2, 0.4], wide_base)
+        add_single_param_cases_from_base(
+            cases, 'motion', 'alpha2', [0.1, 0.2, 0.4], wide_base)
+        add_single_param_cases_from_base(
+            cases, 'motion', 'alpha3', [0.1, 0.15, 0.2], wide_base)
+        add_single_param_cases_from_base(
+            cases, 'motion', 'alpha4', [0.1, 0.15, 0.2], wide_base)
+
+        add_single_param_cases_from_base(
+            cases, 'ekf', 'process_noise_scale',
+            [0.05, 0.2, 0.5, 1.0, 2.0],
+            wide_base)
+        add_single_param_cases_from_base(
+            cases, 'resample', 'resample_threshold',
+            [0.2, 0.3, 0.5, 0.7, 0.8],
+            wide_base)
+
+        return cases
+
+    if mode == 'taguchi_l81':
+        return taguchi_l81_cases()
+
+    if mode == 'focused_amcl_l81':
+        return focused_amcl_l81_cases()
+
     add_single_param_cases(cases, 'sensor', 'sigma_hit',
                            [0.06, 0.08, 0.12, 0.18, 0.25])
     cases.extend([
@@ -229,13 +466,6 @@ def build_cases(mode: str) -> List[SweepCase]:
     add_single_param_cases(cases, 'ekf', 'process_noise_scale', [0.05, 0.2, 0.5, 1.0])
     add_single_param_cases(cases, 'resample', 'resample_threshold', [0.3, 0.7])
     add_single_param_cases(cases, 'timing', 'transform_tolerance', [0.01, 0.05, 0.10])
-
-    if mode == 'wide':
-        add_single_param_cases(cases, 'sensor', 'max_beams', [180, 360, 540])
-        add_single_param_cases(cases, 'sensor', 'sigma_hit', [0.35])
-        add_single_param_cases(cases, 'sensor', 'likelihood_scale', [0.25, 3.0])
-        add_single_param_cases(cases, 'resample', 'resample_threshold', [0.2, 0.8])
-        add_single_param_cases(cases, 'ekf', 'process_noise_scale', [0.01, 2.0])
 
     return cases
 
@@ -374,6 +604,7 @@ def command_for_case(args: argparse.Namespace,
                      run_dir: str,
                      initial_pose_yaw: float) -> List[str]:
     params = case.params
+    max_beams = int(args.fixed_max_beams) if args.fixed_max_beams > 0 else int(params["max_beams"])
     cmd = [
         'ros2',
         'launch',
@@ -398,15 +629,15 @@ def command_for_case(args: argparse.Namespace,
         f'monitor_strict_mode:={str(args.monitor_strict_mode).lower()}',
         f'mpc_raceline_speed_margin:={args.mpc_raceline_speed_margin}',
         f'amcl_global_initialization:={str(args.global_localization).lower()}',
-        'amcl_num_particles:=1000',
-        'amcl_min_particles:=1000',
-        'amcl_max_particles:=1000',
+        f'amcl_num_particles:={args.particles}',
+        f'amcl_min_particles:={args.particles}',
+        f'amcl_max_particles:={args.particles}',
         'amcl_use_kld:=false',
         f'amcl_update_min_d:={args.update_min_d}',
         f'amcl_update_min_a:={args.update_min_a}',
         f'amcl_cloud_publish_rate:={args.cloud_publish_rate}',
         f'amcl_debug_pre_resample_particles:={str(args.debug_pre_resample_particles).lower()}',
-        f'amcl_max_beams:={int(params["max_beams"])}',
+        f'amcl_max_beams:={max_beams}',
         'amcl_normalize_likelihood_by_beams:=true',
         f'amcl_likelihood_scale:={params["likelihood_scale"]}',
         'amcl_use_cluster_estimate:=true',
@@ -423,6 +654,7 @@ def command_for_case(args: argparse.Namespace,
         f'amcl_z_rand:={params["z_rand"]}',
         f'amcl_sigma_hit:={params["sigma_hit"]}',
         f'amcl_resample_threshold:={params["resample_threshold"]}',
+        f'amcl_max_scan_age:={args.max_scan_age}',
         f'ekf_process_noise_scale:={params["process_noise_scale"]}',
         f'ekf_transform_tolerance:={params["transform_tolerance"]}',
     ]
@@ -595,7 +827,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         'gpu_amcl_sweep')
 
     parser.add_argument('--output-root', default=default_root)
-    parser.add_argument('--mode', choices=['quick', 'focused', 'combo', 'core', 'wide'],
+    parser.add_argument('--mode', choices=[
+        'quick',
+        'focused',
+        'combo',
+        'core',
+        'wide',
+        'taguchi_l81',
+        'focused_amcl_l81',
+    ],
                         default='core')
     parser.add_argument('--laps', type=int, default=5)
     parser.add_argument('--repeats', type=int, default=3)
@@ -627,9 +867,10 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--initial-pose-x', type=float, default=0.5)
     parser.add_argument('--initial-pose-y', type=float, default=0.2)
     parser.add_argument('--initial-pose-yaw', type=float, default=None)
+    parser.add_argument('--particles', type=int, default=1000)
     parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
                         default=True)
-    parser.add_argument('--sim-odom-source', choices=('vesc', 'ground_truth'),
+    parser.add_argument('--sim-odom-source', choices=('vesc', 'ground_truth', 'calibrated_drift'),
                         default='vesc')
     parser.add_argument('--sim-drive-input-mode', choices=('vesc', 'ackermann'),
                         default='vesc')
@@ -655,6 +896,9 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--cluster-publish-min-weight', type=float, default=0.60)
     parser.add_argument('--update-min-d', type=float, default=0.05)
     parser.add_argument('--update-min-a', type=float, default=0.05)
+    parser.add_argument('--max-scan-age', type=float, default=0.04)
+    parser.add_argument('--fixed-max-beams', type=int, default=0,
+                        help='When positive, override every sweep case with this max_beams value.')
     parser.add_argument('--extra-launch-arg', action='append')
     return parser.parse_args(argv)
 
@@ -702,7 +946,7 @@ def main(argv: List[str]) -> int:
     print(f'Output: {args.output_root}')
     print(
         'Fixed: '
-        f'particles=1000, KLD=false, global_init={args.global_localization}, '
+        f'particles={args.particles}, KLD=false, global_init={args.global_localization}, '
         f'update_min_d={args.update_min_d:g}, update_min_a={args.update_min_a:g}')
     print(
         'Sim setup: '

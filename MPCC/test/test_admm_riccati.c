@@ -41,6 +41,17 @@ static void assert_close(const char *label, float actual, float expected,
     }
 }
 
+static void assert_true(const char *label, int condition)
+{
+    if (condition) {
+        tests_passed++;
+        printf(GREEN "  [PASS] %s\n" RESET, label);
+    } else {
+        tests_failed++;
+        printf(RED "  [FAIL] %s\n" RESET, label);
+    }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * TEST 1:  3×3 matrix inverse  (Cramer's rule)
  * ═══════════════════════════════════════════════════════════════════════════ */
@@ -313,11 +324,130 @@ static void test_box_constrained_qp(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * TEST 4:  MPCC initialization smoke test
+ * TEST 4:  Adaptive rho persists only for adaptive warm starts
+ * ═══════════════════════════════════════════════════════════════════════════ */
+static void test_adaptive_rho_warm_start(void)
+{
+    printf("\n--- Test 4: Adaptive rho warm-start persistence ---\n");
+
+    static MPCCQPProblem_t qp;
+    static ADMMWorkspace_t ws;
+    static ADMMResult_t result;
+    ADMMConfig_t cfg;
+
+    memset(&qp, 0, sizeof(qp));
+    memset(&result, 0, sizeof(result));
+    qp.N = 1;
+
+    for (int i = 0; i < MPCC_NX; i++) {
+        qp.dynamics[0].A[i][i] = 1.0f;
+        qp.x_lower[i] = -100.0f;
+        qp.x_upper[i] = 100.0f;
+    }
+    for (int i = 0; i < MPCC_NU; i++) {
+        qp.stage_cost[0].R[i][i] = 1.0f;
+        qp.u_lower[i] = -100.0f;
+        qp.u_upper[i] = 100.0f;
+    }
+    qp.track_left[0] = qp.track_left[1] = 100.0f;
+    qp.track_right[0] = qp.track_right[1] = 100.0f;
+
+    admm_solver_default_config(&cfg);
+    cfg.rho = 1.0f;
+    cfg.rho_u = 2.0f;
+    cfg.max_iterations = 1;
+    cfg.eps_primal = 1.0f;
+    cfg.eps_dual = 1.0f;
+    cfg.warm_start = 1;
+
+    admm_solver_initialize(&ws);
+    ws.rho_state = 4.0f;
+    ws.rho_u_state = 3.0f;
+    cfg.adaptive_rho = 1;
+    (void)admm_solver_solve(&qp, &cfg, &ws, &result);
+    assert_close("adaptive warm-start rho", result.rho_final, 4.0f, 1e-6f);
+    assert_close("adaptive warm-start rho_u", result.rho_u_final, 3.0f, 1e-6f);
+
+    ws.rho_state = 4.0f;
+    ws.rho_u_state = 3.0f;
+    cfg.adaptive_rho = 0;
+    (void)admm_solver_solve(&qp, &cfg, &ws, &result);
+    assert_close("fixed-rho warm-start rho", result.rho_final, 1.0f, 1e-6f);
+    assert_close("fixed-rho warm-start rho_u", result.rho_u_final, 2.0f, 1e-6f);
+
+    /* A tight state bound with wide control bounds must adapt state rho only. */
+    memset(&qp, 0, sizeof(qp));
+    memset(&result, 0, sizeof(result));
+    qp.N = 1;
+    for (int i = 0; i < MPCC_NX; i++) {
+        qp.dynamics[0].A[i][i] = 1.0f;
+        qp.x_lower[i] = -100.0f;
+        qp.x_upper[i] = 100.0f;
+    }
+    qp.dynamics[0].d[MPCC_IDX_VY] = 1.0f;
+    qp.x_lower[MPCC_IDX_VY] = -0.1f;
+    qp.x_upper[MPCC_IDX_VY] = 0.1f;
+    for (int i = 0; i < MPCC_NU; i++) {
+        qp.stage_cost[0].R[i][i] = 0.1f;
+        qp.u_lower[i] = -1000.0f;
+        qp.u_upper[i] = 1000.0f;
+    }
+    qp.track_left[0] = qp.track_left[1] = 100.0f;
+    qp.track_right[0] = qp.track_right[1] = 100.0f;
+    admm_solver_default_config(&cfg);
+    cfg.rho = 1.0f;
+    cfg.rho_u = 1.0f;
+    cfg.max_iterations = 5;
+    cfg.eps_primal = -1.0f;
+    cfg.eps_dual = -1.0f;
+    cfg.adaptive_rho = 1;
+    admm_solver_initialize(&ws);
+    (void)admm_solver_solve(&qp, &cfg, &ws, &result);
+    assert_true("state-only case updates rho",
+                result.adaptive_rho_state_updates > 0);
+    assert_true("state-only case does not update rho_u",
+                result.adaptive_rho_control_updates == 0);
+
+    /* Tight control bounds with unconstrained states must adapt rho_u only. */
+    memset(&qp, 0, sizeof(qp));
+    memset(&result, 0, sizeof(result));
+    qp.N = 1;
+    for (int i = 0; i < MPCC_NX; i++) {
+        qp.dynamics[0].A[i][i] = 1.0f;
+        qp.x_lower[i] = -1000.0f;
+        qp.x_upper[i] = 1000.0f;
+    }
+    for (int i = 0; i < MPCC_NU; i++) {
+        qp.stage_cost[0].R[i][i] = 0.1f;
+        qp.u_lower[i] = -1000.0f;
+        qp.u_upper[i] = 1000.0f;
+    }
+    qp.stage_cost[0].r[0] = -50.0f;
+    qp.u_lower[0] = -0.1f;
+    qp.u_upper[0] = 0.1f;
+    qp.track_left[0] = qp.track_left[1] = 100.0f;
+    qp.track_right[0] = qp.track_right[1] = 100.0f;
+    admm_solver_default_config(&cfg);
+    cfg.rho = 1.0f;
+    cfg.rho_u = 1.0f;
+    cfg.max_iterations = 5;
+    cfg.eps_primal = -1.0f;
+    cfg.eps_dual = -1.0f;
+    cfg.adaptive_rho = 1;
+    admm_solver_initialize(&ws);
+    (void)admm_solver_solve(&qp, &cfg, &ws, &result);
+    assert_true("control-only case does not update rho",
+                result.adaptive_rho_state_updates == 0);
+    assert_true("control-only case updates rho_u",
+                result.adaptive_rho_control_updates > 0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TEST 5:  MPCC initialization smoke test
  * ═══════════════════════════════════════════════════════════════════════════ */
 static void test_mpcc_init(void)
 {
-    printf("\n--- Test 4: MPCC Initialization ---\n");
+    printf("\n--- Test 5: MPCC Initialization ---\n");
 
     mpcc_initialize();
 
@@ -337,11 +467,38 @@ static void test_mpcc_init(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * TEST 5:  Obstacle Sigma_inv computation
+ * TEST 6:  Vehicle heading remains continuous through the +/-pi boundary
+ * ═══════════════════════════════════════════════════════════════════════════ */
+static void test_vehicle_heading_unwrap(void)
+{
+    printf("\n--- Test 6: Vehicle heading unwrap ---\n");
+
+    VehicleState_t vehicle;
+    memset(&vehicle, 0, sizeof(vehicle));
+    mpcc_initialize();
+
+    vehicle.heading = 3.063208f;
+    MPCCState_t before_wrap = mpcc_state_from_vehicle_state(&vehicle, 0.0f);
+
+    vehicle.heading = -3.133829f;
+    MPCCState_t after_wrap = mpcc_state_from_vehicle_state(&vehicle, 0.0f);
+
+    assert_true("heading increases smoothly across +pi/-pi",
+                after_wrap.psi > before_wrap.psi &&
+                fabsf(after_wrap.psi - before_wrap.psi) < 0.1f);
+
+    mpcc_reset();
+    MPCCState_t after_reset = mpcc_state_from_vehicle_state(&vehicle, 0.0f);
+    assert_close("heading unwrap resets with controller",
+                 after_reset.psi, vehicle.heading, 1e-6f);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TEST 7:  Obstacle Sigma_inv computation
  * ═══════════════════════════════════════════════════════════════════════════ */
 static void test_obstacle_sigma_inv(void)
 {
-    printf("\n--- Test 5: Obstacle Sigma_inv Computation ---\n");
+    printf("\n--- Test 7: Obstacle Sigma_inv Computation ---\n");
 
     MPCCObstacle_t obs;
     obs.cx = 1.0f;
@@ -376,7 +533,9 @@ int main(void)
     test_3x3_inverse();
     test_unconstrained_lqr();
     test_box_constrained_qp();
+    test_adaptive_rho_warm_start();
     test_mpcc_init();
+    test_vehicle_heading_unwrap();
     test_obstacle_sigma_inv();
 
     printf("\n============================================\n");

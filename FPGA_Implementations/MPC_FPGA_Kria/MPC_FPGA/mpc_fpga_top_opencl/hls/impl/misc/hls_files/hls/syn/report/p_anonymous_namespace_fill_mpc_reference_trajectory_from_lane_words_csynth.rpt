@@ -1,0 +1,232 @@
+
+
+================================================================
+== Vitis HLS Report for 'p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words'
+================================================================
+* Date:           Thu May 21 15:23:08 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  1.869 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+----------+----------+-----+-----+-------------------+
+    |  Latency (cycles) |  Latency (absolute) |  Interval |      Pipeline     |
+    |   min   |   max   |    min   |    max   | min | max |        Type       |
+    +---------+---------+----------+----------+-----+-----+-------------------+
+    |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
+    +---------+---------+----------+----------+-----+-----+-------------------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |                    |  Latency (cycles) | Iteration|  Initiation Interval  | Trip |          |
+        |      Loop Name     |   min   |   max   |  Latency |  achieved |   target  | Count| Pipelined|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |- VITIS_LOOP_187_1  |       20|       20|         2|          1|          1|    20|       yes|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+
+
+
+================================================================
+== Utilization Estimates
+================================================================
+* Summary: 
++-----------------+---------+------+--------+--------+-----+
+|       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
++-----------------+---------+------+--------+--------+-----+
+|DSP              |        -|     -|       -|       -|    -|
+|Expression       |        -|     -|       0|     402|    -|
+|FIFO             |        -|     -|       -|       -|    -|
+|Instance         |        -|     -|       -|       -|    -|
+|Memory           |        -|     -|       -|       -|    -|
+|Multiplexer      |        -|     -|       0|      36|    -|
+|Register         |        -|     -|      13|       -|    -|
++-----------------+---------+------+--------+--------+-----+
+|Total            |        0|     0|      13|     438|    0|
++-----------------+---------+------+--------+--------+-----+
+|Available        |      288|  1248|  234240|  117120|   64|
++-----------------+---------+------+--------+--------+-----+
+|Utilization (%)  |        0|     0|      ~0|      ~0|    0|
++-----------------+---------+------+--------+--------+-----+
+
++ Detail: 
+    * Instance: 
+    N/A
+
+    * DSP: 
+    N/A
+
+    * Memory: 
+    N/A
+
+    * FIFO: 
+    N/A
+
+    * Expression: 
+    +----------------------+----------+----+---+----+------------+------------+
+    |     Variable Name    | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
+    +----------------------+----------+----+---+----+------------+------------+
+    |add_ln187_fu_430_p2   |         +|   0|  0|  12|           5|           1|
+    |add_ln192_fu_444_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln194_fu_466_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln196_fu_488_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln198_fu_510_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln200_fu_532_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln202_fu_554_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln204_fu_576_p2   |         +|   0|  0|  15|           8|           4|
+    |add_ln206_fu_598_p2   |         +|   0|  0|  15|           8|           4|
+    |icmp_ln187_fu_424_p2  |      icmp|   0|  0|  12|           5|           5|
+    |out_306_fu_648_p3     |    select|   0|  0|  32|           1|          32|
+    |out_307_fu_657_p3     |    select|   0|  0|  32|           1|          32|
+    |out_308_fu_666_p3     |    select|   0|  0|  32|           1|          32|
+    |out_309_fu_675_p3     |    select|   0|  0|  32|           1|          32|
+    |out_310_fu_684_p3     |    select|   0|  0|  32|           1|          32|
+    |out_311_fu_693_p3     |    select|   0|  0|  32|           1|          32|
+    |out_312_fu_702_p3     |    select|   0|  0|  32|           1|          32|
+    |out_fu_639_p3         |    select|   0|  0|  32|           1|          32|
+    |ap_enable_pp0         |       xor|   0|  0|   2|           1|           2|
+    +----------------------+----------+----+---+----+------------+------------+
+    |Total                 |          |   0|  0| 402|          83|         296|
+    +----------------------+----------+----+---+----+------------+------------+
+
+    * Multiplexer: 
+    +-------------------------+----+-----------+-----+-----------+
+    |           Name          | LUT| Input Size| Bits| Total Bits|
+    +-------------------------+----+-----------+-----+-----------+
+    |ap_done_int              |   9|          2|    1|          2|
+    |ap_enable_reg_pp0_iter1  |   9|          2|    1|          2|
+    |ap_sig_allocacmp_k_18    |   9|          2|    5|         10|
+    |k_fu_100                 |   9|          2|    5|         10|
+    +-------------------------+----+-----------+-----+-----------+
+    |Total                    |  36|          8|   12|         24|
+    +-------------------------+----+-----------+-----+-----------+
+
+    * Register: 
+    +-------------------------+---+----+-----+-----------+
+    |           Name          | FF| LUT| Bits| Const Bits|
+    +-------------------------+---+----+-----+-----------+
+    |ap_CS_fsm                |  1|   0|    1|          0|
+    |ap_done_reg              |  1|   0|    1|          0|
+    |ap_enable_reg_pp0_iter1  |  1|   0|    1|          0|
+    |k_18_reg_718             |  5|   0|    5|          0|
+    |k_fu_100                 |  5|   0|    5|          0|
+    +-------------------------+---+----+-----+-----------+
+    |Total                    | 13|   0|   13|          0|
+    +-------------------------+---+----+-----+-----------+
+
+
+
+================================================================
+== Interface
+================================================================
+* Summary: 
++---------------------------------------------+-----+-----+------------+--------------------------------------------------------------------+--------------+
+|                  RTL Ports                  | Dir | Bits|  Protocol  |                            Source Object                           |    C Type    |
++---------------------------------------------+-----+-----+------------+--------------------------------------------------------------------+--------------+
+|ap_clk                                       |   in|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|ap_rst                                       |   in|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|ap_start                                     |   in|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|ap_done                                      |  out|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|ap_idle                                      |  out|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|ap_ready                                     |  out|    1|  ap_ctrl_hs|  (anonymous namespace)fill_mpc_reference_trajectory_from_lane_words|  return value|
+|lane_words_0_address0                        |  out|    4|   ap_memory|                                                        lane_words_0|         array|
+|lane_words_0_ce0                             |  out|    1|   ap_memory|                                                        lane_words_0|         array|
+|lane_words_0_q0                              |   in|   32|   ap_memory|                                                        lane_words_0|         array|
+|lane_words_1_address0                        |  out|    4|   ap_memory|                                                        lane_words_1|         array|
+|lane_words_1_ce0                             |  out|    1|   ap_memory|                                                        lane_words_1|         array|
+|lane_words_1_q0                              |   in|   32|   ap_memory|                                                        lane_words_1|         array|
+|lane_words_2_address0                        |  out|    4|   ap_memory|                                                        lane_words_2|         array|
+|lane_words_2_ce0                             |  out|    1|   ap_memory|                                                        lane_words_2|         array|
+|lane_words_2_q0                              |   in|   32|   ap_memory|                                                        lane_words_2|         array|
+|lane_words_3_address0                        |  out|    4|   ap_memory|                                                        lane_words_3|         array|
+|lane_words_3_ce0                             |  out|    1|   ap_memory|                                                        lane_words_3|         array|
+|lane_words_3_q0                              |   in|   32|   ap_memory|                                                        lane_words_3|         array|
+|lane_words_4_address0                        |  out|    4|   ap_memory|                                                        lane_words_4|         array|
+|lane_words_4_ce0                             |  out|    1|   ap_memory|                                                        lane_words_4|         array|
+|lane_words_4_q0                              |   in|   32|   ap_memory|                                                        lane_words_4|         array|
+|lane_words_5_address0                        |  out|    4|   ap_memory|                                                        lane_words_5|         array|
+|lane_words_5_ce0                             |  out|    1|   ap_memory|                                                        lane_words_5|         array|
+|lane_words_5_q0                              |   in|   32|   ap_memory|                                                        lane_words_5|         array|
+|lane_words_6_address0                        |  out|    4|   ap_memory|                                                        lane_words_6|         array|
+|lane_words_6_ce0                             |  out|    1|   ap_memory|                                                        lane_words_6|         array|
+|lane_words_6_q0                              |   in|   32|   ap_memory|                                                        lane_words_6|         array|
+|lane_words_7_address0                        |  out|    4|   ap_memory|                                                        lane_words_7|         array|
+|lane_words_7_ce0                             |  out|    1|   ap_memory|                                                        lane_words_7|         array|
+|lane_words_7_q0                              |   in|   32|   ap_memory|                                                        lane_words_7|         array|
+|lane_words_8_address0                        |  out|    4|   ap_memory|                                                        lane_words_8|         array|
+|lane_words_8_ce0                             |  out|    1|   ap_memory|                                                        lane_words_8|         array|
+|lane_words_8_q0                              |   in|   32|   ap_memory|                                                        lane_words_8|         array|
+|lane_words_9_address0                        |  out|    4|   ap_memory|                                                        lane_words_9|         array|
+|lane_words_9_ce0                             |  out|    1|   ap_memory|                                                        lane_words_9|         array|
+|lane_words_9_q0                              |   in|   32|   ap_memory|                                                        lane_words_9|         array|
+|lane_words_10_address0                       |  out|    4|   ap_memory|                                                       lane_words_10|         array|
+|lane_words_10_ce0                            |  out|    1|   ap_memory|                                                       lane_words_10|         array|
+|lane_words_10_q0                             |   in|   32|   ap_memory|                                                       lane_words_10|         array|
+|lane_words_11_address0                       |  out|    4|   ap_memory|                                                       lane_words_11|         array|
+|lane_words_11_ce0                            |  out|    1|   ap_memory|                                                       lane_words_11|         array|
+|lane_words_11_q0                             |   in|   32|   ap_memory|                                                       lane_words_11|         array|
+|lane_words_12_address0                       |  out|    4|   ap_memory|                                                       lane_words_12|         array|
+|lane_words_12_ce0                            |  out|    1|   ap_memory|                                                       lane_words_12|         array|
+|lane_words_12_q0                             |   in|   32|   ap_memory|                                                       lane_words_12|         array|
+|lane_words_13_address0                       |  out|    4|   ap_memory|                                                       lane_words_13|         array|
+|lane_words_13_ce0                            |  out|    1|   ap_memory|                                                       lane_words_13|         array|
+|lane_words_13_q0                             |   in|   32|   ap_memory|                                                       lane_words_13|         array|
+|lane_words_14_address0                       |  out|    4|   ap_memory|                                                       lane_words_14|         array|
+|lane_words_14_ce0                            |  out|    1|   ap_memory|                                                       lane_words_14|         array|
+|lane_words_14_q0                             |   in|   32|   ap_memory|                                                       lane_words_14|         array|
+|lane_words_15_address0                       |  out|    4|   ap_memory|                                                       lane_words_15|         array|
+|lane_words_15_ce0                            |  out|    1|   ap_memory|                                                       lane_words_15|         array|
+|lane_words_15_q0                             |   in|   32|   ap_memory|                                                       lane_words_15|         array|
+|out_ref_reference_heading_error_address0     |  out|    5|   ap_memory|                                     out_ref_reference_heading_error|         array|
+|out_ref_reference_heading_error_ce0          |  out|    1|   ap_memory|                                     out_ref_reference_heading_error|         array|
+|out_ref_reference_heading_error_we0          |  out|    1|   ap_memory|                                     out_ref_reference_heading_error|         array|
+|out_ref_reference_heading_error_d0           |  out|   32|   ap_memory|                                     out_ref_reference_heading_error|         array|
+|out_ref_reference_lateral_error_address0     |  out|    5|   ap_memory|                                     out_ref_reference_lateral_error|         array|
+|out_ref_reference_lateral_error_ce0          |  out|    1|   ap_memory|                                     out_ref_reference_lateral_error|         array|
+|out_ref_reference_lateral_error_we0          |  out|    1|   ap_memory|                                     out_ref_reference_lateral_error|         array|
+|out_ref_reference_lateral_error_d0           |  out|   32|   ap_memory|                                     out_ref_reference_lateral_error|         array|
+|out_ref_reference_velocity_address0          |  out|    5|   ap_memory|                                          out_ref_reference_velocity|         array|
+|out_ref_reference_velocity_ce0               |  out|    1|   ap_memory|                                          out_ref_reference_velocity|         array|
+|out_ref_reference_velocity_we0               |  out|    1|   ap_memory|                                          out_ref_reference_velocity|         array|
+|out_ref_reference_velocity_d0                |  out|   32|   ap_memory|                                          out_ref_reference_velocity|         array|
+|out_ref_reference_lateral_velocity_address0  |  out|    5|   ap_memory|                                  out_ref_reference_lateral_velocity|         array|
+|out_ref_reference_lateral_velocity_ce0       |  out|    1|   ap_memory|                                  out_ref_reference_lateral_velocity|         array|
+|out_ref_reference_lateral_velocity_we0       |  out|    1|   ap_memory|                                  out_ref_reference_lateral_velocity|         array|
+|out_ref_reference_lateral_velocity_d0        |  out|   32|   ap_memory|                                  out_ref_reference_lateral_velocity|         array|
+|out_ref_reference_yaw_rate_address0          |  out|    5|   ap_memory|                                          out_ref_reference_yaw_rate|         array|
+|out_ref_reference_yaw_rate_ce0               |  out|    1|   ap_memory|                                          out_ref_reference_yaw_rate|         array|
+|out_ref_reference_yaw_rate_we0               |  out|    1|   ap_memory|                                          out_ref_reference_yaw_rate|         array|
+|out_ref_reference_yaw_rate_d0                |  out|   32|   ap_memory|                                          out_ref_reference_yaw_rate|         array|
+|out_ref_path_curvature_address0              |  out|    5|   ap_memory|                                              out_ref_path_curvature|         array|
+|out_ref_path_curvature_ce0                   |  out|    1|   ap_memory|                                              out_ref_path_curvature|         array|
+|out_ref_path_curvature_we0                   |  out|    1|   ap_memory|                                              out_ref_path_curvature|         array|
+|out_ref_path_curvature_d0                    |  out|   32|   ap_memory|                                              out_ref_path_curvature|         array|
+|out_ref_left_wall_bound_address0             |  out|    5|   ap_memory|                                             out_ref_left_wall_bound|         array|
+|out_ref_left_wall_bound_ce0                  |  out|    1|   ap_memory|                                             out_ref_left_wall_bound|         array|
+|out_ref_left_wall_bound_we0                  |  out|    1|   ap_memory|                                             out_ref_left_wall_bound|         array|
+|out_ref_left_wall_bound_d0                   |  out|   32|   ap_memory|                                             out_ref_left_wall_bound|         array|
+|out_ref_right_wall_bound_address0            |  out|    5|   ap_memory|                                            out_ref_right_wall_bound|         array|
+|out_ref_right_wall_bound_ce0                 |  out|    1|   ap_memory|                                            out_ref_right_wall_bound|         array|
+|out_ref_right_wall_bound_we0                 |  out|    1|   ap_memory|                                            out_ref_right_wall_bound|         array|
+|out_ref_right_wall_bound_d0                  |  out|   32|   ap_memory|                                            out_ref_right_wall_bound|         array|
++---------------------------------------------+-----+-----+------------+--------------------------------------------------------------------+--------------+
+

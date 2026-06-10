@@ -1,0 +1,160 @@
+---
+MainSourceFile:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+Diagnostics:
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_676_1:  '
+      FilePath:        '/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/etc/ap_int_ref.h'
+      FileOffset:      676
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          281977
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_676_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_690_1:  '
+      FilePath:        '/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/etc/ap_int_ref.h'
+      FileOffset:      690
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          282448
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_690_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_704_1:  '
+      FilePath:        '/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/etc/ap_int_ref.h'
+      FileOffset:      704
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          282920
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_704_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_1251_1:  '
+      FilePath:        '/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/etc/ap_fixed_base.h'
+      FileOffset:      1251
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          630300
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_1251_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_175_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      175
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2509632
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_175_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_188_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      188
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2510002
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_188_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_219_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      219
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2511061
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_219_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_232_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      232
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2511439
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_232_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_380_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      380
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2515422
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_380_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_433_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      433
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2517361
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_433_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_446_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      446
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2517741
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_446_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_503_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      503
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2519138
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_503_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+  - DiagnosticName:  xilinx-label-all-loops
+    DiagnosticMessage:
+      Message:         'Added loop label VITIS_LOOP_827_1:  '
+      FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp'
+      FileOffset:      827
+      Replacements:
+        - FilePath:        '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/.autopilot/db/fp_math_hls.pp.0.cpp'
+          Offset:          2659810
+          Length:          0
+          ReplacementText: 'VITIS_LOOP_827_1: '
+    Level:           Remark
+    BuildDirectory:  '/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA'
+...

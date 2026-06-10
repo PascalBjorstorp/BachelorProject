@@ -232,6 +232,11 @@ def run_benchmark_case(args: argparse.Namespace,
     manifest_rows.append(row)
     write_manifest(manifest_path, manifest_rows)
 
+    if args.delete_bags:
+        bag_dir = paths["run_dir"] / BENCHMARK_NAME / BENCHMARK_NAME
+        if bag_dir.exists():
+            shutil.rmtree(bag_dir)
+
     print(
         f"done {ratio_label(ratio)} run {run_index:02d}: "
         f"code={completed.returncode} "
@@ -295,7 +300,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--process-timeout-sec", type=float, default=0.0)
     parser.add_argument("--particles", type=int, default=1000)
     parser.add_argument("--max-beams", type=int, default=270)
-    parser.add_argument("--likelihood-scale", type=float, default=0.75)
+    parser.add_argument("--likelihood-scale", type=float, default=4.0)
     parser.add_argument("--cluster-publish-min-weight", type=float, default=0.60)
     parser.add_argument("--max-scan-age", type=float, default=0.12)
     parser.add_argument("--cloud-publish-rate", type=float, default=0.0)
@@ -317,9 +322,12 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--no-realistic-plant", action="store_true")
     parser.add_argument(
         "--sim-odom-source",
-        choices=("vesc", "ground_truth"),
+        choices=("vesc", "ground_truth", "calibrated_drift"),
         default="vesc",
-        help="vesc uses simulated VESC/IMU sensors and vesc_to_odom; ground_truth uses old pose odom.")
+        help=(
+            "vesc uses simulated VESC/IMU sensors and vesc_to_odom; "
+            "ground_truth uses old pose odom; calibrated_drift uses the "
+            "OptiTrack-calibrated drift model."))
     parser.add_argument(
         "--sim-drive-input-mode",
         choices=("vesc", "ackermann"),
@@ -337,6 +345,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--stop-on-failure", action="store_true")
     parser.add_argument("--plot-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--delete-bags", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--skip-matlab", action="store_true")
     parser.add_argument("--matlab-command", default="matlab")
     parser.add_argument("--extra-benchmark-arg", action="append", default=[])

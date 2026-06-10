@@ -1,0 +1,96 @@
+[
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls",
+      "-hls-syn-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot",
+      "-fhlstoplevel=mpc_fpga_top_opencl",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_TARGET",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp"
+  },
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls",
+      "-hls-syn-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot",
+      "-fhlstoplevel=mpc_fpga_top_opencl",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_TARGET",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp"
+  },
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls",
+      "-hls-syn-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot",
+      "-fhlstoplevel=mpc_fpga_top_opencl",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_TARGET",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp"
+  },
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls",
+      "-hls-syn-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot",
+      "-fhlstoplevel=mpc_fpga_top_opencl",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_TARGET",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp"
+  },
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls",
+      "-hls-syn-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot",
+      "-fhlstoplevel=mpc_fpga_top_opencl",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_TARGET",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp"
+  },
+  {
+    "directory": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA",
+    "arguments": [
+      "/home/akselmo/Vivado_program/2025.2/Vitis/lnx64/tools/vcxx/libexec/clang++",
+      "--gcc-toolchain=/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0",
+      "-fhls-tb",
+      "-hls-sim-headers-dir=/home/akselmo/Vivado_program/2025.2/Vitis/include",
+      "-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include",
+      "-DMPC_HLS_BUILD",
+      "-c",
+      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp"
+    ],
+    "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp"
+  }
+]

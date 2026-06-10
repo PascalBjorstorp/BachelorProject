@@ -1,10 +1,10 @@
 # F1TENTH Gym Environment ROS2 Bridge
 
-A ROS2 communication bridge for the F1TENTH gym environment that turns it into a simulation in ROS2 Jazzy.
+A ROS2 communication bridge for the F1TENTH gym environment that turns it into a simulation in ROS2 Humble.
 
 ## Requirements
 
-- **Ubuntu 24.04** with ROS2 Jazzy installed
+- **Ubuntu 22.04** with ROS2 Humble installed
 - **Python 3.10+**
 
 ## Quick Start (Recommended)
@@ -42,10 +42,10 @@ That's it! The setup script will:
 
 If you prefer to set things up manually:
 
-### 1. Install ROS2 Jazzy
+### 1. Install ROS2 Humble
 
-Follow the official ROS2 Jazzy installation instructions:
-https://docs.ros.org/en/jazzy/Installation.html
+Follow the official ROS2 Humble installation instructions:
+https://docs.ros.org/en/humble/Installation.html
 
 ### 2. Create Virtual Environment
 
@@ -59,8 +59,8 @@ pip install -r requirements.txt
 ### 3. Build the Package
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-rosdep install -i --from-path . --rosdistro jazzy -y
+source /opt/ros/humble/setup.bash
+rosdep install -i --from-path . --rosdistro humble -y
 colcon build --symlink-install
 ```
 
@@ -80,7 +80,7 @@ bridge:
 ## Launching the Simulation
 
 ```bash
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 source ~/sim_ws/install/local_setup.bash
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py
 ```

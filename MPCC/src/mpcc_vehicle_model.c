@@ -104,7 +104,7 @@ void mpcc_linearize_dynamics(
     * -1.76 and -6.23 — far outside the unit circle (unstable).
     * vx_safe=2.0 gives stable discrete eigenvalues [0.40, -0.90]. */
     float vx_abs = fabsf(state->vx);
-    float vx_safe = (vx_abs < 0.5f) ? 0.5f : vx_abs;
+    float vx_safe = (vx_abs < 2.0f) ? 2.0f : vx_abs;
     float inv_vx = 1.0f / vx_safe;
     float cos_delta = cosf(control->delta);
     float sin_delta = sinf(control->delta);

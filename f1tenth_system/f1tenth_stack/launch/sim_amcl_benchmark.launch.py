@@ -49,9 +49,11 @@ def _launch_setup(context, *args, **kwargs):
     realistic_value = LaunchConfiguration('realistic_plant').perform(context)
     realistic_plant = str(realistic_value).strip().lower() in ('true', '1', 'yes')
     sim_odom_source = LaunchConfiguration('sim_odom_source').perform(context).strip().lower()
-    if sim_odom_source not in ('ground_truth', 'vesc'):
-        raise RuntimeError("sim_odom_source must be 'ground_truth' or 'vesc'")
+    if sim_odom_source not in ('ground_truth', 'vesc', 'calibrated_drift'):
+        raise RuntimeError(
+            "sim_odom_source must be 'ground_truth', 'vesc', or 'calibrated_drift'")
     use_vesc_odom = sim_odom_source == 'vesc'
+    use_calibrated_drift_odom = sim_odom_source == 'calibrated_drift'
     sim_drive_input_mode = LaunchConfiguration('sim_drive_input_mode').perform(
         context).strip().lower()
     if sim_drive_input_mode not in ('ackermann', 'vesc'):
@@ -187,8 +189,8 @@ def _launch_setup(context, *args, **kwargs):
                     'headless': _bool_config('headless'),
                     'tf_frame_id': 'ego_racecar/odom',
                     'odom_frame_id': 'ego_racecar/odom',
-                    'publish_odom': not use_vesc_odom,
-                    'publish_base_tf': not use_vesc_odom,
+                    'publish_odom': sim_odom_source == 'ground_truth',
+                    'publish_base_tf': sim_odom_source == 'ground_truth',
                     'publish_sim_vesc_sensors': use_vesc_odom,
                     'sim_vesc_speed_to_erpm_gain': _float_config(
                         'sim_vesc_speed_to_erpm_gain'),
@@ -315,6 +317,10 @@ def _launch_setup(context, *args, **kwargs):
                     'trajectory_file': LaunchConfiguration('trajectory_file'),
                     'avoidance_enabled': _bool_config(
                         'lateral_planner_avoidance_enabled'),
+                    'startup_speed_initial_scale': _float_config(
+                        'lateral_planner_startup_speed_initial_scale'),
+                    'startup_speed_ramp_duration_sec': _float_config(
+                        'lateral_planner_startup_speed_ramp_duration_sec'),
                 },
             ],
         ),
@@ -387,7 +393,8 @@ def _launch_setup(context, *args, **kwargs):
                         'steering_model_scale': _float_config(
                             'sim_vesc_steering_model_scale'),
                         'speed_deadband': 0.15,
-                        'imu_yaw_base_weight': 0.40,
+                        'imu_yaw_base_weight': _float_config(
+                            'sim_vesc_imu_yaw_base_weight'),
                         'slip_indicator_source': 'lateral_velocity_error',
                         'slip_lateral_velocity_enter': 0.45,
                         'slip_lateral_velocity_exit': 0.25,
@@ -398,6 +405,36 @@ def _launch_setup(context, *args, **kwargs):
                         'slip_use_lateral_accel': False,
                     },
                 ],
+            )
+        )
+    elif use_calibrated_drift_odom:
+        actions.append(
+            Node(
+                package='f1tenth_localization',
+                executable='calibrated_drift_odom_node.py',
+                name='calibrated_drift_odom',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': _bool_config('use_sim_time'),
+                    'groundtruth_topic': '/ego_racecar/ground_truth',
+                    'odom_topic': '/ego_racecar/odom',
+                    'odom_frame': 'ego_racecar/odom',
+                    'base_frame': 'ego_racecar/base_link',
+                    'publish_tf': True,
+                    'reference_interval_s': _float_config(
+                        'calibrated_odom_reference_interval_s'),
+                    'position_p95_m': _float_config(
+                        'calibrated_odom_position_p95_m'),
+                    'yaw_median_deg': _float_config(
+                        'calibrated_odom_yaw_median_deg'),
+                    'yaw_p95_deg': _float_config(
+                        'calibrated_odom_yaw_p95_deg'),
+                    'yaw_tail_probability': _float_config(
+                        'calibrated_odom_yaw_tail_probability'),
+                    'covariance_scale': _float_config(
+                        'calibrated_odom_covariance_scale'),
+                    'random_seed': _int_config('calibrated_odom_random_seed'),
+                }],
             )
         )
 
@@ -607,7 +644,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'sim_odom_source',
             default_value='vesc',
-            description="Use 'vesc' for dead-reckoned odom or 'ground_truth' for old pose odom"),
+            description=(
+                "Use 'vesc' for simulated VESC odom, 'ground_truth' for ideal "
+                "pose odom, or 'calibrated_drift' for OptiTrack-calibrated "
+                "local odom drift")),
         DeclareLaunchArgument('map_file', default_value=default_map),
         DeclareLaunchArgument('trajectory_file', default_value=default_trajectory),
         DeclareLaunchArgument(
@@ -660,8 +700,22 @@ def generate_launch_description():
             description='Optional delay before scan splitter starts; useful for global localization TF bootstrap'),
         DeclareLaunchArgument('sim_vesc_odom_speed_scale', default_value='1.04'),
         DeclareLaunchArgument('sim_vesc_steering_model_scale', default_value='0.86'),
+        DeclareLaunchArgument('sim_vesc_imu_yaw_base_weight', default_value='0.40'),
+        DeclareLaunchArgument('calibrated_odom_reference_interval_s', default_value='0.025'),
+        DeclareLaunchArgument('calibrated_odom_position_p95_m', default_value='0.036'),
+        DeclareLaunchArgument('calibrated_odom_yaw_median_deg', default_value='0.24'),
+        DeclareLaunchArgument('calibrated_odom_yaw_p95_deg', default_value='1.8'),
+        DeclareLaunchArgument('calibrated_odom_yaw_tail_probability', default_value='0.10'),
+        DeclareLaunchArgument('calibrated_odom_covariance_scale', default_value='120.0'),
+        DeclareLaunchArgument('calibrated_odom_random_seed', default_value='23'),
         DeclareLaunchArgument('lateral_planner_avoidance_enabled',
                               default_value='false'),
+        DeclareLaunchArgument(
+            'lateral_planner_startup_speed_initial_scale',
+            default_value='0.5'),
+        DeclareLaunchArgument(
+            'lateral_planner_startup_speed_ramp_duration_sec',
+            default_value='15.0'),
         DeclareLaunchArgument('mpc_verbose', default_value='0'),
         DeclareLaunchArgument(
             'mpc_raceline_speed_margin',
@@ -681,7 +735,7 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_recovery_injection_ratio', default_value='0.0'),
         DeclareLaunchArgument('amcl_cloud_publish_rate', default_value='0.1'),
         DeclareLaunchArgument('amcl_normalize_likelihood_by_beams', default_value='true'),
-        DeclareLaunchArgument('amcl_likelihood_scale', default_value='0.75'),
+        DeclareLaunchArgument('amcl_likelihood_scale', default_value='4.0'),
         DeclareLaunchArgument('amcl_use_cluster_estimate', default_value='true'),
         DeclareLaunchArgument('amcl_cluster_xy_bin_m', default_value='0.25'),
         DeclareLaunchArgument('amcl_cluster_radius_m', default_value='0.75'),
@@ -690,22 +744,22 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_cluster_publish_min_weight', default_value='0.60'),
         DeclareLaunchArgument('amcl_debug_pre_resample_particles', default_value='false'),
         DeclareLaunchArgument('amcl_global_initialization', default_value='false'),
-        DeclareLaunchArgument('amcl_update_min_d', default_value='0.05'),
-        DeclareLaunchArgument('amcl_update_min_a', default_value='0.05'),
-        DeclareLaunchArgument('amcl_max_scan_age', default_value='0.12'),
-        DeclareLaunchArgument('amcl_alpha1', default_value='0.4'),
-        DeclareLaunchArgument('amcl_alpha2', default_value='0.4'),
+        DeclareLaunchArgument('amcl_update_min_d', default_value='0.04'),
+        DeclareLaunchArgument('amcl_update_min_a', default_value='0.035'),
+        DeclareLaunchArgument('amcl_max_scan_age', default_value='0.04'),
+        DeclareLaunchArgument('amcl_alpha1', default_value='0.1'),
+        DeclareLaunchArgument('amcl_alpha2', default_value='0.2'),
         DeclareLaunchArgument('amcl_alpha3', default_value='0.2'),
-        DeclareLaunchArgument('amcl_alpha4', default_value='0.2'),
-        DeclareLaunchArgument('amcl_z_hit', default_value='0.95'),
-        DeclareLaunchArgument('amcl_z_rand', default_value='0.05'),
-        DeclareLaunchArgument('amcl_sigma_hit', default_value='0.10'),
-        DeclareLaunchArgument('amcl_resample_threshold', default_value='0.3'),
+        DeclareLaunchArgument('amcl_alpha4', default_value='0.25'),
+        DeclareLaunchArgument('amcl_z_hit', default_value='0.90'),
+        DeclareLaunchArgument('amcl_z_rand', default_value='0.10'),
+        DeclareLaunchArgument('amcl_sigma_hit', default_value='0.05'),
+        DeclareLaunchArgument('amcl_resample_threshold', default_value='0.5'),
         DeclareLaunchArgument('gpu_amcl_prefix', default_value=''),
         DeclareLaunchArgument('nav2_amcl_cpu_core', default_value='3'),
         DeclareLaunchArgument('nav2_global_init_delay_sec', default_value='2.0'),
         DeclareLaunchArgument('ekf_transform_tolerance', default_value='0.02'),
-        DeclareLaunchArgument('ekf_process_noise_scale', default_value='0.1'),
+        DeclareLaunchArgument('ekf_process_noise_scale', default_value='0.2'),
         DeclareLaunchArgument('monitor_print_every', default_value='40'),
         DeclareLaunchArgument('monitor_stage_match_max_ms', default_value='20.0'),
         DeclareLaunchArgument('monitor_strict_mode', default_value='true'),

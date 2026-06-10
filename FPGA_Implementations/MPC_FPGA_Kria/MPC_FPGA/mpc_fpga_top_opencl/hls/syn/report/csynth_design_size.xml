@@ -1,0 +1,530 @@
+<design_size title="Design Size Report">
+    <item name="Total Instructions per Compilation Phase">
+        <table>
+            <keys size="4">Phase, Step, Instructions, Description</keys>
+            <column name="Compile/Link">, 487192 *, After all functions are compiled and linked into a single design</column>
+            <column name="">, , </column>
+            <column name="Unroll/Inline">, , After user unroll and inline pragmas are applied</column>
+            <column name="">(1) unroll,  31861, user unroll pragmas are applied</column>
+            <column name="">(2) simplification,  18946, simplification of applied user unroll pragmas</column>
+            <column name="">(3) inline,  18159, user inline pragmas are applied</column>
+            <column name="">(4) simplification,  18070, simplification of applied user inline pragmas</column>
+            <column name="">, , </column>
+            <column name="Array/Struct">, , After user array partition and struct aggregate/disaggregate pragmas are applied</column>
+            <column name="">(1) array partition,  26026, user array partition pragmas are applied</column>
+            <column name="">(2) simplification,  19427, simplification of applied user array partition &amp; struct aggregate/disaggregate pragmas</column>
+            <column name="">(3) aggregate/disaggregate,  19427, user struct aggregate/disaggregate pragmas are applied</column>
+            <column name="">(4) array reshape,  19427, apply array reshape pragmas</column>
+            <column name="">(5) access patterns,  19695, array access pattern optmizations</column>
+            <column name="">, , </column>
+            <column name="Performance">, , After transformations are applied to meet performance pragma targets</column>
+            <column name="">(1) loop simplification,  19173, loop and instruction simplification</column>
+            <column name="">(2) parallelization,  19018, loops are unrolled or pipelined to meet performance targets</column>
+            <column name="">(3) array partition,  22747, arrays are partitioned to meet performance targets</column>
+            <column name="">(4) simplification,  19383, simplification of design after performance transformations</column>
+            <column name="">, , </column>
+            <column name="HW Transforms">, , After hardware transfomations</column>
+            <column name="">(1) lowering,  19321, initial conversion to HW specific instructions</column>
+            <column name="">(2) optimizations,  18799, high level synthesis optimizations</column>
+        </table>
+    </item>
+    <item name="Instructions per Function for each Compilation Phase">
+        <hiertable>
+            <header size="7" col0="Function" col1="Location" col2="Compile/Link" col3="Unroll/Inline" col4="Array/Struct" col5="Performance" col6="HW Transforms"/>
+            <rows>
+                <row id="0" col0="mpc_fpga_top_opencl" col1="mpc_fpga_top.cpp:351" col2="487192" col2_note="*" col3="18070" col4="19695" col5="19383" col6="18799">
+                    <row id="108" col0="pack_output_words" col1="mpc_fpga_top.cpp:240" col2="1041" col2_disp=" 1,041 (3 calls)" col3="" col4="" col5="" col6=""/>
+                    <row id="105" col0="unpack_input_lane_words" col1="mpc_fpga_top.cpp:211" col2="788" col3="72" col4="74" col5="74" col6="79"/>
+                    <row id="107" col0="fill_mpc_reference_trajectory_from_lane_words" col1="mpc_fpga_top.cpp:182" col2="1412" col3="55" col4="88" col5="88" col6="93">
+                        <row id="102" col0="fp_qp_from_word" col1="mpc_fpga_top.cpp:130" col2="1280" col2_disp=" 1,280 (8 calls)" col3="" col4="" col5="" col6="">
+                            <row id="99" col0="fp_QP_from_raw" col1="fp_types_hls.hpp:509" col2="1128" col2_disp=" 1,128 (8 calls)" col3="" col4="" col5="" col6=""/>
+                        </row>
+                    </row>
+                    <row id="102" col0="fp_qp_from_word" col1="mpc_fpga_top.cpp:130" col2="1120" col2_disp=" 1,120 (7 calls)" col3="" col4="" col5="" col6="">
+                        <row id="99" col0="fp_QP_from_raw" col1="fp_types_hls.hpp:509" col2="987" col2_disp="   987 (7 calls)" col3="" col4="" col5="" col6=""/>
+                    </row>
+                    <row id="103" col0="fp_normalize_angle" col1="fp_math_hls.cpp:431" col2="2116" col3="" col4="" col5="" col6=""/>
+                    <row id="83" col0="mpc_fpga_compute_core" col1="mpc_fpga_top.cpp:262" col2="480590" col3="17821" col4="19327" col5="19015" col6="18498">
+                        <row id="126" col0="reset_core_state_hls" col1="mpc_fpga_top.cpp:105" col2="11128" col2_disp="11,128 (2 calls)" col3="128" col3_disp="  128 (2 calls)" col4="168" col4_disp="  168 (2 calls)" col5="168" col5_disp="  168 (2 calls)" col6="186" col6_disp="  186 (2 calls)">
+                            <row id="125" col0="reset_admm_state_top_hls" col1="mpc_fpga_top.cpp:86" col2="4814" col2_disp=" 4,814 (2 calls)" col3="" col4="" col5="" col6="">
+                                <row id="97" col0="mpc_admm_reset_all_hls" col1="mpc_fpga_types.h:359" col2="4810" col2_disp=" 4,810 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                        </row>
+                        <row id="128" col0="zero_admm_duals_top_hls" col1="mpc_fpga_top.cpp:91" col2="1617" col3="" col4="" col5="" col6="">
+                            <row id="95" col0="mpc_admm_zero_duals_hls" col1="mpc_fpga_types.h:385" col2="1615" col3="" col4="" col5="" col6=""/>
+                        </row>
+                        <row id="125" col0="reset_admm_state_top_hls" col1="mpc_fpga_top.cpp:86" col2="2407" col3="" col4="" col5="" col6="">
+                            <row id="97" col0="mpc_admm_reset_all_hls" col1="mpc_fpga_types.h:359" col2="2405" col3="" col4="" col5="" col6=""/>
+                        </row>
+                        <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="709" col3="" col4="" col5="" col6="">
+                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="228" col2_disp="   228 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="220" col3="" col4="" col5="" col6=""/>
+                            <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="90" col3="" col4="" col5="" col6=""/>
+                            <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="141" col3="" col4="" col5="" col6=""/>
+                        </row>
+                        <row id="27" col0="fp_clamp" col1="fp_math_hls.h:126" col2="34" col3="" col4="" col5="" col6=""/>
+                        <row id="66" col0="mpc_compute_hls" col1="mpc_riccati_hls.cpp:300" col2="461224" col3="17496" col4="18916" col5="18604" col6="18067">
+                            <row id="27" col0="fp_clamp" col1="fp_math_hls.h:126" col2="170" col2_disp="   170 (5 calls)" col3="" col4="" col5="" col6=""/>
+                            <row id="30" col0="compute_window_min_hls" col1="mpc_riccati_hls.cpp:87" col2="1156" col2_disp=" 1,156 (2 calls)" col3="278" col3_disp="  278 (2 calls)" col4="396" col4_disp="  396 (2 calls)" col5="116" col5_disp="  116 (2 calls)" col6="118" col6_disp="  118 (2 calls)"/>
+                            <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="13471" col2_disp="13,471 (19 calls)" col3="" col4="" col5="" col6="">
+                                <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="4332" col2_disp=" 4,332 (38 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="4180" col2_disp=" 4,180 (19 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="1710" col2_disp=" 1,710 (19 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="2679" col2_disp=" 2,679 (19 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="31" col0="fp_atan_lut" col1="fp_math_hls.cpp:632" col2="2140" col3="45" col4="45" col5="45" col6="46">
+                                <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="210" col3="" col4="" col5="" col6=""/>
+                                <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="342" col2_disp="   342 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="34" col0="fp_lerp_qp_raw" col1="fp_math_hls.cpp:199" col2="591" col3="" col4="" col5="" col6="">
+                                    <row id="116" col0="fp_mul_QP_raw_q" col1="fp_math_hls.cpp:164" col2="319" col3="" col4="" col5="" col6="">
+                                        <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="90" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                </row>
+                                <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="282" col2_disp="   282 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="20" col0="compute_wall_ey_bounds_hls" col1="mpc_riccati_hls.cpp:37" col2="1798" col3="" col4="" col5="" col6="">
+                                <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="709" col3="" col4="" col5="" col6="">
+                                    <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="228" col2_disp="   228 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="220" col3="" col4="" col5="" col6=""/>
+                                    <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="90" col3="" col4="" col5="" col6=""/>
+                                    <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="141" col3="" col4="" col5="" col6=""/>
+                                </row>
+                            </row>
+                            <row id="22" col0="compute_wall_biased_ey_ref_hls" col1="mpc_riccati_hls.cpp:56" col2="2371" col3="" col4="" col5="" col6="">
+                                <row id="27" col0="fp_clamp" col1="fp_math_hls.h:126" col2="102" col2_disp="   102 (3 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="25" col0="compute_frenet_AB_and_next_hls" col1="vehicle_model_hls.cpp:734" col2="205574" col3="7779" col4="7682" col5="7636" col6="7544">
+                                <row id="59" col0="compute_frenet_AB_hls" col1="vehicle_model_hls.cpp:569" col2="205545" col3="7777" col4="7680" col5="7634" col6="7541">
+                                    <row id="62" col0="fp_FN_from_QP" col1="fp_types_hls.hpp:678" col2="464" col2_disp="   464 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="67" col0="compute_frenet_tire_hls" col1="vehicle_model_hls.cpp:335" col2="81973" col3="3932" col4="3911" col5="3911" col6="">
+                                        <row id="62" col0="fp_FN_from_QP" col1="fp_types_hls.hpp:678" col2="348" col2_disp="   348 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="2062" col3="486" col4="486" col5="486" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                            <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="123" col3="" col4="" col5="" col6=""/>
+                                            <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="296" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="50" col0="fp_trig_pair" col1="vehicle_model_hls.cpp:65" col2="5415" col3="" col4="" col5="" col6="">
+                                            <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="5410" col3="" col4="" col5="" col6="">
+                                                <row id="44" col0="fp_normalize_angle_fn" col1="fp_math_hls.cpp:444" col2="2129" col3="" col4="" col5="" col6=""/>
+                                                <row id="40" col0="fp_fn_trig_lut_pos_raw" col1="fp_math_hls.cpp:457" col2="385" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="1184" col2_disp=" 1,184 (2 calls)" col3="" col4="" col5="" col6="">
+                                                    <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="628" col2_disp="   628 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="426" col2_disp="   426 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                        </row>
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="7150" col2_disp=" 7,150 (10 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="2320" col2_disp=" 2,320 (20 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="1420" col2_disp=" 1,420 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="127" col0="fp_slip_terms" col1="vehicle_model_hls.cpp:117" col2="4161" col3="61" col4="61" col5="61" col6="">
+                                            <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="2860" col2_disp=" 2,860 (4 calls)" col3="" col4="" col5="" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="928" col2_disp="   928 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="568" col2_disp="   568 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                        </row>
+                                        <row id="88" col0="compute_front_tire_path_fn" col1="vehicle_model_hls.cpp:262" col2="28714" col3="1491" col4="1483" col5="1483" col6="">
+                                            <row id="92" col0="fp_atan_lut_fn" col1="fp_math_hls.cpp:764" col2="2004" col3="128" col3_disp="  128 (2 calls)" col4="128" col4_disp="  128 (2 calls)" col5="128" col5_disp="  128 (2 calls)" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="348" col2_disp="   348 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="592" col3="" col4="" col5="" col6="">
+                                                    <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="314" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="3575" col2_disp=" 3,575 (5 calls)" col3="" col4="" col5="" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="1160" col2_disp=" 1,160 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="710" col2_disp="   710 (5 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="94" col0="fp_pacejka_inner_arg" col1="vehicle_model_hls.cpp:52" col2="3131" col3="" col4="" col5="" col6="">
+                                                <row id="92" col0="fp_atan_lut_fn" col1="fp_math_hls.cpp:764" col2="2004" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="348" col2_disp="   348 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="592" col3="" col4="" col5="" col6="">
+                                                        <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="314" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="715" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="142" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="50" col0="fp_trig_pair" col1="vehicle_model_hls.cpp:65" col2="5415" col3="" col4="" col5="" col6="">
+                                                <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="5410" col3="" col4="" col5="" col6="">
+                                                    <row id="44" col0="fp_normalize_angle_fn" col1="fp_math_hls.cpp:444" col2="2129" col3="" col4="" col5="" col6=""/>
+                                                    <row id="40" col0="fp_fn_trig_lut_pos_raw" col1="fp_math_hls.cpp:457" col2="385" col3="" col4="" col5="" col6="">
+                                                        <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="1184" col2_disp=" 1,184 (2 calls)" col3="" col4="" col5="" col6="">
+                                                        <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="628" col2_disp="   628 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="426" col2_disp="   426 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="4124" col2_disp=" 4,124 (2 calls)" col3="972" col3_disp="  972 (2 calls)" col4="972" col4_disp="  972 (2 calls)" col5="972" col5_disp="  972 (2 calls)" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="246" col2_disp="   246 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="592" col2_disp="   592 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="568" col2_disp="   568 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="84" col0="fp_pacejka_ceff" col1="vehicle_model_hls.cpp:58" col2="1450" col3="29" col4="29" col5="29" col6="">
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="1430" col2_disp=" 1,430 (2 calls)" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="96" col0="fp_front_force_jacobians_fn" col1="vehicle_model_hls.cpp:135" col2="5731" col3="92" col4="92" col5="92" col6="">
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="5005" col2_disp=" 5,005 (7 calls)" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="1624" col2_disp=" 1,624 (14 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="994" col2_disp="   994 (7 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="" col3="129" col4="129" col5="129" col6=""/>
+                                        </row>
+                                        <row id="91" col0="compute_rear_tire_path_fn" col1="vehicle_model_hls.cpp:296" col2="27690" col3="1472" col4="1464" col5="1464" col6="">
+                                            <row id="92" col0="fp_atan_lut_fn" col1="fp_math_hls.cpp:764" col2="2004" col3="128" col3_disp="  128 (2 calls)" col4="128" col4_disp="  128 (2 calls)" col5="128" col5_disp="  128 (2 calls)" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="348" col2_disp="   348 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="592" col3="" col4="" col5="" col6="">
+                                                    <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="314" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="3575" col2_disp=" 3,575 (5 calls)" col3="" col4="" col5="" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="1160" col2_disp=" 1,160 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="710" col2_disp="   710 (5 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="94" col0="fp_pacejka_inner_arg" col1="vehicle_model_hls.cpp:52" col2="3131" col3="" col4="" col5="" col6="">
+                                                <row id="92" col0="fp_atan_lut_fn" col1="fp_math_hls.cpp:764" col2="2004" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="348" col2_disp="   348 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="592" col3="" col4="" col5="" col6="">
+                                                        <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="314" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="715" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="142" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="50" col0="fp_trig_pair" col1="vehicle_model_hls.cpp:65" col2="5415" col3="" col4="" col5="" col6="">
+                                                <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="5410" col3="" col4="" col5="" col6="">
+                                                    <row id="44" col0="fp_normalize_angle_fn" col1="fp_math_hls.cpp:444" col2="2129" col3="" col4="" col5="" col6=""/>
+                                                    <row id="40" col0="fp_fn_trig_lut_pos_raw" col1="fp_math_hls.cpp:457" col2="385" col3="" col4="" col5="" col6="">
+                                                        <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="1184" col2_disp=" 1,184 (2 calls)" col3="" col4="" col5="" col6="">
+                                                        <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="628" col2_disp="   628 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                    </row>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="426" col2_disp="   426 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="4124" col2_disp=" 4,124 (2 calls)" col3="972" col3_disp="  972 (2 calls)" col4="972" col4_disp="  972 (2 calls)" col5="972" col5_disp="  972 (2 calls)" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="246" col2_disp="   246 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="592" col2_disp="   592 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="568" col2_disp="   568 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="84" col0="fp_pacejka_ceff" col1="vehicle_model_hls.cpp:58" col2="1450" col3="29" col4="29" col5="29" col6="">
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="1430" col2_disp=" 1,430 (2 calls)" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="85" col0="fp_rear_force_jacobians_fn" col1="vehicle_model_hls.cpp:150" col2="4884" col3="80" col4="80" col5="80" col6="">
+                                                <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="4290" col2_disp=" 4,290 (6 calls)" col3="" col4="" col5="" col6="">
+                                                    <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="1392" col2_disp=" 1,392 (12 calls)" col3="" col4="" col5="" col6=""/>
+                                                    <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="852" col2_disp="   852 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                                </row>
+                                            </row>
+                                            <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="" col3="129" col4="129" col5="129" col6=""/>
+                                        </row>
+                                        <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="" col3="129" col4="129" col5="129" col6=""/>
+                                    </row>
+                                    <row id="50" col0="fp_trig_pair" col1="vehicle_model_hls.cpp:65" col2="5415" col3="" col4="" col5="" col6="">
+                                        <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="5410" col3="" col4="" col5="" col6="">
+                                            <row id="44" col0="fp_normalize_angle_fn" col1="fp_math_hls.cpp:444" col2="2129" col3="" col4="" col5="" col6=""/>
+                                            <row id="40" col0="fp_fn_trig_lut_pos_raw" col1="fp_math_hls.cpp:457" col2="385" col3="" col4="" col5="" col6="">
+                                                <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="464" col2_disp="   464 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="42" col0="fp_lerp_fn_raw" col1="fp_math_hls.cpp:243" col2="1184" col2_disp=" 1,184 (2 calls)" col3="" col4="" col5="" col6="">
+                                                <row id="35" col0="fp_mul_fn_raw_q" col1="fp_math_hls.cpp:208" col2="628" col2_disp="   628 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="426" col2_disp="   426 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="51" col0="fp_frenet_recip" col1="vehicle_model_hls.cpp:70" col2="5037" col3="518" col4="518" col5="518" col6="521">
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="715" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="142" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="55" col0="fp_abs_fn" col1="fp_math_hls.h:406" col2="212" col3="" col4="" col5="" col6=""/>
+                                        <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="2062" col3="486" col4="486" col5="486" col6="488">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                            <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="123" col3="" col4="" col5="" col6=""/>
+                                            <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="296" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="45" col0="fp_frenet_rows01_fn" col1="vehicle_model_hls.cpp:82" col2="15152" col3="209" col4="204" col5="204" col6="205">
+                                        <row id="62" col0="fp_FN_from_QP" col1="fp_types_hls.hpp:678" col2="58" col3="" col4="" col5="" col6=""/>
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="11440" col2_disp="11,440 (16 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="3712" col2_disp=" 3,712 (32 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="2272" col2_disp=" 2,272 (16 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="7865" col2_disp=" 7,865 (11 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="2552" col2_disp=" 2,552 (22 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="1562" col2_disp=" 1,562 (11 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="69" col0="fp_rollout_from_forces_fn" col1="vehicle_model_hls.cpp:164" col2="25321" col3="836" col4="836" col5="836" col6="836">
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="15730" col2_disp="15,730 (22 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="5104" col2_disp=" 5,104 (44 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="3124" col2_disp=" 3,124 (22 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="55" col0="fp_abs_fn" col1="fp_math_hls.h:406" col2="212" col3="" col4="" col5="" col6=""/>
+                                        <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="2062" col3="486" col4="486" col5="486" col6="488">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="116" col3="" col4="" col5="" col6=""/>
+                                            <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="123" col3="" col4="" col5="" col6=""/>
+                                            <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="296" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="284" col2_disp="   284 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="62" col0="fp_FN_from_QP" col1="fp_types_hls.hpp:678" col2="58" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="12" col0="compute_stage_shared_products" col1="vehicle_model_hls.cpp:452" col2="17736" col3="250" col4="250" col5="242" col6="">
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="12155" col2_disp="12,155 (17 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="3944" col2_disp=" 3,944 (34 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="2414" col2_disp=" 2,414 (17 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="90" col0="compute_B_steering" col1="vehicle_model_hls.cpp:491" col2="13988" col3="228" col4="189" col5="184" col6="183">
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="10010" col2_disp="10,010 (14 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="3248" col2_disp=" 3,248 (28 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="1988" col2_disp=" 1,988 (14 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="93" col0="compute_B_accel_load_transfer" col1="vehicle_model_hls.cpp:527" col2="19601" col3="1236" col4="1208" col5="1201" col6="1206">
+                                        <row id="7" col0="fp_recip_fn" col1="fp_math_hls.cpp:794" col2="4124" col2_disp=" 4,124 (2 calls)" col3="972" col3_disp="  972 (2 calls)" col4="972" col4_disp="  972 (2 calls)" col5="972" col5_disp="  972 (2 calls)" col6="976" col6_disp="  976 (2 calls)">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="232" col2_disp="   232 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="39" col0="fp_shift_fn_raw_sel" col1="fp_math_hls.cpp:216" col2="246" col2_disp="   246 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="16" col0="fp_shift_fn_raw_cast_sel" col1="fp_math_hls.cpp:229" col2="592" col2_disp="   592 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="568" col2_disp="   568 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="58" col0="fp_mul_fn" col1="fp_math_hls.cpp:666" col2="11440" col2_disp="11,440 (16 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="119" col0="fp_fn_raw_from_FN" col1="fp_types_hls.hpp:663" col2="3712" col2_disp=" 3,712 (32 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="14" col0="fp_FN_from_fn_raw" col1="fp_types_hls.hpp:671" col2="2272" col2_disp=" 2,272 (16 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                    </row>
+                                    <row id="86" col0="fp_QP_from_FN" col1="fp_types_hls.hpp:683" col2="1652" col2_disp=" 1,652 (28 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="43" col0="fp_trig_pair_fused_fn" col1="fp_math_hls.cpp:734" col2="" col3="129" col4="129" col5="129" col6="130"/>
+                                </row>
+                            </row>
+                            <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="420" col2_disp="   420 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="1482" col2_disp=" 1,482 (13 calls)" col3="" col4="" col5="" col6=""/>
+                            <row id="37" col0="compute_affine_bias_dense_hls" col1="mpc_riccati_hls.cpp:133" col2="7634" col3="692" col4="686" col5="651" col6="646">
+                                <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="2622" col2_disp=" 2,622 (23 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="1540" col2_disp=" 1,540 (7 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="630" col2_disp="   630 (7 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="109" col0="affine_b0_term_hls" col1="mpc_riccati_hls.cpp:125" col2="320" col3="65" col3_disp="   65 (5 calls)" col4="65" col4_disp="   65 (5 calls)" col5="65" col5_disp="   65 (5 calls)" col6="70" col6_disp="   70 (5 calls)">
+                                    <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="220" col3="" col4="" col5="" col6=""/>
+                                    <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="90" col3="" col4="" col5="" col6=""/>
+                                </row>
+                            </row>
+                            <row id="123" col0="fp_recip" col1="fp_math_hls.cpp:470" col2="2014" col3="506" col4="506" col5="506" col6="508">
+                                <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="114" col3="" col4="" col5="" col6=""/>
+                                <row id="10" col0="fp_shift_qp_raw_sel" col1="fp_math_hls.cpp:172" col2="113" col3="" col4="" col5="" col6=""/>
+                                <row id="121" col0="fp_shift_qp_raw_cast_sel" col1="fp_math_hls.cpp:185" col2="291" col3="" col4="" col5="" col6=""/>
+                                <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="282" col2_disp="   282 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="120" col0="reset_admm_state_hls" col1="mpc_riccati_hls.cpp:112" col2="2407" col3="54" col4="74" col5="74" col6="83">
+                                <row id="97" col0="mpc_admm_reset_all_hls" col1="mpc_fpga_types.h:359" col2="2405" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="112" col0="init_solver_cfg_hls" col1="mpc_riccati_hls.cpp:267" col2="1211" col3="" col4="" col5="" col6=""/>
+                            <row id="111" col0="init_solution_hls" col1="mpc_riccati_hls.cpp:276" col2="787" col3="" col4="" col5="" col6=""/>
+                            <row id="114" col0="riccati_admm_solve_hls" col1="riccati_solver_hls.cpp:1085" col2="184246" col3="" col4="" col5="" col6="">
+                                <row id="79" col0="riccati_pass_hls" col1="riccati_solver_hls.cpp:1055" col2="136811" col3="" col4="" col5="" col6="">
+                                    <row id="87" col0="riccati_backward_pass" col1="riccati_solver_hls.cpp:443" col2="126061" col3="" col4="" col5="" col6="">
+                                        <row id="38" col0="fp_P_raw_from_QP" col1="fp_types_hls.hpp:556" col2="2296" col2_disp=" 2,296 (14 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="1596" col2_disp=" 1,596 (14 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="36" col0="fp_probe_store_P" col1="riccati_solver_hls.cpp:117" col2="186" col2_disp="   186 (62 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="47" col0="fp_probe_sum2_P_raw" col1="riccati_solver_hls.cpp:135" col2="57" col2_disp="    57 (19 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="2280" col2_disp=" 2,280 (20 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="8" col0="fp_sub_cast_qp_raw" col1="fp_math_hls.h:148" col2="770" col2_disp="   770 (5 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="15" col2_disp="    15 (5 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="1100" col2_disp=" 1,100 (5 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="64" col0="add_cast_QP_raw" col1="fp_types_hls.hpp:635" col2="154" col3="" col4="" col5="" col6="">
+                                            <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="3" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="52" col0="fp_probe_store_MG" col1="riccati_solver_hls.cpp:123" col2="24" col2_disp="    24 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="70" col0="fp_mul_QP_P" col1="fp_math_hls.cpp:264" col2="30800" col2_disp="30,800 (140 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="81" col0="fp_probe_sum2_P_QP" col1="riccati_solver_hls.cpp:147" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="98" col0="fp_probe_sum4_P_QP" col1="riccati_solver_hls.cpp:153" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="106" col0="fp_shift_right_cast&lt;ap_int&lt;34&gt;, ap_int&lt;52&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="104" col0="fp_shift_right_cast&lt;ap_int&lt;34&gt;, ap_int&lt;51&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="101" col0="fp_mul_MG_QP" col1="fp_math_hls.cpp:272" col2="3080" col2_disp=" 3,080 (14 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="117" col0="fp_probe_sum2_MG_QP" col1="riccati_solver_hls.cpp:159" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="124" col0="fp_probe_sum4_MG_QP" col1="riccati_solver_hls.cpp:165" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="122" col0="fp_shift_right_cast&lt;ap_int&lt;32&gt;, ap_int&lt;46&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="118" col0="fp_shift_right_cast&lt;ap_int&lt;32&gt;, ap_int&lt;45&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="4" col0="invert_2x2_qp_hls" col1="fp_math_hls.cpp:358" col2="6203" col3="" col4="" col5="" col6="">
+                                            <row id="23" col0="abs_qp_raw_u" col1="fp_math_hls.cpp:352" col2="800" col2_disp="   800 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="1320" col2_disp=" 1,320 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="13" col0="fp_qp_raw_from_neg_pow2" col1="fp_math_hls.h:135" col2="83" col3="" col4="" col5="" col6=""/>
+                                            <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="141" col3="" col4="" col5="" col6=""/>
+                                            <row id="123" col0="fp_recip" col1="fp_math_hls.cpp:470" col2="2014" col3="" col4="" col5="" col6="">
+                                                <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="114" col3="" col4="" col5="" col6=""/>
+                                                <row id="10" col0="fp_shift_qp_raw_sel" col1="fp_math_hls.cpp:172" col2="113" col3="" col4="" col5="" col6=""/>
+                                                <row id="121" col0="fp_shift_qp_raw_cast_sel" col1="fp_math_hls.cpp:185" col2="291" col3="" col4="" col5="" col6=""/>
+                                                <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="282" col2_disp="   282 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            </row>
+                                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="114" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="6" col0="fp_qp_from_neg_pow2" col1="fp_math_hls.h:143" col2="228" col3="" col4="" col5="" col6="">
+                                            <row id="13" col0="fp_qp_raw_from_neg_pow2" col1="fp_math_hls.h:135" col2="83" col3="" col4="" col5="" col6=""/>
+                                            <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="141" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="282" col2_disp="   282 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="123" col0="fp_recip" col1="fp_math_hls.cpp:470" col2="4028" col2_disp=" 4,028 (2 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="228" col2_disp="   228 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="10" col0="fp_shift_qp_raw_sel" col1="fp_math_hls.cpp:172" col2="226" col2_disp="   226 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="121" col0="fp_shift_qp_raw_cast_sel" col1="fp_math_hls.cpp:185" col2="582" col2_disp="   582 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                            <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="564" col2_disp="   564 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="18" col0="sum6_MG_QP_raw" col1="fp_math_hls.h:280" col2="656" col3="" col4="" col5="" col6=""/>
+                                        <row id="17" col0="fp_shift_right_cast&lt;ap_int&lt;34&gt;, ap_int&lt;53&gt; &gt;" col1="fp_math_hls.h:165" col2="90" col3="" col4="" col5="" col6=""/>
+                                        <row id="15" col0="fp_MG_raw_from_QP" col1="fp_types_hls.hpp:580" col2="328" col2_disp="   328 (2 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="228" col2_disp="   228 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="26" col0="fp_mul_QP_MG" col1="fp_math_hls.cpp:280" col2="1760" col2_disp=" 1,760 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="24" col0="fp_probe_sum2_QP_MG" col1="riccati_solver_hls.cpp:171" col2="12" col2_disp="    12 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="21" col0="fp_shift_right_cast&lt;ap_int&lt;26&gt;, ap_int&lt;46&gt; &gt;" col1="fp_math_hls.h:165" col2="360" col2_disp="   360 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="33" col0="fp_probe_store_K" col1="riccati_solver_hls.cpp:129" col2="12" col2_disp="    12 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="32" col0="fp_mul_P_QP" col1="fp_math_hls.cpp:256" col2="2640" col2_disp=" 2,640 (12 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="29" col0="sum6_P_QP_raw" col1="fp_math_hls.h:170" col2="1312" col2_disp=" 1,312 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="28" col0="fp_shift_right_cast&lt;ap_int&lt;40&gt;, ap_int&lt;59&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="41" col0="fp_probe_sum2_MG_raw" col1="riccati_solver_hls.cpp:141" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="46" col0="fp_mul_MG_K" col1="fp_math_hls.cpp:288" col2="11660" col2_disp="11,660 (53 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="1" col0="sum8_P_MIX_raw_pupdate" col1="fp_math_hls.h:221" col2="19320" col2_disp="19,320 (21 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="89" col0="fp_shift_right_cast&lt;ap_int&lt;40&gt;, ap_int&lt;58&gt; &gt;" col1="fp_math_hls.h:165" col2="1890" col2_disp=" 1,890 (21 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="68" col0="fp_probe_sum2_MG_K" col1="riccati_solver_hls.cpp:177" col2="18" col2_disp="    18 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="72" col0="fp_shift_right_cast&lt;ap_int&lt;40&gt;, ap_int&lt;49&gt; &gt;" col1="fp_math_hls.h:165" col2="540" col2_disp="   540 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="73" col0="sum8_P_MIX_raw" col1="fp_math_hls.h:190" col2="920" col3="" col4="" col5="" col6=""/>
+                                        <row id="76" col0="fp_shift_right_cast&lt;ap_int&lt;40&gt;, ap_int&lt;57&gt; &gt;" col1="fp_math_hls.h:165" col2="90" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="82" col0="riccati_forward_pass" col1="riccati_solver_hls.cpp:307" col2="10736" col3="" col4="" col5="" col6="">
+                                        <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="114" col3="" col4="" col5="" col6=""/>
+                                        <row id="78" col0="fp_mul_K_QP" col1="fp_math_hls.cpp:303" col2="3520" col2_disp=" 3,520 (16 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="75" col0="sum8_K_QP_raw" col1="fp_math_hls.h:300" col2="1840" col2_disp=" 1,840 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="65" col0="fp_shift_right_cast&lt;ap_int&lt;32&gt;, ap_int&lt;44&gt; &gt;" col1="fp_math_hls.h:165" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="64" col0="add_cast_QP_raw" col1="fp_types_hls.hpp:635" col2="308" col2_disp="   308 (2 calls)" col3="" col4="" col5="" col6="">
+                                            <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                        </row>
+                                        <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="423" col2_disp="   423 (3 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="2200" col2_disp=" 2,200 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="53" col0="sum6_QP_raw" col1="fp_math_hls.h:260" col2="656" col3="" col4="" col5="" col6=""/>
+                                        <row id="118" col0="fp_shift_right_cast&lt;ap_int&lt;32&gt;, ap_int&lt;45&gt; &gt;" col1="fp_math_hls.h:165" col2="90" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                </row>
+                                <row id="74" col0="step_ey_lb" col1="riccati_solver_hls.cpp:102" col2="8" col2_disp="     8 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="71" col0="step_ey_ub" col1="riccati_solver_hls.cpp:107" col2="8" col2_disp="     8 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="63" col0="step_accel_ub" col1="riccati_solver_hls.cpp:112" col2="8" col2_disp="     8 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="60" col0="fp_max_abs_state8" col1="fp_math_hls.h:331" col2="1902" col3="" col4="" col5="" col6="">
+                                    <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="1680" col2_disp=" 1,680 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="48" col0="fp_max2" col1="fp_math_hls.h:121" col2="126" col2_disp="   126 (7 calls)" col3="" col4="" col5="" col6=""/>
+                                </row>
+                                <row id="54" col0="admm_update_state_channel_raw" col1="riccati_solver_hls.cpp:184" col2="8922" col2_disp=" 8,922 (2 calls)" col3="" col4="" col5="" col6="">
+                                    <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="1140" col2_disp=" 1,140 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="846" col2_disp="   846 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="8" col0="fp_sub_cast_qp_raw" col1="fp_math_hls.h:148" col2="308" col2_disp="   308 (2 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="2836" col2_disp=" 2,836 (4 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="912" col2_disp="   912 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="880" col2_disp="   880 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="360" col2_disp="   360 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="564" col2_disp="   564 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="1680" col2_disp=" 1,680 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="5" col0="fp_add3_cast_qp_raw" col1="fp_math_hls.h:155" col2="586" col2_disp="   586 (2 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                </row>
+                                <row id="48" col0="fp_max2" col1="fp_math_hls.h:121" col2="252" col2_disp="   252 (14 calls)" col3="" col4="" col5="" col6=""/>
+                                <row id="49" col0="fp_max_abs_ctrl2" col1="fp_math_hls.h:344" col2="450" col3="" col4="" col5="" col6="">
+                                    <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="420" col2_disp="   420 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="48" col0="fp_max2" col1="fp_math_hls.h:121" col2="18" col3="" col4="" col5="" col6=""/>
+                                </row>
+                                <row id="2" col0="admm_update_control_channel_raw" col1="riccati_solver_hls.cpp:233" col2="8922" col2_disp=" 8,922 (2 calls)" col3="" col4="" col5="" col6="">
+                                    <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="1140" col2_disp=" 1,140 (10 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="846" col2_disp="   846 (6 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="8" col0="fp_sub_cast_qp_raw" col1="fp_math_hls.h:148" col2="308" col2_disp="   308 (2 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="2836" col2_disp=" 2,836 (4 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="912" col2_disp="   912 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="880" col2_disp="   880 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="360" col2_disp="   360 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                        <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="564" col2_disp="   564 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                    <row id="11" col0="fp_abs" col1="fp_math_hls.h:116" col2="1680" col2_disp=" 1,680 (8 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="5" col0="fp_add3_cast_qp_raw" col1="fp_math_hls.h:155" col2="586" col2_disp="   586 (2 calls)" col3="" col4="" col5="" col6="">
+                                        <row id="3" col0="cast_sum2_qp_raw_to_qp_site" col1="fp_types_hls.hpp:627" col2="6" col2_disp="     6 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    </row>
+                                </row>
+                                <row id="100" col0="fp_max3_qp" col1="fp_math_hls.h:349" col2="49" col3="" col4="" col5="" col6="">
+                                    <row id="48" col0="fp_max2" col1="fp_math_hls.h:121" col2="36" col2_disp="    36 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                </row>
+                                <row id="80" col0="fp_mul_site" col1="fp_math_hls.cpp:322" col2="1418" col2_disp=" 1,418 (2 calls)" col3="" col4="" col5="" col6="">
+                                    <row id="19" col0="fp_qp_raw_from_QP" col1="fp_types_hls.hpp:523" col2="456" col2_disp="   456 (4 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="56" col0="fp_mul_QP_raw" col1="fp_math_hls.cpp:156" col2="440" col2_disp="   440 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="110" col0="fp_shift_right_cast_to_qp_site" col1="fp_types_hls.hpp:645" col2="180" col2_disp="   180 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                    <row id="9" col0="fp_QP_from_qp_raw" col1="fp_types_hls.hpp:531" col2="282" col2_disp="   282 (2 calls)" col3="" col4="" col5="" col6=""/>
+                                </row>
+                            </row>
+                            <row id="113" col0="saturate_control_hls" col1="vehicle_model_hls.cpp:772" col2="3081" col3="" col4="" col5="" col6="">
+                                <row id="27" col0="fp_clamp" col1="fp_math_hls.h:126" col2="68" col2_disp="    68 (2 calls)" col3="" col4="" col5="" col6=""/>
+                            </row>
+                            <row id="115" col0="mpc_persist_writeback_hls" col1="mpc_riccati_hls.cpp:253" col2="15" col3="6" col4="6" col5="6" col6="7"/>
+                            <row id="79" col0="riccati_pass_hls" col1="riccati_solver_hls.cpp:1055" col2="" col3="5818" col4="6173" col5="6250" col6="6251">
+                                <row id="87" col0="riccati_backward_pass" col1="riccati_solver_hls.cpp:443" col2="" col3="5341" col4="5583" col5="5602" col6="5596">
+                                    <row id="4" col0="invert_2x2_qp_hls" col1="fp_math_hls.cpp:358" col2="" col3="640" col4="640" col5="632" col6="632">
+                                        <row id="123" col0="fp_recip" col1="fp_math_hls.cpp:470" col2="" col3="506" col4="506" col5="506" col6="508"/>
+                                    </row>
+                                    <row id="123" col0="fp_recip" col1="fp_math_hls.cpp:470" col2="" col3="1012" col3_disp="1,012 (2 calls)" col4="1012" col4_disp="1,012 (2 calls)" col5="1012" col5_disp="1,012 (2 calls)" col6="1016" col6_disp="1,016 (2 calls)"/>
+                                    <row id="18" col0="sum6_MG_QP_raw" col1="fp_math_hls.h:280" col2="" col3="7" col4="7" col5="7" col6="9"/>
+                                    <row id="29" col0="sum6_P_QP_raw" col1="fp_math_hls.h:170" col2="" col3="14" col3_disp="   14 (2 calls)" col4="14" col4_disp="   14 (2 calls)" col5="14" col5_disp="   14 (2 calls)" col6="18" col6_disp="   18 (2 calls)"/>
+                                    <row id="1" col0="sum8_P_MIX_raw_pupdate" col1="fp_math_hls.h:221" col2="" col3="273" col3_disp="  273 (21 calls)" col4="273" col4_disp="  273 (21 calls)" col5="273" col5_disp="  273 (21 calls)" col6="336" col6_disp="  336 (21 calls)"/>
+                                    <row id="73" col0="sum8_P_MIX_raw" col1="fp_math_hls.h:190" col2="" col3="13" col4="13" col5="13" col6="15"/>
+                                </row>
+                                <row id="82" col0="riccati_forward_pass" col1="riccati_solver_hls.cpp:307" col2="" col3="474" col4="587" col5="645" col6="651">
+                                    <row id="75" col0="sum8_K_QP_raw" col1="fp_math_hls.h:300" col2="" col3="34" col3_disp="   34 (2 calls)" col4="34" col4_disp="   34 (2 calls)" col5="34" col5_disp="   34 (2 calls)" col6="38" col6_disp="   38 (2 calls)"/>
+                                    <row id="53" col0="sum6_QP_raw" col1="fp_math_hls.h:260" col2="" col3="7" col4="7" col5="7" col6="9"/>
+                                </row>
+                            </row>
+                        </row>
+                        <row id="61" col0="fp_word_from_qp" col1="mpc_fpga_top.cpp:135" col2="264" col2_disp="   264 (2 calls)" col3="" col4="" col5="" col6="">
+                            <row id="77" col0="fp_raw_from_QP" col1="fp_types_hls.hpp:516" col2="228" col2_disp="   228 (2 calls)" col3="" col4="" col5="" col6=""/>
+                        </row>
+                        <row id="57" col0="solver_status_to_transport_status" col1="mpc_fpga_top.cpp:96" col2="6" col3="" col4="" col5="" col6=""/>
+                    </row>
+                </row>
+            </rows>
+            <notes>
+                <note name="*" desc="Exceeded design size warning message threshold"/>
+            </notes>
+        </hiertable>
+    </item>
+    <item name="Design Size Message Settings">
+        <table>
+            <keys size="3">Message Setting, Value, Description</keys>
+            <column name="config_compile -design_size_maximum_warning">100000, Show a warning when total design instructions exceeds this value</column>
+        </table>
+    </item>
+</design_size>

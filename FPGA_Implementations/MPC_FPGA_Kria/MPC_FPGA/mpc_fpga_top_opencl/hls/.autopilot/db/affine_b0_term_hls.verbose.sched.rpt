@@ -1,0 +1,146 @@
+
+
+================================================================
+== Vitis HLS Report for 'affine_b0_term_hls'
+================================================================
+* Date:           Thu May 21 15:23:04 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  2.291 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+-----------+-----------+-----+-----+---------+
+    |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
+    |   min   |   max   |    min    |    max    | min | max |   Type  |
+    +---------+---------+-----------+-----------+-----+-----+---------+
+    |        3|        3|  15.000 ns|  15.000 ns|    4|    4|      yes|
+    +---------+---------+-----------+-----------+-----+-----+---------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        N/A
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 0
+IsPipeline: 1
+IsRtlPipelined: 0
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 4, depth = 4
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 4
+* Pipeline : 1
+  Pipeline-0 : II = 4, D = 4, States = { 1 2 3 4 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 3 
+3 --> 4 
+4 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 2.29>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%lin_delta_k_raw_read = read i18 @_ssdm_op_Read.ap_auto.i18, i18 %lin_delta_k_raw" [../src/mpc_riccati_hls.cpp:127]   --->   Operation 5 'read' 'lin_delta_k_raw_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%b0_coeff_raw_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %b0_coeff_raw" [../src/mpc_riccati_hls.cpp:127]   --->   Operation 6 'read' 'b0_coeff_raw_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%sext_ln159 = sext i32 %b0_coeff_raw_read" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 7 'sext' 'sext_ln159' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%sext_ln159_71 = sext i18 %lin_delta_k_raw_read" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 8 'sext' 'sext_ln159_71' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [4/4] (2.29ns)   --->   "%mul_ln159 = mul i50 %sext_ln159_71, i50 %sext_ln159" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 9 'mul' 'mul_ln159' <Predicate = true> <Delay = 2.29> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 2.29> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 2 <SV = 1> <Delay = 2.29>
+ST_2 : Operation 10 [3/4] (2.29ns)   --->   "%mul_ln159 = mul i50 %sext_ln159_71, i50 %sext_ln159" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 10 'mul' 'mul_ln159' <Predicate = true> <Delay = 2.29> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 2.29> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 3 <SV = 2> <Delay = 2.29>
+ST_3 : Operation 11 [2/4] (2.29ns)   --->   "%mul_ln159 = mul i50 %sext_ln159_71, i50 %sext_ln159" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 11 'mul' 'mul_ln159' <Predicate = true> <Delay = 2.29> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 2.29> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 4 <SV = 3> <Delay = 2.29>
+ST_4 : Operation 12 [1/1] (0.00ns)   --->   "%rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_93" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 12 'specregionbegin' 'rbegin' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 13 [1/4] (2.29ns)   --->   "%mul_ln159 = mul i50 %sext_ln159_71, i50 %sext_ln159" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 13 'mul' 'mul_ln159' <Predicate = true> <Delay = 2.29> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 2.29> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 14 [1/1] (0.00ns)   --->   "%specfucore_ln160 = specfucore void @_ssdm_op_SpecFUCore, i50 %mul_ln159, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:160->../src/mpc_riccati_hls.cpp:129]   --->   Operation 14 'specfucore' 'specfucore_ln160' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 15 [1/1] (0.00ns)   --->   "%rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_93, i32 %rbegin" [../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129]   --->   Operation 15 'specregionend' 'rend' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 16 [1/1] (0.00ns)   --->   "%trunc_ln = partselect i25 @_ssdm_op_PartSelect.i25.i50.i32.i32, i50 %mul_ln159, i32 18, i32 42" [../src/mpc_riccati_hls.cpp:128]   --->   Operation 16 'partselect' 'trunc_ln' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 17 [1/1] (0.00ns)   --->   "%ret_ln128 = ret i25 %trunc_ln" [../src/mpc_riccati_hls.cpp:128]   --->   Operation 17 'ret' 'ret_ln128' <Predicate = true> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 5.000ns, clock uncertainty: 0.500ns.
+
+ <State 1>: 2.291ns
+The critical path consists of the following:
+	wire read operation ('lin_delta_k_raw_read', ../src/mpc_riccati_hls.cpp:127) on port 'lin_delta_k_raw' (../src/mpc_riccati_hls.cpp:127) [3]  (0.000 ns)
+	'mul' operation 50 bit ('mul_ln159', ../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129) [8]  (2.291 ns)
+
+ <State 2>: 2.291ns
+The critical path consists of the following:
+	'mul' operation 50 bit ('mul_ln159', ../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129) [8]  (2.291 ns)
+
+ <State 3>: 2.291ns
+The critical path consists of the following:
+	'mul' operation 50 bit ('mul_ln159', ../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129) [8]  (2.291 ns)
+
+ <State 4>: 2.291ns
+The critical path consists of the following:
+	'mul' operation 50 bit ('mul_ln159', ../src/fp_math_hls.cpp:159->../src/mpc_riccati_hls.cpp:129) [8]  (2.291 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+	State 3
+	State 4
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

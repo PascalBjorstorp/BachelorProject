@@ -340,10 +340,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tail-rows", type=int, default=200)
     parser.add_argument("--max-lateral-offset-m", type=float, default=1.0)
     parser.add_argument("--wall-margin-m", type=float, default=0.20)
-    parser.add_argument("--sim-odom-source",
-                        choices=("vesc", "ground_truth"),
-                        default="vesc",
-                        help="Forwarded to benchmark; vesc uses simulated VESC/IMU odometry.")
+    parser.add_argument(
+        "--sim-odom-source",
+        choices=("vesc", "ground_truth", "calibrated_drift"),
+        default="vesc",
+        help=(
+            "Forwarded to benchmark; vesc uses simulated VESC/IMU odometry, "
+            "calibrated_drift uses the OptiTrack-calibrated drift model."))
     parser.add_argument("--sim-drive-input-mode",
                         choices=("vesc", "ackermann"),
                         default="vesc",
@@ -359,19 +362,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--amcl-min-particles", type=int, default=1000)
     parser.add_argument("--amcl-max-particles", type=int, default=1000)
     parser.add_argument("--amcl-max-beams", type=int, default=270)
-    parser.add_argument("--amcl-update-min-d", type=float, default=0.05)
-    parser.add_argument("--amcl-update-min-a", type=float, default=0.05)
-    parser.add_argument("--amcl-likelihood-scale", type=float, default=0.75)
-    parser.add_argument("--amcl-alpha1", type=float, default=0.4)
-    parser.add_argument("--amcl-alpha2", type=float, default=0.4)
+    parser.add_argument("--amcl-update-min-d", type=float, default=0.04)
+    parser.add_argument("--amcl-update-min-a", type=float, default=0.035)
+    parser.add_argument("--amcl-likelihood-scale", type=float, default=4.0)
+    parser.add_argument("--amcl-alpha1", type=float, default=0.1)
+    parser.add_argument("--amcl-alpha2", type=float, default=0.2)
     parser.add_argument("--amcl-alpha3", type=float, default=0.2)
-    parser.add_argument("--amcl-alpha4", type=float, default=0.2)
-    parser.add_argument("--amcl-z-hit", type=float, default=0.95)
-    parser.add_argument("--amcl-z-rand", type=float, default=0.05)
-    parser.add_argument("--amcl-sigma-hit", type=float, default=0.10)
-    parser.add_argument("--amcl-resample-threshold", type=float, default=0.3)
+    parser.add_argument("--amcl-alpha4", type=float, default=0.25)
+    parser.add_argument("--amcl-z-hit", type=float, default=0.90)
+    parser.add_argument("--amcl-z-rand", type=float, default=0.10)
+    parser.add_argument("--amcl-sigma-hit", type=float, default=0.05)
+    parser.add_argument("--amcl-resample-threshold", type=float, default=0.5)
     parser.add_argument("--amcl-cluster-publish-min-weight", type=float, default=0.60)
-    parser.add_argument("--ekf-process-noise-scale", type=float, default=0.1)
+    parser.add_argument("--ekf-process-noise-scale", type=float, default=0.2)
     parser.add_argument(
         "--lateral-pattern",
         default="-0.75,-0.35,0.0,0.35,0.75",

@@ -1,0 +1,182 @@
+
+
+================================================================
+== Vitis HLS Report for 'fp_pacejka_ceff'
+================================================================
+* Date:           Thu May 21 15:23:03 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  3.563 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+-----------+-----------+-----+-----+---------+
+    |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
+    |   min   |   max   |    min    |    max    | min | max |   Type  |
+    +---------+---------+-----------+-----------+-----+-----+---------+
+    |        6|        6|  30.000 ns|  30.000 ns|    7|    7|      yes|
+    +---------+---------+-----------+-----------+-----+-----+---------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        N/A
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 0
+IsPipeline: 1
+IsRtlPipelined: 0
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 7, depth = 7
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 7
+* Pipeline : 1
+  Pipeline-0 : II = 7, D = 7, States = { 1 2 3 4 5 6 7 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 3 
+3 --> 4 
+4 --> 5 
+5 --> 6 
+6 --> 7 
+7 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 1.78>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%inv_denom_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %inv_denom" [../src/vehicle_model_hls.cpp:59]   --->   Operation 8 'read' 'inv_denom_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%cos_inner_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %cos_inner" [../src/vehicle_model_hls.cpp:59]   --->   Operation 9 'read' 'cos_inner_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%sext_ln671 = sext i26 %cos_inner_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 10 'sext' 'sext_ln671' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%sext_ln671_35 = sext i23 %inv_denom_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 11 'sext' 'sext_ln671_35' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [4/4] (1.78ns)   --->   "%mul_ln671 = mul i49 %sext_ln671_35, i49 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 12 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 2 <SV = 1> <Delay = 1.78>
+ST_2 : Operation 13 [3/4] (1.78ns)   --->   "%mul_ln671 = mul i49 %sext_ln671_35, i49 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 13 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 3 <SV = 2> <Delay = 1.78>
+ST_3 : Operation 14 [2/4] (1.78ns)   --->   "%mul_ln671 = mul i49 %sext_ln671_35, i49 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 14 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 4 <SV = 3> <Delay = 3.56>
+ST_4 : Operation 15 [1/1] (0.00ns)   --->   "%D_cb_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %D_cb" [../src/vehicle_model_hls.cpp:59]   --->   Operation 15 'read' 'D_cb_read' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 16 [1/4] (1.78ns)   --->   "%mul_ln671 = mul i49 %sext_ln671_35, i49 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 16 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 17 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i49 %mul_ln671, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:61]   --->   Operation 17 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 18 [1/1] (0.00ns)   --->   "%product_q = partselect i26 @_ssdm_op_PartSelect.i26.i49.i32.i32, i49 %mul_ln671, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:61]   --->   Operation 18 'partselect' 'product_q' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 19 [1/1] (0.00ns)   --->   "%sext_ln671_36 = sext i26 %D_cb_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 19 'sext' 'sext_ln671_36' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 20 [1/1] (0.00ns)   --->   "%sext_ln671_37 = sext i26 %product_q" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 20 'sext' 'sext_ln671_37' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 21 [4/4] (1.78ns)   --->   "%product = mul i43 %sext_ln671_37, i43 %sext_ln671_36" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 21 'mul' 'product' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 5 <SV = 4> <Delay = 1.78>
+ST_5 : Operation 22 [3/4] (1.78ns)   --->   "%product = mul i43 %sext_ln671_37, i43 %sext_ln671_36" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 22 'mul' 'product' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 6 <SV = 5> <Delay = 1.78>
+ST_6 : Operation 23 [2/4] (1.78ns)   --->   "%product = mul i43 %sext_ln671_37, i43 %sext_ln671_36" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 23 'mul' 'product' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 7 <SV = 6> <Delay = 1.78>
+ST_7 : Operation 24 [1/1] (0.00ns)   --->   "%rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_95" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 24 'specregionbegin' 'rbegin' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 25 [1/1] (0.00ns)   --->   "%rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_95, i32 %rbegin" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61]   --->   Operation 25 'specregionend' 'rend' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 26 [1/1] (0.00ns)   --->   "%rbegin1 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_94" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 26 'specregionbegin' 'rbegin1' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 27 [1/4] (1.78ns)   --->   "%product = mul i43 %sext_ln671_37, i43 %sext_ln671_36" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 27 'mul' 'product' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_7 : Operation 28 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:62]   --->   Operation 28 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 29 [1/1] (0.00ns)   --->   "%rend2 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_94, i32 %rbegin1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62]   --->   Operation 29 'specregionend' 'rend2' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 30 [1/1] (0.00ns)   --->   "%product_q_51 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:62]   --->   Operation 30 'partselect' 'product_q_51' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 31 [1/1] (0.00ns)   --->   "%ret_ln63 = ret i26 %product_q_51" [../src/vehicle_model_hls.cpp:63]   --->   Operation 31 'ret' 'ret_ln63' <Predicate = true> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 5.000ns, clock uncertainty: 0.500ns.
+
+ <State 1>: 1.781ns
+The critical path consists of the following:
+	wire read operation ('inv_denom_read', ../src/vehicle_model_hls.cpp:59) on port 'inv_denom' (../src/vehicle_model_hls.cpp:59) [5]  (0.000 ns)
+	'mul' operation 49 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61) [10]  (1.781 ns)
+
+ <State 2>: 1.781ns
+The critical path consists of the following:
+	'mul' operation 49 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61) [10]  (1.781 ns)
+
+ <State 3>: 1.781ns
+The critical path consists of the following:
+	'mul' operation 49 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61) [10]  (1.781 ns)
+
+ <State 4>: 3.563ns
+The critical path consists of the following:
+	'mul' operation 49 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:61) [10]  (1.781 ns)
+	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62) [17]  (1.781 ns)
+
+ <State 5>: 1.781ns
+The critical path consists of the following:
+	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62) [17]  (1.781 ns)
+
+ <State 6>: 1.781ns
+The critical path consists of the following:
+	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62) [17]  (1.781 ns)
+
+ <State 7>: 1.781ns
+The critical path consists of the following:
+	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:62) [17]  (1.781 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+	State 3
+	State 4
+	State 5
+	State 6
+	State 7
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

@@ -42,9 +42,10 @@
 #define MAX_CONSTRAINTS (MAX_DYN_ROWS + MAX_TRACK_ROWS + MAX_BOX_ROWS)
 
 /* Upper bounds on nonzeros for the fixed sparsity patterns below. */
-#define MAX_Q_P_NNZ 10
+#define MAX_Q_P_NNZ ((NX * (NX + 1)) / 2)
 #define MAX_R_P_NNZ ((NU * (NU + 1)) / 2)
-#define MAX_P_NNZ (((MAX_N + 1) * MAX_Q_P_NNZ) + (MAX_N * MAX_R_P_NNZ))
+#define MAX_S_P_NNZ (NX * NU)
+#define MAX_P_NNZ (((MAX_N + 1) * MAX_Q_P_NNZ) + (MAX_N * (MAX_S_P_NNZ + MAX_R_P_NNZ)))
 #define MAX_A_NNZ (((MAX_N + 1) * NX * (NX + 3)) + (MAX_N * NU * (NX + 1)))
 
 /* ============================================================
@@ -149,8 +150,8 @@ static inline int append_A_entry(c_int *nnz, c_int row, c_float value)
 /* ============================================================
  * Build P matrix (upper triangular CSC)
  *
- * P is block-diagonal:
- *   stages k=0..N-1: [Q_k(7x7), R_k(3x3)]
+ * P uses fixed per-stage sparsity:
+ *   stages k=0..N-1: [Q_k(7x7), S_k^T; S_k, R_k(3x3)]
  *   terminal k=N:    [Q_N(7x7)]
  * Only upper triangle stored.
  *
@@ -158,27 +159,11 @@ static inline int append_A_entry(c_int *nnz, c_int row, c_float value)
  * for each block, even zeros.  This ensures the sparsity pattern
  * never changes between calls (needed for osqp_update_P).
  *
- * Upper triangle Q entries per stage (always emit these 9 entries):
- *   (0,0) (0,4) (0,5) (1,1) (2,2) (3,3) (4,4) (4,5) (5,5)
- * Plus full diagonal for safety: (6,6)
- *   → 10 entries per Q block
+ * Upper triangle Q entries per stage: full NX x NX upper triangle.
  *
  * Upper triangle R entries per stage:
  *   (0,0) (0,1) (1,1) (0,2) (1,2) (2,2)
  * ============================================================ */
-
-/* Q upper triangle entry positions (row, col) — entries we always emit.
- * These are all entries that contouring/lag cost + diagonal weights touch. */
-static const int Q_UTRI_ENTRIES[][2] = {
-    {0, 0},             /* Q[s][s] */
-    {1, 1},             /* Q[vx][vx] */
-    {2, 2},             /* Q[vy][vy] */
-    {3, 3},             /* Q[omega][omega] */
-    {0, 4}, {4, 4},     /* Q[s][X], Q[X][X] */
-    {0, 5}, {4, 5}, {5, 5}, /* Q[s][Y], Q[X][Y], Q[Y][Y] */
-    {6, 6},             /* Q[psi][psi] — always zero but emitted for fixed pattern */
-};
-#define N_Q_UTRI (sizeof(Q_UTRI_ENTRIES) / sizeof(Q_UTRI_ENTRIES[0]))  /* 10 */
 
 static c_int build_P(const MPCCQPProblem_t *prob, c_int n)
 {
@@ -209,23 +194,22 @@ static c_int build_P(const MPCCQPProblem_t *prob, c_int n)
                 ? prob->stage_cost[k].Q
                 : prob->terminal_cost.Q;
 
-            /* Emit all Q upper-triangle entries for this column */
-            for (int e = 0; e < (int)N_Q_UTRI; e++)
-            {
-                int er = Q_UTRI_ENTRIES[e][0];
-                int ec = Q_UTRI_ENTRIES[e][1];
-                if (ec == ix && er <= ix)
-                {
-                    if (!append_P_entry(&nnz, idx_x(k, er), col, (c_float)Q[er][ix]))
-                        return -1;
-                }
-            }
+            /* Emit all Q upper-triangle entries for this column. */
+            for (int er = 0; er <= ix; er++)
+                if (!append_P_entry(&nnz, idx_x(k, er), col, (c_float)Q[er][ix]))
+                    return -1;
         }
         else if (k < N)
         {
             /* Control variable u_k[iu], iu = sub - NX */
             int iu = sub - NX;
             const float (*R)[MPCC_NU] = prob->stage_cost[k].R;
+
+            /* Control-state cross terms u^T S x. */
+            for (int ix = 0; ix < NX; ix++)
+                if (!append_P_entry(&nnz, idx_x(k, ix), col,
+                                    (c_float)prob->stage_cost[k].S[iu][ix]))
+                    return -1;
 
             /* Always emit diagonal R entries for this column */
             for (int i = 0; i <= iu; i++)
@@ -308,6 +292,15 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
             {
                 s_l[row] = (c_float)prob->x_lower[ix];
                 s_u[row] = (c_float)prob->x_upper[ix];
+
+                if (ix == MPCC_IDX_S &&
+                    prob->s_upper_stage[k] > prob->s_lower_stage[k])
+                {
+                    if (s_l[row] < (c_float)prob->s_lower_stage[k])
+                        s_l[row] = (c_float)prob->s_lower_stage[k];
+                    if (s_u[row] > (c_float)prob->s_upper_stage[k])
+                        s_u[row] = (c_float)prob->s_upper_stage[k];
+                }
 
                 /* Tighten vx with curvature-based speed limit */
                 if (ix == MPCC_IDX_VX && prob->vx_max_stage[k] > 0.0f)
@@ -615,6 +608,8 @@ MPCCStatus_t osqp_solver_solve(
     result->rho_final       = (float)work->settings->rho;
     result->rho_u_final     = (float)work->settings->rho;
     result->adaptive_rho_updates = (uint16_t)work->info->rho_updates;
+    result->adaptive_rho_state_updates = 0;
+    result->adaptive_rho_control_updates = 0;
     result->numeric_clip_count   = 0;
 
     /* Copy solution into ADMMResult_t arrays */

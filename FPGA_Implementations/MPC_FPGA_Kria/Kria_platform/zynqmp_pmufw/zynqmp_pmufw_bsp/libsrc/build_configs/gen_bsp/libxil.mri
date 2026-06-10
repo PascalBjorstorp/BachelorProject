@@ -1,0 +1,22 @@
+create libxil.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/zdma/src/libzdma.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/wdtps/src/libwdtps.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/video_common/src/libvideo_common.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/ttcps/src/libttcps.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/sysmonpsu/src/libsysmonpsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/spips/src/libspips.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/rtcpsu/src/librtcpsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/resetps/src/libresetps.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/qspipsu/src/libqspipsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/ipipsu/src/libipipsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/intc/src/libintc.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/gpiops/src/libgpiops.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/dppsu/src/libdppsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/dpdma/src/libdpdma.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/ddrcpsu/src/libddrcpsu.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/csudma/src/libcsudma.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/clockps/src/libclockps.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/axipmon/src/libaxipmon.a
+addlib /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp/libsrc/avbuf/src/libavbuf.a
+save
+end

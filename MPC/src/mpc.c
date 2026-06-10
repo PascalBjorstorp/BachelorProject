@@ -370,6 +370,23 @@ void mpc_set_actual_previous_control(const ControlInput_t *actual)
     }
 }
 
+int mpc_debug_copy_last_plan(
+    float x_out[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
+    float u_out[PREDICTION_HORIZON][RICCATI_MAX_NU])
+{
+    if (!admm_state.initialized) {
+        return 0;
+    }
+
+    if (x_out != NULL) {
+        memcpy(x_out, admm_state.z_x, sizeof(admm_state.z_x));
+    }
+    if (u_out != NULL) {
+        memcpy(u_out, admm_state.z_u, sizeof(admm_state.z_u));
+    }
+    return 1;
+}
+
 MpcSolverStatus_t mpc_compute_optimal_control(
     const FrenetState_t *current_frenet_state,
     const TrajectoryReferencePoint_t *reference_trajectory,
@@ -851,14 +868,20 @@ MpcSolverStatus_t mpc_compute_optimal_control(
      * --------------------------------------------------------------- */
     const float solver_rho = get_env_float("RHO", ADMM_RHO);
     float solver_rho_u = ADMM_RHO_U;
+    int shared_rho = 0;
     {
         const char *rho_u_env = getenv("RHO_U");
         if (rho_u_env != NULL && rho_u_env[0] != '\0') {
             solver_rho_u = strtof(rho_u_env, NULL);
             if (!(solver_rho_u > 0.0f)) {
+                shared_rho = 1;
                 solver_rho_u = (solver_rho > 0.0f) ? solver_rho : ADMM_RHO;
             }
         }
+    }
+    if (get_env_int("MPC_SHARED_RHO", get_env_int("SHARED_RHO", shared_rho)) != 0) {
+        shared_rho = 1;
+        solver_rho_u = solver_rho;
     }
     const int adaptive_rho =
         get_env_int("MPC_ADAPTIVE_RHO", get_env_int("ADAPTIVE_RHO", 1)) != 0;
@@ -869,6 +892,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         .tolerance = get_env_float("TOL", config.solver_convergence_tolerance),
         .max_iterations = get_env_int("MAX_ITER", (int)config.max_solver_iterations),
         .adaptive_rho = adaptive_rho,
+        .shared_rho = shared_rho,
     };
 
     RiccatiSolution_t riccati_sol;

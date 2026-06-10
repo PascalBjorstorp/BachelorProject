@@ -1,0 +1,10 @@
+psu_pmu_0:
+  standalone:
+    zynqmp_pmufw:
+      description: Platform Management Unit Firmware for ZynqMP.
+      depends_libs:
+      - xiltimer
+      - xilfpga
+      - xilsecure
+      - xilskey
+  freertos: {}

@@ -1,0 +1,188 @@
+
+
+================================================================
+== Vitis HLS Report for 'compute_window_min_hls'
+================================================================
+* Date:           Thu May 21 15:23:03 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  3.492 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+----------+----------+-----+-----+---------+
+    |  Latency (cycles) |  Latency (absolute) |  Interval | Pipeline|
+    |   min   |   max   |    min   |    max   | min | max |   Type  |
+    +---------+---------+----------+----------+-----+-----+---------+
+    |        1|        1|  5.000 ns|  5.000 ns|    1|    1|      yes|
+    +---------+---------+----------+----------+-----+-----+---------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        N/A
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 0
+IsPipeline: 1
+IsRtlPipelined: 1
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 1, depth = 2
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 2
+* Pipeline : 1
+  Pipeline-0 : II = 1, D = 2, States = { 1 2 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 3.49>
+ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%center_idx_read = read i5 @_ssdm_op_Read.ap_auto.i5, i5 %center_idx" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 3 'read' 'center_idx_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%ref_wall_19_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_19_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 4 'read' 'ref_wall_19_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%ref_wall_18_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_18_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 5 'read' 'ref_wall_18_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%ref_wall_17_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_17_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 6 'read' 'ref_wall_17_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%ref_wall_16_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_16_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 7 'read' 'ref_wall_16_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%ref_wall_15_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_15_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 8 'read' 'ref_wall_15_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%ref_wall_14_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_14_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 9 'read' 'ref_wall_14_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%ref_wall_13_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_13_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 10 'read' 'ref_wall_13_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%ref_wall_12_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_12_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 11 'read' 'ref_wall_12_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%ref_wall_11_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_11_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 12 'read' 'ref_wall_11_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%ref_wall_10_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_10_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 13 'read' 'ref_wall_10_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 14 [1/1] (0.00ns)   --->   "%ref_wall_9_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_9_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 14 'read' 'ref_wall_9_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 15 [1/1] (0.00ns)   --->   "%ref_wall_8_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_8_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 15 'read' 'ref_wall_8_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 16 [1/1] (0.00ns)   --->   "%ref_wall_7_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_7_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 16 'read' 'ref_wall_7_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 17 [1/1] (0.00ns)   --->   "%ref_wall_6_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_6_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 17 'read' 'ref_wall_6_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 18 [1/1] (0.00ns)   --->   "%ref_wall_5_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_5_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 18 'read' 'ref_wall_5_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 19 [1/1] (0.00ns)   --->   "%ref_wall_4_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_4_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 19 'read' 'ref_wall_4_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 20 [1/1] (0.00ns)   --->   "%ref_wall_3_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_3_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 20 'read' 'ref_wall_3_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 21 [1/1] (0.00ns)   --->   "%ref_wall_2_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_2_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 21 'read' 'ref_wall_2_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 22 [1/1] (0.00ns)   --->   "%ref_wall_1_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_1_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 22 'read' 'ref_wall_1_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 23 [1/1] (0.00ns)   --->   "%ref_wall_0_val_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %ref_wall_0_val" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 23 'read' 'ref_wall_0_val_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 24 [1/1] (0.00ns)   --->   "%zext_ln89 = zext i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:89]   --->   Operation 24 'zext' 'zext_ln89' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 25 [1/1] (0.78ns)   --->   "%jj = add i6 %zext_ln89, i6 61" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 25 'add' 'jj' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 26 [1/1] (0.78ns)   --->   "%icmp_ln97 = icmp_ult  i6 %jj, i6 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 26 'icmp' 'icmp_ln97' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 27 [1/1] (0.76ns)   --->   "%tmp = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.17i32.i32.i5, i5 3, i32 %ref_wall_0_val_read, i5 4, i32 %ref_wall_1_val_read, i5 5, i32 %ref_wall_2_val_read, i5 6, i32 %ref_wall_3_val_read, i5 7, i32 %ref_wall_4_val_read, i5 8, i32 %ref_wall_5_val_read, i5 9, i32 %ref_wall_6_val_read, i5 10, i32 %ref_wall_7_val_read, i5 11, i32 %ref_wall_8_val_read, i5 12, i32 %ref_wall_9_val_read, i5 13, i32 %ref_wall_10_val_read, i5 14, i32 %ref_wall_11_val_read, i5 15, i32 %ref_wall_12_val_read, i5 16, i32 %ref_wall_13_val_read, i5 17, i32 %ref_wall_14_val_read, i5 18, i32 %ref_wall_15_val_read, i5 19, i32 %ref_wall_16_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 27 'sparsemux' 'tmp' <Predicate = true> <Delay = 0.76> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.76> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 28 [1/1] (0.44ns)   --->   "%cand = select i1 %icmp_ln97, i32 %tmp, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 28 'select' 'cand' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 29 [1/1] (0.78ns)   --->   "%jj_1 = add i6 %zext_ln89, i6 62" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 29 'add' 'jj_1' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 30 [1/1] (0.78ns)   --->   "%icmp_ln97_1 = icmp_ult  i6 %jj_1, i6 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 30 'icmp' 'icmp_ln97_1' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 31 [1/1] (0.73ns)   --->   "%tmp_s = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.18i32.i32.i5, i5 2, i32 %ref_wall_0_val_read, i5 3, i32 %ref_wall_1_val_read, i5 4, i32 %ref_wall_2_val_read, i5 5, i32 %ref_wall_3_val_read, i5 6, i32 %ref_wall_4_val_read, i5 7, i32 %ref_wall_5_val_read, i5 8, i32 %ref_wall_6_val_read, i5 9, i32 %ref_wall_7_val_read, i5 10, i32 %ref_wall_8_val_read, i5 11, i32 %ref_wall_9_val_read, i5 12, i32 %ref_wall_10_val_read, i5 13, i32 %ref_wall_11_val_read, i5 14, i32 %ref_wall_12_val_read, i5 15, i32 %ref_wall_13_val_read, i5 16, i32 %ref_wall_14_val_read, i5 17, i32 %ref_wall_15_val_read, i5 18, i32 %ref_wall_16_val_read, i5 19, i32 %ref_wall_17_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 31 'sparsemux' 'tmp_s' <Predicate = true> <Delay = 0.73> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.73> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 32 [1/1] (0.44ns)   --->   "%cand_1 = select i1 %icmp_ln97_1, i32 %tmp_s, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 32 'select' 'cand_1' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 33 [1/1] (0.78ns)   --->   "%jj_2 = add i6 %zext_ln89, i6 63" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 33 'add' 'jj_2' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 34 [1/1] (0.78ns)   --->   "%icmp_ln97_2 = icmp_ult  i6 %jj_2, i6 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 34 'icmp' 'icmp_ln97_2' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 35 [1/1] (0.71ns)   --->   "%tmp_1 = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.19i32.i32.i5, i5 1, i32 %ref_wall_0_val_read, i5 2, i32 %ref_wall_1_val_read, i5 3, i32 %ref_wall_2_val_read, i5 4, i32 %ref_wall_3_val_read, i5 5, i32 %ref_wall_4_val_read, i5 6, i32 %ref_wall_5_val_read, i5 7, i32 %ref_wall_6_val_read, i5 8, i32 %ref_wall_7_val_read, i5 9, i32 %ref_wall_8_val_read, i5 10, i32 %ref_wall_9_val_read, i5 11, i32 %ref_wall_10_val_read, i5 12, i32 %ref_wall_11_val_read, i5 13, i32 %ref_wall_12_val_read, i5 14, i32 %ref_wall_13_val_read, i5 15, i32 %ref_wall_14_val_read, i5 16, i32 %ref_wall_15_val_read, i5 17, i32 %ref_wall_16_val_read, i5 18, i32 %ref_wall_17_val_read, i5 19, i32 %ref_wall_18_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 35 'sparsemux' 'tmp_1' <Predicate = true> <Delay = 0.71> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.71> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 36 [1/1] (0.44ns)   --->   "%cand_2 = select i1 %icmp_ln97_2, i32 %tmp_1, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 36 'select' 'cand_2' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 37 [1/1] (0.73ns)   --->   "%cand_3 = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.20i32.i32.i5, i5 0, i32 %ref_wall_0_val_read, i5 1, i32 %ref_wall_1_val_read, i5 2, i32 %ref_wall_2_val_read, i5 3, i32 %ref_wall_3_val_read, i5 4, i32 %ref_wall_4_val_read, i5 5, i32 %ref_wall_5_val_read, i5 6, i32 %ref_wall_6_val_read, i5 7, i32 %ref_wall_7_val_read, i5 8, i32 %ref_wall_8_val_read, i5 9, i32 %ref_wall_9_val_read, i5 10, i32 %ref_wall_10_val_read, i5 11, i32 %ref_wall_11_val_read, i5 12, i32 %ref_wall_12_val_read, i5 13, i32 %ref_wall_13_val_read, i5 14, i32 %ref_wall_14_val_read, i5 15, i32 %ref_wall_15_val_read, i5 16, i32 %ref_wall_16_val_read, i5 17, i32 %ref_wall_17_val_read, i5 18, i32 %ref_wall_18_val_read, i5 19, i32 %ref_wall_19_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 37 'sparsemux' 'cand_3' <Predicate = true> <Delay = 0.73> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.73> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 38 [1/1] (0.78ns)   --->   "%jj_3 = add i5 %center_idx_read, i5 1" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 38 'add' 'jj_3' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 39 [1/1] (0.78ns)   --->   "%icmp_ln97_3 = icmp_ult  i5 %jj_3, i5 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 39 'icmp' 'icmp_ln97_3' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 40 [1/1] (0.71ns)   --->   "%tmp_3 = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.19i32.i32.i5, i5 0, i32 %ref_wall_1_val_read, i5 1, i32 %ref_wall_2_val_read, i5 2, i32 %ref_wall_3_val_read, i5 3, i32 %ref_wall_4_val_read, i5 4, i32 %ref_wall_5_val_read, i5 5, i32 %ref_wall_6_val_read, i5 6, i32 %ref_wall_7_val_read, i5 7, i32 %ref_wall_8_val_read, i5 8, i32 %ref_wall_9_val_read, i5 9, i32 %ref_wall_10_val_read, i5 10, i32 %ref_wall_11_val_read, i5 11, i32 %ref_wall_12_val_read, i5 12, i32 %ref_wall_13_val_read, i5 13, i32 %ref_wall_14_val_read, i5 14, i32 %ref_wall_15_val_read, i5 15, i32 %ref_wall_16_val_read, i5 16, i32 %ref_wall_17_val_read, i5 17, i32 %ref_wall_18_val_read, i5 18, i32 %ref_wall_19_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 40 'sparsemux' 'tmp_3' <Predicate = true> <Delay = 0.71> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.71> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 41 [1/1] (0.44ns)   --->   "%cand_4 = select i1 %icmp_ln97_3, i32 %tmp_3, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 41 'select' 'cand_4' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 42 [1/1] (0.78ns)   --->   "%jj_4 = add i5 %center_idx_read, i5 2" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 42 'add' 'jj_4' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 43 [1/1] (0.78ns)   --->   "%icmp_ln97_4 = icmp_ult  i5 %jj_4, i5 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 43 'icmp' 'icmp_ln97_4' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 44 [1/1] (0.73ns)   --->   "%tmp_4 = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.18i32.i32.i5, i5 0, i32 %ref_wall_2_val_read, i5 1, i32 %ref_wall_3_val_read, i5 2, i32 %ref_wall_4_val_read, i5 3, i32 %ref_wall_5_val_read, i5 4, i32 %ref_wall_6_val_read, i5 5, i32 %ref_wall_7_val_read, i5 6, i32 %ref_wall_8_val_read, i5 7, i32 %ref_wall_9_val_read, i5 8, i32 %ref_wall_10_val_read, i5 9, i32 %ref_wall_11_val_read, i5 10, i32 %ref_wall_12_val_read, i5 11, i32 %ref_wall_13_val_read, i5 12, i32 %ref_wall_14_val_read, i5 13, i32 %ref_wall_15_val_read, i5 14, i32 %ref_wall_16_val_read, i5 15, i32 %ref_wall_17_val_read, i5 16, i32 %ref_wall_18_val_read, i5 17, i32 %ref_wall_19_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 44 'sparsemux' 'tmp_4' <Predicate = true> <Delay = 0.73> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.73> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 45 [1/1] (0.44ns)   --->   "%cand_5 = select i1 %icmp_ln97_4, i32 %tmp_4, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 45 'select' 'cand_5' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 46 [1/1] (0.78ns)   --->   "%jj_5 = add i5 %center_idx_read, i5 3" [../src/mpc_riccati_hls.cpp:95]   --->   Operation 46 'add' 'jj_5' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 47 [1/1] (0.78ns)   --->   "%icmp_ln97_5 = icmp_ult  i5 %jj_5, i5 20" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 47 'icmp' 'icmp_ln97_5' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 48 [1/1] (0.76ns)   --->   "%tmp_5 = sparsemux i32 @_ssdm_op_SparseMux.ap_auto.17i32.i32.i5, i5 0, i32 %ref_wall_3_val_read, i5 1, i32 %ref_wall_4_val_read, i5 2, i32 %ref_wall_5_val_read, i5 3, i32 %ref_wall_6_val_read, i5 4, i32 %ref_wall_7_val_read, i5 5, i32 %ref_wall_8_val_read, i5 6, i32 %ref_wall_9_val_read, i5 7, i32 %ref_wall_10_val_read, i5 8, i32 %ref_wall_11_val_read, i5 9, i32 %ref_wall_12_val_read, i5 10, i32 %ref_wall_13_val_read, i5 11, i32 %ref_wall_14_val_read, i5 12, i32 %ref_wall_15_val_read, i5 13, i32 %ref_wall_16_val_read, i5 14, i32 %ref_wall_17_val_read, i5 15, i32 %ref_wall_18_val_read, i5 16, i32 %ref_wall_19_val_read, i32 0, i5 %center_idx_read" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 48 'sparsemux' 'tmp_5' <Predicate = true> <Delay = 0.76> <CoreInst = "BinarySparseMux_DontCare">   --->   Core 149 'BinarySparseMux_DontCare' <Latency = 0> <II = 1> <Delay = 0.76> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 49 [1/1] (0.44ns)   --->   "%cand_7 = select i1 %icmp_ln97_5, i32 %tmp_5, i32 13107200" [../src/mpc_riccati_hls.cpp:97]   --->   Operation 49 'select' 'cand_7' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 50 [1/1] (1.01ns)   --->   "%icmp_ln100 = icmp_slt  i32 %cand, i32 %cand_1" [../src/mpc_riccati_hls.cpp:100]   --->   Operation 50 'icmp' 'icmp_ln100' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 51 [1/1] (0.00ns) (grouped into LUT with out node l2_0)   --->   "%xor_ln100 = xor i1 %icmp_ln100, i1 1" [../src/mpc_riccati_hls.cpp:100]   --->   Operation 51 'xor' 'xor_ln100' <Predicate = true> <Delay = 0.00> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 52 [1/1] (0.44ns) (out node of the LUT)   --->   "%l2_0 = select i1 %xor_ln100, i32 %cand_1, i32 %cand" [../src/mpc_riccati_hls.cpp:100]   --->   Operation 52 'select' 'l2_0' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 53 [1/1] (1.01ns)   --->   "%icmp_ln101 = icmp_slt  i32 %cand_2, i32 %cand_3" [../src/mpc_riccati_hls.cpp:101]   --->   Operation 53 'icmp' 'icmp_ln101' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 54 [1/1] (0.00ns) (grouped into LUT with out node l2_1)   --->   "%xor_ln101 = xor i1 %icmp_ln101, i1 1" [../src/mpc_riccati_hls.cpp:101]   --->   Operation 54 'xor' 'xor_ln101' <Predicate = true> <Delay = 0.00> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 55 [1/1] (0.44ns) (out node of the LUT)   --->   "%l2_1 = select i1 %xor_ln101, i32 %cand_3, i32 %cand_2" [../src/mpc_riccati_hls.cpp:101]   --->   Operation 55 'select' 'l2_1' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_1 : Operation 56 [1/1] (1.01ns)   --->   "%icmp_ln102 = icmp_slt  i32 %cand_4, i32 %cand_5" [../src/mpc_riccati_hls.cpp:102]   --->   Operation 56 'icmp' 'icmp_ln102' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 57 [1/1] (0.00ns) (grouped into LUT with out node l2_2)   --->   "%xor_ln102 = xor i1 %icmp_ln102, i1 1" [../src/mpc_riccati_hls.cpp:102]   --->   Operation 57 'xor' 'xor_ln102' <Predicate = true> <Delay = 0.00> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 58 [1/1] (0.44ns) (out node of the LUT)   --->   "%l2_2 = select i1 %xor_ln102, i32 %cand_5, i32 %cand_4" [../src/mpc_riccati_hls.cpp:102]   --->   Operation 58 'select' 'l2_2' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+
+State 2 <SV = 1> <Delay = 2.93>
+ST_2 : Operation 59 [1/1] (1.01ns)   --->   "%icmp_ln105 = icmp_slt  i32 %l2_0, i32 %l2_1" [../src/mpc_riccati_hls.cpp:105]   --->   Operation 59 'icmp' 'icmp_ln105' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 60 [1/1] (0.44ns)   --->   "%l3_0 = select i1 %icmp_ln105, i32 %l2_0, i32 %l2_1" [../src/mpc_riccati_hls.cpp:105]   --->   Operation 60 'select' 'l3_0' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_2 : Operation 61 [1/1] (1.01ns)   --->   "%icmp_ln106 = icmp_slt  i32 %l2_2, i32 %cand_7" [../src/mpc_riccati_hls.cpp:106]   --->   Operation 61 'icmp' 'icmp_ln106' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 62 [1/1] (0.44ns)   --->   "%l3_1 = select i1 %icmp_ln106, i32 %l2_2, i32 %cand_7" [../src/mpc_riccati_hls.cpp:106]   --->   Operation 62 'select' 'l3_1' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_2 : Operation 63 [1/1] (1.01ns)   --->   "%icmp_ln107 = icmp_slt  i32 %l3_0, i32 %l3_1" [../src/mpc_riccati_hls.cpp:107]   --->   Operation 63 'icmp' 'icmp_ln107' <Predicate = true> <Delay = 1.01> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 1.01> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 64 [1/1] (0.44ns)   --->   "%select_ln107 = select i1 %icmp_ln107, i32 %l3_0, i32 %l3_1" [../src/mpc_riccati_hls.cpp:107]   --->   Operation 64 'select' 'select_ln107' <Predicate = true> <Delay = 0.44> <CoreInst = "Sel">   --->   Core 73 'Sel' <Latency = 0> <II = 1> <Delay = 0.44> <FuncUnit> <Opcode : 'select'> <InPorts = 3> <OutPorts = 1>
+ST_2 : Operation 65 [1/1] (0.00ns)   --->   "%ret_ln108 = ret i32 %select_ln107" [../src/mpc_riccati_hls.cpp:108]   --->   Operation 65 'ret' 'ret_ln108' <Predicate = true> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 5.000ns, clock uncertainty: 0.500ns.
+
+ <State 1>: 3.492ns
+The critical path consists of the following:
+	wire read operation ('center_idx_read', ../src/mpc_riccati_hls.cpp:89) on port 'center_idx' (../src/mpc_riccati_hls.cpp:89) [22]  (0.000 ns)
+	'add' operation 5 bit ('jj', ../src/mpc_riccati_hls.cpp:95) [61]  (0.789 ns)
+	'icmp' operation 1 bit ('icmp_ln97_4', ../src/mpc_riccati_hls.cpp:97) [62]  (0.789 ns)
+	'select' operation 32 bit ('cand', ../src/mpc_riccati_hls.cpp:97) [64]  (0.449 ns)
+	'icmp' operation 1 bit ('icmp_ln102', ../src/mpc_riccati_hls.cpp:102) [75]  (1.016 ns)
+	'xor' operation 1 bit ('xor_ln102', ../src/mpc_riccati_hls.cpp:102) [76]  (0.000 ns)
+	'select' operation 32 bit ('l2_2', ../src/mpc_riccati_hls.cpp:102) [77]  (0.449 ns)
+
+ <State 2>: 2.930ns
+The critical path consists of the following:
+	'icmp' operation 1 bit ('icmp_ln105', ../src/mpc_riccati_hls.cpp:105) [78]  (1.016 ns)
+	'select' operation 32 bit ('l3_0', ../src/mpc_riccati_hls.cpp:105) [79]  (0.449 ns)
+	'icmp' operation 1 bit ('icmp_ln107', ../src/mpc_riccati_hls.cpp:107) [82]  (1.016 ns)
+	'select' operation 32 bit ('select_ln107', ../src/mpc_riccati_hls.cpp:107) [83]  (0.449 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

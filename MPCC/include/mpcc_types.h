@@ -353,6 +353,11 @@ typedef struct
      *  Applied as linear cost: -q_s on s-component. */
     float weight_progress;
 
+    /** Per-stage QP trust window around the linearization arc-length [m].
+     *  Keeps the optimized s_k close to the geometry used for cost and
+     *  corridor linearization in this single-SQP-step controller. */
+    float s_qp_window;
+
     /*--- State regularization weights ---*/
 
     /** Longitudinal velocity tracking weight.
@@ -393,6 +398,10 @@ typedef struct
     /** Virtual progress speed effort penalty.
      *  Regularizes v_theta to prevent large spikes. */
     float weight_v_theta;
+
+    /** Penalty on v_theta minus physical velocity projected along the path.
+     *  This discourages virtual progress from running ahead of the vehicle. */
+    float weight_vtheta_physical;
 
     /*--- Control rate weights (Rd matrix, smoothness) ---*/
 
@@ -460,6 +469,11 @@ typedef struct
     /** Maximum predicted hard-corridor violation [m] allowed when accepting
      *  MAX_ITERATIONS. */
     float max_iter_track_violation_tolerance;
+
+    /** Maximum allowed mismatch between warm-started s and closest geometric
+     *  s from the predicted Cartesian position [m]. Larger errors drop the
+     *  warm start for the current cycle. */
+    float warm_start_max_s_error;
 
 
     /*--- Constraint bounds ---*/
@@ -534,7 +548,9 @@ typedef struct
     float rho_final;                    /** Final adapted ADMM rho values used by this solve */
     float rho_u_final;                  /** Final adapted ADMM rho_u values used by this solve */
     uint16_t adaptive_rho_updates;      /** Number of adaptive rho updates during solve */
-    uint32_t numeric_clip_count;        /** Number of numeric clipping events during solve */    
+    uint16_t adaptive_rho_state_updates; /** Number of adaptive rho updates for states during solve */
+    uint16_t adaptive_rho_control_updates; /** Number of adaptive rho updates for controls during solve */
+    uint32_t numeric_clip_count;        /** Number of numeric clipping events during solve */
     float cost;                         /** Final cost function value */
 
    
@@ -601,18 +617,19 @@ typedef struct
 #define MPCC_DEFAULT_DT               (0.03f)                       /** 30 ms prediction step: 20 * 0.03 = 0.6s lookahead */
 
 /*--- Contouring tracking weights (Apr 28 latest CSV: fastest safe + low-regression moving baseline) ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (60.0f)                    /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (80.0f)                    /** Contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG       (120.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.5f)                  /** Hard buffer subtracted from each track bound [m]. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (6.0f)                      /** Progress reward. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (4.0f)                      /** Progress reward. */
+#define MPCC_DEFAULT_S_QP_WINDOW      (1.0f)                      /** Per-stage s trust window [m]. */
 
 /*--- State regularization ---*/
 #define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                         /** Longitudinal velocity tracking weight.*/
 #define MPCC_DEFAULT_VX_REF           (0.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_REF   0                         /** Use per-waypoint CSV vx as target. */
-#define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
+#define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 1                         /** Use per-waypoint CSV vx as speed cap. */
 #define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (1.0f)                  /** CSV vx cap multiplier. */
 #define MPCC_DEFAULT_WEIGHT_VY        (1.0f)                        /** Lateral velocity tracking weight. */
 #define MPCC_DEFAULT_WEIGHT_OMEGA     (3.0f)                         /** Yaw rate tracking weight. */
@@ -620,12 +637,13 @@ typedef struct
 /*--- Control effort ---*/
 #define MPCC_DEFAULT_WEIGHT_DELTA     (8.0f)                      /** Steering angle effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX        (1.0f)                    /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.2f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (1.0f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_VTHETA_PHYSICAL (1.0f)                  /** v_theta vs physical path velocity penalty. */
 
 /*--- Control rate (smoothness) ---*/
 #define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (2.0f)                      /** Steering rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       (3.0f)                    /** Longitudinal acceleration rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.8f)                   /** Virtual progress speed rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (2.0f)                   /** Virtual progress speed rate penalty. */
 
 /* cross_call_rate_scale = control_dt / prediction_dt
  * At 200 Hz control rate and dt=0.05: 0.005/0.05 = 0.1 */
@@ -642,16 +660,17 @@ typedef struct
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         (15.0f)                        /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_RHO         (60.0f)                        /** ADMM penalty parameter. */
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
-#define MPCC_DEFAULT_ADMM_RHO_U       (8.0f)                        /** 0 => reuse state rho for controls. */
-#define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 0                            /** Enable adaptive rho by default. */
+#define MPCC_DEFAULT_ADMM_RHO_U       (4.0f)                        /** 0 => reuse state rho for controls. */
+#define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */
 #define MPCC_DEFAULT_ADMM_ALPHA_RELAX (1.6f)                        /** Warm-start over-relaxation factor. */
 #define MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS 0                        /** Do not publish max-iteration iterates by default. */
-#define MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL   (0.01f)                  /** Primal residual threshold for accepting max-iteration solves. */
-#define MPCC_DEFAULT_MAX_ITER_DUAL_TOL     (0.01f)                  /** Dual residual threshold for accepting max-iteration solves. */
-#define MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL (0.005f)    
+#define MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL   (1.0f)                  /** Primal residual threshold for accepting max-iteration solves. */
+#define MPCC_DEFAULT_MAX_ITER_DUAL_TOL     (1.0f)                  /** Dual residual threshold for accepting max-iteration solves. */
+#define MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL (0.2f)
+#define MPCC_DEFAULT_WARM_START_MAX_S_ERROR (1.5f)                 /** Warm-start geometry mismatch threshold [m]. */
 
 /*--- Pacejka tire model ---*/
 #define MPCC_DEFAULT_MU       F110_FRICTION_COEFFICIENT                  /** Friction coefficient for tire model. */

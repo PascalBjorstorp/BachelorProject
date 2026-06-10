@@ -1,0 +1,84 @@
+{
+  "modelVersion": "1.0",
+  "projectName": "MPC_system",
+  "platform": "Kria_platform",
+  "externalComponentRefs": [
+    "MPC_FPGA"
+  ],
+  "components": [
+    {
+      "name": "package",
+      "type": "PACKAGE",
+      "configuration": {
+        "componentType": "PACKAGE",
+        "packageConfigurations": [
+          {
+            "configId": "package.default",
+            "options": []
+          }
+        ],
+        "configFiles": [
+          "package/package.cfg"
+        ]
+      },
+      "useSysrootToolchain": false,
+      "templateFlow": "VITIS"
+    },
+    {
+      "name": "hw_link",
+      "type": "HW_LINKER",
+      "configuration": {
+        "componentType": "HW_LINKER",
+        "containers": [
+          {
+            "name": "mpc_fpga_top_opencl",
+            "kernels": {
+              "mpc_fpga_top_opencl": "MPC_FPGA"
+            },
+            "userXoKernels": {},
+            "aieComponents": [],
+            "userAieLibadfList": [],
+            "userVssList": [],
+            "cfgFiles": [
+              "hw_link/binary_container_1-link.cfg"
+            ]
+          }
+        ],
+        "vppLinkerConfigurations": [
+          {
+            "configId": "hw_link.default",
+            "options": [],
+            "containerOptions": {},
+            "buildDatafiles": []
+          }
+        ]
+      },
+      "useSysrootToolchain": false,
+      "templateFlow": "VITIS"
+    }
+  ],
+  "buildConfigurations": [
+    {
+      "id": "default",
+      "name": "Default",
+      "supportedTargets": [
+        "HW"
+      ],
+      "componentConfigMap": {
+        "package": "package.default",
+        "hw_link": "hw_link.default"
+      }
+    }
+  ],
+  "activeBuildConfigId": "default",
+  "additionalPackageOption": "",
+  "prePackageCommand": "",
+  "postPackageCommand": "",
+  "preLinkerCommand": "",
+  "postLinkerCommand": "",
+  "hostMode": "x86",
+  "isDirty": true,
+  "applicationFlow": "EMBEDDED_ACCEL",
+  "templateFlow": "VITIS",
+  "buildOutputType": "UNKNOWN"
+}

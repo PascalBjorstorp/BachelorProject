@@ -41,10 +41,15 @@
 #include "qp_solver_osqp.h"
 #endif
 #include <string.h>
+#include <stdlib.h>
 
 
 #ifdef MPCC_DEBUG_PRINT
 #include <stdio.h>
+#endif
+
+#ifndef MPCC_SQP_REFINEMENT_STEPS
+#define MPCC_SQP_REFINEMENT_STEPS 1
 #endif
 
 /*===========================================================================
@@ -56,6 +61,8 @@ static MPCCReferencePath_t ref_path;
 
 /* Path tracking state — reset when path changes or controller resets */
 static uint16_t last_closest_idx = 0;
+static float last_unwrapped_heading = 0.0f;
+static uint8_t unwrapped_heading_available = 0;
 static MPCCObstacleSet_t obstacle_set;
 static uint8_t mpcc_initialized = 0;
 
@@ -94,6 +101,7 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.wall_clearance_margin = MPCC_DEFAULT_WALL_CLEARANCE_MARGIN;
     cfg.track_safety_buffer = MPCC_DEFAULT_TRACK_SAFETY_BUFFER;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
+    cfg.s_qp_window = MPCC_DEFAULT_S_QP_WINDOW;
 
     /* State regularization */
     cfg.weight_vx = MPCC_DEFAULT_WEIGHT_VX;
@@ -108,6 +116,7 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.weight_delta = MPCC_DEFAULT_WEIGHT_DELTA;
     cfg.weight_ax = MPCC_DEFAULT_WEIGHT_AX;
     cfg.weight_v_theta = MPCC_DEFAULT_WEIGHT_V_THETA;
+    cfg.weight_vtheta_physical = MPCC_DEFAULT_WEIGHT_VTHETA_PHYSICAL;
 
     /* Control rate */
     cfg.weight_delta_rate = MPCC_DEFAULT_WEIGHT_DELTA_RATE;
@@ -134,6 +143,7 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.max_iter_primal_tolerance = MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL;
     cfg.max_iter_dual_tolerance = MPCC_DEFAULT_MAX_ITER_DUAL_TOL;
     cfg.max_iter_track_violation_tolerance = MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL;
+    cfg.warm_start_max_s_error = MPCC_DEFAULT_WARM_START_MAX_S_ERROR;
 
     /* Constraint bounds */
     cfg.delta_max = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
@@ -170,6 +180,10 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->wall_clearance_margin = 0.0f;
     if (cfg->track_safety_buffer < 0.0f)
         cfg->track_safety_buffer = 0.0f;
+    if (cfg->s_qp_window <= 0.0f)
+        cfg->s_qp_window = MPCC_DEFAULT_S_QP_WINDOW;
+    if (cfg->weight_vtheta_physical < 0.0f)
+        cfg->weight_vtheta_physical = 0.0f;
     cfg->use_raceline_vx_ref = cfg->use_raceline_vx_ref ? 1 : 0;
     cfg->use_raceline_vx_limit = cfg->use_raceline_vx_limit ? 1 : 0;
     if (cfg->raceline_vx_limit_scale < 0.0f)
@@ -188,6 +202,8 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->max_iter_dual_tolerance = MPCC_DEFAULT_MAX_ITER_DUAL_TOL;
     if (cfg->max_iter_track_violation_tolerance < 0.0f)
         cfg->max_iter_track_violation_tolerance = 0.0f;
+    if (cfg->warm_start_max_s_error <= 0.0f)
+        cfg->warm_start_max_s_error = MPCC_DEFAULT_WARM_START_MAX_S_ERROR;
 }
 
 /*===========================================================================
@@ -209,6 +225,7 @@ void mpcc_initialize(void)
     memset(&prev_control, 0, sizeof(prev_control));
     memset(&ref_path, 0, sizeof(ref_path));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
+    unwrapped_heading_available = 0;
     warm_start_available = 0;
     mpcc_initialized = 1;
 }
@@ -237,6 +254,7 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
 
     memset(&prev_control, 0, sizeof(prev_control));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
+    unwrapped_heading_available = 0;
     warm_start_available = 0;
     mpcc_initialized = 1;
 }
@@ -567,7 +585,18 @@ MPCCState_t mpcc_state_from_vehicle_state(
     /* Copy Cartesian/body-frame states directly */
     st.X     = vs->pos_x;
     st.Y     = vs->pos_y;
-    st.psi   = vs->heading;
+    if (!unwrapped_heading_available || !isfinite((double)last_unwrapped_heading)) {
+        last_unwrapped_heading = vs->heading;
+        unwrapped_heading_available = 1;
+    } else {
+        /* ROS yaw is wrapped to [-pi, pi]. Keep the MPCC state continuous so
+         * crossing that boundary does not introduce a fictitious 2*pi jump
+         * against the warm-started predicted trajectory. */
+        float heading_delta = remainderf(
+            vs->heading - last_unwrapped_heading, 2.0f * (float)M_PI);
+        last_unwrapped_heading += heading_delta;
+    }
+    st.psi   = last_unwrapped_heading;
     st.vx    = vs->long_vel;
     st.vy    = vs->lat_vel;
     st.omega = vs->yaw_rate;
@@ -918,6 +947,130 @@ static void add_wall_clearance_cost(
     }
 }
 
+static void mpcc_tightened_track_bounds(
+    const MPCCPathPoint_t *path_pt,
+    float *left,
+    float *right)
+{
+    float left_b = path_pt ? path_pt->left_bound : 0.0f;
+    float right_b = path_pt ? path_pt->right_bound : 0.0f;
+
+    left_b -= config.track_safety_buffer;
+    right_b -= config.track_safety_buffer;
+
+    if ((left_b + right_b) < 0.0f) {
+        float lower = -left_b;
+        float upper = right_b;
+        float center = 0.5f * (lower + upper);
+        left_b = -center;
+        right_b = center;
+    }
+
+    if (left_b < 0.0f) left_b = 0.0f;
+    if (right_b < 0.0f) right_b = 0.0f;
+
+    if (left) *left = left_b;
+    if (right) *right = right_b;
+}
+
+static void mpcc_set_stage_s_bounds(
+    MPCCQPProblem_t *qp,
+    uint16_t k,
+    float s_center)
+{
+    float s_window = config.s_qp_window;
+    if (s_window <= 0.0f)
+        s_window = MPCC_DEFAULT_S_QP_WINDOW;
+
+    float s_lower = s_center - s_window;
+    float s_upper = s_center + s_window;
+
+    if (!ref_path.is_closed && ref_path.total_length > 0.0f) {
+        if (s_lower < 0.0f) s_lower = 0.0f;
+        if (s_upper > ref_path.total_length) s_upper = ref_path.total_length;
+    }
+
+    qp->s_ref_stage[k] = s_center;
+    qp->s_lower_stage[k] = s_lower;
+    qp->s_upper_stage[k] = s_upper;
+}
+
+static void add_vtheta_physical_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCControl_t *u_bar,
+    const MPCCPathPoint_t *path_pt,
+    float weight)
+{
+    if (!cost || !z_bar || !u_bar || !path_pt || weight <= 0.0f)
+        return;
+
+    float alpha = z_bar->psi - path_pt->phi_ref;
+    float cos_a = cosf(alpha);
+    float sin_a = sinf(alpha);
+    float v_path = z_bar->vx * cos_a - z_bar->vy * sin_a;
+    float h_bar = u_bar->v_theta - v_path;
+    float gx[MPCC_NX];
+    float gu[MPCC_NU];
+    float x_bar[MPCC_NX] = {
+        z_bar->s,
+        z_bar->vx,
+        z_bar->vy,
+        z_bar->omega,
+        z_bar->X,
+        z_bar->Y,
+        z_bar->psi
+    };
+    float u_arr[MPCC_NU] = {
+        u_bar->delta,
+        u_bar->a_x,
+        u_bar->v_theta
+    };
+
+    memset(gx, 0, sizeof(gx));
+    memset(gu, 0, sizeof(gu));
+
+    {
+        float dvpath_dangle = (-z_bar->vx * sin_a) - (z_bar->vy * cos_a);
+        gx[MPCC_IDX_S] = path_pt->kappa_ref * dvpath_dangle;
+        gx[MPCC_IDX_VX] = -cos_a;
+        gx[MPCC_IDX_VY] = sin_a;
+        gx[MPCC_IDX_PSI] = -dvpath_dangle;
+        gu[MPCC_IDX_VTHETA] = 1.0f;
+    }
+
+    float gx_xbar = 0.0f;
+    float gu_ubar = 0.0f;
+    for (int i = 0; i < MPCC_NX; i++)
+        gx_xbar += gx[i] * x_bar[i];
+    for (int i = 0; i < MPCC_NU; i++)
+        gu_ubar += gu[i] * u_arr[i];
+
+    float d = h_bar - gx_xbar - gu_ubar;
+
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (gx[i] == 0.0f) continue;
+        for (int j = 0; j < MPCC_NX; j++) {
+            if (gx[j] == 0.0f) continue;
+            cost->Q[i][j] += 2.0f * weight * gx[i] * gx[j];
+        }
+        cost->q[i] += 2.0f * weight * d * gx[i];
+    }
+
+    for (int i = 0; i < MPCC_NU; i++) {
+        if (gu[i] == 0.0f) continue;
+        for (int j = 0; j < MPCC_NU; j++) {
+            if (gu[j] == 0.0f) continue;
+            cost->R[i][j] += 2.0f * weight * gu[i] * gu[j];
+        }
+        for (int j = 0; j < MPCC_NX; j++) {
+            if (gx[j] == 0.0f) continue;
+            cost->S[i][j] += 2.0f * weight * gu[i] * gx[j];
+        }
+        cost->r[i] += 2.0f * weight * d * gu[i];
+    }
+}
+
 /*===========================================================================
  * Curvature-Based Speed Limiter
  *===========================================================================
@@ -1005,7 +1158,6 @@ static void build_qp_problem(
     MPCCQPProblem_t *qp)
 {
     uint16_t N = config.horizon_steps;
-    const float track_buffer = config.track_safety_buffer;
     if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
 
     memset(qp, 0, sizeof(*qp));
@@ -1133,6 +1285,7 @@ static void build_qp_problem(
         qp->path_x_ref[k]   = path_pt.x_ref;
         qp->path_y_ref[k]   = path_pt.y_ref;
         qp->path_phi_ref[k] = path_pt.phi_ref;
+        mpcc_set_stage_s_bounds(qp, k, z_bar.s);
 
 
         /* Linearize dynamics — produces A, B, d for this stage */
@@ -1146,6 +1299,8 @@ static void build_qp_problem(
         add_wall_clearance_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                     config.weight_wall_clearance,
                     config.wall_clearance_margin);
+        add_vtheta_physical_cost(&qp->stage_cost[k], &z_bar, &u_bar, &path_pt,
+                                  config.weight_vtheta_physical);
 
         /* Optional velocity tracking. In racing mode, keep the constant
          * config.vx_ref target or set Q_VX=0; do not let CSV vx_mps dictate
@@ -1176,7 +1331,7 @@ static void build_qp_problem(
                 /* k=0: penalize deviation from the ACTUALLY applied control,
                  * not the shifted plan. After shift_warm_start(),
                  * prev_predicted_controls[0] holds what was planned for
-                 * stage 1 last cycle — wrong reference for the rate penalty.
+                 * stage 1 last cycle - wrong reference for the rate penalty.
                  * prev_control always holds the last commanded input. */
                 u_ref = (k == 0) ? prev_control : prev_predicted_controls[k];
             } else {
@@ -1208,16 +1363,9 @@ static void build_qp_problem(
                 - 2.0f * w_vr * u_ref.v_theta;
         }
 
-        /* Per-stage track bounds on n */
-        qp->track_left[k] = path_pt.left_bound - track_buffer;
-        qp->track_right[k] = path_pt.right_bound - track_buffer;
-        if ((qp->track_left[k] + qp->track_right[k]) < 0.0f) {
-            float lower = -qp->track_left[k];
-            float upper = qp->track_right[k];
-            float center = 0.5f * (lower + upper);
-            qp->track_left[k] = -center;
-            qp->track_right[k] = center;
-        }
+        /* Per-stage track bounds in contouring-error coordinates. */
+        mpcc_tightened_track_bounds(&path_pt, &qp->track_left[k],
+                                    &qp->track_right[k]);
 
         /* Per-stage speed cap: apply the same raceline- and curvature-aware
          * braking limit along the horizon so sharp corners are slowed before
@@ -1294,15 +1442,8 @@ static void build_qp_problem(
         MPCCPathPoint_t path_pt;
         mpcc_path_interpolate(&ref_path, z_terminal.s, &path_pt);
 
-        qp->track_left[N]  = path_pt.left_bound - track_buffer;
-        qp->track_right[N] = path_pt.right_bound - track_buffer;
-        if ((qp->track_left[N] + qp->track_right[N]) < 0.0f) {
-            float lower = -qp->track_left[N];
-            float upper = qp->track_right[N];
-            float center = 0.5f * (lower + upper);
-            qp->track_left[N] = -center;
-            qp->track_right[N] = center;
-        }
+        mpcc_tightened_track_bounds(&path_pt, &qp->track_left[N],
+                                    &qp->track_right[N]);
 
         /* Terminal stage gets the same horizon speed cap. */
         {
@@ -1315,6 +1456,7 @@ static void build_qp_problem(
         qp->path_x_ref[N]   = path_pt.x_ref;
         qp->path_y_ref[N]   = path_pt.y_ref;
         qp->path_phi_ref[N] = path_pt.phi_ref;
+        mpcc_set_stage_s_bounds(qp, N, z_terminal.s);
 
         build_stage_cost(&qp->terminal_cost, 1, N);
 
@@ -1455,22 +1597,36 @@ static float solution_max_track_violation(
 
     for (uint16_t k = 0; k <= N; k++)
     {
+        const float s = solver_result->x_opt[k][MPCC_IDX_S];
         const float X = solver_result->x_opt[k][MPCC_IDX_X];
         const float Y = solver_result->x_opt[k][MPCC_IDX_Y];
-        if (!isfinite((double)X) || !isfinite((double)Y))
+        if (!isfinite((double)s) ||
+            !isfinite((double)X) ||
+            !isfinite((double)Y))
             return FLT_MAX;
 
-        const float phi = prob->path_phi_ref[k];
-        const float x_ref = prob->path_x_ref[k];
-        const float y_ref = prob->path_y_ref[k];
-        const float C = sinf(phi) * x_ref - cosf(phi) * y_ref;
-        const float e_c = sinf(phi) * X - cosf(phi) * Y - C;
+        MPCCPathPoint_t path_pt;
+        mpcc_path_interpolate(&ref_path, s, &path_pt);
+
+        float left_b = prob->track_left[k];
+        float right_b = prob->track_right[k];
+        if (ref_path.num_points >= 2 &&
+            isfinite((double)path_pt.left_bound) &&
+            isfinite((double)path_pt.right_bound))
+        {
+            mpcc_tightened_track_bounds(&path_pt, &left_b, &right_b);
+        }
+
+        const float phi = path_pt.phi_ref;
+        const float x_ref = path_pt.x_ref;
+        const float y_ref = path_pt.y_ref;
+        const float e_c = sinf(phi) * (X - x_ref) - cosf(phi) * (Y - y_ref);
 
         float violation = 0.0f;
-        if (e_c > prob->track_right[k])
-            violation = e_c - prob->track_right[k];
-        else if (e_c < -prob->track_left[k])
-            violation = (-prob->track_left[k]) - e_c;
+        if (e_c > right_b)
+            violation = e_c - right_b;
+        else if (e_c < -left_b)
+            violation = (-left_b) - e_c;
 
         if (violation > max_violation)
             max_violation = violation;
@@ -1478,6 +1634,139 @@ static float solution_max_track_violation(
 
     return max_violation;
 }
+
+static float mpcc_warm_start_max_geometry_s_error(uint16_t N)
+{
+    if (ref_path.num_points < 2)
+        return 0.0f;
+    if (N > MPCC_MAX_HORIZON)
+        N = MPCC_MAX_HORIZON;
+
+    float max_error = 0.0f;
+    for (uint16_t k = 0; k <= N; k++)
+    {
+        const MPCCState_t *st = &prev_predicted_states[k];
+        if (!isfinite((double)st->s) ||
+            !isfinite((double)st->X) ||
+            !isfinite((double)st->Y))
+            return FLT_MAX;
+
+        float s_geom = mpcc_find_closest_s_with_hint(&ref_path, st->X, st->Y, st->s);
+        float error = mpcc_normalize_s_delta(&ref_path, st->s - s_geom);
+        error = fabsf(error);
+        if (!isfinite((double)error))
+            return FLT_MAX;
+        if (error > max_error)
+            max_error = error;
+    }
+
+    return max_error;
+}
+
+static void mpcc_clamp_fallback_vtheta(
+    MPCCControl_t *fallback_control,
+    const MPCCState_t *current_state)
+{
+    if (!fallback_control || !current_state)
+        return;
+
+    float conservative_max = fmaxf(0.5f, current_state->vx + 0.5f);
+    if (conservative_max > config.v_theta_max)
+        conservative_max = config.v_theta_max;
+    if (conservative_max < config.v_theta_min)
+        conservative_max = config.v_theta_min;
+
+    if (!isfinite((double)fallback_control->v_theta))
+        fallback_control->v_theta = config.v_theta_min;
+    if (fallback_control->v_theta > conservative_max)
+        fallback_control->v_theta = conservative_max;
+    if (fallback_control->v_theta < config.v_theta_min)
+        fallback_control->v_theta = config.v_theta_min;
+}
+
+#ifdef MPCC_DEBUG_PRINT
+static void mpcc_debug_print_consistency(
+    const MPCCQPProblem_t *prob,
+    const ADMMResult_t *solver_result)
+{
+    if (!prob || !solver_result)
+        return;
+
+    uint16_t N = prob->N;
+    if (N > MPCC_MAX_HORIZON)
+        N = MPCC_MAX_HORIZON;
+
+    uint16_t stages[3] = {0, (uint16_t)(N / 2u), N};
+    for (int idx = 0; idx < 3; idx++)
+    {
+        uint16_t k = stages[idx];
+        if (idx > 0 && k == stages[idx - 1])
+            continue;
+
+        float s_bar = prob->s_ref_stage[k];
+        float s_opt = solver_result->x_opt[k][MPCC_IDX_S];
+        float X = solver_result->x_opt[k][MPCC_IDX_X];
+        float Y = solver_result->x_opt[k][MPCC_IDX_Y];
+        float vx = solver_result->x_opt[k][MPCC_IDX_VX];
+        float vy = solver_result->x_opt[k][MPCC_IDX_VY];
+        float psi = solver_result->x_opt[k][MPCC_IDX_PSI];
+
+        if (!isfinite((double)s_opt) ||
+            !isfinite((double)X) ||
+            !isfinite((double)Y) ||
+            !isfinite((double)vx) ||
+            !isfinite((double)vy) ||
+            !isfinite((double)psi))
+        {
+            printf("  [CONS] k=%u non-finite solver iterate, skipping consistency details\n",
+                   k);
+            continue;
+        }
+
+        MPCCPathPoint_t actual_pt;
+        mpcc_path_interpolate(&ref_path, s_opt, &actual_pt);
+
+        float phi_lin = prob->path_phi_ref[k];
+        float ec_linearized =
+            sinf(phi_lin) * (X - prob->path_x_ref[k]) -
+            cosf(phi_lin) * (Y - prob->path_y_ref[k]);
+        float ec_actual =
+            sinf(actual_pt.phi_ref) * (X - actual_pt.x_ref) -
+            cosf(actual_pt.phi_ref) * (Y - actual_pt.y_ref);
+
+        float left_b = prob->track_left[k];
+        float right_b = prob->track_right[k];
+        mpcc_tightened_track_bounds(&actual_pt, &left_b, &right_b);
+
+        float violation = 0.0f;
+        if (ec_actual > right_b)
+            violation = ec_actual - right_b;
+        else if (ec_actual < -left_b)
+            violation = (-left_b) - ec_actual;
+
+        float v_theta = 0.0f;
+        if (N > 0) {
+            uint16_t u_idx = (k < N) ? k : (uint16_t)(N - 1u);
+            v_theta = solver_result->u_opt[u_idx][MPCC_IDX_VTHETA];
+        }
+        float alpha = psi - actual_pt.phi_ref;
+        float v_path = vx * cosf(alpha) - vy * sinf(alpha);
+
+        printf("  [CONS] k=%u s_bar=%.3f s_opt=%.3f s_err=%.3f "
+               "ec_lin=%.4f ec_actual=%.4f track_violation=%.4f "
+               "v_theta=%.3f v_path=%.3f\n",
+               k,
+               (double)s_bar,
+               (double)s_opt,
+               (double)(s_opt - s_bar),
+               (double)ec_linearized,
+               (double)ec_actual,
+               (double)violation,
+               (double)v_theta,
+               (double)v_path);
+    }
+}
+#endif
 
 /*===========================================================================
  * Main Control Computation
@@ -1527,6 +1816,21 @@ MPCCStatus_t mpcc_compute_control(
                    (double)(prev_predicted_states[0].s),
                    (double)current_state->s);
 #endif
+        }
+
+        if (keep_warm_start) {
+            uint16_t N = config.horizon_steps;
+            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+            float max_s_error = mpcc_warm_start_max_geometry_s_error(N);
+            if (max_s_error > config.warm_start_max_s_error) {
+                keep_warm_start = 0;
+                warm_start_available = 0;
+#ifdef MPCC_DEBUG_PRINT
+                printf("[MPCC] warm-start geometry mismatch %.2f m > %.2f m, dropping warm-start\n",
+                       (double)max_s_error,
+                       (double)config.warm_start_max_s_error);
+#endif
+            }
         }
 
         if (keep_warm_start) {
@@ -1603,12 +1907,61 @@ MPCCStatus_t mpcc_compute_control(
 
     /* Solve QP */
     ADMMResult_t admm_result;
+    MPCCStatus_t status = MPCC_STATUS_ERROR;
+#if MPCC_SQP_REFINEMENT_STEPS > 1
+    MPCCState_t saved_prev_states[MPCC_MAX_HORIZON + 1];
+    MPCCControl_t saved_prev_controls[MPCC_MAX_HORIZON];
+    uint8_t saved_warm_start_available = warm_start_available;
+    uint8_t saved_admm_warm_start = admm_config.warm_start;
+
+    memcpy(saved_prev_states, prev_predicted_states, sizeof(saved_prev_states));
+    memcpy(saved_prev_controls, prev_predicted_controls, sizeof(saved_prev_controls));
+
+    for (uint8_t sqp_step = 0; sqp_step < (uint8_t)MPCC_SQP_REFINEMENT_STEPS; sqp_step++)
+    {
+        if (sqp_step > 0)
+            build_qp_problem(current_state, &qp_problem);
+
+        memset(&admm_result, 0, sizeof(admm_result));
+#ifdef USE_OSQP
+        status = osqp_solver_solve(&qp_problem, &admm_result);
+#else
+        status = admm_solver_solve(
+            &qp_problem, &admm_config, &admm_workspace, &admm_result);
+#endif
+
+        if ((sqp_step + 1u) >= (uint8_t)MPCC_SQP_REFINEMENT_STEPS ||
+            status == MPCC_STATUS_ERROR ||
+            status == MPCC_STATUS_INFEASIBLE)
+            break;
+
+        {
+            uint16_t N = config.horizon_steps;
+            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+            for (uint16_t k = 0; k <= N; k++)
+                array_to_state(admm_result.x_opt[k], &prev_predicted_states[k]);
+            for (uint16_t k = 0; k < N; k++) {
+                prev_predicted_controls[k].delta = admm_result.u_opt[k][MPCC_IDX_DELTA];
+                prev_predicted_controls[k].a_x = admm_result.u_opt[k][MPCC_IDX_AX];
+                prev_predicted_controls[k].v_theta = admm_result.u_opt[k][MPCC_IDX_VTHETA];
+            }
+            warm_start_available = 1;
+            admm_config.warm_start = 1;
+        }
+    }
+
+    memcpy(prev_predicted_states, saved_prev_states, sizeof(saved_prev_states));
+    memcpy(prev_predicted_controls, saved_prev_controls, sizeof(saved_prev_controls));
+    warm_start_available = saved_warm_start_available;
+    admm_config.warm_start = saved_admm_warm_start;
+#else
     memset(&admm_result, 0, sizeof(admm_result));
 #ifdef USE_OSQP
-    MPCCStatus_t status = osqp_solver_solve(&qp_problem, &admm_result);
+    status = osqp_solver_solve(&qp_problem, &admm_result);
 #else
-    MPCCStatus_t status = admm_solver_solve(
+    status = admm_solver_solve(
         &qp_problem, &admm_config, &admm_workspace, &admm_result);
+#endif
 #endif
 
     /* Extract first control input */
@@ -1620,7 +1973,14 @@ MPCCStatus_t mpcc_compute_control(
     result->rho_final = admm_result.rho_final;
     result->rho_u_final = admm_result.rho_u_final;
     result->adaptive_rho_updates = admm_result.adaptive_rho_updates;
+    result->adaptive_rho_state_updates = admm_result.adaptive_rho_state_updates;
+    result->adaptive_rho_control_updates = admm_result.adaptive_rho_control_updates;
     result->numeric_clip_count = admm_result.numeric_clip_count;
+
+#ifdef MPCC_DEBUG_PRINT
+    if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS)
+        mpcc_debug_print_consistency(&qp_problem, &admm_result);
+#endif
 
     {
         const int finite_control = isfinite(admm_result.u_opt[0][MPCC_IDX_DELTA]) &&
@@ -1697,6 +2057,7 @@ MPCCStatus_t mpcc_compute_control(
         prev_control = result->optimal_control;
         } else {
         /* Unconverged / error: fall back to previous good control. */
+        mpcc_clamp_fallback_vtheta(&fallback_control, current_state);
         result->optimal_control = fallback_control;
 
         /* Copy solver predicted trajectory for diagnostics */
@@ -1722,6 +2083,7 @@ MPCCStatus_t mpcc_compute_control(
                 prev_predicted_controls[k] = result->predicted_controls[k];
         }
         /* else: keep prev_predicted_states/controls from last good solve */
+
         }
 
         /* Numerical breakdown contaminates ADMM workspace (z/w/lambda) and
@@ -1741,7 +2103,7 @@ MPCCStatus_t mpcc_compute_control(
 
 #ifdef MPCC_DEBUG_PRINT
         printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
-            "rho=%.3f  rho_u=%.3f  rho_upd=%u  clip=%u  "
+            "rho=%.3f  rho_u=%.3f  rho_upd=%u  rho_x_upd=%u  rho_u_upd=%u  clip=%u  "
             "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  vx=%.3f\n",
            return_status, admm_result.iterations,
            (double)(admm_result.primal_residual),
@@ -1749,6 +2111,8 @@ MPCCStatus_t mpcc_compute_control(
             (double)(admm_result.rho_final),
             (double)(admm_result.rho_u_final),
             admm_result.adaptive_rho_updates,
+            admm_result.adaptive_rho_state_updates,
+            admm_result.adaptive_rho_control_updates,
             admm_result.numeric_clip_count,
            (double)(result->optimal_control.delta),
            (double)(result->optimal_control.a_x),
@@ -1815,12 +2179,26 @@ void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
     admm_config.rho_u = config.admm_rho_u;
     admm_config.adaptive_rho = config.admm_adaptive_rho;
     admm_config.alpha_relax = config.admm_alpha_relax;
+
+    /* Recompute cross-call scaling from runtime control period if provided.
+     * Default: use compile-time MPCC_CONTROL_RATE_HZ if env var missing. */
+    const char *env_ms = getenv("MPCC_CONTROL_PERIOD_MS");
+    float control_period_sec = 0.0f;
+    if (env_ms) {
+        float ms = (float)atof(env_ms);
+        if (ms > 0.0f) control_period_sec = ms / 1000.0f;
+    }
+    if (control_period_sec <= 0.0f) {
+        control_period_sec = 1.0f / MPCC_CONTROL_RATE_HZ;
+    }
+    config.cross_call_rate_scale = control_period_sec / config.dt;
 }
 
 void mpcc_reset(void)
 {
     warm_start_available = 0;
     last_closest_idx = 0; /* Reset path tracking */
+    unwrapped_heading_available = 0;
     memset(&prev_control, 0, sizeof(prev_control));
 #ifndef USE_OSQP
     admm_solver_initialize(&admm_workspace);

@@ -1,0 +1,210 @@
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /home/akselmo/Vivado_program/2025.2/Vitis/gnu/microblaze/lin/bin/mb-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /home/akselmo/Vivado_program/2025.2/Vitis/gnu/microblaze/lin/bin/mb-g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The ASM compiler identification is GNU
+-- Found assembler: /home/akselmo/Vivado_program/2025.2/Vitis/gnu/microblaze/lin/bin/mb-gcc
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/libsrc/build_configs/gen_bsp
+-- Cache values
+// BOARD
+BOARD:STRING=kr260_som
+
+// Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel ...
+CMAKE_BUILD_TYPE:STRING=
+
+// Install path prefix, prepended onto install directories.
+CMAKE_INSTALL_PREFIX:PATH=/usr/local
+
+// CMAKE MACHINE
+CMAKE_MACHINE:STRING=ZynqMP
+
+// Size
+CMAKE_SIZE:FILEPATH=mb-size
+
+// Specs file path for using CMAKE toolchain files
+CMAKE_SPECS_FILE:STRING=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/Xilinx.spec
+
+// The CMake toolchain file
+CMAKE_TOOLCHAIN_FILE:FILEPATH=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp/microblaze-pmu_toolchain.cmake
+
+// Device Id
+DEVICE_ID:STRING=xck26
+
+// Number of slrs
+NUMBER_OF_SLRS:STRING=0x1
+
+// Speed Grade
+SPEED_GRADE:STRING=2LV
+
+// sub dir list
+SUBDIR_LIST:STRING=ALL
+
+// ASM FLAGS
+TOOLCHAIN_ASM_FLAGS:STRING= -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT
+
+// CXXFLAGS
+TOOLCHAIN_CXX_FLAGS:STRING= -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT
+
+// CFLAGS
+TOOLCHAIN_C_FLAGS:STRING= -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT
+
+// Flags used by compiler to generate dependency files
+TOOLCHAIN_DEP_FLAGS:STRING= -MMD -MP
+
+// Extra CFLAGS
+TOOLCHAIN_EXTRA_C_FLAGS:STRING= -g -ffunction-sections -fdata-sections -Wall -Wextra -fno-tree-loop-distribute-patterns
+
+// Bitstream Image Base Address
+XILFPGA_base_address:STRING=0x80000
+
+// Which is used to Enable the FPGA configuration Data Read-back support
+XILFPGA_data_readback_en:BOOL=ON
+
+// Which is used to Enable the Debug messages in the library
+XILFPGA_debug_mode:BOOL=OFF
+
+// Which is used to Get the Xilfpga library supported feature list info
+XILFPGA_get_feature_list_en:BOOL=OFF
+
+// Which is used to Get the Xilfpga library version info
+XILFPGA_get_version_info_en:BOOL=OFF
+
+// OCM Address which is used for Bitstream Authentication
+XILFPGA_ocm_address:STRING=0xfffc0000
+
+// Which is used to Enable the FPGA configuration Register Read-back support
+XILFPGA_reg_readback_en:BOOL=ON
+
+// Which is used to Enable the secure PL configuration
+XILFPGA_secure_environment:BOOL=OFF
+
+// Enable secure Bitstream loading support
+XILFPGA_secure_mode:BOOL=ON
+
+// Which is used to Enable the secure PL configuration Read-back support
+XILFPGA_secure_readback:BOOL=OFF
+
+// Which is used to skip the eFUSE checks for PL configuration
+XILPFGA_skip_efuse_check_en:BOOL=OFF
+
+// Enables/Disables Cache for XilSecure client library.
+XILSECURE_cache_disable:BOOL=ON
+
+// Enables/Disables P-192 curve support
+XILSECURE_elliptic_p192_support:BOOL=OFF
+
+// Enables/Disables P-224 curve support
+XILSECURE_elliptic_p224_support:BOOL=OFF
+
+// Enables/Disables P-256 curve support
+XILSECURE_elliptic_p256_support:BOOL=OFF
+
+// Enables/Disables P-521 curve support
+XILSECURE_elliptic_p521_support:BOOL=ON
+
+// Enables A72/R5/PL microblaze server and client mode support for XilSecure library for Versal
+XILSECURE_mode:STRING=client
+
+// Enables trusted execution environment to allow device key usage(post boot) in ZynqMP for IPI response/Linux/U-boot calls valid only for PMUFW BSP
+XILSECURE_secure_environment:BOOL=OFF
+
+// Enables decryption of bitstream to memory and then writes it to PCAP, allows calculation of sha on decrypted bitstream in chunks valid only for ZynqMP FSBL BSP
+XILSECURE_tpm_support:BOOL=OFF
+
+// Enables writing and reading of key management efuses for ZynqMp
+XILSKEY_access_key_manage_efuse:BOOL=OFF
+
+// Enables writing and reading of security critical efuses for ZynqMp
+XILSKEY_access_secure_crit_efuse:BOOL=OFF
+
+// Enables writing and reading of user efuses for ZynqMp
+XILSKEY_access_user_efuse:BOOL=OFF
+
+// IDCODE
+XILSKEY_device_id:STRING=0
+
+// IR length
+XILSKEY_device_irlen:STRING=0
+
+// Master SLR number
+XILSKEY_device_masterslr:STRING=0
+
+// Number of SLRs
+XILSKEY_device_numslr:STRING=1
+
+// Device series:
+	FPGA SERIES ZYNQ: XSK_FPGA_SERIES_ZYNQ
+	FPGA SERIES ULTRA: XSK_FPGA_SERIES_ULTRA
+	FPGA SERIES ULTRA PLUS: XSK_FPGA_SERIES_ULTRA_PLUS
+XILSKEY_device_series:STRING=XSK_FPGA_SERIES_ZYNQ
+
+// Override Sysmon configuration
+XILSKEY_override_sysmon_cfg:BOOL=ON
+
+// Enables API's to use PUF Helper Data efuses as user efuses
+XILSKEY_use_puf_hd_as_user_efuse:BOOL=OFF
+
+// Enable Interval Timer
+XILTIMER_en_interval_timer:BOOL=OFF
+
+// This parameter is used to select specific timer for sleep functionality
+XILTIMER_sleep_timer:STRING=Default
+
+// This parameter is used to select specific timer for tick functionality
+XILTIMER_tick_timer:STRING=None
+
+// Yocto based embeddedsw FLOW
+YOCTO:BOOL=OFF
+
+// Archiver used to archive libraries for both BSP generation as well as applications.
+proc_archiver:STRING=mb-gcc-ar
+
+// Assembler used to assemble both BSP/libraries and applications.
+proc_assembler:STRING=mb-gcc
+
+// Compiler used to compile both BSP/libraries and applications.
+proc_compiler:STRING=mb-gcc
+
+// Compiler Flags used in BSP and library generation.'-c'flag stands for 'compile and assemble, but do not link'.Without this flag, gcc tries to link the code, which will fail because there is no application involved during libgen.'-O2' can be overwritten by extra compile flags.
+proc_compiler_flags:STRING= -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT;-c
+
+// Extra Compiler Flags used in BSP and library generation
+proc_extra_compiler_flags:STRING= -g -ffunction-sections -fdata-sections -Wall -Wextra -fno-tree-loop-distribute-patterns
+
+// This option is not supported in the Unified Vitis IDE in this version. Change to the classic IDE if you want to use this option
+standalone_enable_sw_intrusive_profiling:STRING=None
+
+// Unused option and deprecated
+standalone_microblaze_exceptions:STRING=None
+
+// Deprecated in favor of xiltimer
+standalone_pmu_sleep_timer:STRING=None
+
+// This option is not supported in the Unified Vitis IDE in this version. Change to the classic IDE if you want to use this option
+standalone_profile_timer:STRING=None
+
+// Deprecated in favor of xiltimer
+standalone_sleep_timer:STRING=None
+
+// stdin peripheral
+standalone_stdin:STRING=None;
+
+// stdout peripheral
+standalone_stdout:STRING=None;
+
+// Deprecated in favor of xiltimer
+standalone_ttc_select_cntr:STRING=None
+
+// Enable xpm support
+standalone_xpm_support:BOOL=OFF
+

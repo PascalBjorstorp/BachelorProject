@@ -1,0 +1,132 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'fp_front_force_jacobians_fn'" level="0">
+<item name = "Date">Thu May 21 15:23:09 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 4.433 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">9, 9, 45.000 ns, 45.000 ns, 10, 10, yes</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Utilization Estimates" level="0">
+<item name = "Summary"><table name="" hasTotal="1">
+<keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="DSP">-, -, -, -, -</column>
+<column name="Expression">-, -, 0, 66, -</column>
+<column name="FIFO">-, -, -, -, -</column>
+<column name="Instance">-, 9, 274, 130, -</column>
+<column name="Memory">-, -, -, -, -</column>
+<column name="Multiplexer">-, -, 0, 93, -</column>
+<column name="Register">-, -, 228, -, -</column>
+<specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
+<specialColumn name="Utilization (%)">0, ~0, ~0, ~0, 0</specialColumn>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="1">
+<keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="mul_23ns_23s_46_4_1_U339">mul_23ns_23s_46_4_1, 0, 2, 42, 20, 0</column>
+<column name="mul_23s_25ns_48_4_1_U340">mul_23s_25ns_48_4_1, 0, 2, 55, 26, 0</column>
+<column name="mul_25ns_16ns_40_4_1_U343">mul_25ns_16ns_40_4_1, 0, 1, 55, 26, 0</column>
+<column name="mul_26s_23s_49_4_1_U341">mul_26s_23s_49_4_1, 0, 2, 61, 29, 0</column>
+<column name="mul_26s_26s_43_4_1_x_U342">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+</table>
+</item>
+<item name = "DSP"><table name="" hasTotal="0">
+<keys size="3">Instance, Module, Expression</keys>
+</table>
+</item>
+<item name = "Memory"><table name="" hasTotal="1">
+<keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+</table>
+</item>
+<item name = "FIFO"><table name="" hasTotal="1">
+<keys size="8">Name, BRAM_18K, FF, LUT, URAM, Depth, Bits, Size:D*B</keys>
+</table>
+</item>
+<item name = "Expression"><table name="" hasTotal="1">
+<keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
+<column name="daf_dom_fu_210_p2">-, 0, 0, 33, 1, 26</column>
+<column name="daf_dvy_fu_169_p2">-, 0, 0, 33, 1, 26</column>
+</table>
+</item>
+<item name = "Multiplexer"><table name="" hasTotal="1">
+<keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
+<column name="ap_NS_fsm">59, 11, 1, 11</column>
+<column name="grp_fu_98_p0">20, 4, 26, 104</column>
+<column name="grp_fu_98_p1">14, 3, 26, 78</column>
+</table>
+</item>
+<item name = "Register"><table name="" hasTotal="1">
+<keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
+<column name="ap_CS_fsm">10, 0, 10, 0</column>
+<column name="ap_port_reg_C_eff_f">26, 0, 26, 0</column>
+<column name="ap_port_reg_front_num">26, 0, 26, 0</column>
+<column name="ap_port_reg_inv_D_f">23, 0, 23, 0</column>
+<column name="inv_D_f_read_reg_247">23, 0, 23, 0</column>
+<column name="product_q_54_reg_308">26, 0, 26, 0</column>
+<column name="product_q_55_reg_303">26, 0, 26, 0</column>
+<column name="sext_ln671_41_reg_283">43, 0, 43, 0</column>
+<column name="vx_safe_read_reg_237">25, 0, 25, 0</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Interface" level="0">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
+<column name="ap_clk">in, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_rst">in, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_start">in, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_done">out, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_idle">out, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_ready">out, 1, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_return_0">out, 26, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_return_1">out, 26, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="ap_return_2">out, 26, ap_ctrl_hs, fp_front_force_jacobians_fn, return value</column>
+<column name="C_eff_f">in, 26, ap_none, C_eff_f, scalar</column>
+<column name="front_num">in, 26, ap_none, front_num, scalar</column>
+<column name="vx_safe">in, 25, ap_none, vx_safe, scalar</column>
+<column name="inv_D_f">in, 23, ap_none, inv_D_f, scalar</column>
+</table>
+</item>
+</section>
+</profile>

@@ -358,9 +358,9 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->max_iterations = MPCC_DEFAULT_ADMM_MAX_ITER;
     config->eps_primal = MPCC_DEFAULT_ADMM_TOLERANCE;
     config->eps_dual = MPCC_DEFAULT_ADMM_TOLERANCE;
-    config->warm_start = 0;
-    config->rho_u = 0;            /* 0 = use same rho as states */
-    config->adaptive_rho = 1;     /* DISABLED: adaptive rho oscillates at tight corners */
+    config->warm_start = 1;
+    config->rho_u = 4;            /* 0 = use same rho as states */
+    config->adaptive_rho = 1;     /* Application configuration may override this setting. */
     config->alpha_relax = 1.6f;  /* Over-relaxation: accelerates ADMM convergence */
 }
 
@@ -408,6 +408,11 @@ static int invert_3x3(const float S[3][3], float Si[3][3])
 
 /** Threshold to detect "effectively unconstrained" bounds. */
 #define MPCC_BOUND_THRESHOLD  100.0f
+#define MPCC_ADMM_RHO_MIN       1.0f
+#define MPCC_ADMM_RHO_MAX      80.0f
+#define MPCC_ADMM_RHO_UPDATE_INTERVAL  5u
+#define MPCC_ADMM_RHO_ADAPT_RATIO       5.0f
+#define MPCC_ADMM_RHO_SCALE             1.5f
 
 void riccati_backward_pass(
     const MPCCQPProblem_t *problem,
@@ -512,7 +517,7 @@ void riccati_backward_pass(
                 float sum = 0.0f;
                 for (int s = 0; s < MPCC_NX; s++)
                     sum += M[i][s] * dyn->A[s][j];
-                H[i][j] = sum;
+                H[i][j] = sum + sc->S[i][j];
             }
         }
 
@@ -734,6 +739,11 @@ void admm_projection_step(
             float val = ws->z_x[k][i] + ws->lambda_x[k][i];
             if (val < problem->x_lower[i]) val = problem->x_lower[i];
             if (val > problem->x_upper[i]) val = problem->x_upper[i];
+            if (i == MPCC_IDX_S &&
+                problem->s_upper_stage[k] > problem->s_lower_stage[k]) {
+                if (val < problem->s_lower_stage[k]) val = problem->s_lower_stage[k];
+                if (val > problem->s_upper_stage[k]) val = problem->s_upper_stage[k];
+            }
             ws->w_x[k][i] = val;
         }
 
@@ -848,14 +858,27 @@ void admm_compute_residuals(
     float rho_u,
     uint16_t N,
     float *primal_res,
-    float *dual_res)
+    float *dual_res,
+    /* Optional outputs: per-domain residuals (states / controls). */
+    float *primal_x_res,
+    float *dual_x_res,
+    float *primal_u_res,
+    float *dual_u_res)
 {
     float max_prim = 0;
     float max_dual = 0;
+    float max_prim_x = 0;
+    float max_dual_x = 0;
+    float max_prim_u = 0;
+    float max_dual_u = 0;
 
     if (!isfinite((double)rho) || !isfinite((double)rho_u)) {
         *primal_res = INFINITY;
         *dual_res = INFINITY;
+        if (primal_x_res) *primal_x_res = INFINITY;
+        if (dual_x_res) *dual_x_res = INFINITY;
+        if (primal_u_res) *primal_u_res = INFINITY;
+        if (dual_u_res) *dual_u_res = INFINITY;
         return;
     }
 
@@ -872,6 +895,7 @@ void admm_compute_residuals(
             }
             float abs_diff = diff < 0 ? (0 - diff) : diff;
             if (abs_diff > max_prim) max_prim = abs_diff;
+            if (abs_diff > max_prim_x) max_prim_x = abs_diff;
 
             float w_diff = (ws->w_x[k][i] - ws->w_x_prev[k][i]);
             if (!isfinite((double)w_diff)) {
@@ -886,6 +910,7 @@ void admm_compute_residuals(
                 return;
             }
             if (abs_w > max_dual) max_dual = abs_w;
+            if (abs_w > max_dual_x) max_dual_x = abs_w;
         }
     }
 
@@ -902,6 +927,7 @@ void admm_compute_residuals(
             }
             float abs_diff = diff < 0 ? (0 - diff) : diff;
             if (abs_diff > max_prim) max_prim = abs_diff;
+            if (abs_diff > max_prim_u) max_prim_u = abs_diff;
 
             float w_diff = (ws->w_u[k][i] - ws->w_u_prev[k][i]);
             if (!isfinite((double)w_diff)) {
@@ -916,8 +942,19 @@ void admm_compute_residuals(
                 return;
             }
             if (abs_w > max_dual) max_dual = abs_w;
+            if (abs_w > max_dual_u) max_dual_u = abs_w;
         }
     }
+
+    /* Export per-domain residuals when requested */
+    if (primal_x_res) *primal_x_res = max_prim_x;
+    if (dual_x_res) *dual_x_res = max_dual_x;
+    if (primal_u_res) *primal_u_res = max_prim_u;
+    if (dual_u_res) *dual_u_res = max_dual_u;
+
+    /* Combined residuals (max across domains) */
+    if (max_prim_u > max_prim_x) max_prim = max_prim_u;
+    if (max_dual_u > max_dual_x) max_dual = max_dual_u;
 
     *primal_res = max_prim;
     *dual_res = max_dual;
@@ -947,6 +984,8 @@ MPCCStatus_t admm_solver_solve(
     }
 
     workspace->adaptive_rho_updates = 0;
+    workspace->adaptive_rho_state_updates = 0;
+    workspace->adaptive_rho_control_updates = 0;
     workspace->numeric_clip_count = 0;
 
     /* Cold start: zero all ADMM variables, then smart-init */
@@ -972,20 +1011,24 @@ MPCCStatus_t admm_solver_solve(
     float rho;
     float rho_u;
 
-    if (config->warm_start && workspace->rho_state > 0)
-        rho = workspace->rho_state;
-    else
-        rho = config->rho;
-
-    if (config->warm_start && workspace->rho_u_state > 0)
-        rho_u = workspace->rho_u_state;
-    else
-        rho_u = config->rho_u > 0 ? config->rho_u : rho;
-
-    /* Cold start uses the configured rho (not adapted) */
-    if (!config->warm_start) {
-        rho   = config->rho > 0 ? config->rho : 10.0f;
-        rho_u = rho;
+    /* Fixed-rho solves always use the configured penalties.  With adaptive
+     * rho enabled, a valid warm start continues with the penalty found in
+     * the preceding solve; a workspace reset clears these saved values. */
+    rho = config->rho > 0 ? config->rho : 10.0f;
+    rho_u = config->rho_u > 0 ? config->rho_u : rho;
+    if (config->adaptive_rho && config->warm_start) {
+        if (isfinite((double)workspace->rho_state) &&
+            workspace->rho_state > 0.0f)
+            rho = workspace->rho_state;
+        if (isfinite((double)workspace->rho_u_state) &&
+            workspace->rho_u_state > 0.0f)
+            rho_u = workspace->rho_u_state;
+    }
+    if (config->adaptive_rho) {
+        if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
+        if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
+        if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
+        if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
     }
     MPCCStatus_t status = MPCC_STATUS_MAX_ITERATIONS;
 
@@ -1052,7 +1095,9 @@ MPCCStatus_t admm_solver_solve(
 
         /* Step 4: Convergence check */
         float prim_res, dual_res;
-        admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res);
+        float prim_x = 0.0f, dual_x = 0.0f, prim_u = 0.0f, dual_u = 0.0f;
+        admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res,
+                       &prim_x, &dual_x, &prim_u, &dual_u);
 
         if (!isfinite((double)prim_res) || !isfinite((double)dual_res)) {
             status = MPCC_STATUS_ERROR;
@@ -1081,43 +1126,46 @@ MPCCStatus_t admm_solver_solve(
             break;
         }
 
-        /*--- Adaptive rho: balance primal/dual convergence rates ---
-         * Check every 25 iterations (not every 2) and use 1.5x scaling
-         * (not 2x) to avoid ping-ponging that disrupts convergence. */
-        if (config->adaptive_rho && iter >= 25 && (iter % 25) == 0) {
-            if (prim_res > 5.0f * dual_res &&
-                rho < 100.0f) {
-                float scale = 1.5f;
-                float inv_scale = 1.0f / scale;
-                rho = (rho * scale);
-                if (rho_u < 100.0f)
-                    rho_u = (rho_u * scale);
-                if (rho > 100.0f) rho = 100.0f;
-                if (rho_u > 100.0f) rho_u = 100.0f;
+        /* Adapt state and control penalties independently.  The moderate
+         * interval, ratio and scale avoid rapid penalty ping-pong. */
+        if (config->adaptive_rho &&
+            (((unsigned)iter + 1u) % MPCC_ADMM_RHO_UPDATE_INTERVAL) == 0u) {
+            float old_rho = rho;
+            if (prim_x > MPCC_ADMM_RHO_ADAPT_RATIO * dual_x &&
+                rho < MPCC_ADMM_RHO_MAX) {
+                rho *= MPCC_ADMM_RHO_SCALE;
+                if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
+            } else if (dual_x > MPCC_ADMM_RHO_ADAPT_RATIO * prim_x &&
+                       rho > MPCC_ADMM_RHO_MIN) {
+                rho /= MPCC_ADMM_RHO_SCALE;
+                if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
+            }
+            if (rho != old_rho) {
+                float lambda_scale = old_rho / rho;
                 workspace->adaptive_rho_updates++;
-                /* Scale dual variables: lambda /= scale */
+                workspace->adaptive_rho_state_updates++;
                 for (uint16_t kk = 0; kk <= N; kk++)
                     for (int i = 0; i < MPCC_NX; i++)
-                        workspace->lambda_x[kk][i] *= inv_scale;
-                for (uint16_t kk = 0; kk < N; kk++)
-                    for (int i = 0; i < MPCC_NU; i++)
-                        workspace->lambda_u[kk][i] *= inv_scale;
-            } else if (dual_res > 5.0f * prim_res &&
-                       rho > 0.5f) {
-                float scale = 1.5f;
-                rho = (rho / scale);
-                if (rho_u > 0.5f)
-                    rho_u = (rho_u / scale);
-                if (rho < 0.5f) rho = 0.5f;
-                if (rho_u < 0.5f) rho_u = 0.5f;
+                        workspace->lambda_x[kk][i] *= lambda_scale;
+            }
+
+            float old_rho_u = rho_u;
+            if (prim_u > MPCC_ADMM_RHO_ADAPT_RATIO * dual_u &&
+                rho_u < MPCC_ADMM_RHO_MAX) {
+                rho_u *= MPCC_ADMM_RHO_SCALE;
+                if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
+            } else if (dual_u > MPCC_ADMM_RHO_ADAPT_RATIO * prim_u &&
+                       rho_u > MPCC_ADMM_RHO_MIN) {
+                rho_u /= MPCC_ADMM_RHO_SCALE;
+                if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
+            }
+            if (rho_u != old_rho_u) {
+                float lambda_scale = old_rho_u / rho_u;
                 workspace->adaptive_rho_updates++;
-                /* Scale dual variables: lambda *= scale */
-                for (uint16_t kk = 0; kk <= N; kk++)
-                    for (int i = 0; i < MPCC_NX; i++)
-                        workspace->lambda_x[kk][i] *= scale;
+                workspace->adaptive_rho_control_updates++;
                 for (uint16_t kk = 0; kk < N; kk++)
                     for (int i = 0; i < MPCC_NU; i++)
-                        workspace->lambda_u[kk][i] *= scale;
+                        workspace->lambda_u[kk][i] *= lambda_scale;
             }
         }
     }
@@ -1135,6 +1183,8 @@ MPCCStatus_t admm_solver_solve(
     result->rho_final = rho;
     result->rho_u_final = rho_u;
     result->adaptive_rho_updates = workspace->adaptive_rho_updates;
+    result->adaptive_rho_state_updates = workspace->adaptive_rho_state_updates;
+    result->adaptive_rho_control_updates = workspace->adaptive_rho_control_updates;
     result->numeric_clip_count = workspace->numeric_clip_count;
 
     /* Export a dynamics-consistent state rollout for the feasible controls. */
@@ -1152,7 +1202,8 @@ MPCCStatus_t admm_solver_solve(
     memcpy(result->u_opt, workspace->w_u,
            sizeof(float) * N * MPCC_NU);
 
-    /* Persist adapted penalties for the next warm-started solve. */
+    /* Retain the final values for an adaptive warm-started solve.  They are
+     * ignored when adaptive rho is disabled. */
     workspace->rho_state = rho;
     workspace->rho_u_state = rho_u;
 

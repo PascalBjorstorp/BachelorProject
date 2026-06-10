@@ -1899,6 +1899,7 @@ int main(int argc, char *argv[])
         double effective_tol = (double)cfg.solver_convergence_tolerance;
         double effective_rho = ADMM_RHO;
         double effective_rho_u = ADMM_RHO_U;
+        int shared_rho = 0;
         const char *env_val = getenv("MAX_ITER");
         if (env_val != NULL && env_val[0] != '\0') {
             int parsed = atoi(env_val);
@@ -1917,14 +1918,24 @@ int main(int argc, char *argv[])
         env_val = getenv("RHO_U");
         if (env_val != NULL && env_val[0] != '\0') {
             double parsed = atof(env_val);
-            if (parsed > 0.0) effective_rho_u = parsed;
+            if (parsed > 0.0) {
+                effective_rho_u = parsed;
+            } else {
+                shared_rho = 1;
+                effective_rho_u = effective_rho;
+            }
+        }
+        if (get_env_int("MPC_SHARED_RHO", get_env_int("SHARED_RHO", shared_rho)) != 0) {
+            shared_rho = 1;
+            effective_rho_u = effective_rho;
         }
         printf("[MPC] max_iter=%u, tol=%.6g\n",
                effective_max_iter,
                effective_tol);
-        printf("[MPC] rho=%.6g, rho_u=%.6g\n",
+        printf("[MPC] rho=%.6g, rho_u=%.6g%s\n",
                effective_rho,
-               effective_rho_u);
+               effective_rho_u,
+               shared_rho ? " (shared)" : "");
         printf("[MPC] Weights: lat=%.1f heading=%.1f vel=%.1f steer_rate=%.2f steer_effort=%.4f\n",
                cfg.weight_lateral_error,
                cfg.weight_heading_error,

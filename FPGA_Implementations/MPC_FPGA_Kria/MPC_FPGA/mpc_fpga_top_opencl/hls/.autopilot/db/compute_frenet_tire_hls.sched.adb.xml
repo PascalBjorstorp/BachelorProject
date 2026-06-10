@@ -1,0 +1,4878 @@
+<stg><name>compute_frenet_tire_hls</name>
+
+
+<trans_list>
+
+<trans id="426" from="1" to="2">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="427" from="2" to="3">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="428" from="3" to="4">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="429" from="4" to="5">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="430" from="5" to="6">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="431" from="6" to="7">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="432" from="7" to="8">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="433" from="8" to="9">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="434" from="9" to="10">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="435" from="10" to="11">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="436" from="11" to="12">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="437" from="12" to="13">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="438" from="13" to="14">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="439" from="14" to="15">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="440" from="15" to="16">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="441" from="16" to="17">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="442" from="17" to="18">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="443" from="18" to="19">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="444" from="19" to="20">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="445" from="20" to="21">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="446" from="21" to="22">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="447" from="22" to="23">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="448" from="23" to="24">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="449" from="24" to="25">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="450" from="25" to="26">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="451" from="26" to="27">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="452" from="27" to="28">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="453" from="28" to="29">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="454" from="29" to="30">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="455" from="30" to="31">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="456" from="31" to="32">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="457" from="32" to="33">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="458" from="33" to="34">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="459" from="34" to="35">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="460" from="35" to="36">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="461" from="36" to="37">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="462" from="37" to="38">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="463" from="38" to="39">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="464" from="39" to="40">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="465" from="40" to="41">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="466" from="41" to="42">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="467" from="42" to="43">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="468" from="43" to="44">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="469" from="44" to="45">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="470" from="45" to="46">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="471" from="46" to="47">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="472" from="47" to="48">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="473" from="48" to="49">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="474" from="49" to="50">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="475" from="50" to="51">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="476" from="51" to="52">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="477" from="52" to="53">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="478" from="53" to="54">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="479" from="54" to="55">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="480" from="55" to="56">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="481" from="56" to="57">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="482" from="57" to="58">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="483" from="58" to="59">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="484" from="59" to="60">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="485" from="60" to="61">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="486" from="61" to="62">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="487" from="62" to="63">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="488" from="63" to="64">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="489" from="64" to="65">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="490" from="65" to="66">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="491" from="66" to="67">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="492" from="67" to="68">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="493" from="68" to="69">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="494" from="69" to="70">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="495" from="70" to="71">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+
+<trans id="496" from="71" to="72">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+</trans_list>
+
+
+
+<state_list>
+
+<state id="1" st_id="1">
+
+<operation id="73" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="10" bw="27" op_0_bw="27" op_1_bw="27">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:0 %a_cmd_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %a_cmd
+
+]]></Node>
+<StgValue><ssdm name="a_cmd_read"/></StgValue>
+</operation>
+
+<operation id="74" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="14" bw="27" op_0_bw="27" op_1_bw="27">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:4 %vx_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %vx
+
+]]></Node>
+<StgValue><ssdm name="vx_read"/></StgValue>
+</operation>
+
+<operation id="75" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="16" bw="26" op_0_bw="26" op_1_bw="27" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:6 %vx_fn = partselect i26 @_ssdm_op_PartSelect.i26.i27.i32.i32, i27 %vx_read, i32 1, i32 26
+
+]]></Node>
+<StgValue><ssdm name="vx_fn"/></StgValue>
+</operation>
+
+<operation id="76" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="17" bw="25" op_0_bw="25" op_1_bw="27" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:7 %trunc_ln = partselect i25 @_ssdm_op_PartSelect.i25.i27.i32.i32, i27 %vx_read, i32 1, i32 25
+
+]]></Node>
+<StgValue><ssdm name="trunc_ln"/></StgValue>
+</operation>
+
+<operation id="77" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="22" bw="26" op_0_bw="26" op_1_bw="27" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:12 %a_cmd_fn = partselect i26 @_ssdm_op_PartSelect.i26.i27.i32.i32, i27 %a_cmd_read, i32 1, i32 26
+
+]]></Node>
+<StgValue><ssdm name="a_cmd_fn"/></StgValue>
+</operation>
+
+<operation id="78" st_id="1" stage="1" lat="1">
+<core>Cmp</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="23" bw="1" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:13 %icmp_ln351 = icmp_sgt  i26 %vx_fn, i26 65536
+
+]]></Node>
+<StgValue><ssdm name="icmp_ln351"/></StgValue>
+</operation>
+
+<operation id="79" st_id="1" stage="1" lat="1">
+<core>Sel</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="24" bw="25" op_0_bw="1" op_1_bw="25" op_2_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:14 %out = select i1 %icmp_ln351, i25 %trunc_ln, i25 65536
+
+]]></Node>
+<StgValue><ssdm name="out"/></StgValue>
+</operation>
+
+<operation id="80" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="32" bw="44" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:22 %sext_ln671_91 = sext i26 %a_cmd_fn
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_91"/></StgValue>
+</operation>
+
+<operation id="81" st_id="1" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="38" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:28 %product_277 = mul i44 %sext_ln671_91, i44 67442
+
+]]></Node>
+<StgValue><ssdm name="product_277"/></StgValue>
+</operation>
+</state>
+
+<state id="2" st_id="2">
+
+<operation id="82" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="25" bw="26" op_0_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:15 %zext_ln352 = zext i25 %out
+
+]]></Node>
+<StgValue><ssdm name="zext_ln352"/></StgValue>
+</operation>
+
+<operation id="83" st_id="2" stage="8" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="84" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="31" bw="42" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:21 %sext_ln671 = sext i26 %a_cmd_fn
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671"/></StgValue>
+</operation>
+
+<operation id="85" st_id="2" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="38" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:28 %product_277 = mul i44 %sext_ln671_91, i44 67442
+
+]]></Node>
+<StgValue><ssdm name="product_277"/></StgValue>
+</operation>
+
+<operation id="86" st_id="2" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:33 %product_278 = mul i42 %sext_ln671, i42 30174
+
+]]></Node>
+<StgValue><ssdm name="product_278"/></StgValue>
+</operation>
+</state>
+
+<state id="3" st_id="3">
+
+<operation id="87" st_id="3" stage="7" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="88" st_id="3" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="38" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:28 %product_277 = mul i44 %sext_ln671_91, i44 67442
+
+]]></Node>
+<StgValue><ssdm name="product_277"/></StgValue>
+</operation>
+
+<operation id="89" st_id="3" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:33 %product_278 = mul i42 %sext_ln671, i42 30174
+
+]]></Node>
+<StgValue><ssdm name="product_278"/></StgValue>
+</operation>
+
+<operation id="90" st_id="3" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="50" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:40 %product_279 = mul i42 %sext_ln671, i42 24387
+
+]]></Node>
+<StgValue><ssdm name="product_279"/></StgValue>
+</operation>
+</state>
+
+<state id="4" st_id="4">
+
+<operation id="91" st_id="4" stage="6" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="92" st_id="4" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="38" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:28 %product_277 = mul i44 %sext_ln671_91, i44 67442
+
+]]></Node>
+<StgValue><ssdm name="product_277"/></StgValue>
+</operation>
+
+<operation id="93" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="39" bw="0" op_0_bw="0" op_1_bw="44" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:29 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i44 %product_277, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="94" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="41" bw="26" op_0_bw="26" op_1_bw="44" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:31 %product_q_95 = partselect i26 @_ssdm_op_PartSelect.i26.i44.i32.i32, i44 %product_277, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q_95"/></StgValue>
+</operation>
+
+<operation id="95" st_id="4" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:33 %product_278 = mul i42 %sext_ln671, i42 30174
+
+]]></Node>
+<StgValue><ssdm name="product_278"/></StgValue>
+</operation>
+
+<operation id="96" st_id="4" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="50" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:40 %product_279 = mul i42 %sext_ln671, i42 24387
+
+]]></Node>
+<StgValue><ssdm name="product_279"/></StgValue>
+</operation>
+
+<operation id="97" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="66" bw="50" op_0_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:56 %zext_ln671 = zext i25 %out
+
+]]></Node>
+<StgValue><ssdm name="zext_ln671"/></StgValue>
+</operation>
+
+<operation id="98" st_id="4" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="67" bw="50" op_0_bw="50" op_1_bw="50">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:57 %mul_ln671 = mul i50 %zext_ln671, i50 %zext_ln671
+
+]]></Node>
+<StgValue><ssdm name="mul_ln671"/></StgValue>
+</operation>
+</state>
+
+<state id="5" st_id="5">
+
+<operation id="99" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="13" bw="27" op_0_bw="27" op_1_bw="27">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:3 %vy_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %vy
+
+]]></Node>
+<StgValue><ssdm name="vy_read"/></StgValue>
+</operation>
+
+<operation id="100" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="18" bw="26" op_0_bw="26" op_1_bw="27" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:8 %vy_fn = partselect i26 @_ssdm_op_PartSelect.i26.i27.i32.i32, i27 %vy_read, i32 1, i32 26
+
+]]></Node>
+<StgValue><ssdm name="vy_fn"/></StgValue>
+</operation>
+
+<operation id="101" st_id="5" stage="5" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="102" st_id="5" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:33 %product_278 = mul i42 %sext_ln671, i42 30174
+
+]]></Node>
+<StgValue><ssdm name="product_278"/></StgValue>
+</operation>
+
+<operation id="103" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="44" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:34 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i42 %product_278, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="104" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="46" bw="25" op_0_bw="25" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:36 %product_q_96 = partselect i25 @_ssdm_op_PartSelect.i25.i42.i32.i32, i42 %product_278, i32 17, i32 41
+
+]]></Node>
+<StgValue><ssdm name="product_q_96"/></StgValue>
+</operation>
+
+<operation id="105" st_id="5" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="50" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:40 %product_279 = mul i42 %sext_ln671, i42 24387
+
+]]></Node>
+<StgValue><ssdm name="product_279"/></StgValue>
+</operation>
+
+<operation id="106" st_id="5" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="67" bw="50" op_0_bw="50" op_1_bw="50">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:57 %mul_ln671 = mul i50 %zext_ln671, i50 %zext_ln671
+
+]]></Node>
+<StgValue><ssdm name="mul_ln671"/></StgValue>
+</operation>
+
+<operation id="107" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="73" bw="43" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:63 %sext_ln671_93 = sext i26 %vy_fn
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_93"/></StgValue>
+</operation>
+
+<operation id="108" st_id="5" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="74" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:64 %product_280 = mul i43 %sext_ln671_93, i43 %sext_ln671_93
+
+]]></Node>
+<StgValue><ssdm name="product_280"/></StgValue>
+</operation>
+</state>
+
+<state id="6" st_id="6">
+
+<operation id="109" st_id="6" stage="4" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="110" st_id="6" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="33" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:23 %product = mul i44 %sext_ln671_91, i44 93669
+
+]]></Node>
+<StgValue><ssdm name="product"/></StgValue>
+</operation>
+
+<operation id="111" st_id="6" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="50" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:40 %product_279 = mul i42 %sext_ln671, i42 24387
+
+]]></Node>
+<StgValue><ssdm name="product_279"/></StgValue>
+</operation>
+
+<operation id="112" st_id="6" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="51" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:41 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i42 %product_279, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="113" st_id="6" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="53" bw="25" op_0_bw="25" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:43 %product_q_97 = partselect i25 @_ssdm_op_PartSelect.i25.i42.i32.i32, i42 %product_279, i32 17, i32 41
+
+]]></Node>
+<StgValue><ssdm name="product_q_97"/></StgValue>
+</operation>
+
+<operation id="114" st_id="6" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="67" bw="50" op_0_bw="50" op_1_bw="50">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:57 %mul_ln671 = mul i50 %zext_ln671, i50 %zext_ln671
+
+]]></Node>
+<StgValue><ssdm name="mul_ln671"/></StgValue>
+</operation>
+
+<operation id="115" st_id="6" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="74" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:64 %product_280 = mul i43 %sext_ln671_93, i43 %sext_ln671_93
+
+]]></Node>
+<StgValue><ssdm name="product_280"/></StgValue>
+</operation>
+</state>
+
+<state id="7" st_id="7">
+
+<operation id="116" st_id="7" stage="3" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="117" st_id="7" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="33" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:23 %product = mul i44 %sext_ln671_91, i44 93669
+
+]]></Node>
+<StgValue><ssdm name="product"/></StgValue>
+</operation>
+
+<operation id="118" st_id="7" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="67" bw="50" op_0_bw="50" op_1_bw="50">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:57 %mul_ln671 = mul i50 %zext_ln671, i50 %zext_ln671
+
+]]></Node>
+<StgValue><ssdm name="mul_ln671"/></StgValue>
+</operation>
+
+<operation id="119" st_id="7" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="68" bw="0" op_0_bw="0" op_1_bw="50" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:58 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i50 %mul_ln671, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="120" st_id="7" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="70" bw="26" op_0_bw="26" op_1_bw="50" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:60 %product_q_98 = partselect i26 @_ssdm_op_PartSelect.i26.i50.i32.i32, i50 %mul_ln671, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q_98"/></StgValue>
+</operation>
+
+<operation id="121" st_id="7" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="74" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:64 %product_280 = mul i43 %sext_ln671_93, i43 %sext_ln671_93
+
+]]></Node>
+<StgValue><ssdm name="product_280"/></StgValue>
+</operation>
+</state>
+
+<state id="8" st_id="8">
+
+<operation id="122" st_id="8" stage="2" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="123" st_id="8" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="33" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:23 %product = mul i44 %sext_ln671_91, i44 93669
+
+]]></Node>
+<StgValue><ssdm name="product"/></StgValue>
+</operation>
+
+<operation id="124" st_id="8" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="74" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:64 %product_280 = mul i43 %sext_ln671_93, i43 %sext_ln671_93
+
+]]></Node>
+<StgValue><ssdm name="product_280"/></StgValue>
+</operation>
+
+<operation id="125" st_id="8" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="75" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:65 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_280, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="126" st_id="8" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="77" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:67 %product_q_99 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_280, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q_99"/></StgValue>
+</operation>
+
+<operation id="127" st_id="8" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="104" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:94 %add_ln380 = add i26 %product_q_99, i26 %product_q_98
+
+]]></Node>
+<StgValue><ssdm name="add_ln380"/></StgValue>
+</operation>
+</state>
+
+<state id="9" st_id="9">
+
+<operation id="128" st_id="9" stage="1" lat="8">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="23" op_0_bw="23" op_1_bw="26" op_2_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:16 %ref_tmp_i = call i23 @fp_recip_fn, i26 %zext_ln352, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="ref_tmp_i"/></StgValue>
+</operation>
+
+<operation id="129" st_id="9" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="33" bw="44" op_0_bw="44" op_1_bw="44">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:23 %product = mul i44 %sext_ln671_91, i44 93669
+
+]]></Node>
+<StgValue><ssdm name="product"/></StgValue>
+</operation>
+
+<operation id="130" st_id="9" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="34" bw="0" op_0_bw="0" op_1_bw="44" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:24 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i44 %product, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="131" st_id="9" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="36" bw="26" op_0_bw="26" op_1_bw="44" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:26 %product_q = partselect i26 @_ssdm_op_PartSelect.i26.i44.i32.i32, i44 %product, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q"/></StgValue>
+</operation>
+</state>
+
+<state id="10" st_id="10">
+
+<operation id="132" st_id="10" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="12" bw="27" op_0_bw="27" op_1_bw="27">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:2 %omega_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %omega
+
+]]></Node>
+<StgValue><ssdm name="omega_read"/></StgValue>
+</operation>
+
+<operation id="133" st_id="10" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="19" bw="26" op_0_bw="26" op_1_bw="27" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:9 %omega_fn = partselect i26 @_ssdm_op_PartSelect.i26.i27.i32.i32, i27 %omega_read, i32 1, i32 26
+
+]]></Node>
+<StgValue><ssdm name="omega_fn"/></StgValue>
+</operation>
+
+<operation id="134" st_id="10" stage="9" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="11" st_id="11">
+
+<operation id="135" st_id="11" stage="8" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="12" st_id="12">
+
+<operation id="136" st_id="12" stage="7" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="13" st_id="13">
+
+<operation id="137" st_id="13" stage="6" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="14" st_id="14">
+
+<operation id="138" st_id="14" stage="5" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="15" st_id="15">
+
+<operation id="139" st_id="15" stage="4" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="16" st_id="16">
+
+<operation id="140" st_id="16" stage="3" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="17" st_id="17">
+
+<operation id="141" st_id="17" stage="2" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+</state>
+
+<state id="18" st_id="18">
+
+<operation id="142" st_id="18" stage="1" lat="9">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="58" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="23">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:48 %call_ret3 = call i156 @fp_slip_terms, i26 %vy_fn, i26 %omega_fn, i23 %ref_tmp_i
+
+]]></Node>
+<StgValue><ssdm name="call_ret3"/></StgValue>
+</operation>
+
+<operation id="143" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="59" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:49 %lf_omega = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="lf_omega"/></StgValue>
+</operation>
+
+<operation id="144" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="60" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:50 %lr_omega = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="lr_omega"/></StgValue>
+</operation>
+
+<operation id="145" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="61" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:51 %front_num = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="front_num"/></StgValue>
+</operation>
+
+<operation id="146" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="62" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:52 %rear_num = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="rear_num"/></StgValue>
+</operation>
+
+<operation id="147" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="63" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:53 %front_ratio = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="front_ratio"/></StgValue>
+</operation>
+
+<operation id="148" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="64" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:54 %rear_ratio = extractvalue i156 %call_ret3
+
+]]></Node>
+<StgValue><ssdm name="rear_ratio"/></StgValue>
+</operation>
+
+<operation id="149" st_id="18" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="80" bw="43" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:70 %sext_ln671_95 = sext i26 %lf_omega
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_95"/></StgValue>
+</operation>
+
+<operation id="150" st_id="18" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="81" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:71 %product_281 = mul i43 %sext_ln671_95, i43 %sext_ln671_95
+
+]]></Node>
+<StgValue><ssdm name="product_281"/></StgValue>
+</operation>
+</state>
+
+<state id="19" st_id="19">
+
+<operation id="151" st_id="19" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="81" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:71 %product_281 = mul i43 %sext_ln671_95, i43 %sext_ln671_95
+
+]]></Node>
+<StgValue><ssdm name="product_281"/></StgValue>
+</operation>
+
+<operation id="152" st_id="19" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="87" bw="43" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:77 %sext_ln671_97 = sext i26 %lr_omega
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_97"/></StgValue>
+</operation>
+
+<operation id="153" st_id="19" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="88" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:78 %product_282 = mul i43 %sext_ln671_97, i43 %sext_ln671_97
+
+]]></Node>
+<StgValue><ssdm name="product_282"/></StgValue>
+</operation>
+</state>
+
+<state id="20" st_id="20">
+
+<operation id="154" st_id="20" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="72" bw="42" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:62 %sext_ln671_92 = sext i26 %vy_fn
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_92"/></StgValue>
+</operation>
+
+<operation id="155" st_id="20" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="79" bw="42" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:69 %sext_ln671_94 = sext i26 %lf_omega
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_94"/></StgValue>
+</operation>
+
+<operation id="156" st_id="20" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="81" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:71 %product_281 = mul i43 %sext_ln671_95, i43 %sext_ln671_95
+
+]]></Node>
+<StgValue><ssdm name="product_281"/></StgValue>
+</operation>
+
+<operation id="157" st_id="20" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="88" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:78 %product_282 = mul i43 %sext_ln671_97, i43 %sext_ln671_97
+
+]]></Node>
+<StgValue><ssdm name="product_282"/></StgValue>
+</operation>
+
+<operation id="158" st_id="20" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="93" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:83 %product_283 = mul i42 %sext_ln671_94, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_283"/></StgValue>
+</operation>
+</state>
+
+<state id="21" st_id="21">
+
+<operation id="159" st_id="21" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="81" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:71 %product_281 = mul i43 %sext_ln671_95, i43 %sext_ln671_95
+
+]]></Node>
+<StgValue><ssdm name="product_281"/></StgValue>
+</operation>
+
+<operation id="160" st_id="21" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="82" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:72 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_281, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="161" st_id="21" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="84" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:74 %product_q_100 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_281, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q_100"/></StgValue>
+</operation>
+
+<operation id="162" st_id="21" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="86" bw="42" op_0_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:76 %sext_ln671_96 = sext i26 %lr_omega
+
+]]></Node>
+<StgValue><ssdm name="sext_ln671_96"/></StgValue>
+</operation>
+
+<operation id="163" st_id="21" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="88" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:78 %product_282 = mul i43 %sext_ln671_97, i43 %sext_ln671_97
+
+]]></Node>
+<StgValue><ssdm name="product_282"/></StgValue>
+</operation>
+
+<operation id="164" st_id="21" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="93" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:83 %product_283 = mul i42 %sext_ln671_94, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_283"/></StgValue>
+</operation>
+
+<operation id="165" st_id="21" stage="4" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="97" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:87 %product_284 = mul i42 %sext_ln671_96, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_284"/></StgValue>
+</operation>
+</state>
+
+<state id="22" st_id="22">
+
+<operation id="166" st_id="22" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="88" bw="43" op_0_bw="43" op_1_bw="43">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:78 %product_282 = mul i43 %sext_ln671_97, i43 %sext_ln671_97
+
+]]></Node>
+<StgValue><ssdm name="product_282"/></StgValue>
+</operation>
+
+<operation id="167" st_id="22" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="89" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:79 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_282, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="168" st_id="22" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="91" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:81 %product_q_101 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_282, i32 17, i32 42
+
+]]></Node>
+<StgValue><ssdm name="product_q_101"/></StgValue>
+</operation>
+
+<operation id="169" st_id="22" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="93" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:83 %product_283 = mul i42 %sext_ln671_94, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_283"/></StgValue>
+</operation>
+
+<operation id="170" st_id="22" stage="3" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="97" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:87 %product_284 = mul i42 %sext_ln671_96, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_284"/></StgValue>
+</operation>
+</state>
+
+<state id="23" st_id="23">
+
+<operation id="171" st_id="23" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="93" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:83 %product_283 = mul i42 %sext_ln671_94, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_283"/></StgValue>
+</operation>
+
+<operation id="172" st_id="23" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="94" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:84 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i42 %product_283, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="173" st_id="23" stage="2" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="97" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:87 %product_284 = mul i42 %sext_ln671_96, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_284"/></StgValue>
+</operation>
+
+<operation id="174" st_id="23" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="100" bw="25" op_0_bw="25" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:90 %tmp = partselect i25 @_ssdm_op_PartSelect.i25.i42.i32.i32, i42 %product_283, i32 17, i32 41
+
+]]></Node>
+<StgValue><ssdm name="tmp"/></StgValue>
+</operation>
+
+<operation id="175" st_id="23" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="101" bw="26" op_0_bw="26" op_1_bw="25" op_2_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:91 %and_ln = bitconcatenate i26 @_ssdm_op_BitConcatenate.i26.i25.i1, i25 %tmp, i1 0
+
+]]></Node>
+<StgValue><ssdm name="and_ln"/></StgValue>
+</operation>
+
+<operation id="176" st_id="23" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="105" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:95 %add_ln382 = add i26 %add_ln380, i26 %and_ln
+
+]]></Node>
+<StgValue><ssdm name="add_ln382"/></StgValue>
+</operation>
+
+<operation id="177" st_id="23" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="106" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:96 %D_f_fn = add i26 %add_ln382, i26 %product_q_100
+
+]]></Node>
+<StgValue><ssdm name="D_f_fn"/></StgValue>
+</operation>
+</state>
+
+<state id="24" st_id="24">
+
+<operation id="178" st_id="24" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="47" bw="26" op_0_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:37 %sext_ln674 = sext i25 %product_q_96
+
+]]></Node>
+<StgValue><ssdm name="sext_ln674"/></StgValue>
+</operation>
+
+<operation id="179" st_id="24" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="48" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:38 %sub_ln361 = sub i26 673710, i26 %sext_ln674
+
+]]></Node>
+<StgValue><ssdm name="sub_ln361"/></StgValue>
+</operation>
+
+<operation id="180" st_id="24" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="54" bw="26" op_0_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:44 %sext_ln674_20 = sext i25 %product_q_97
+
+]]></Node>
+<StgValue><ssdm name="sext_ln674_20"/></StgValue>
+</operation>
+
+<operation id="181" st_id="24" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="55" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:45 %add_ln363 = add i26 %sext_ln674_20, i26 564920
+
+]]></Node>
+<StgValue><ssdm name="add_ln363"/></StgValue>
+</operation>
+
+<operation id="182" st_id="24" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="56" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:46 %D_pac_f = sub i26 1505796, i26 %product_q_95
+
+]]></Node>
+<StgValue><ssdm name="D_pac_f"/></StgValue>
+</operation>
+
+<operation id="183" st_id="24" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="57" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:47 %D_pac_r = add i26 %product_q_95, i26 1562264
+
+]]></Node>
+<StgValue><ssdm name="D_pac_r"/></StgValue>
+</operation>
+
+<operation id="184" st_id="24" stage="1" lat="4">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="97" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:87 %product_284 = mul i42 %sext_ln671_96, i42 %sext_ln671_92
+
+]]></Node>
+<StgValue><ssdm name="product_284"/></StgValue>
+</operation>
+
+<operation id="185" st_id="24" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="98" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:88 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i42 %product_284, i64 12, i64 3, i64 3, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+</operation>
+
+<operation id="186" st_id="24" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="102" bw="25" op_0_bw="25" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:92 %tmp_s = partselect i25 @_ssdm_op_PartSelect.i25.i42.i32.i32, i42 %product_284, i32 17, i32 41
+
+]]></Node>
+<StgValue><ssdm name="tmp_s"/></StgValue>
+</operation>
+
+<operation id="187" st_id="24" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="103" bw="26" op_0_bw="26" op_1_bw="25" op_2_bw="1">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:93 %and_ln4 = bitconcatenate i26 @_ssdm_op_BitConcatenate.i26.i25.i1, i25 %tmp_s, i1 0
+
+]]></Node>
+<StgValue><ssdm name="and_ln4"/></StgValue>
+</operation>
+
+<operation id="188" st_id="24" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="107" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:97 %rear_num2 = add i26 %product_q_101, i26 %add_ln380
+
+]]></Node>
+<StgValue><ssdm name="rear_num2"/></StgValue>
+</operation>
+
+<operation id="189" st_id="24" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="108" bw="26" op_0_bw="26" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:98 %D_r_fn = sub i26 %rear_num2, i26 %and_ln4
+
+]]></Node>
+<StgValue><ssdm name="D_r_fn"/></StgValue>
+</operation>
+
+<operation id="190" st_id="24" stage="1" lat="1">
+<core>Cmp</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="109" bw="1" op_0_bw="25" op_1_bw="25">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:99 %low_speed = icmp_ult  i25 %out, i25 65537
+
+]]></Node>
+<StgValue><ssdm name="low_speed"/></StgValue>
+</operation>
+</state>
+
+<state id="25" st_id="25">
+
+<operation id="191" st_id="25" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="11" bw="18" op_0_bw="18" op_1_bw="18">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:1 %delta_read = read i18 @_ssdm_op_Read.ap_auto.i18, i18 %delta
+
+]]></Node>
+<StgValue><ssdm name="delta_read"/></StgValue>
+</operation>
+
+<operation id="192" st_id="25" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="20" bw="17" op_0_bw="17" op_1_bw="18" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:10 %delta_fn = partselect i17 @_ssdm_op_PartSelect.i17.i18.i32.i32, i18 %delta_read, i32 1, i32 17
+
+]]></Node>
+<StgValue><ssdm name="delta_fn"/></StgValue>
+</operation>
+
+<operation id="193" st_id="25" stage="48" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="194" st_id="25" stage="48" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="26" st_id="26">
+
+<operation id="195" st_id="26" stage="47" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="196" st_id="26" stage="47" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="27" st_id="27">
+
+<operation id="197" st_id="27" stage="46" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="198" st_id="27" stage="46" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="28" st_id="28">
+
+<operation id="199" st_id="28" stage="45" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="200" st_id="28" stage="45" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="29" st_id="29">
+
+<operation id="201" st_id="29" stage="44" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="202" st_id="29" stage="44" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="30" st_id="30">
+
+<operation id="203" st_id="30" stage="43" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="204" st_id="30" stage="43" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="31" st_id="31">
+
+<operation id="205" st_id="31" stage="42" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="206" st_id="31" stage="42" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="32" st_id="32">
+
+<operation id="207" st_id="32" stage="41" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="208" st_id="32" stage="41" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="33" st_id="33">
+
+<operation id="209" st_id="33" stage="40" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="210" st_id="33" stage="40" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="34" st_id="34">
+
+<operation id="211" st_id="34" stage="39" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="212" st_id="34" stage="39" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="35" st_id="35">
+
+<operation id="213" st_id="35" stage="38" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="214" st_id="35" stage="38" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="36" st_id="36">
+
+<operation id="215" st_id="36" stage="37" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="216" st_id="36" stage="37" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="37" st_id="37">
+
+<operation id="217" st_id="37" stage="36" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="218" st_id="37" stage="36" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="38" st_id="38">
+
+<operation id="219" st_id="38" stage="35" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="220" st_id="38" stage="35" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="39" st_id="39">
+
+<operation id="221" st_id="39" stage="34" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="222" st_id="39" stage="34" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="40" st_id="40">
+
+<operation id="223" st_id="40" stage="33" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="224" st_id="40" stage="33" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="41" st_id="41">
+
+<operation id="225" st_id="41" stage="32" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="226" st_id="41" stage="32" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="42" st_id="42">
+
+<operation id="227" st_id="42" stage="31" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="228" st_id="42" stage="31" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="43" st_id="43">
+
+<operation id="229" st_id="43" stage="30" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="230" st_id="43" stage="30" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="44" st_id="44">
+
+<operation id="231" st_id="44" stage="29" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="232" st_id="44" stage="29" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="45" st_id="45">
+
+<operation id="233" st_id="45" stage="28" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="234" st_id="45" stage="28" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="46" st_id="46">
+
+<operation id="235" st_id="46" stage="27" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="236" st_id="46" stage="27" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="47" st_id="47">
+
+<operation id="237" st_id="47" stage="26" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="238" st_id="47" stage="26" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="48" st_id="48">
+
+<operation id="239" st_id="48" stage="25" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="240" st_id="48" stage="25" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="49" st_id="49">
+
+<operation id="241" st_id="49" stage="24" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="242" st_id="49" stage="24" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="50" st_id="50">
+
+<operation id="243" st_id="50" stage="23" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="244" st_id="50" stage="23" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="51" st_id="51">
+
+<operation id="245" st_id="51" stage="22" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="246" st_id="51" stage="22" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="52" st_id="52">
+
+<operation id="247" st_id="52" stage="21" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="248" st_id="52" stage="21" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="53" st_id="53">
+
+<operation id="249" st_id="53" stage="20" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="250" st_id="53" stage="20" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="54" st_id="54">
+
+<operation id="251" st_id="54" stage="19" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="252" st_id="54" stage="19" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="55" st_id="55">
+
+<operation id="253" st_id="55" stage="18" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="254" st_id="55" stage="18" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="56" st_id="56">
+
+<operation id="255" st_id="56" stage="17" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="256" st_id="56" stage="17" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="57" st_id="57">
+
+<operation id="257" st_id="57" stage="16" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="258" st_id="57" stage="16" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="58" st_id="58">
+
+<operation id="259" st_id="58" stage="15" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="260" st_id="58" stage="15" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="59" st_id="59">
+
+<operation id="261" st_id="59" stage="14" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="262" st_id="59" stage="14" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="60" st_id="60">
+
+<operation id="263" st_id="60" stage="13" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="264" st_id="60" stage="13" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="61" st_id="61">
+
+<operation id="265" st_id="61" stage="12" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="266" st_id="61" stage="12" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="62" st_id="62">
+
+<operation id="267" st_id="62" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="21" bw="26" op_0_bw="17">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:11 %sext_ln680 = sext i17 %delta_fn
+
+]]></Node>
+<StgValue><ssdm name="sext_ln680"/></StgValue>
+</operation>
+
+<operation id="268" st_id="62" stage="11" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="269" st_id="62" stage="11" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="270" st_id="62" stage="11" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="63" st_id="63">
+
+<operation id="271" st_id="63" stage="10" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="272" st_id="63" stage="10" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="273" st_id="63" stage="10" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="64" st_id="64">
+
+<operation id="274" st_id="64" stage="9" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="275" st_id="64" stage="9" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="276" st_id="64" stage="9" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="65" st_id="65">
+
+<operation id="277" st_id="65" stage="8" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="278" st_id="65" stage="8" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="279" st_id="65" stage="8" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="66" st_id="66">
+
+<operation id="280" st_id="66" stage="7" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="281" st_id="66" stage="7" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="282" st_id="66" stage="7" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="67" st_id="67">
+
+<operation id="283" st_id="67" stage="6" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="284" st_id="67" stage="6" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="285" st_id="67" stage="6" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="68" st_id="68">
+
+<operation id="286" st_id="68" stage="5" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="287" st_id="68" stage="5" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="288" st_id="68" stage="5" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="69" st_id="69">
+
+<operation id="289" st_id="69" stage="4" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="290" st_id="69" stage="4" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="291" st_id="69" stage="4" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="70" st_id="70">
+
+<operation id="292" st_id="70" stage="3" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="293" st_id="70" stage="3" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="294" st_id="70" stage="3" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="71" st_id="71">
+
+<operation id="295" st_id="71" stage="2" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="296" st_id="71" stage="2" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="297" st_id="71" stage="2" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+</state>
+
+<state id="72" st_id="72">
+
+<operation id="298" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="15" bw="0" op_0_bw="0" op_1_bw="64" op_2_bw="0" op_3_bw="0" op_4_bw="0" op_5_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:5 %specresourcelimit_ln343 = specresourcelimit void @_ssdm_op_SpecResourceLimit, i64 2, void @empty_485, void @empty_485, void @function7, void @empty_485
+
+]]></Node>
+<StgValue><ssdm name="specresourcelimit_ln343"/></StgValue>
+</operation>
+
+<operation id="299" st_id="72" stage="1" lat="11">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="52" op_0_bw="52" op_1_bw="26" op_2_bw="18" op_3_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:17 %call_ret = call i52 @fp_trig_pair_fused_fn, i26 %sext_ln680, i18 %sin_lut_fn, i19 %cos_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret"/></StgValue>
+</operation>
+
+<operation id="300" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="28" bw="26" op_0_bw="52">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:18 %tr_sin_delta_write_assign = extractvalue i52 %call_ret
+
+]]></Node>
+<StgValue><ssdm name="tr_sin_delta_write_assign"/></StgValue>
+</operation>
+
+<operation id="301" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="29" bw="26" op_0_bw="52">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:19 %tr_cos_delta_write_assign = extractvalue i52 %call_ret
+
+]]></Node>
+<StgValue><ssdm name="tr_cos_delta_write_assign"/></StgValue>
+</operation>
+
+<operation id="302" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="30" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:20 %rbegin23 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_461
+
+]]></Node>
+<StgValue><ssdm name="rbegin23"/></StgValue>
+</operation>
+
+<operation id="303" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="35" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:25 %rend24 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_461, i32 %rbegin23
+
+]]></Node>
+<StgValue><ssdm name="rend24"/></StgValue>
+</operation>
+
+<operation id="304" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="37" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:27 %rbegin21 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_476
+
+]]></Node>
+<StgValue><ssdm name="rbegin21"/></StgValue>
+</operation>
+
+<operation id="305" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="40" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:30 %rend22 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_476, i32 %rbegin21
+
+]]></Node>
+<StgValue><ssdm name="rend22"/></StgValue>
+</operation>
+
+<operation id="306" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="42" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:32 %rbegin19 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_467
+
+]]></Node>
+<StgValue><ssdm name="rbegin19"/></StgValue>
+</operation>
+
+<operation id="307" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="45" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:35 %rend20 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_467, i32 %rbegin19
+
+]]></Node>
+<StgValue><ssdm name="rend20"/></StgValue>
+</operation>
+
+<operation id="308" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="49" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:39 %rbegin17 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_27
+
+]]></Node>
+<StgValue><ssdm name="rbegin17"/></StgValue>
+</operation>
+
+<operation id="309" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="52" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:42 %rend18 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_27, i32 %rbegin17
+
+]]></Node>
+<StgValue><ssdm name="rend18"/></StgValue>
+</operation>
+
+<operation id="310" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="65" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:55 %rbegin15 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_380
+
+]]></Node>
+<StgValue><ssdm name="rbegin15"/></StgValue>
+</operation>
+
+<operation id="311" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="69" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:59 %rend16 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_380, i32 %rbegin15
+
+]]></Node>
+<StgValue><ssdm name="rend16"/></StgValue>
+</operation>
+
+<operation id="312" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="71" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:61 %rbegin13 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_441
+
+]]></Node>
+<StgValue><ssdm name="rbegin13"/></StgValue>
+</operation>
+
+<operation id="313" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="76" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:66 %rend14 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_441, i32 %rbegin13
+
+]]></Node>
+<StgValue><ssdm name="rend14"/></StgValue>
+</operation>
+
+<operation id="314" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="78" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:68 %rbegin11 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_440
+
+]]></Node>
+<StgValue><ssdm name="rbegin11"/></StgValue>
+</operation>
+
+<operation id="315" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="83" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:73 %rend12 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_440, i32 %rbegin11
+
+]]></Node>
+<StgValue><ssdm name="rend12"/></StgValue>
+</operation>
+
+<operation id="316" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="85" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:75 %rbegin9 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_452
+
+]]></Node>
+<StgValue><ssdm name="rbegin9"/></StgValue>
+</operation>
+
+<operation id="317" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="90" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:80 %rend10 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_452, i32 %rbegin9
+
+]]></Node>
+<StgValue><ssdm name="rend10"/></StgValue>
+</operation>
+
+<operation id="318" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="92" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:82 %rbegin7 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_495
+
+]]></Node>
+<StgValue><ssdm name="rbegin7"/></StgValue>
+</operation>
+
+<operation id="319" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="95" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:85 %rend8 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_495, i32 %rbegin7
+
+]]></Node>
+<StgValue><ssdm name="rend8"/></StgValue>
+</operation>
+
+<operation id="320" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="96" bw="32" op_0_bw="32" op_1_bw="0">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:86 %rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_439
+
+]]></Node>
+<StgValue><ssdm name="rbegin"/></StgValue>
+</operation>
+
+<operation id="321" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="99" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:89 %rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_439, i32 %rbegin
+
+]]></Node>
+<StgValue><ssdm name="rend"/></StgValue>
+</operation>
+
+<operation id="322" st_id="72" stage="1" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="110" bw="156" op_0_bw="156" op_1_bw="17" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="26" op_7_bw="25" op_8_bw="26" op_9_bw="1" op_10_bw="18" op_11_bw="18" op_12_bw="19" op_13_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:100 %call_ret4 = call i156 @compute_front_tire_path_fn, i17 %delta_fn, i26 %front_ratio, i26 %product_q_95, i26 %D_pac_f, i26 %sub_ln361, i26 %front_num, i25 %out, i26 %D_f_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret4"/></StgValue>
+</operation>
+
+<operation id="323" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="111" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:101 %front_path_C_eff_raw = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_C_eff_raw"/></StgValue>
+</operation>
+
+<operation id="324" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="112" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:102 %front_path_F_y = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_F_y"/></StgValue>
+</operation>
+
+<operation id="325" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="113" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:103 %front_path_dF_dvx = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_dF_dvx"/></StgValue>
+</operation>
+
+<operation id="326" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="114" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:104 %front_path_dF_dvy = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_dF_dvy"/></StgValue>
+</operation>
+
+<operation id="327" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="115" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:105 %front_path_dF_dom = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_dF_dom"/></StgValue>
+</operation>
+
+<operation id="328" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="116" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:106 %front_path_alpha = extractvalue i156 %call_ret4
+
+]]></Node>
+<StgValue><ssdm name="front_path_alpha"/></StgValue>
+</operation>
+
+<operation id="329" st_id="72" stage="1" lat="48">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="117" bw="156" op_0_bw="156" op_1_bw="26" op_2_bw="26" op_3_bw="26" op_4_bw="26" op_5_bw="26" op_6_bw="25" op_7_bw="26" op_8_bw="1" op_9_bw="18" op_10_bw="18" op_11_bw="19" op_12_bw="19">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:107 %call_ret5 = call i156 @compute_rear_tire_path_fn, i26 %rear_ratio, i26 %product_q_95, i26 %D_pac_r, i26 %add_ln363, i26 %rear_num, i25 %out, i26 %D_r_fn, i1 %low_speed, i18 %atan_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i19 %recip_lut_fn
+
+]]></Node>
+<StgValue><ssdm name="call_ret5"/></StgValue>
+</operation>
+
+<operation id="330" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="118" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:108 %rear_path_C_eff = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_C_eff"/></StgValue>
+</operation>
+
+<operation id="331" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="119" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:109 %rear_path_F_y = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_F_y"/></StgValue>
+</operation>
+
+<operation id="332" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="120" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:110 %rear_path_dF_dvx = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_dF_dvx"/></StgValue>
+</operation>
+
+<operation id="333" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="121" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:111 %rear_path_dF_dvy = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_dF_dvy"/></StgValue>
+</operation>
+
+<operation id="334" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="122" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:112 %rear_path_dF_dom = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_dF_dom"/></StgValue>
+</operation>
+
+<operation id="335" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="123" bw="26" op_0_bw="156">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:113 %rear_path_alpha = extractvalue i156 %call_ret5
+
+]]></Node>
+<StgValue><ssdm name="rear_path_alpha"/></StgValue>
+</operation>
+
+<operation id="336" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="124" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:114 %mrv_s = insertvalue i442 <undef>, i26 %front_path_C_eff_raw
+
+]]></Node>
+<StgValue><ssdm name="mrv_s"/></StgValue>
+</operation>
+
+<operation id="337" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="125" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:115 %mrv_13 = insertvalue i442 %mrv_s, i26 %rear_path_C_eff
+
+]]></Node>
+<StgValue><ssdm name="mrv_13"/></StgValue>
+</operation>
+
+<operation id="338" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="126" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:116 %mrv_14 = insertvalue i442 %mrv_13, i26 %sub_ln361
+
+]]></Node>
+<StgValue><ssdm name="mrv_14"/></StgValue>
+</operation>
+
+<operation id="339" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="127" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:117 %mrv_17 = insertvalue i442 %mrv_14, i26 %front_path_F_y
+
+]]></Node>
+<StgValue><ssdm name="mrv_17"/></StgValue>
+</operation>
+
+<operation id="340" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="128" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:118 %mrv_18 = insertvalue i442 %mrv_17, i26 %rear_path_F_y
+
+]]></Node>
+<StgValue><ssdm name="mrv_18"/></StgValue>
+</operation>
+
+<operation id="341" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="129" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:119 %mrv_19 = insertvalue i442 %mrv_18, i26 %front_path_dF_dvx
+
+]]></Node>
+<StgValue><ssdm name="mrv_19"/></StgValue>
+</operation>
+
+<operation id="342" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="130" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:120 %mrv_20 = insertvalue i442 %mrv_19, i26 %front_path_dF_dvy
+
+]]></Node>
+<StgValue><ssdm name="mrv_20"/></StgValue>
+</operation>
+
+<operation id="343" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="131" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:121 %mrv_21 = insertvalue i442 %mrv_20, i26 %front_path_dF_dom
+
+]]></Node>
+<StgValue><ssdm name="mrv_21"/></StgValue>
+</operation>
+
+<operation id="344" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="132" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:122 %mrv_22 = insertvalue i442 %mrv_21, i26 %rear_path_dF_dvx
+
+]]></Node>
+<StgValue><ssdm name="mrv_22"/></StgValue>
+</operation>
+
+<operation id="345" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="133" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:123 %mrv_23 = insertvalue i442 %mrv_22, i26 %rear_path_dF_dvy
+
+]]></Node>
+<StgValue><ssdm name="mrv_23"/></StgValue>
+</operation>
+
+<operation id="346" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="134" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:124 %mrv_24 = insertvalue i442 %mrv_23, i26 %rear_path_dF_dom
+
+]]></Node>
+<StgValue><ssdm name="mrv_24"/></StgValue>
+</operation>
+
+<operation id="347" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="135" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:125 %mrv_25 = insertvalue i442 %mrv_24, i26 %front_path_alpha
+
+]]></Node>
+<StgValue><ssdm name="mrv_25"/></StgValue>
+</operation>
+
+<operation id="348" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="136" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:126 %mrv_26 = insertvalue i442 %mrv_25, i26 %rear_path_alpha
+
+]]></Node>
+<StgValue><ssdm name="mrv_26"/></StgValue>
+</operation>
+
+<operation id="349" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="137" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:127 %mrv_27 = insertvalue i442 %mrv_26, i26 %product_q
+
+]]></Node>
+<StgValue><ssdm name="mrv_27"/></StgValue>
+</operation>
+
+<operation id="350" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="138" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:128 %mrv_28 = insertvalue i442 %mrv_27, i26 %zext_ln352
+
+]]></Node>
+<StgValue><ssdm name="mrv_28"/></StgValue>
+</operation>
+
+<operation id="351" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="139" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:129 %mrv_15 = insertvalue i442 %mrv_28, i26 %tr_sin_delta_write_assign
+
+]]></Node>
+<StgValue><ssdm name="mrv_15"/></StgValue>
+</operation>
+
+<operation id="352" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="140" bw="442" op_0_bw="442" op_1_bw="26">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:130 %mrv_16 = insertvalue i442 %mrv_15, i26 %tr_cos_delta_write_assign
+
+]]></Node>
+<StgValue><ssdm name="mrv_16"/></StgValue>
+</operation>
+
+<operation id="353" st_id="72" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="141" bw="0" op_0_bw="442">
+<![CDATA[
+fpga_resource_hint.newFuncRoot.462:131 %ret_ln385 = ret i442 %mrv_16
+
+]]></Node>
+<StgValue><ssdm name="ret_ln385"/></StgValue>
+</operation>
+</state>
+</state_list>
+
+
+<ports>
+</ports>
+
+
+<dataflows>
+</dataflows>
+
+
+</stg>

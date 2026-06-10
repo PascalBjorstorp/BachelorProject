@@ -1,0 +1,415 @@
+================================================================
+== Design Size Report
+================================================================
+
+* Total Instructions per Compilation Phase
++---------------+----------------------------+--------------+----------------------------------------------------------------------------------------+
+| Phase         | Step                       | Instructions | Description                                                                            |
++---------------+----------------------------+--------------+----------------------------------------------------------------------------------------+
+| Compile/Link  |                            | 487,192 *    | After all functions are compiled and linked into a single design                       |
+|               |                            |              |                                                                                        |
+| Unroll/Inline |                            |              | After user unroll and inline pragmas are applied                                       |
+|               | (1) unroll                 |  31,861      | user unroll pragmas are applied                                                        |
+|               | (2) simplification         |  18,946      | simplification of applied user unroll pragmas                                          |
+|               | (3) inline                 |  18,159      | user inline pragmas are applied                                                        |
+|               | (4) simplification         |  18,070      | simplification of applied user inline pragmas                                          |
+|               |                            |              |                                                                                        |
+| Array/Struct  |                            |              | After user array partition and struct aggregate/disaggregate pragmas are applied       |
+|               | (1) array partition        |  26,026      | user array partition pragmas are applied                                               |
+|               | (2) simplification         |  19,427      | simplification of applied user array partition & struct aggregate/disaggregate pragmas |
+|               | (3) aggregate/disaggregate |  19,427      | user struct aggregate/disaggregate pragmas are applied                                 |
+|               | (4) array reshape          |  19,427      | apply array reshape pragmas                                                            |
+|               | (5) access patterns        |  19,695      | array access pattern optmizations                                                      |
+|               |                            |              |                                                                                        |
+| Performance   |                            |              | After transformations are applied to meet performance pragma targets                   |
+|               | (1) loop simplification    |  19,173      | loop and instruction simplification                                                    |
+|               | (2) parallelization        |  19,018      | loops are unrolled or pipelined to meet performance targets                            |
+|               | (3) array partition        |  22,747      | arrays are partitioned to meet performance targets                                     |
+|               | (4) simplification         |  19,383      | simplification of design after performance transformations                             |
+|               |                            |              |                                                                                        |
+| HW Transforms |                            |              | After hardware transfomations                                                          |
+|               | (1) lowering               |  19,321      | initial conversion to HW specific instructions                                         |
+|               | (2) optimizations          |  18,799      | high level synthesis optimizations                                                     |
++---------------+----------------------------+--------------+----------------------------------------------------------------------------------------+
+    * - Exceeded design size warning message threshold
+
+* Instructions per Function for each Compilation Phase
++-----------------------------------------+-----------------------------+--------------------+------------------+------------------+------------------+------------------+
+| Function                                | Location                    | Compile/Link       | Unroll/Inline    | Array/Struct     | Performance      | HW Transforms    |
++-----------------------------------------+-----------------------------+--------------------+------------------+------------------+------------------+------------------+
+| + mpc_fpga_top_opencl                   | mpc_fpga_top.cpp:351        | 487,192 *          | 18,070           | 19,695           | 19,383           | 18,799           |
+|    pack_output_words                    | mpc_fpga_top.cpp:240        |  1,041 (3 calls)   |                  |                  |                  |                  |
+|    unpack_input_lane_words              | mpc_fpga_top.cpp:211        |    788             |    72            |    74            |    74            |    79            |
+|  + fill_mpc_reference_trajector...      | mpc_fpga_top.cpp:182        |  1,412             |    55            |    88            |    88            |    93            |
+|   + fp_qp_from_word                     | mpc_fpga_top.cpp:130        |  1,280 (8 calls)   |                  |                  |                  |                  |
+|      fp_QP_from_raw                     | fp_types_hls.hpp:509        |  1,128 (8 calls)   |                  |                  |                  |                  |
+|  + fp_qp_from_word                      | mpc_fpga_top.cpp:130        |  1,120 (7 calls)   |                  |                  |                  |                  |
+|     fp_QP_from_raw                      | fp_types_hls.hpp:509        |    987 (7 calls)   |                  |                  |                  |                  |
+|    fp_normalize_angle                   | fp_math_hls.cpp:431         |  2,116             |                  |                  |                  |                  |
+|  + mpc_fpga_compute_core                | mpc_fpga_top.cpp:262        | 480,590            | 17,821           | 19,327           | 19,015           | 18,498           |
+|   + reset_core_state_hls                | mpc_fpga_top.cpp:105        | 11,128 (2 calls)   |   128 (2 calls)  |   168 (2 calls)  |   168 (2 calls)  |   186 (2 calls)  |
+|    + reset_admm_state_top_hls           | mpc_fpga_top.cpp:86         |  4,814 (2 calls)   |                  |                  |                  |                  |
+|       mpc_admm_reset_all_hls            | mpc_fpga_types.h:359        |  4,810 (2 calls)   |                  |                  |                  |                  |
+|   + zero_admm_duals_top_hls             | mpc_fpga_top.cpp:91         |  1,617             |                  |                  |                  |                  |
+|      mpc_admm_zero_duals_hls            | mpc_fpga_types.h:385        |  1,615             |                  |                  |                  |                  |
+|   + reset_admm_state_top_hls            | mpc_fpga_top.cpp:86         |  2,407             |                  |                  |                  |                  |
+|      mpc_admm_reset_all_hls             | mpc_fpga_types.h:359        |  2,405             |                  |                  |                  |                  |
+|   + fp_mul_site                         | fp_math_hls.cpp:322         |    709             |                  |                  |                  |                  |
+|      fp_qp_raw_from_QP                  | fp_types_hls.hpp:523        |    228 (2 calls)   |                  |                  |                  |                  |
+|      fp_mul_QP_raw                      | fp_math_hls.cpp:156         |    220             |                  |                  |                  |                  |
+|      fp_shift_right_cast_to_qp_si...    | fp_types_hls.hpp:645        |     90             |                  |                  |                  |                  |
+|      fp_QP_from_qp_raw                  | fp_types_hls.hpp:531        |    141             |                  |                  |                  |                  |
+|     fp_clamp                            | fp_math_hls.h:126           |     34             |                  |                  |                  |                  |
+|   + mpc_compute_hls                     | mpc_riccati_hls.cpp:300     | 461,224            | 17,496           | 18,916           | 18,604           | 18,067           |
+|      fp_clamp                           | fp_math_hls.h:126           |    170 (5 calls)   |                  |                  |                  |                  |
+|      compute_window_min_hls             | mpc_riccati_hls.cpp:87      |  1,156 (2 calls)   |   278 (2 calls)  |   396 (2 calls)  |   116 (2 calls)  |   118 (2 calls)  |
+|    + fp_mul_site                        | fp_math_hls.cpp:322         | 13,471 (19 calls)  |                  |                  |                  |                  |
+|       fp_qp_raw_from_QP                 | fp_types_hls.hpp:523        |  4,332 (38 calls)  |                  |                  |                  |                  |
+|       fp_mul_QP_raw                     | fp_math_hls.cpp:156         |  4,180 (19 calls)  |                  |                  |                  |                  |
+|       fp_shift_right_cast_to_qp_si...   | fp_types_hls.hpp:645        |  1,710 (19 calls)  |                  |                  |                  |                  |
+|       fp_QP_from_qp_raw                 | fp_types_hls.hpp:531        |  2,679 (19 calls)  |                  |                  |                  |                  |
+|    + fp_atan_lut                        | fp_math_hls.cpp:632         |  2,140             |    45            |    45            |    45            |    46            |
+|       fp_abs                            | fp_math_hls.h:116           |    210             |                  |                  |                  |                  |
+|       fp_qp_raw_from_QP                 | fp_types_hls.hpp:523        |    342 (3 calls)   |                  |                  |                  |                  |
+|     + fp_lerp_qp_raw                    | fp_math_hls.cpp:199         |    591             |                  |                  |                  |                  |
+|      + fp_mul_QP_raw_q                  | fp_math_hls.cpp:164         |    319             |                  |                  |                  |                  |
+|         fp_shift_right_cast_to_qp_si... | fp_types_hls.hpp:645        |     90             |                  |                  |                  |                  |
+|       fp_QP_from_qp_raw                 | fp_types_hls.hpp:531        |    282 (2 calls)   |                  |                  |                  |                  |
+|    + compute_wall_ey_bounds_hls         | mpc_riccati_hls.cpp:37      |  1,798             |                  |                  |                  |                  |
+|     + fp_mul_site                       | fp_math_hls.cpp:322         |    709             |                  |                  |                  |                  |
+|        fp_qp_raw_from_QP                | fp_types_hls.hpp:523        |    228 (2 calls)   |                  |                  |                  |                  |
+|        fp_mul_QP_raw                    | fp_math_hls.cpp:156         |    220             |                  |                  |                  |                  |
+|        fp_shift_right_cast_to_qp_si...  | fp_types_hls.hpp:645        |     90             |                  |                  |                  |                  |
+|        fp_QP_from_qp_raw                | fp_types_hls.hpp:531        |    141             |                  |                  |                  |                  |
+|    + compute_wall_biased_ey_ref_h...    | mpc_riccati_hls.cpp:56      |  2,371             |                  |                  |                  |                  |
+|       fp_clamp                          | fp_math_hls.h:126           |    102 (3 calls)   |                  |                  |                  |                  |
+|    + compute_frenet_AB_and_next_h...    | vehicle_model_hls.cpp:734   | 205,574            | 7,779            | 7,682            | 7,636            | 7,544            |
+|     + compute_frenet_AB_hls             | vehicle_model_hls.cpp:569   | 205,545            | 7,777            | 7,680            | 7,634            | 7,541            |
+|        fp_FN_from_QP                    | fp_types_hls.hpp:678        |    464 (8 calls)   |                  |                  |                  |                  |
+|      + compute_frenet_tire_hls          | vehicle_model_hls.cpp:335   | 81,973             | 3,932            | 3,911            | 3,911            |                  |
+|         fp_FN_from_QP                   | fp_types_hls.hpp:678        |    348 (6 calls)   |                  |                  |                  |                  |
+|       + fp_recip_fn                     | fp_math_hls.cpp:794         |  2,062             |   486            |   486            |   486            |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_sel            | fp_math_hls.cpp:216         |    123             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_cast_sel       | fp_math_hls.cpp:229         |    296             |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|       + fp_trig_pair                    | vehicle_model_hls.cpp:65    |  5,415             |                  |                  |                  |                  |
+|        + fp_trig_pair_fused_fn          | fp_math_hls.cpp:734         |  5,410             |                  |                  |                  |                  |
+|           fp_normalize_angle_fn         | fp_math_hls.cpp:444         |  2,129             |                  |                  |                  |                  |
+|         + fp_fn_trig_lut_pos_raw        | fp_math_hls.cpp:457         |    385             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|         + fp_lerp_fn_raw                | fp_math_hls.cpp:243         |  1,184 (2 calls)   |                  |                  |                  |                  |
+|            fp_mul_fn_raw_q              | fp_math_hls.cpp:208         |    628 (2 calls)   |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    426 (3 calls)   |                  |                  |                  |                  |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         |  7,150 (10 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  2,320 (20 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  1,420 (10 calls)  |                  |                  |                  |                  |
+|       + fp_slip_terms                   | vehicle_model_hls.cpp:117   |  4,161             |    61            |    61            |    61            |                  |
+|        + fp_mul_fn                      | fp_math_hls.cpp:666         |  2,860 (4 calls)   |                  |                  |                  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    928 (8 calls)   |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    568 (4 calls)   |                  |                  |                  |                  |
+|       + compute_front_tire_path_fn      | vehicle_model_hls.cpp:262   | 28,714             | 1,491            | 1,483            | 1,483            |                  |
+|        + fp_atan_lut_fn                 | fp_math_hls.cpp:764         |  2,004             |   128 (2 calls)  |   128 (2 calls)  |   128 (2 calls)  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    348 (3 calls)   |                  |                  |                  |                  |
+|         + fp_lerp_fn_raw                | fp_math_hls.cpp:243         |    592             |                  |                  |                  |                  |
+|            fp_mul_fn_raw_q              | fp_math_hls.cpp:208         |    314             |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|        + fp_mul_fn                      | fp_math_hls.cpp:666         |  3,575 (5 calls)   |                  |                  |                  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |  1,160 (10 calls)  |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    710 (5 calls)   |                  |                  |                  |                  |
+|        + fp_pacejka_inner_arg           | vehicle_model_hls.cpp:52    |  3,131             |                  |                  |                  |                  |
+|         + fp_atan_lut_fn                | fp_math_hls.cpp:764         |  2,004             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    348 (3 calls)   |                  |                  |                  |                  |
+|          + fp_lerp_fn_raw               | fp_math_hls.cpp:243         |    592             |                  |                  |                  |                  |
+|             fp_mul_fn_raw_q             | fp_math_hls.cpp:208         |    314             |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |    715             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    142             |                  |                  |                  |                  |
+|        + fp_trig_pair                   | vehicle_model_hls.cpp:65    |  5,415             |                  |                  |                  |                  |
+|         + fp_trig_pair_fused_fn         | fp_math_hls.cpp:734         |  5,410             |                  |                  |                  |                  |
+|            fp_normalize_angle_fn        | fp_math_hls.cpp:444         |  2,129             |                  |                  |                  |                  |
+|          + fp_fn_trig_lut_pos_raw       | fp_math_hls.cpp:457         |    385             |                  |                  |                  |                  |
+|             fp_fn_raw_from_FN           | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|          + fp_lerp_fn_raw               | fp_math_hls.cpp:243         |  1,184 (2 calls)   |                  |                  |                  |                  |
+|             fp_mul_fn_raw_q             | fp_math_hls.cpp:208         |    628 (2 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    426 (3 calls)   |                  |                  |                  |                  |
+|        + fp_recip_fn                    | fp_math_hls.cpp:794         |  4,124 (2 calls)   |   972 (2 calls)  |   972 (2 calls)  |   972 (2 calls)  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|           fp_shift_fn_raw_sel           | fp_math_hls.cpp:216         |    246 (2 calls)   |                  |                  |                  |                  |
+|           fp_shift_fn_raw_cast_sel      | fp_math_hls.cpp:229         |    592 (2 calls)   |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    568 (4 calls)   |                  |                  |                  |                  |
+|        + fp_pacejka_ceff                | vehicle_model_hls.cpp:58    |  1,450             |    29            |    29            |    29            |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |  1,430 (2 calls)   |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|        + fp_front_force_jacobians_fn    | vehicle_model_hls.cpp:135   |  5,731             |    92            |    92            |    92            |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |  5,005 (7 calls)   |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |  1,624 (14 calls)  |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    994 (7 calls)   |                  |                  |                  |                  |
+|          fp_trig_pair_fused_fn          | fp_math_hls.cpp:734         |                    |   129            |   129            |   129            |                  |
+|       + compute_rear_tire_path_fn       | vehicle_model_hls.cpp:296   | 27,690             | 1,472            | 1,464            | 1,464            |                  |
+|        + fp_atan_lut_fn                 | fp_math_hls.cpp:764         |  2,004             |   128 (2 calls)  |   128 (2 calls)  |   128 (2 calls)  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    348 (3 calls)   |                  |                  |                  |                  |
+|         + fp_lerp_fn_raw                | fp_math_hls.cpp:243         |    592             |                  |                  |                  |                  |
+|            fp_mul_fn_raw_q              | fp_math_hls.cpp:208         |    314             |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|        + fp_mul_fn                      | fp_math_hls.cpp:666         |  3,575 (5 calls)   |                  |                  |                  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |  1,160 (10 calls)  |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    710 (5 calls)   |                  |                  |                  |                  |
+|        + fp_pacejka_inner_arg           | vehicle_model_hls.cpp:52    |  3,131             |                  |                  |                  |                  |
+|         + fp_atan_lut_fn                | fp_math_hls.cpp:764         |  2,004             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    348 (3 calls)   |                  |                  |                  |                  |
+|          + fp_lerp_fn_raw               | fp_math_hls.cpp:243         |    592             |                  |                  |                  |                  |
+|             fp_mul_fn_raw_q             | fp_math_hls.cpp:208         |    314             |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |    715             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    142             |                  |                  |                  |                  |
+|        + fp_trig_pair                   | vehicle_model_hls.cpp:65    |  5,415             |                  |                  |                  |                  |
+|         + fp_trig_pair_fused_fn         | fp_math_hls.cpp:734         |  5,410             |                  |                  |                  |                  |
+|            fp_normalize_angle_fn        | fp_math_hls.cpp:444         |  2,129             |                  |                  |                  |                  |
+|          + fp_fn_trig_lut_pos_raw       | fp_math_hls.cpp:457         |    385             |                  |                  |                  |                  |
+|             fp_fn_raw_from_FN           | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|          + fp_lerp_fn_raw               | fp_math_hls.cpp:243         |  1,184 (2 calls)   |                  |                  |                  |                  |
+|             fp_mul_fn_raw_q             | fp_math_hls.cpp:208         |    628 (2 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    426 (3 calls)   |                  |                  |                  |                  |
+|        + fp_recip_fn                    | fp_math_hls.cpp:794         |  4,124 (2 calls)   |   972 (2 calls)  |   972 (2 calls)  |   972 (2 calls)  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|           fp_shift_fn_raw_sel           | fp_math_hls.cpp:216         |    246 (2 calls)   |                  |                  |                  |                  |
+|           fp_shift_fn_raw_cast_sel      | fp_math_hls.cpp:229         |    592 (2 calls)   |                  |                  |                  |                  |
+|           fp_FN_from_fn_raw             | fp_types_hls.hpp:671        |    568 (4 calls)   |                  |                  |                  |                  |
+|        + fp_pacejka_ceff                | vehicle_model_hls.cpp:58    |  1,450             |    29            |    29            |    29            |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |  1,430 (2 calls)   |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|        + fp_rear_force_jacobians_fn     | vehicle_model_hls.cpp:150   |  4,884             |    80            |    80            |    80            |                  |
+|         + fp_mul_fn                     | fp_math_hls.cpp:666         |  4,290 (6 calls)   |                  |                  |                  |                  |
+|            fp_fn_raw_from_FN            | fp_types_hls.hpp:663        |  1,392 (12 calls)  |                  |                  |                  |                  |
+|            fp_FN_from_fn_raw            | fp_types_hls.hpp:671        |    852 (6 calls)   |                  |                  |                  |                  |
+|          fp_trig_pair_fused_fn          | fp_math_hls.cpp:734         |                    |   129            |   129            |   129            |                  |
+|         fp_trig_pair_fused_fn           | fp_math_hls.cpp:734         |                    |   129            |   129            |   129            |                  |
+|      + fp_trig_pair                     | vehicle_model_hls.cpp:65    |  5,415             |                  |                  |                  |                  |
+|       + fp_trig_pair_fused_fn           | fp_math_hls.cpp:734         |  5,410             |                  |                  |                  |                  |
+|          fp_normalize_angle_fn          | fp_math_hls.cpp:444         |  2,129             |                  |                  |                  |                  |
+|        + fp_fn_trig_lut_pos_raw         | fp_math_hls.cpp:457         |    385             |                  |                  |                  |                  |
+|           fp_fn_raw_from_FN             | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    464 (4 calls)   |                  |                  |                  |                  |
+|        + fp_lerp_fn_raw                 | fp_math_hls.cpp:243         |  1,184 (2 calls)   |                  |                  |                  |                  |
+|           fp_mul_fn_raw_q               | fp_math_hls.cpp:208         |    628 (2 calls)   |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    426 (3 calls)   |                  |                  |                  |                  |
+|      + fp_frenet_recip                  | vehicle_model_hls.cpp:70    |  5,037             |   518            |   518            |   518            |   521            |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         |    715             |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    142             |                  |                  |                  |                  |
+|         fp_abs_fn                       | fp_math_hls.h:406           |    212             |                  |                  |                  |                  |
+|       + fp_recip_fn                     | fp_math_hls.cpp:794         |  2,062             |   486            |   486            |   486            |   488            |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_sel            | fp_math_hls.cpp:216         |    123             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_cast_sel       | fp_math_hls.cpp:229         |    296             |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|      + fp_frenet_rows01_fn              | vehicle_model_hls.cpp:82    | 15,152             |   209            |   204            |   204            |   205            |
+|         fp_FN_from_QP                   | fp_types_hls.hpp:678        |     58             |                  |                  |                  |                  |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         | 11,440 (16 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  3,712 (32 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  2,272 (16 calls)  |                  |                  |                  |                  |
+|      + fp_mul_fn                        | fp_math_hls.cpp:666         |  7,865 (11 calls)  |                  |                  |                  |                  |
+|         fp_fn_raw_from_FN               | fp_types_hls.hpp:663        |  2,552 (22 calls)  |                  |                  |                  |                  |
+|         fp_FN_from_fn_raw               | fp_types_hls.hpp:671        |  1,562 (11 calls)  |                  |                  |                  |                  |
+|      + fp_rollout_from_forces_fn        | vehicle_model_hls.cpp:164   | 25,321             |   836            |   836            |   836            |   836            |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         | 15,730 (22 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  5,104 (44 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  3,124 (22 calls)  |                  |                  |                  |                  |
+|         fp_abs_fn                       | fp_math_hls.h:406           |    212             |                  |                  |                  |                  |
+|       + fp_recip_fn                     | fp_math_hls.cpp:794         |  2,062             |   486            |   486            |   486            |   488            |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    116             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_sel            | fp_math_hls.cpp:216         |    123             |                  |                  |                  |                  |
+|          fp_shift_fn_raw_cast_sel       | fp_math_hls.cpp:229         |    296             |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    284 (2 calls)   |                  |                  |                  |                  |
+|         fp_FN_from_QP                   | fp_types_hls.hpp:678        |     58             |                  |                  |                  |                  |
+|      + compute_stage_shared_product...  | vehicle_model_hls.cpp:452   | 17,736             |   250            |   250            |   242            |                  |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         | 12,155 (17 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  3,944 (34 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  2,414 (17 calls)  |                  |                  |                  |                  |
+|      + compute_B_steering               | vehicle_model_hls.cpp:491   | 13,988             |   228            |   189            |   184            |   183            |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         | 10,010 (14 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  3,248 (28 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  1,988 (14 calls)  |                  |                  |                  |                  |
+|      + compute_B_accel_load_transfe...  | vehicle_model_hls.cpp:527   | 19,601             | 1,236            | 1,208            | 1,201            | 1,206            |
+|       + fp_recip_fn                     | fp_math_hls.cpp:794         |  4,124 (2 calls)   |   972 (2 calls)  |   972 (2 calls)  |   972 (2 calls)  |   976 (2 calls)  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |    232 (2 calls)   |                  |                  |                  |                  |
+|          fp_shift_fn_raw_sel            | fp_math_hls.cpp:216         |    246 (2 calls)   |                  |                  |                  |                  |
+|          fp_shift_fn_raw_cast_sel       | fp_math_hls.cpp:229         |    592 (2 calls)   |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |    568 (4 calls)   |                  |                  |                  |                  |
+|       + fp_mul_fn                       | fp_math_hls.cpp:666         | 11,440 (16 calls)  |                  |                  |                  |                  |
+|          fp_fn_raw_from_FN              | fp_types_hls.hpp:663        |  3,712 (32 calls)  |                  |                  |                  |                  |
+|          fp_FN_from_fn_raw              | fp_types_hls.hpp:671        |  2,272 (16 calls)  |                  |                  |                  |                  |
+|        fp_QP_from_FN                    | fp_types_hls.hpp:683        |  1,652 (28 calls)  |                  |                  |                  |                  |
+|        fp_trig_pair_fused_fn            | fp_math_hls.cpp:734         |                    |   129            |   129            |   129            |   130            |
+|      fp_abs                             | fp_math_hls.h:116           |    420 (2 calls)   |                  |                  |                  |                  |
+|      fp_qp_raw_from_QP                  | fp_types_hls.hpp:523        |  1,482 (13 calls)  |                  |                  |                  |                  |
+|    + compute_affine_bias_dense_hl...    | mpc_riccati_hls.cpp:133     |  7,634             |   692            |   686            |   651            |   646            |
+|       fp_qp_raw_from_QP                 | fp_types_hls.hpp:523        |  2,622 (23 calls)  |                  |                  |                  |                  |
+|       fp_mul_QP_raw                     | fp_math_hls.cpp:156         |  1,540 (7 calls)   |                  |                  |                  |                  |
+|       fp_shift_right_cast_to_qp_si...   | fp_types_hls.hpp:645        |    630 (7 calls)   |                  |                  |                  |                  |
+|     + affine_b0_term_hls                | mpc_riccati_hls.cpp:125     |    320             |    65 (5 calls)  |    65 (5 calls)  |    65 (5 calls)  |    70 (5 calls)  |
+|        fp_mul_QP_raw                    | fp_math_hls.cpp:156         |    220             |                  |                  |                  |                  |
+|        fp_shift_right_cast_to_qp_si...  | fp_types_hls.hpp:645        |     90             |                  |                  |                  |                  |
+|    + fp_recip                           | fp_math_hls.cpp:470         |  2,014             |   506            |   506            |   506            |   508            |
+|       fp_qp_raw_from_QP                 | fp_types_hls.hpp:523        |    114             |                  |                  |                  |                  |
+|       fp_shift_qp_raw_sel               | fp_math_hls.cpp:172         |    113             |                  |                  |                  |                  |
+|       fp_shift_qp_raw_cast_sel          | fp_math_hls.cpp:185         |    291             |                  |                  |                  |                  |
+|       fp_QP_from_qp_raw                 | fp_types_hls.hpp:531        |    282 (2 calls)   |                  |                  |                  |                  |
+|    + reset_admm_state_hls               | mpc_riccati_hls.cpp:112     |  2,407             |    54            |    74            |    74            |    83            |
+|       mpc_admm_reset_all_hls            | mpc_fpga_types.h:359        |  2,405             |                  |                  |                  |                  |
+|      init_solver_cfg_hls                | mpc_riccati_hls.cpp:267     |  1,211             |                  |                  |                  |                  |
+|      init_solution_hls                  | mpc_riccati_hls.cpp:276     |    787             |                  |                  |                  |                  |
+|    + riccati_admm_solve_hls             | riccati_solver_hls.cpp:1085 | 184,246            |                  |                  |                  |                  |
+|     + riccati_pass_hls                  | riccati_solver_hls.cpp:1055 | 136,811            |                  |                  |                  |                  |
+|      + riccati_backward_pass            | riccati_solver_hls.cpp:443  | 126,061            |                  |                  |                  |                  |
+|       + fp_P_raw_from_QP                | fp_types_hls.hpp:556        |  2,296 (14 calls)  |                  |                  |                  |                  |
+|          fp_qp_raw_from_QP              | fp_types_hls.hpp:523        |  1,596 (14 calls)  |                  |                  |                  |                  |
+|         fp_probe_store_P                | riccati_solver_hls.cpp:117  |    186 (62 calls)  |                  |                  |                  |                  |
+|         fp_probe_sum2_P_raw             | riccati_solver_hls.cpp:135  |     57 (19 calls)  |                  |                  |                  |                  |
+|         fp_qp_raw_from_QP               | fp_types_hls.hpp:523        |  2,280 (20 calls)  |                  |                  |                  |                  |
+|       + fp_sub_cast_qp_raw              | fp_math_hls.h:148           |    770 (5 calls)   |                  |                  |                  |                  |
+|          cast_sum2_qp_raw_to_qp_site    | fp_types_hls.hpp:627        |     15 (5 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_raw                   | fp_math_hls.cpp:156         |  1,100 (5 calls)   |                  |                  |                  |                  |
+|       + add_cast_QP_raw                 | fp_types_hls.hpp:635        |    154             |                  |                  |                  |                  |
+|          cast_sum2_qp_raw_to_qp_site    | fp_types_hls.hpp:627        |      3             |                  |                  |                  |                  |
+|         fp_probe_store_MG               | riccati_solver_hls.cpp:123  |     24 (8 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_P                     | fp_math_hls.cpp:264         | 30,800 (140 calls) |                  |                  |                  |                  |
+|         fp_probe_sum2_P_QP              | riccati_solver_hls.cpp:147  |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_probe_sum4_P_QP              | riccati_solver_hls.cpp:153  |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|         fp_mul_MG_QP                    | fp_math_hls.cpp:272         |  3,080 (14 calls)  |                  |                  |                  |                  |
+|         fp_probe_sum2_MG_QP             | riccati_solver_hls.cpp:159  |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_probe_sum4_MG_QP             | riccati_solver_hls.cpp:165  |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|       + invert_2x2_qp_hls               | fp_math_hls.cpp:358         |  6,203             |                  |                  |                  |                  |
+|          abs_qp_raw_u                   | fp_math_hls.cpp:352         |    800 (4 calls)   |                  |                  |                  |                  |
+|          fp_mul_QP_raw                  | fp_math_hls.cpp:156         |  1,320 (6 calls)   |                  |                  |                  |                  |
+|          fp_qp_raw_from_neg_pow2        | fp_math_hls.h:135           |     83             |                  |                  |                  |                  |
+|          fp_QP_from_qp_raw              | fp_types_hls.hpp:531        |    141             |                  |                  |                  |                  |
+|        + fp_recip                       | fp_math_hls.cpp:470         |  2,014             |                  |                  |                  |                  |
+|           fp_qp_raw_from_QP             | fp_types_hls.hpp:523        |    114             |                  |                  |                  |                  |
+|           fp_shift_qp_raw_sel           | fp_math_hls.cpp:172         |    113             |                  |                  |                  |                  |
+|           fp_shift_qp_raw_cast_sel      | fp_math_hls.cpp:185         |    291             |                  |                  |                  |                  |
+|           fp_QP_from_qp_raw             | fp_types_hls.hpp:531        |    282 (2 calls)   |                  |                  |                  |                  |
+|          fp_qp_raw_from_QP              | fp_types_hls.hpp:523        |    114             |                  |                  |                  |                  |
+|       + fp_qp_from_neg_pow2             | fp_math_hls.h:143           |    228             |                  |                  |                  |                  |
+|          fp_qp_raw_from_neg_pow2        | fp_math_hls.h:135           |     83             |                  |                  |                  |                  |
+|          fp_QP_from_qp_raw              | fp_types_hls.hpp:531        |    141             |                  |                  |                  |                  |
+|         fp_QP_from_qp_raw               | fp_types_hls.hpp:531        |    282 (2 calls)   |                  |                  |                  |                  |
+|       + fp_recip                        | fp_math_hls.cpp:470         |  4,028 (2 calls)   |                  |                  |                  |                  |
+|          fp_qp_raw_from_QP              | fp_types_hls.hpp:523        |    228 (2 calls)   |                  |                  |                  |                  |
+|          fp_shift_qp_raw_sel            | fp_math_hls.cpp:172         |    226 (2 calls)   |                  |                  |                  |                  |
+|          fp_shift_qp_raw_cast_sel       | fp_math_hls.cpp:185         |    582 (2 calls)   |                  |                  |                  |                  |
+|          fp_QP_from_qp_raw              | fp_types_hls.hpp:531        |    564 (4 calls)   |                  |                  |                  |                  |
+|         sum6_MG_QP_raw                  | fp_math_hls.h:280           |    656             |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |     90             |                  |                  |                  |                  |
+|       + fp_MG_raw_from_QP               | fp_types_hls.hpp:580        |    328 (2 calls)   |                  |                  |                  |                  |
+|          fp_qp_raw_from_QP              | fp_types_hls.hpp:523        |    228 (2 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_MG                    | fp_math_hls.cpp:280         |  1,760 (8 calls)   |                  |                  |                  |                  |
+|         fp_probe_sum2_QP_MG             | riccati_solver_hls.cpp:171  |     12 (4 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<2... | fp_math_hls.h:165           |    360 (4 calls)   |                  |                  |                  |                  |
+|         fp_probe_store_K                | riccati_solver_hls.cpp:129  |     12 (4 calls)   |                  |                  |                  |                  |
+|         fp_mul_P_QP                     | fp_math_hls.cpp:256         |  2,640 (12 calls)  |                  |                  |                  |                  |
+|         sum6_P_QP_raw                   | fp_math_hls.h:170           |  1,312 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<4... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|         fp_probe_sum2_MG_raw            | riccati_solver_hls.cpp:141  |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_mul_MG_K                     | fp_math_hls.cpp:288         | 11,660 (53 calls)  |                  |                  |                  |                  |
+|         sum8_P_MIX_raw_pupdate          | fp_math_hls.h:221           | 19,320 (21 calls)  |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<4... | fp_math_hls.h:165           |  1,890 (21 calls)  |                  |                  |                  |                  |
+|         fp_probe_sum2_MG_K              | riccati_solver_hls.cpp:177  |     18 (6 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<4... | fp_math_hls.h:165           |    540 (6 calls)   |                  |                  |                  |                  |
+|         sum8_P_MIX_raw                  | fp_math_hls.h:190           |    920             |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<4... | fp_math_hls.h:165           |     90             |                  |                  |                  |                  |
+|      + riccati_forward_pass             | riccati_solver_hls.cpp:307  | 10,736             |                  |                  |                  |                  |
+|         fp_qp_raw_from_QP               | fp_types_hls.hpp:523        |    114             |                  |                  |                  |                  |
+|         fp_mul_K_QP                     | fp_math_hls.cpp:303         |  3,520 (16 calls)  |                  |                  |                  |                  |
+|         sum8_K_QP_raw                   | fp_math_hls.h:300           |  1,840 (2 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |    180 (2 calls)   |                  |                  |                  |                  |
+|       + add_cast_QP_raw                 | fp_types_hls.hpp:635        |    308 (2 calls)   |                  |                  |                  |                  |
+|          cast_sum2_qp_raw_to_qp_site    | fp_types_hls.hpp:627        |      6 (2 calls)   |                  |                  |                  |                  |
+|         fp_QP_from_qp_raw               | fp_types_hls.hpp:531        |    423 (3 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_raw                   | fp_math_hls.cpp:156         |  2,200 (10 calls)  |                  |                  |                  |                  |
+|         sum6_QP_raw                     | fp_math_hls.h:260           |    656             |                  |                  |                  |                  |
+|         fp_shift_right_cast<ap_int<3... | fp_math_hls.h:165           |     90             |                  |                  |                  |                  |
+|       step_ey_lb                        | riccati_solver_hls.cpp:102  |      8 (2 calls)   |                  |                  |                  |                  |
+|       step_ey_ub                        | riccati_solver_hls.cpp:107  |      8 (2 calls)   |                  |                  |                  |                  |
+|       step_accel_ub                     | riccati_solver_hls.cpp:112  |      8 (2 calls)   |                  |                  |                  |                  |
+|     + fp_max_abs_state8                 | fp_math_hls.h:331           |  1,902             |                  |                  |                  |                  |
+|        fp_abs                           | fp_math_hls.h:116           |  1,680 (8 calls)   |                  |                  |                  |                  |
+|        fp_max2                          | fp_math_hls.h:121           |    126 (7 calls)   |                  |                  |                  |                  |
+|     + admm_update_state_channel_ra...   | riccati_solver_hls.cpp:184  |  8,922 (2 calls)   |                  |                  |                  |                  |
+|        fp_qp_raw_from_QP                | fp_types_hls.hpp:523        |  1,140 (10 calls)  |                  |                  |                  |                  |
+|        fp_QP_from_qp_raw                | fp_types_hls.hpp:531        |    846 (6 calls)   |                  |                  |                  |                  |
+|      + fp_sub_cast_qp_raw               | fp_math_hls.h:148           |    308 (2 calls)   |                  |                  |                  |                  |
+|         cast_sum2_qp_raw_to_qp_site     | fp_types_hls.hpp:627        |      6 (2 calls)   |                  |                  |                  |                  |
+|      + fp_mul_site                      | fp_math_hls.cpp:322         |  2,836 (4 calls)   |                  |                  |                  |                  |
+|         fp_qp_raw_from_QP               | fp_types_hls.hpp:523        |    912 (8 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_raw                   | fp_math_hls.cpp:156         |    880 (4 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast_to_qp_si... | fp_types_hls.hpp:645        |    360 (4 calls)   |                  |                  |                  |                  |
+|         fp_QP_from_qp_raw               | fp_types_hls.hpp:531        |    564 (4 calls)   |                  |                  |                  |                  |
+|        fp_abs                           | fp_math_hls.h:116           |  1,680 (8 calls)   |                  |                  |                  |                  |
+|      + fp_add3_cast_qp_raw              | fp_math_hls.h:155           |    586 (2 calls)   |                  |                  |                  |                  |
+|         cast_sum2_qp_raw_to_qp_site     | fp_types_hls.hpp:627        |      6 (2 calls)   |                  |                  |                  |                  |
+|       fp_max2                           | fp_math_hls.h:121           |    252 (14 calls)  |                  |                  |                  |                  |
+|     + fp_max_abs_ctrl2                  | fp_math_hls.h:344           |    450             |                  |                  |                  |                  |
+|        fp_abs                           | fp_math_hls.h:116           |    420 (2 calls)   |                  |                  |                  |                  |
+|        fp_max2                          | fp_math_hls.h:121           |     18             |                  |                  |                  |                  |
+|     + admm_update_control_channel_...   | riccati_solver_hls.cpp:233  |  8,922 (2 calls)   |                  |                  |                  |                  |
+|        fp_qp_raw_from_QP                | fp_types_hls.hpp:523        |  1,140 (10 calls)  |                  |                  |                  |                  |
+|        fp_QP_from_qp_raw                | fp_types_hls.hpp:531        |    846 (6 calls)   |                  |                  |                  |                  |
+|      + fp_sub_cast_qp_raw               | fp_math_hls.h:148           |    308 (2 calls)   |                  |                  |                  |                  |
+|         cast_sum2_qp_raw_to_qp_site     | fp_types_hls.hpp:627        |      6 (2 calls)   |                  |                  |                  |                  |
+|      + fp_mul_site                      | fp_math_hls.cpp:322         |  2,836 (4 calls)   |                  |                  |                  |                  |
+|         fp_qp_raw_from_QP               | fp_types_hls.hpp:523        |    912 (8 calls)   |                  |                  |                  |                  |
+|         fp_mul_QP_raw                   | fp_math_hls.cpp:156         |    880 (4 calls)   |                  |                  |                  |                  |
+|         fp_shift_right_cast_to_qp_si... | fp_types_hls.hpp:645        |    360 (4 calls)   |                  |                  |                  |                  |
+|         fp_QP_from_qp_raw               | fp_types_hls.hpp:531        |    564 (4 calls)   |                  |                  |                  |                  |
+|        fp_abs                           | fp_math_hls.h:116           |  1,680 (8 calls)   |                  |                  |                  |                  |
+|      + fp_add3_cast_qp_raw              | fp_math_hls.h:155           |    586 (2 calls)   |                  |                  |                  |                  |
+|         cast_sum2_qp_raw_to_qp_site     | fp_types_hls.hpp:627        |      6 (2 calls)   |                  |                  |                  |                  |
+|     + fp_max3_qp                        | fp_math_hls.h:349           |     49             |                  |                  |                  |                  |
+|        fp_max2                          | fp_math_hls.h:121           |     36 (2 calls)   |                  |                  |                  |                  |
+|     + fp_mul_site                       | fp_math_hls.cpp:322         |  1,418 (2 calls)   |                  |                  |                  |                  |
+|        fp_qp_raw_from_QP                | fp_types_hls.hpp:523        |    456 (4 calls)   |                  |                  |                  |                  |
+|        fp_mul_QP_raw                    | fp_math_hls.cpp:156         |    440 (2 calls)   |                  |                  |                  |                  |
+|        fp_shift_right_cast_to_qp_si...  | fp_types_hls.hpp:645        |    180 (2 calls)   |                  |                  |                  |                  |
+|        fp_QP_from_qp_raw                | fp_types_hls.hpp:531        |    282 (2 calls)   |                  |                  |                  |                  |
+|    + saturate_control_hls               | vehicle_model_hls.cpp:772   |  3,081             |                  |                  |                  |                  |
+|       fp_clamp                          | fp_math_hls.h:126           |     68 (2 calls)   |                  |                  |                  |                  |
+|      mpc_persist_writeback_hls          | mpc_riccati_hls.cpp:253     |     15             |     6            |     6            |     6            |     7            |
+|    + riccati_pass_hls                   | riccati_solver_hls.cpp:1055 |                    | 5,818            | 6,173            | 6,250            | 6,251            |
+|     + riccati_backward_pass             | riccati_solver_hls.cpp:443  |                    | 5,341            | 5,583            | 5,602            | 5,596            |
+|      + invert_2x2_qp_hls                | fp_math_hls.cpp:358         |                    |   640            |   640            |   632            |   632            |
+|         fp_recip                        | fp_math_hls.cpp:470         |                    |   506            |   506            |   506            |   508            |
+|        fp_recip                         | fp_math_hls.cpp:470         |                    | 1,012 (2 calls)  | 1,012 (2 calls)  | 1,012 (2 calls)  | 1,016 (2 calls)  |
+|        sum6_MG_QP_raw                   | fp_math_hls.h:280           |                    |     7            |     7            |     7            |     9            |
+|        sum6_P_QP_raw                    | fp_math_hls.h:170           |                    |    14 (2 calls)  |    14 (2 calls)  |    14 (2 calls)  |    18 (2 calls)  |
+|        sum8_P_MIX_raw_pupdate           | fp_math_hls.h:221           |                    |   273 (21 calls) |   273 (21 calls) |   273 (21 calls) |   336 (21 calls) |
+|        sum8_P_MIX_raw                   | fp_math_hls.h:190           |                    |    13            |    13            |    13            |    15            |
+|     + riccati_forward_pass              | riccati_solver_hls.cpp:307  |                    |   474            |   587            |   645            |   651            |
+|        sum8_K_QP_raw                    | fp_math_hls.h:300           |                    |    34 (2 calls)  |    34 (2 calls)  |    34 (2 calls)  |    38 (2 calls)  |
+|        sum6_QP_raw                      | fp_math_hls.h:260           |                    |     7            |     7            |     7            |     9            |
+|   + fp_word_from_qp                     | mpc_fpga_top.cpp:135        |    264 (2 calls)   |                  |                  |                  |                  |
+|      fp_raw_from_QP                     | fp_types_hls.hpp:516        |    228 (2 calls)   |                  |                  |                  |                  |
+|     solver_status_to_transport_s...     | mpc_fpga_top.cpp:96         |      6             |                  |                  |                  |                  |
++-----------------------------------------+-----------------------------+--------------------+------------------+------------------+------------------+------------------+
+    * - Exceeded design size warning message threshold
+
+* Design Size Message Settings
++---------------------------------------------+--------+------------------------------------------------------------------+
+| Message Setting                             | Value  | Description                                                      |
++---------------------------------------------+--------+------------------------------------------------------------------+
+| config_compile -design_size_maximum_warning | 100000 | Show a warning when total design instructions exceeds this value |
++---------------------------------------------+--------+------------------------------------------------------------------+
+
+

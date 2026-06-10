@@ -95,6 +95,13 @@ typedef struct
     float delta_lower_stage[MPCC_MAX_HORIZON];
     float delta_upper_stage[MPCC_MAX_HORIZON];
 
+    /** Arc-length operating point used to linearize each stage. */
+    float s_ref_stage[MPCC_MAX_HORIZON + 1];
+
+    /** Per-stage trust-region bounds on s around s_ref_stage. */
+    float s_lower_stage[MPCC_MAX_HORIZON + 1];
+    float s_upper_stage[MPCC_MAX_HORIZON + 1];
+
     /*--- Per-stage track bounds in contouring-error coordinates ---*/
 
     /** Left track boundary at each stage [m] (positive value).
@@ -171,8 +178,9 @@ typedef struct
     float rho_u;
 
     /** Enable adaptive rho scaling (1=enabled, 0=fixed rho).
-     *  When enabled, rho is doubled if primal_res > 10*dual_res
-        *  and halved if dual_res > 10*primal_res, every 2 iterations.
+     *  When enabled, state rho and control rho_u are updated independently:
+     *  a penalty is multiplied or divided by 1.5 if its own residuals differ
+     *  by more than a factor of five, checked every five iterations.
      *  Dual variables are rescaled to maintain ADMM consistency. */
     uint8_t adaptive_rho;
 
@@ -231,9 +239,12 @@ typedef struct
     float dual_residual;
     uint16_t iterations;
     uint16_t adaptive_rho_updates;
+    uint16_t adaptive_rho_state_updates;
+    uint16_t adaptive_rho_control_updates;
     uint32_t numeric_clip_count;
 
-    /* Persisted adaptive penalties for warm-started solves */
+    /* Persisted adaptive penalties for warm-started solves.  Fixed-rho
+     * solves ignore these values and use the configured penalties. */
     float rho_state;
     float rho_u_state;
 
@@ -263,6 +274,10 @@ typedef struct
 
     /** Number of adaptive rho updates during this solve */
     uint16_t adaptive_rho_updates;
+
+    /** Adaptive update counts for the state and control penalties. */
+    uint16_t adaptive_rho_state_updates;
+    uint16_t adaptive_rho_control_updates;
 
     /** Count of int64->int32 clipping events during this solve */
     uint32_t numeric_clip_count;
@@ -359,7 +374,12 @@ void admm_compute_residuals(
     float rho_u,
     uint16_t N,
     float *primal_res,
-    float *dual_res);
+    float *dual_res,
+    /* Optional outputs: per-domain residuals (states / controls). */
+    float *primal_x_res,
+    float *dual_x_res,
+    float *primal_u_res,
+    float *dual_u_res);
 
 /*===========================================================================
  * Small Matrix Helpers

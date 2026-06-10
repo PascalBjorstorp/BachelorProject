@@ -20,7 +20,9 @@
 #include <geometry_msgs/msg/pose_stamped.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
+#include <time.h>
 #include <rcutils/allocator.h>
 
 #include "mpcc_types.h"
@@ -43,6 +45,8 @@ static rcl_timer_t          control_timer;
 
 static nav_msgs__msg__Odometry                          odom_msg;
 static ackermann_msgs__msg__AckermannDriveStamped       drive_msg;
+static struct timespec prev_solve_time;
+static double target_control_period_sec = 0.05;  /* 20 Hz default */
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -52,6 +56,13 @@ static double quat_to_yaw(double qx, double qy, double qz, double qw)
     double siny = 2.0 * (qw * qz + qx * qy);
     double cosy = 1.0 - 2.0 * (qy * qy + qz * qz);
     return atan2(siny, cosy);
+}
+
+static double timespec_diff_sec(const struct timespec *start,
+                                const struct timespec *end)
+{
+    return (double)(end->tv_sec - start->tv_sec)
+         + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
 }
 
 static int compute_path_tracking_diag(
@@ -437,7 +448,7 @@ static void publish_predicted_path(const MPCCResult_t *result)
         const MPCCState_t *st = &result->predicted_states[i];
         predicted_path_msg.poses.data[i].position.x = st->X;
         predicted_path_msg.poses.data[i].position.y = st->Y;
-        predicted_path_msg.poses.data[i].position.z = 0.0;
+        predicted_path_msg.poses.data[i].position.z = 0.08;
         predicted_path_msg.poses.data[i].orientation.x = 0.0;
         predicted_path_msg.poses.data[i].orientation.y = 0.0;
         predicted_path_msg.poses.data[i].orientation.z = sin(st->psi * 0.5f);
@@ -445,6 +456,49 @@ static void publish_predicted_path(const MPCCResult_t *result)
     }
 
     { rcl_ret_t rc_ = rcl_publish(&predicted_path_pub, &predicted_path_msg, NULL); (void)rc_; }
+}
+
+static void log_solve_metrics(const MPCCState_t *mpcc_state,
+                              const MPCCResult_t *result,
+                              MPCCStatus_t status,
+                              float delta_cmd,
+                              float a_x_cmd,
+                              float v_theta_cmd,
+                              double solve_gap_sec,
+                              double compute_sec)
+{
+    const double solve_gap_ms = (solve_gap_sec > 0.0) ? (solve_gap_sec * 1000.0) : 0.0;
+    const double solve_rate_hz = (solve_gap_sec > 1e-9) ? (1.0 / solve_gap_sec) : 0.0;
+    const double compute_ms = (compute_sec > 0.0) ? (compute_sec * 1000.0) : 0.0;
+    const double compute_rate_hz = (compute_sec > 1e-9) ? (1.0 / compute_sec) : 0.0;
+
+    fprintf(stderr,
+            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u s=%.2f x=%.2f y=%.2f psi=%.3f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f compute_ms=%.2f compute_hz=%.2f\n",
+            solve_count,
+            (int)status,
+            result->admm_iterations,
+            result->primal_residual,
+            result->dual_residual,
+            result->rho_final,
+            result->rho_u_final,
+            (unsigned)result->adaptive_rho_updates,
+            (unsigned)result->numeric_clip_count,
+            (unsigned)result->adaptive_rho_state_updates,
+            (unsigned)result->adaptive_rho_control_updates,
+            mpcc_state->s,
+            mpcc_state->X,
+            mpcc_state->Y,
+            mpcc_state->psi,
+            mpcc_state->vx,
+            delta_cmd,
+            a_x_cmd,
+            v_theta_cmd,
+            solve_gap_ms,
+            solve_rate_hz,
+            target_control_period_sec * 1000.0,
+            compute_ms,
+            compute_rate_hz);
+    fflush(stderr);
 }
 
 static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
@@ -461,9 +515,24 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     /* Update s hint for next iteration */
     current_s = mpcc_state.s;
 
+    double solve_gap_sec = 0.0;
+    {
+        struct timespec solve_now;
+        clock_gettime(CLOCK_MONOTONIC, &solve_now);
+        if (prev_solve_time.tv_sec != 0 || prev_solve_time.tv_nsec != 0) {
+            solve_gap_sec = timespec_diff_sec(&prev_solve_time, &solve_now);
+        }
+        prev_solve_time = solve_now;
+    }
+
     /* Solve MPCC */
     MPCCResult_t result;
+    struct timespec compute_start;
+    struct timespec compute_end;
+    clock_gettime(CLOCK_MONOTONIC, &compute_start);
     MPCCStatus_t status = mpcc_compute_control(&mpcc_state, &result);
+    clock_gettime(CLOCK_MONOTONIC, &compute_end);
+    const double compute_sec = timespec_diff_sec(&compute_start, &compute_end);
 
     solve_count++;
 
@@ -483,6 +552,15 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     if (delta_cmd < -0.4189f) delta_cmd = -0.4189f;
     if (a_x_cmd > 7.31f) a_x_cmd = 7.31f;
     if (a_x_cmd < -7.31f) a_x_cmd = -7.31f;
+
+    log_solve_metrics(&mpcc_state,
+                      &result,
+                      status,
+                      delta_cmd,
+                      a_x_cmd,
+                      v_theta_cmd,
+                      solve_gap_sec,
+                      compute_sec);
 
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
@@ -612,6 +690,8 @@ int main(int argc, const char *argv[])
             cfg.track_safety_buffer = (float)atof(v);
         if ((v = getenv("Q_PROGRESS")) != NULL)
             cfg.weight_progress = (float)atof(v);
+        if ((v = getenv("MPCC_S_QP_WINDOW")) != NULL)
+            cfg.s_qp_window = (float)atof(v);
         if ((v = getenv("Q_VX")) != NULL)
             cfg.weight_vx = (float)atof(v);
         if ((v = getenv("VX_REF")) != NULL)
@@ -632,6 +712,8 @@ int main(int argc, const char *argv[])
             cfg.weight_ax = (float)atof(v);
         if ((v = getenv("R_VTHETA")) != NULL)
             cfg.weight_v_theta = (float)atof(v);
+        if ((v = getenv("W_VTHETA_PHYSICAL")) != NULL)
+            cfg.weight_vtheta_physical = (float)atof(v);
         if ((v = getenv("W_DELTA_RATE")) != NULL)
             cfg.weight_delta_rate = (float)atof(v);
         if ((v = getenv("W_AX_RATE")) != NULL)
@@ -662,6 +744,8 @@ int main(int argc, const char *argv[])
             cfg.max_iter_dual_tolerance = (float)atof(v);
         if ((v = getenv("MPCC_MAX_ITER_TRACK_TOL")) != NULL)
             cfg.max_iter_track_violation_tolerance = (float)atof(v);
+        if ((v = getenv("MPCC_WARM_START_MAX_S_ERROR")) != NULL)
+            cfg.warm_start_max_s_error = (float)atof(v);
         if ((v = getenv("HORIZON")) != NULL)
             cfg.horizon_steps = (uint16_t)atoi(v);
         if ((v = getenv("DT")) != NULL)
@@ -688,8 +772,10 @@ int main(int argc, const char *argv[])
 
         printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
                "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f "
-               "Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f "
-               "W_drate=%.1f cross_call=%.4f accept_max_iter=%u\n",
+               "s_window=%.2f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u "
+               "R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f "
+               "warm_s_err=%.2f W_drate=%.1f cross_call=%.4f accept_max_iter=%u "
+               "rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
                "OSQP",
 #else
@@ -701,13 +787,23 @@ int main(int argc, const char *argv[])
                cfg.wall_clearance_margin,
                cfg.track_safety_buffer,
                cfg.weight_progress,
+               cfg.s_qp_window,
                cfg.weight_vx,
                (unsigned)cfg.use_raceline_vx_ref,
                (unsigned)cfg.use_raceline_vx_limit,
                cfg.weight_delta,
+               cfg.weight_v_theta,
+               cfg.weight_vtheta_physical,
+               cfg.weight_v_theta_rate,
+               cfg.warm_start_max_s_error,
                cfg.weight_delta_rate,
                cfg.cross_call_rate_scale,
-               (unsigned)cfg.accept_max_iterations);
+               (unsigned)cfg.accept_max_iterations,
+               cfg.admm_rho,
+               cfg.admm_rho_u > 0.0f ? cfg.admm_rho_u : cfg.admm_rho,
+               (unsigned)cfg.admm_adaptive_rho,
+               (unsigned)cfg.admm_max_iterations,
+               cfg.admm_tolerance);
     }
     current_s = 0;
 
@@ -817,11 +913,29 @@ int main(int argc, const char *argv[])
         ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseArray),
         "/mpcc/predicted_path");
 
-    /* ── Timer: control loop at dt interval ──────────────────────────── */
-    const unsigned int timer_period_ms = 50;  /* 20 Hz default */
+    /* ── Timer: control loop at configurable interval ───────────────── */
+    {
+        const char *control_period_env = getenv("MPCC_CONTROL_PERIOD_MS");
+        if (control_period_env != NULL && control_period_env[0] != '\0') {
+            const double period_ms = atof(control_period_env);
+            if (period_ms > 0.5 && period_ms < 1000.0) {
+                target_control_period_sec = period_ms * 1e-3;
+            } else {
+                fprintf(stderr,
+                        "[MPCC] WARNING: ignoring invalid MPCC_CONTROL_PERIOD_MS=%s; using %.1f ms\n",
+                        control_period_env,
+                        target_control_period_sec * 1000.0);
+            }
+        }
+    }
+    const uint64_t timer_period_ns = (uint64_t)llround(target_control_period_sec * 1e9);
+    fprintf(stderr,
+            "[MPCC] Control timer period: %.1f ms (%.2f Hz)\n",
+            target_control_period_sec * 1000.0,
+            1.0 / target_control_period_sec);
     rclc_timer_init_default(
         &control_timer, &support,
-        RCL_MS_TO_NS(timer_period_ms),
+        timer_period_ns,
         control_timer_callback);
 
     /* ── Executor ────────────────────────────────────────────────────── */

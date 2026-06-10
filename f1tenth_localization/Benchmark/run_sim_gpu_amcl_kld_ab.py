@@ -441,9 +441,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--kld-bin-x", type=float, default=0.5)
     parser.add_argument("--kld-bin-y", type=float, default=0.5)
     parser.add_argument("--kld-bin-theta", type=float, default=0.1)
-    parser.add_argument("--update-min-d", type=float, default=0.05)
-    parser.add_argument("--update-min-a", type=float, default=0.05)
-    parser.add_argument("--likelihood-scale", type=float, default=0.75)
+    parser.add_argument("--update-min-d", type=float, default=0.04)
+    parser.add_argument("--update-min-a", type=float, default=0.035)
+    parser.add_argument("--likelihood-scale", type=float, default=4.0)
     parser.add_argument("--cloud-publish-rate", type=float, default=0.0)
     parser.add_argument("--cluster-publish-min-weight", type=float, default=0.0,
                         help="Forwarded to AMCL; 0.0 avoids hiding valid timing samples.")
