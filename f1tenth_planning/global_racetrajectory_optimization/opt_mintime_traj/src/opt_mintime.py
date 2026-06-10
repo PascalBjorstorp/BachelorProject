@@ -105,8 +105,7 @@ def opt_mintime(reftrack: np.ndarray,
     # step size along the reference line
     h = pars["stepsize_opts"]["stepsize_reg"]
     wall_clearance = float(pars["optim_opts"].get("wall_clearance", 0.0) or 0.0)
-    wall_clearance_guard = float(pars["optim_opts"].get("wall_clearance_guard", 0.0) or 0.0)
-    wall_clearance_eff = wall_clearance + wall_clearance_guard
+    wall_clearance_eff = wall_clearance
 
     # optimization steps (0, 1, 2 ... end point/start point)
     # steps = [i for i in range(kappa_refline_cl.size)]
@@ -533,8 +532,7 @@ def opt_mintime(reftrack: np.ndarray,
             f"omega_z_limit={omega_z_limit:.2f}rad/s, "
             f"f_drive_s={f_drive_s:.2f}N, f_brake_s={f_brake_s:.2f}N, "
             f"gamma_y_s={gamma_y_s:.2f}N, "
-            f"wall_clearance={wall_clearance:.3f}m, "
-            f"wall_clearance_guard={wall_clearance_guard:.3f}m"
+            f"wall_clearance={wall_clearance:.3f}m"
         )
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -995,8 +993,8 @@ def opt_mintime(reftrack: np.ndarray,
     opts = {"expand": True,
             "verbose": print_debug,
             "ipopt.max_iter": 2000,
-            "ipopt.tol": 1e-6,
-            "ipopt.acceptable_tol": 1e-4,
+            "ipopt.tol": 1e-7,
+            "ipopt.acceptable_tol": 1e-5,
             "ipopt.acceptable_iter": 15}
 
     # solver options for warm start

@@ -1785,7 +1785,8 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                                    optimizer_smoothing_k=2,
                                    optimizer_smoothing_prep_spacing=0.02,
                                    curvlim=None,
-                                   enable_mincurv_prepass=True):
+                                   enable_mincurv_prepass=True,
+                                   keep_best_smoothing=False):
     """
     Build the exact reference-track arrays consumed by TUM's mintime optimizer.
 
@@ -1852,6 +1853,8 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
             s_reg = float(optimizer_smoothing_s)
             max_attempts = 8
             accepted = False
+            best_smoothed = None
+            best_smoothed_kappa = float('inf')
             for attempt in range(max_attempts):
                 smoothed, smoothed_len, smoothed_spacing = _smooth_centerline(s_reg)
                 smoothed_max_kappa = max_abs_analytical_curvature(
@@ -1862,6 +1865,9 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                     f"  Smoothing attempt {attempt + 1}/{max_attempts}: "
                     f"s={s_reg:.4f}, max_kappa={smoothed_max_kappa:.3f} 1/m"
                 )
+                if smoothed_max_kappa < best_smoothed_kappa:
+                    best_smoothed = (smoothed, smoothed_len, smoothed_spacing, s_reg)
+                    best_smoothed_kappa = smoothed_max_kappa
                 if smoothed_max_kappa <= curvlim:
                     opt_centerline = smoothed
                     track_length = smoothed_len
@@ -1874,6 +1880,13 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                 print(
                     f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
                     f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
+                )
+            elif keep_best_smoothing and best_smoothed is not None:
+                opt_centerline, track_length, actual_spacing, best_s = best_smoothed
+                print(
+                    "  Keeping best smoothed optimizer centerline despite "
+                    f"curvlim exceedance: s={best_s:.4f}, "
+                    f"max_kappa={best_smoothed_kappa:.3f} 1/m"
                 )
             else:
                 print(
@@ -2635,7 +2648,6 @@ def main():
         # centerline corridor by this extra margin on each side.
         car_width=0.30,
         wall_clearance=0.1,
-        wall_clearance_guard=0.1,
         reopt_free_dev=0.005,
         reopt_kappa_factor=0.95,
         max_ray_distance=8.0,
@@ -2644,6 +2656,42 @@ def main():
         strict_curvlim=True,
         curvature_penalty_weight=10000.0,
         curvature_penalty_margin=0.85,
+    )
+
+    def _env_float(name, current):
+        raw = os.environ.get(name)
+        if raw is None:
+            return current
+        try:
+            value = float(raw)
+        except ValueError as exc:
+            raise ValueError(f"{name} must be a float, got {raw!r}") from exc
+        print(f"  Env override: {name}={value}")
+        return value
+
+    def _env_bool(name, current):
+        raw = os.environ.get(name)
+        if raw is None:
+            return current
+        value = raw.strip().lower() in {'1', 'true', 'yes', 'on'}
+        print(f"  Env override: {name}={value}")
+        return value
+
+    args.optimizer_smoothing_s = _env_float(
+        'MINTIME_OPTIMIZER_SMOOTHING_S',
+        args.optimizer_smoothing_s,
+    )
+    args.keep_best_smoothing = _env_bool(
+        'MINTIME_KEEP_BEST_SMOOTHING',
+        False,
+    )
+    args.curvature_penalty_weight = _env_float(
+        'MINTIME_CURVATURE_PENALTY_WEIGHT',
+        args.curvature_penalty_weight,
+    )
+    args.curvature_penalty_margin = _env_float(
+        'MINTIME_CURVATURE_PENALTY_MARGIN',
+        args.curvature_penalty_margin,
     )
 
     # Verify map path
@@ -2695,7 +2743,6 @@ def main():
     print(f"  Direction:        {args.direction}")
     print(f"  Car width:        {args.car_width} m")
     print(f"  Wall clearance:   {args.wall_clearance} m")
-    print(f"  Clearance guard:  {args.wall_clearance_guard} m")
     print(f"  Reopt free dev:   {args.reopt_free_dev} m")
     print(f"  Reopt kappa fac:  {args.reopt_kappa_factor}")
     print(f"  Optimizer width:  {args.car_width:.3f} m")
@@ -2751,7 +2798,7 @@ def main():
         target_spacing=args.centerline_spacing,
         max_ray_distance=args.max_ray_distance,
         car_width=args.car_width,
-        wall_clearance=args.wall_clearance + args.wall_clearance_guard,
+        wall_clearance=args.wall_clearance,
         kappa_sample_spacing=0.01,
     )
 
@@ -2779,12 +2826,13 @@ def main():
         car_width=args.car_width,
         optimizer_spacing=args.optimizer_spacing,
         optimizer_width=args.car_width,
-        wall_clearance=args.wall_clearance + args.wall_clearance_guard,
+        wall_clearance=args.wall_clearance,
         optimizer_smoothing_s=args.optimizer_smoothing_s,
         optimizer_smoothing_k=args.optimizer_smoothing_k,
         optimizer_smoothing_prep_spacing=args.optimizer_smoothing_prep_spacing,
         curvlim=curvlim,
         enable_mincurv_prepass=args.enable_mincurv_prepass,
+        keep_best_smoothing=args.keep_best_smoothing,
     )
     reftrack_interp = prepared_track['reftrack_interp']
     plot_prepared_optimizer_track(
@@ -2893,16 +2941,9 @@ def main():
             "wall_clearance",
             args.wall_clearance,
         )
-        patched_ini = patch_mintime_optim_numeric_option(
-            patched_ini,
-            "wall_clearance_guard",
-            args.wall_clearance_guard,
-        )
         print(
             f"  Patched racecar.ini: wall_clearance -> "
-            f"{args.wall_clearance:.3f}, guard -> "
-            f"{args.wall_clearance_guard:.3f} "
-            "(guard is an internal optimizer buffer)"
+            f"{args.wall_clearance:.3f}"
         )
 
         patched_ini = patch_mintime_optim_numeric_option(

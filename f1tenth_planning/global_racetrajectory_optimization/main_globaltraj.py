@@ -460,7 +460,6 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
 
         w_veh_reopt = pars["optim_opts"]["w_veh_reopt"]
         wall_clearance = float(pars["optim_opts"].get("wall_clearance", 0.0) or 0.0)
-        wall_clearance_guard = float(pars["optim_opts"].get("wall_clearance_guard", 0.0) or 0.0)
         direct_reopt_tube = bool(
             pars["optim_opts"].get("direct_reopt_tube", False)
         )
@@ -493,10 +492,6 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
         # tight F1TENTH maps that can make the min-curvature QP infeasible, so
         # retry with slightly wider, still reserved tubes and relaxed curvature
         # bounds before giving up.
-        # The guard is an internal buffer for the first mintime NLP.  The
-        # follow-up min-curvature reoptimization enforces the user-requested
-        # physical clearance exactly so it can still repair curvature when the
-        # first solution is close to, but not below, the true wall limit.
         wall_clearance_eff = wall_clearance
         base_free_dev = max(
             0.0,
