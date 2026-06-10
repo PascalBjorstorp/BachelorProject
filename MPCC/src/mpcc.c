@@ -73,6 +73,7 @@ static uint8_t warm_start_available = 0;
 
 /** Previous applied control (for rate penalties) */
 static MPCCControl_t prev_control;
+static uint8_t prev_control_available = 0;
 
 /** ADMM solver workspace */
 static ADMMWorkspace_t admm_workspace;
@@ -147,6 +148,7 @@ static MPCCConfiguration_t get_default_config(void)
 
     /* Constraint bounds */
     cfg.delta_max = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
+    cfg.delta_rate_max = MPCC_DEFAULT_DELTA_RATE_MAX;
     cfg.ax_max = MPCC_DEFAULT_AX_MAX;
     cfg.ax_min = MPCC_DEFAULT_AX_MIN;
     cfg.vx_max = F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND;
@@ -180,6 +182,10 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->wall_clearance_margin = 0.0f;
     if (cfg->track_safety_buffer < 0.0f)
         cfg->track_safety_buffer = 0.0f;
+    if (cfg->delta_rate_max <= 0.0f)
+        cfg->delta_rate_max = MPCC_DEFAULT_DELTA_RATE_MAX;
+    if (cfg->cross_call_rate_scale <= 0.0f)
+        cfg->cross_call_rate_scale = MPCC_DEFAULT_CROSS_CALL_SCALE;
     if (cfg->s_qp_window <= 0.0f)
         cfg->s_qp_window = MPCC_DEFAULT_S_QP_WINDOW;
     if (cfg->weight_vtheta_physical < 0.0f)
@@ -223,6 +229,7 @@ void mpcc_initialize(void)
 #endif
 
     memset(&prev_control, 0, sizeof(prev_control));
+    prev_control_available = 0;
     memset(&ref_path, 0, sizeof(ref_path));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
     unwrapped_heading_available = 0;
@@ -253,6 +260,7 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
 #endif
 
     memset(&prev_control, 0, sizeof(prev_control));
+    prev_control_available = 0;
     memset(&obstacle_set, 0, sizeof(obstacle_set));
     unwrapped_heading_available = 0;
     warm_start_available = 0;
@@ -267,6 +275,8 @@ void mpcc_set_reference_path(const MPCCReferencePath_t *path)
 {
     ref_path = *path;
     warm_start_available = 0;
+    memset(&prev_control, 0, sizeof(prev_control));
+    prev_control_available = 0;
     last_closest_idx = 0; /* Reset path tracking when new path is loaded */
 }
 
@@ -1147,6 +1157,265 @@ static float compute_speed_limit(float s, float lookahead_m)
 }
 
 /*===========================================================================
+ * QP Diagnostics and Reachability Bounds
+ *===========================================================================*/
+
+#define MPCC_QP_DIAG_MAX_DIM (MPCC_NX + MPCC_NU)
+
+static float mpcc_effective_control_dt(void)
+{
+    float control_dt = config.cross_call_rate_scale * config.dt;
+
+    if (!isfinite((double)control_dt) || control_dt <= 0.0f)
+        control_dt = config.dt;
+    if (!isfinite((double)control_dt) || control_dt <= 0.0f)
+        control_dt = MPCC_DEFAULT_DT;
+
+    return control_dt;
+}
+
+static void mpcc_populate_delta_rate_bounds(MPCCQPProblem_t *qp, uint16_t N)
+{
+    float prev_delta = prev_control.delta;
+    float rate_limit = config.delta_rate_max;
+    const float global_lower = qp->u_lower[MPCC_IDX_DELTA];
+    const float global_upper = qp->u_upper[MPCC_IDX_DELTA];
+    const float control_dt = mpcc_effective_control_dt();
+
+    if (!isfinite((double)prev_delta))
+        prev_delta = 0.0f;
+    if (prev_delta < global_lower) prev_delta = global_lower;
+    if (prev_delta > global_upper) prev_delta = global_upper;
+
+    if (!isfinite((double)rate_limit) || rate_limit <= 0.0f)
+        rate_limit = MPCC_DEFAULT_DELTA_RATE_MAX;
+
+    for (uint16_t k = 0; k < N; k++)
+    {
+        float elapsed = control_dt + ((float)k * config.dt);
+        float lower;
+        float upper;
+
+        if (!isfinite((double)elapsed) || elapsed <= 0.0f)
+            elapsed = control_dt;
+
+        lower = prev_delta - (rate_limit * elapsed);
+        upper = prev_delta + (rate_limit * elapsed);
+
+        if (lower < global_lower) lower = global_lower;
+        if (upper > global_upper) upper = global_upper;
+
+        if (lower > upper)
+        {
+            lower = global_lower;
+            upper = global_upper;
+        }
+
+        qp->delta_lower_stage[k] = lower;
+        qp->delta_upper_stage[k] = upper;
+    }
+}
+
+static float mpcc_jacobi_min_eigenvalue(
+    float a[MPCC_QP_DIAG_MAX_DIM][MPCC_QP_DIAG_MAX_DIM],
+    uint8_t n)
+{
+    for (uint8_t sweep = 0; sweep < 32u; sweep++)
+    {
+        uint8_t p = 0;
+        uint8_t q = 1;
+        float max_offdiag = 0.0f;
+
+        for (uint8_t i = 0; i < n; i++)
+        {
+            for (uint8_t j = (uint8_t)(i + 1u); j < n; j++)
+            {
+                float offdiag = fabsf(a[i][j]);
+                if (offdiag > max_offdiag)
+                {
+                    max_offdiag = offdiag;
+                    p = i;
+                    q = j;
+                }
+            }
+        }
+
+        if (max_offdiag < 1e-6f)
+            break;
+
+        {
+            const float app = a[p][p];
+            const float aqq = a[q][q];
+            const float apq = a[p][q];
+            const float tau = (aqq - app) / (2.0f * apq);
+            const float tau_sign = (tau >= 0.0f) ? 1.0f : -1.0f;
+            const float t = tau_sign / (fabsf(tau) + sqrtf(1.0f + tau * tau));
+            const float c = 1.0f / sqrtf(1.0f + t * t);
+            const float s = t * c;
+
+            for (uint8_t i = 0; i < n; i++)
+            {
+                if (i == p || i == q)
+                    continue;
+
+                {
+                    const float aip = a[i][p];
+                    const float aiq = a[i][q];
+                    a[i][p] = (c * aip) - (s * aiq);
+                    a[p][i] = a[i][p];
+                    a[i][q] = (s * aip) + (c * aiq);
+                    a[q][i] = a[i][q];
+                }
+            }
+
+            a[p][p] = (c * c * app) - (2.0f * s * c * apq) + (s * s * aqq);
+            a[q][q] = (s * s * app) + (2.0f * s * c * apq) + (c * c * aqq);
+            a[p][q] = 0.0f;
+            a[q][p] = 0.0f;
+        }
+    }
+
+    {
+        float min_eig = a[0][0];
+        for (uint8_t i = 1; i < n; i++)
+        {
+            if (a[i][i] < min_eig)
+                min_eig = a[i][i];
+        }
+        return min_eig;
+    }
+}
+
+static float mpcc_stage_hessian_min_eigenvalue(const MPCCStageCost_t *cost,
+                                               uint8_t include_controls)
+{
+    float hessian[MPCC_QP_DIAG_MAX_DIM][MPCC_QP_DIAG_MAX_DIM];
+    const uint8_t n = include_controls
+        ? (uint8_t)(MPCC_NX + MPCC_NU)
+        : (uint8_t)MPCC_NX;
+
+    memset(hessian, 0, sizeof(hessian));
+
+    for (int i = 0; i < MPCC_NX; i++)
+    {
+        for (int j = 0; j < MPCC_NX; j++)
+            hessian[i][j] = cost->Q[i][j];
+    }
+
+    if (include_controls)
+    {
+        for (int i = 0; i < MPCC_NU; i++)
+        {
+            for (int j = 0; j < MPCC_NU; j++)
+                hessian[MPCC_NX + i][MPCC_NX + j] = cost->R[i][j];
+            for (int j = 0; j < MPCC_NX; j++)
+            {
+                hessian[MPCC_NX + i][j] = cost->S[i][j];
+                hessian[j][MPCC_NX + i] = cost->S[i][j];
+            }
+        }
+    }
+
+    for (uint8_t i = 0; i < n; i++)
+    {
+        for (uint8_t j = 0; j < n; j++)
+        {
+            if (!isfinite((double)hessian[i][j]))
+                return -INFINITY;
+        }
+    }
+
+    return mpcc_jacobi_min_eigenvalue(hessian, n);
+}
+
+static void mpcc_update_qp_diagnostics(const MPCCQPProblem_t *qp,
+                                       MPCCResult_t *result)
+{
+    uint16_t N;
+    float min_hessian;
+
+    if (!qp || !result)
+        return;
+
+    N = qp->N;
+    if (N > MPCC_MAX_HORIZON)
+        N = MPCC_MAX_HORIZON;
+
+    result->qp_diagnostic_flags = 0u;
+    result->qp_min_hessian_eigenvalue = FLT_MAX;
+    result->qp_min_track_width = FLT_MAX;
+    result->qp_min_delta_width = FLT_MAX;
+    result->qp_min_ax_limit = FLT_MAX;
+    result->qp_min_vx_margin = FLT_MAX;
+
+    for (uint16_t k = 0; k < N; k++)
+    {
+        const float track_width = qp->track_left[k] + qp->track_right[k];
+        float delta_width = qp->delta_upper_stage[k] - qp->delta_lower_stage[k];
+        const float ax_limit = qp->ax_lim_stage[k];
+        const float vx_upper = (qp->vx_max_stage[k] > 0.0f)
+            ? qp->vx_max_stage[k]
+            : qp->x_upper[MPCC_IDX_VX];
+        const float vx_margin = vx_upper - qp->x_lower[MPCC_IDX_VX];
+
+        if (!isfinite((double)track_width) ||
+            !isfinite((double)delta_width) ||
+            !isfinite((double)ax_limit) ||
+            !isfinite((double)vx_margin))
+        {
+            result->qp_diagnostic_flags |= MPCC_QP_DIAG_NONFINITE;
+        }
+
+        if (delta_width < 0.0f)
+            delta_width = 0.0f;
+
+        if (track_width < result->qp_min_track_width)
+            result->qp_min_track_width = track_width;
+        if (delta_width < result->qp_min_delta_width)
+            result->qp_min_delta_width = delta_width;
+        if (ax_limit < result->qp_min_ax_limit)
+            result->qp_min_ax_limit = ax_limit;
+        if (vx_margin < result->qp_min_vx_margin)
+            result->qp_min_vx_margin = vx_margin;
+
+        min_hessian = mpcc_stage_hessian_min_eigenvalue(&qp->stage_cost[k], 1);
+        if (min_hessian < result->qp_min_hessian_eigenvalue)
+            result->qp_min_hessian_eigenvalue = min_hessian;
+    }
+
+    {
+        const float track_width = qp->track_left[N] + qp->track_right[N];
+        const float vx_upper = (qp->vx_max_stage[N] > 0.0f)
+            ? qp->vx_max_stage[N]
+            : qp->x_upper[MPCC_IDX_VX];
+        const float vx_margin = vx_upper - qp->x_lower[MPCC_IDX_VX];
+
+        if (!isfinite((double)track_width) || !isfinite((double)vx_margin))
+            result->qp_diagnostic_flags |= MPCC_QP_DIAG_NONFINITE;
+
+        if (track_width < result->qp_min_track_width)
+            result->qp_min_track_width = track_width;
+        if (vx_margin < result->qp_min_vx_margin)
+            result->qp_min_vx_margin = vx_margin;
+
+        min_hessian = mpcc_stage_hessian_min_eigenvalue(&qp->terminal_cost, 0);
+        if (min_hessian < result->qp_min_hessian_eigenvalue)
+            result->qp_min_hessian_eigenvalue = min_hessian;
+    }
+
+    if (result->qp_min_hessian_eigenvalue < -1e-5f)
+        result->qp_diagnostic_flags |= MPCC_QP_DIAG_HESSIAN_INDEFINITE;
+    if (result->qp_min_track_width < 0.01f)
+        result->qp_diagnostic_flags |= MPCC_QP_DIAG_TRACK_COLLAPSED;
+    if (result->qp_min_delta_width < 1e-4f)
+        result->qp_diagnostic_flags |= MPCC_QP_DIAG_DELTA_COLLAPSED;
+    if (result->qp_min_ax_limit < 0.05f)
+        result->qp_diagnostic_flags |= MPCC_QP_DIAG_AX_COLLAPSED;
+    if (result->qp_min_vx_margin < 0.01f)
+        result->qp_diagnostic_flags |= MPCC_QP_DIAG_VX_COLLAPSED;
+}
+
+/*===========================================================================
  * QP Problem Construction
  *===========================================================================*/
 
@@ -1232,10 +1501,7 @@ static void build_qp_problem(
     qp->u_lower[MPCC_IDX_VTHETA] = config.v_theta_min;
     qp->u_upper[MPCC_IDX_VTHETA] = config.v_theta_max;
 
-    for (uint16_t k = 0; k < N; k++) {
-        qp->delta_lower_stage[k] = qp->u_lower[MPCC_IDX_DELTA];
-        qp->delta_upper_stage[k] = qp->u_upper[MPCC_IDX_DELTA];
-    }
+    mpcc_populate_delta_rate_bounds(qp, N);
 
     /* Friction circle: (mu * g)^2 for combined acceleration constraint */
     float mu_g = config.mu * F110_GRAVITY_ACCELERATION_MS2;
@@ -1776,6 +2042,11 @@ MPCCStatus_t mpcc_compute_control(
     const MPCCState_t *current_state,
     MPCCResult_t *result)
 {
+    if (!result)
+        return MPCC_STATUS_ERROR;
+
+    memset(result, 0, sizeof(*result));
+
     if (!mpcc_initialized)
     {
         result->status = MPCC_STATUS_ERROR;
@@ -1792,7 +2063,12 @@ MPCCStatus_t mpcc_compute_control(
     }
 
     /* Warm-start: shift previous solution forward */
-    MPCCControl_t fallback_control = {0, 0, 1.0f};
+    MPCCControl_t fallback_control = prev_control_available
+        ? prev_control
+        : (MPCCControl_t){0, 0, 1.0f};
+    if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
+    if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
+    if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 1.0f;
     if (warm_start_available)
     {
         uint16_t stage_advance = mpcc_warm_start_stage_advance();
@@ -1853,6 +2129,7 @@ MPCCStatus_t mpcc_compute_control(
 
     /* Build the multistage QP */
     build_qp_problem(current_state, &qp_problem);
+    mpcc_update_qp_diagnostics(&qp_problem, result);
 
 #ifdef MPCC_DEBUG_PRINT
     {
@@ -2023,17 +2300,6 @@ MPCCStatus_t mpcc_compute_control(
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
         result->optimal_control.v_theta = admm_result.u_opt[0][MPCC_IDX_VTHETA];
 
-        /* Steering rate clamp: prevent physically impossible steering jumps.
-         * sv_max ≈ 2.85 rad/s → max change = sv_max * dt per call. */
-        {
-            float max_delta_change = 2.85f * config.dt;
-            float delta_diff = result->optimal_control.delta - prev_control.delta;
-            if (delta_diff > max_delta_change)
-                result->optimal_control.delta = prev_control.delta + max_delta_change;
-            else if (delta_diff < -max_delta_change)
-                result->optimal_control.delta = prev_control.delta - max_delta_change;
-        }
-
         uint16_t N = config.horizon_steps;
         if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
         for (uint16_t k = 0; k <= N; k++)
@@ -2055,6 +2321,7 @@ MPCCStatus_t mpcc_compute_control(
             prev_predicted_controls[k] = result->predicted_controls[k];
 
         prev_control = result->optimal_control;
+        prev_control_available = 1;
         } else {
         /* Unconverged / error: fall back to previous good control. */
         mpcc_clamp_fallback_vtheta(&fallback_control, current_state);
@@ -2104,6 +2371,7 @@ MPCCStatus_t mpcc_compute_control(
 #ifdef MPCC_DEBUG_PRINT
         printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
             "rho=%.3f  rho_u=%.3f  rho_upd=%u  rho_x_upd=%u  rho_u_upd=%u  clip=%u  "
+            "diag=0x%X hmin=%.2e tw=%.3f dw=%.3f axlim=%.3f vxm=%.3f  "
             "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  vx=%.3f\n",
            return_status, admm_result.iterations,
            (double)(admm_result.primal_residual),
@@ -2114,6 +2382,12 @@ MPCCStatus_t mpcc_compute_control(
             admm_result.adaptive_rho_state_updates,
             admm_result.adaptive_rho_control_updates,
             admm_result.numeric_clip_count,
+            (unsigned)result->qp_diagnostic_flags,
+            (double)result->qp_min_hessian_eigenvalue,
+            (double)result->qp_min_track_width,
+            (double)result->qp_min_delta_width,
+            (double)result->qp_min_ax_limit,
+            (double)result->qp_min_vx_margin,
            (double)(result->optimal_control.delta),
            (double)(result->optimal_control.a_x),
            (double)(result->optimal_control.v_theta),
@@ -2180,18 +2454,37 @@ void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
     admm_config.adaptive_rho = config.admm_adaptive_rho;
     admm_config.alpha_relax = config.admm_alpha_relax;
 
-    /* Recompute cross-call scaling from runtime control period if provided.
-     * Default: use compile-time MPCC_CONTROL_RATE_HZ if env var missing. */
-    const char *env_ms = getenv("MPCC_CONTROL_PERIOD_MS");
-    float control_period_sec = 0.0f;
-    if (env_ms) {
-        float ms = (float)atof(env_ms);
-        if (ms > 0.0f) control_period_sec = ms / 1000.0f;
+    /* Recompute cross-call scaling from runtime control period unless an
+     * explicit MPCC_CROSS_CALL_SCALE is supplied. */
+    {
+        const char *env_scale = getenv("MPCC_CROSS_CALL_SCALE");
+        float scale = 0.0f;
+
+        if (env_scale)
+            scale = (float)atof(env_scale);
+
+        if (scale > 0.0f && isfinite((double)scale))
+        {
+            config.cross_call_rate_scale = scale;
+        }
+        else
+        {
+            const char *env_ms = getenv("MPCC_CONTROL_PERIOD_MS");
+            float control_period_sec = 0.0f;
+            if (env_ms) {
+                float ms = (float)atof(env_ms);
+                if (ms > 0.0f) control_period_sec = ms / 1000.0f;
+            }
+            if (control_period_sec <= 0.0f) {
+                control_period_sec = 1.0f / MPCC_CONTROL_RATE_HZ;
+            }
+            config.cross_call_rate_scale = control_period_sec / config.dt;
+        }
     }
-    if (control_period_sec <= 0.0f) {
-        control_period_sec = 1.0f / MPCC_CONTROL_RATE_HZ;
-    }
-    config.cross_call_rate_scale = control_period_sec / config.dt;
+
+    if (config.cross_call_rate_scale <= 0.0f ||
+        !isfinite((double)config.cross_call_rate_scale))
+        config.cross_call_rate_scale = MPCC_DEFAULT_CROSS_CALL_SCALE;
 }
 
 void mpcc_reset(void)
@@ -2200,6 +2493,7 @@ void mpcc_reset(void)
     last_closest_idx = 0; /* Reset path tracking */
     unwrapped_heading_available = 0;
     memset(&prev_control, 0, sizeof(prev_control));
+    prev_control_available = 0;
 #ifndef USE_OSQP
     admm_solver_initialize(&admm_workspace);
 #else

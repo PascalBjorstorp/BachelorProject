@@ -69,7 +69,7 @@ typedef struct
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
 
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.4189f           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.39f           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  20.0f     /** F1/10th max velocity: 20.0 meters per second */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  0.0f      /** F1/10th min velocity: 0.0 meters per second */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS    0.166f                /** Distance from CG to front axle: 0.166 meters [CAD] */
@@ -481,6 +481,12 @@ typedef struct
     /** Maximum steering angle [rad] (symmetric: +/- delta_max) */
     float delta_max;
 
+    /** Maximum steering slew rate [rad/s].
+     *  Used to tighten per-stage steering bounds around the last applied
+     *  steering command, so actuator reachability is represented in the QP
+     *  instead of only by a post-solve command clamp. */
+    float delta_rate_max;
+
     /** Maximum longitudinal acceleration [m/s^2] */
     float ax_max;
 
@@ -532,6 +538,17 @@ typedef enum
 } MPCCStatus_t;
 
 /*===========================================================================
+ * QP Diagnostic Flags
+ *===========================================================================*/
+
+#define MPCC_QP_DIAG_HESSIAN_INDEFINITE  (1u << 0)  /** Cost Hessian block has a negative eigenvalue. */
+#define MPCC_QP_DIAG_TRACK_COLLAPSED     (1u << 1)  /** Track corridor width is nearly zero. */
+#define MPCC_QP_DIAG_DELTA_COLLAPSED     (1u << 2)  /** Steering-rate envelope leaves nearly no steering authority. */
+#define MPCC_QP_DIAG_AX_COLLAPSED        (1u << 3)  /** Friction circle leaves nearly no acceleration authority. */
+#define MPCC_QP_DIAG_VX_COLLAPSED        (1u << 4)  /** Stage speed upper bound is at/below vx_min. */
+#define MPCC_QP_DIAG_NONFINITE           (1u << 5)  /** A diagnostic input was NaN or Inf. */
+
+/*===========================================================================
  * MPCC Solver Result
  *===========================================================================
  * Complete output from the MPCC controller.
@@ -551,6 +568,12 @@ typedef struct
     uint16_t adaptive_rho_state_updates; /** Number of adaptive rho updates for states during solve */
     uint16_t adaptive_rho_control_updates; /** Number of adaptive rho updates for controls during solve */
     uint32_t numeric_clip_count;        /** Number of numeric clipping events during solve */
+    uint32_t qp_diagnostic_flags;       /** Bitmask of MPCC_QP_DIAG_* flags from the built QP */
+    float qp_min_hessian_eigenvalue;    /** Minimum stage Hessian eigenvalue seen before ADMM regularization */
+    float qp_min_track_width;           /** Minimum tightened track corridor width [m] */
+    float qp_min_delta_width;           /** Minimum per-stage steering envelope width [rad] */
+    float qp_min_ax_limit;              /** Minimum per-stage friction-limited |a_x| [m/s^2] */
+    float qp_min_vx_margin;             /** Minimum vx upper-minus-lower margin [m/s] */
     float cost;                         /** Final cost function value */
 
    
@@ -680,6 +703,7 @@ typedef struct
 /*--- Acceleration bounds ---*/
 #define MPCC_DEFAULT_AX_MAX           (8.0f)                        /** Maximum Acceleration bound */
 #define MPCC_DEFAULT_AX_MIN           (-10.0f)                      /** Minimum Acceleration bound (negative = breaking)*/
+#define MPCC_DEFAULT_DELTA_RATE_MAX   (2.849f)                      /** Maximum steering slew rate [rad/s]. */
 
 /*--- Virtual progress speed bounds ---*/
 #define MPCC_DEFAULT_V_THETA_MAX      (10.0f)                       /** Maximum virtual progress bound */

@@ -33,6 +33,8 @@ fi
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"
 mkdir -p "${LOG_DIR}"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-${LOG_DIR}/ros}"
+mkdir -p "${ROS_LOG_DIR}"
 
 GYM_LOG="${LOG_DIR}/gym_bridge.log"
 MPCC_LOG="${LOG_DIR}/mpcc.log"
@@ -188,12 +190,12 @@ case "${MPCC_PROFILE}" in
         set_default Q_WALL_CLEARANCE 2000.0
         set_default WALL_CLEARANCE_MARGIN 0.02
         set_default MPCC_TRACK_BUFFER 0.03
-        set_default Q_PROGRESS 8.0
+        set_default Q_PROGRESS 9.0
         # Soft physical-speed tracking prevents a zero-motion local optimum
         # after hard braking, while keeping the CSV speed limit disabled.
-        set_default Q_VX 10.0
+        set_default Q_VX 0.0
         set_default VX_REF 0.0
-        set_default MPCC_USE_RACELINE_VX_REF 1
+        set_default MPCC_USE_RACELINE_VX_REF 0
         set_default MPCC_USE_RACELINE_VX_LIMIT 0
         set_default MPCC_RACELINE_VX_LIMIT_SCALE 1.0
         set_default Q_VY 0.0
@@ -209,16 +211,17 @@ case "${MPCC_PROFILE}" in
         set_default Q_PROGRESS_TERM 10.0
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
-        set_default ADMM_MAX_ITER 100
+        set_default ADMM_MAX_ITER 300
         set_default ADMM_TOL 0.02
         set_default ADMM_ADAPTIVE_RHO 1
-        set_default ADMM_ALPHA_RELAX 0.0
-        set_default MPCC_ACCEPT_MAX_ITER 0
-        set_default MPCC_MAX_ITER_PRIMAL_TOL 0.01
-        set_default MPCC_MAX_ITER_DUAL_TOL 0.01
-        set_default MPCC_MAX_ITER_TRACK_TOL 0.005
+        set_default ADMM_ALPHA_RELAX 1.6
+        set_default MPCC_ACCEPT_MAX_ITER 1
+        set_default MPCC_MAX_ITER_PRIMAL_TOL 0.20
+        set_default MPCC_MAX_ITER_DUAL_TOL 0.20
+        set_default MPCC_MAX_ITER_TRACK_TOL 0.05
         set_default V_THETA_MAX 20.0
-        set_default CROSS_CALL_SCALE 0.16667
+        set_default DELTA_RATE_MAX 2.849
+        set_default CROSS_CALL_SCALE 0.8333
         ;;
     convergence_debug)
         set_default HORIZON 20
@@ -251,6 +254,7 @@ case "${MPCC_PROFILE}" in
         set_default ADMM_ADAPTIVE_RHO 1
         set_default ADMM_ALPHA_RELAX 1.6
         set_default V_THETA_MAX 6.0
+        set_default DELTA_RATE_MAX 2.849
         set_default CROSS_CALL_SCALE 0.166667
         ;;
     tuned_fast)
@@ -284,6 +288,7 @@ case "${MPCC_PROFILE}" in
         set_default ADMM_ADAPTIVE_RHO 1
         set_default ADMM_ALPHA_RELAX 1.6
         set_default V_THETA_MAX 10.0
+        set_default DELTA_RATE_MAX 2.849
         set_default CROSS_CALL_SCALE 0.166667
         ;;
     manual)
@@ -301,7 +306,7 @@ case "${MPCC_PROFILE}" in
         set_manual_default MPCC_RACELINE_VX_LIMIT_SCALE 1.0
         set_manual_default Q_VY 0.5
         set_manual_default Q_OMEGA 1.5
-        set_manual_default R_DELTA 150.0
+        set_manual_default R_DELTA 10.0
         set_manual_default R_AX 0.05225
         set_manual_default R_VTHETA 0.1
         set_manual_default W_DELTA_RATE 8.0
@@ -317,6 +322,7 @@ case "${MPCC_PROFILE}" in
         set_manual_default ADMM_ADAPTIVE_RHO 1
         set_manual_default ADMM_ALPHA_RELAX 1.6
         set_manual_default V_THETA_MAX 6.0
+        set_manual_default DELTA_RATE_MAX 2.849
         set_manual_default CROSS_CALL_SCALE 0.166
         ;;
     *)
@@ -328,15 +334,16 @@ esac
 
 export MPCC_PROFILE
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
-export MPCC_CONTROL_PERIOD_MS="${MPCC_CONTROL_PERIOD_MS:-5}"
+export MPCC_CONTROL_PERIOD_MS="${MPCC_CONTROL_PERIOD_MS:-25}"
 export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.0}"
 export MPCC_ACCEPT_MAX_ITER="${MPCC_ACCEPT_MAX_ITER:-0}"
 export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.2}"
 export MPCC_MAX_ITER_DUAL_TOL="${MPCC_MAX_ITER_DUAL_TOL:-0.2}"
 export MPCC_MAX_ITER_TRACK_TOL="${MPCC_MAX_ITER_TRACK_TOL:-0.2}"
 export MPCC_S_QP_WINDOW="${MPCC_S_QP_WINDOW:-1.0}"
-export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-0.0}"
+export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-25.0}"
 export MPCC_WARM_START_MAX_S_ERROR="${MPCC_WARM_START_MAX_S_ERROR:-1.5}"
+export DELTA_RATE_MAX="${DELTA_RATE_MAX:-2.849}"
 
 cat > "${CONFIG_LOG}" <<EOF
 RUN_ID=${RUN_ID}
@@ -387,7 +394,9 @@ MPCC_S_QP_WINDOW=${MPCC_S_QP_WINDOW}
 W_VTHETA_PHYSICAL=${W_VTHETA_PHYSICAL}
 MPCC_WARM_START_MAX_S_ERROR=${MPCC_WARM_START_MAX_S_ERROR}
 MPCC_CONTROL_PERIOD_MS=${MPCC_CONTROL_PERIOD_MS}
+ROS_LOG_DIR=${ROS_LOG_DIR}
 V_THETA_MAX=${V_THETA_MAX}
+DELTA_RATE_MAX=${DELTA_RATE_MAX}
 CROSS_CALL_SCALE=${CROSS_CALL_SCALE}
 MPCC_CROSS_CALL_SCALE=${MPCC_CROSS_CALL_SCALE}
 EOF

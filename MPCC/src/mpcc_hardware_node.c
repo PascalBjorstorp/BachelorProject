@@ -45,6 +45,8 @@
 #define MPCC_ODOM_MAX_ABS_VX_MPS 20.0
 #define MPCC_ODOM_MAX_ABS_VY_MPS 20.0
 #define MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS 20.0
+#define MPCC_STALE_SOLVE_GAP_RESET_FACTOR 4.0
+#define MPCC_STALE_SOLVE_GAP_MIN_SEC 0.10
 
 static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_pose_topic = "/ekf_pose";
@@ -63,6 +65,7 @@ static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
 /* Hardware safety: clamp acceleration to prevent violent braking */
 static double g_ax_min_hardware = -3.0;
+static double g_delta_rate_limit = MPCC_DEFAULT_DELTA_RATE_MAX;
 
 /* Odometry watchdog and twist sanity thresholds for real-car inputs. */
 static double g_watchdog_timeout_sec = 0.2;
@@ -233,7 +236,7 @@ static void log_solve_metrics(uint32_t solve_count,
     const double solve_rate_hz = (solve_gap_sec > 1e-9) ? (1.0 / solve_gap_sec) : 0.0;
 
     fprintf(stderr,
-            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u s=%.2f x=%.2f y=%.2f psi=%.2f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f v_cmd=%.2f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f\n",
+            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u diag=0x%X hmin=%.2e tw=%.3f dw=%.3f axlim=%.3f vxm=%.3f s=%.2f x=%.2f y=%.2f psi=%.2f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f v_cmd=%.2f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f\n",
             solve_count,
             (int)status,
             result->admm_iterations,
@@ -245,6 +248,12 @@ static void log_solve_metrics(uint32_t solve_count,
             (unsigned)result->numeric_clip_count,
             (unsigned)result->adaptive_rho_state_updates,
             (unsigned)result->adaptive_rho_control_updates,
+            (unsigned)result->qp_diagnostic_flags,
+            result->qp_min_hessian_eigenvalue,
+            result->qp_min_track_width,
+            result->qp_min_delta_width,
+            result->qp_min_ax_limit,
+            result->qp_min_vx_margin,
             state->s,
             state->X,
             state->Y,
@@ -333,6 +342,45 @@ static double current_control_dt_sec(void)
     return 0.005;
 }
 
+static void reset_mpcc_after_stale_solve_gap(double solve_gap_sec)
+{
+    double target_dt_sec = g_nominal_control_dt_sec;
+    double stale_gap_sec;
+
+    if (!isfinite(target_dt_sec) || target_dt_sec <= 0.0)
+    {
+        target_dt_sec = current_control_dt_sec();
+    }
+
+    stale_gap_sec = MPCC_STALE_SOLVE_GAP_RESET_FACTOR * target_dt_sec;
+    if (stale_gap_sec < MPCC_STALE_SOLVE_GAP_MIN_SEC)
+    {
+        stale_gap_sec = MPCC_STALE_SOLVE_GAP_MIN_SEC;
+    }
+
+    if (!isfinite(solve_gap_sec) || solve_gap_sec <= stale_gap_sec)
+    {
+        return;
+    }
+
+    if (g_have_reference && g_reference_path.num_points >= 2)
+    {
+        g_current_s = mpcc_find_closest_s(
+            &g_reference_path,
+            g_vehicle_state.pos_x,
+            g_vehicle_state.pos_y);
+    }
+
+    mpcc_reset();
+
+    fprintf(stderr,
+            "[MPCC] WARNING: solve gap %.1f ms exceeded stale threshold %.1f ms; "
+            "reset warm-start and re-anchored s=%.2f\n",
+            solve_gap_sec * 1000.0,
+            stale_gap_sec * 1000.0,
+            g_current_s);
+}
+
 static float limit_steering_delta(float requested_delta, double control_dt_sec)
 {
     float limited_delta = requested_delta;
@@ -344,7 +392,7 @@ static float limit_steering_delta(float requested_delta, double control_dt_sec)
 
     if (control_dt_sec > 0.0)
     {
-        const float max_delta_change = (float)(STEERING_RATE_LIMIT * control_dt_sec);
+        const float max_delta_change = (float)(g_delta_rate_limit * control_dt_sec);
         float delta_change = limited_delta - g_prev_delta_cmd;
 
         if (delta_change > max_delta_change)
@@ -1018,6 +1066,8 @@ static void pose_callback(const void *msg_in)
         }
     }
 
+    reset_mpcc_after_stale_solve_gap(solve_gap_sec);
+
     g_last_solve_odom_update_count = g_odom_update_count;
 
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
@@ -1133,7 +1183,7 @@ static void pose_callback(const void *msg_in)
 
             g_drive_msg.drive.steering_angle = delta_safe;
             g_drive_msg.drive.steering_angle_velocity = steering_velocity_cmd;
-            g_drive_msg.drive.speed = (float)v_safe;
+            g_drive_msg.drive.speed = g_publish_speed_command ? (float)v_safe : 0.0f;
             g_drive_msg.drive.acceleration = a_x_safe;
 
             g_prev_delta_cmd = delta_safe;
@@ -1567,6 +1617,7 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("C_SR")) != NULL)          cfg.C_Sr                     = (float)atof(v);
     if ((v = getenv("AX_MAX")) != NULL)        cfg.ax_max                   = (float)atof(v);
     if ((v = getenv("AX_MIN")) != NULL)        cfg.ax_min                   = (float)atof(v);
+    if ((v = getenv("DELTA_RATE_MAX")) != NULL) cfg.delta_rate_max          = (float)atof(v);
 
     if ((float)g_ax_min_hardware > cfg.ax_min)
         cfg.ax_min = (float)g_ax_min_hardware;
@@ -1597,6 +1648,7 @@ static void configure_mpcc_from_environment(void)
     }
 
     cfg = mpcc_get_configuration();
+    g_delta_rate_limit = cfg.delta_rate_max;
 
     g_solver_dt_sec = cfg.dt;
     if (g_solver_dt_sec <= 0.0)
@@ -1620,7 +1672,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
            "OSQP",
 #else
@@ -1644,6 +1696,7 @@ static void configure_mpcc_from_environment(void)
            cfg.weight_v_theta_rate,
            cfg.warm_start_max_s_error,
            g_ax_min_hardware,
+           cfg.delta_rate_max,
            cfg.cross_call_rate_scale,
            g_adapt_cross_call_scale,
            (unsigned)cfg.accept_max_iterations,
