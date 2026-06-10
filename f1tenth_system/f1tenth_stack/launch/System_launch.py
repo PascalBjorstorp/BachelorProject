@@ -53,6 +53,7 @@ def generate_launch_description():
     old_odom_arg = LaunchConfiguration('oldOdom')
     use_localization_arg = LaunchConfiguration('use_localization')
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
+    amcl_cloud_publish_rate_arg = LaunchConfiguration('amcl_cloud_publish_rate')
     use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
     monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
     monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
@@ -153,6 +154,11 @@ def generate_launch_description():
             description='GPU AMCL max beams sampled from each scan'),
 
         DeclareLaunchArgument(
+            'amcl_cloud_publish_rate',
+            default_value='0.0',
+            description='Particle cloud publish rate in Hz; 0 disables particle cloud downloads'),
+
+        DeclareLaunchArgument(
             'use_system_monitor',
             default_value='true',
             description='Monitor VESC telemetry and /drive heartbeat'),
@@ -207,6 +213,8 @@ def generate_launch_description():
                 {'use_sim_time': use_sim_time_arg},
                 {
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
+                    'cloud_publish_rate': ParameterValue(
+                        amcl_cloud_publish_rate_arg, value_type=float),
 
                 },
             ],

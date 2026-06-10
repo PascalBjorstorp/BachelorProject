@@ -404,7 +404,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     const float wall_bias_clear_m = get_wall_bias_clearance_m();
     const float wall_bias_max_m = get_wall_bias_max_shift_m();
     /* Affine-bias ablation: 1.0 = baseline, 0.0 = no affine term. */
-    float affine_scale = get_env_float("MPC_AFFINE_SCALE", 1.0f);
+    float affine_scale = get_env_float("MPC_AFFINE_SCALE", 0.0f);
     if (!isfinite(affine_scale)) affine_scale = 1.0f;
     const float wall_ref_clear_m = get_wall_ref_clearance_m();
     int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
