@@ -590,6 +590,8 @@ def build_command(args: argparse.Namespace, particles: int, run_index: int) -> L
         "--process-timeout-sec", str(args.process_timeout_sec),
         "--map-file", str(args.map_file),
         "--trajectory-file", str(args.trajectory_file),
+        "--initial-pose-x", str(args.initial_pose_x),
+        "--initial-pose-y", str(args.initial_pose_y),
         "--headless",
         "--realistic-plant",
         "--sim-odom-source", args.sim_odom_source,
@@ -626,6 +628,8 @@ def build_command(args: argparse.Namespace, particles: int, run_index: int) -> L
         "--ekf-process-noise-scale", str(args.ekf_process_noise_scale),
         "--no-debug-pre-resample-particles",
     ]
+    if args.initial_pose_yaw is not None:
+        cmd.extend(["--initial-pose-yaw", str(args.initial_pose_yaw)])
     if args.use_cluster_estimate:
         cmd.append("--amcl-use-cluster-estimate")
     else:
@@ -649,9 +653,20 @@ def run_cases(args: argparse.Namespace, particles: Sequence[int]) -> None:
             print(" ".join(cmd))
             if args.dry_run:
                 continue
-            result = subprocess.run(cmd, check=False)
+            run_root = run_root_for(args.output_root, particle_count, run_index)
+            run_root.mkdir(parents=True, exist_ok=True)
+            log_path = run_root / "benchmark_stdout.log"
+            with log_path.open("w") as log:
+                log.write(" ".join(cmd) + "\n\n")
+                log.flush()
+                result = subprocess.run(
+                    cmd,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False)
             if args.delete_bags:
-                delete_bag(run_root_for(args.output_root, particle_count, run_index))
+                delete_bag(run_root)
             if result.returncode != 0:
                 print(
                     f"[warn] particles={particle_count} run {run_index:02d} "
@@ -732,24 +747,27 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--trajectory-file", type=Path,
                         default=repo_root / "f1tenth_localization" / "Benchmark" /
                         "Matlab" / "sim_benchmark" / "my_track_raceline_vcap_4p0.csv")
+    parser.add_argument("--initial-pose-x", default="0.5")
+    parser.add_argument("--initial-pose-y", default="0.2")
+    parser.add_argument("--initial-pose-yaw", default=None)
     parser.add_argument("--particles", default="100:100:1500")
     parser.add_argument("--runs-per-particle", type=int, default=1)
     parser.add_argument("--laps", type=int, default=10)
     parser.add_argument("--max-duration-sec", type=float, default=0.0)
     parser.add_argument("--process-timeout-sec", type=float, default=300.0)
     parser.add_argument("--max-beams", type=int, default=270)
-    parser.add_argument("--update-min-d", type=float, default=0.05)
-    parser.add_argument("--update-min-a", type=float, default=0.05)
-    parser.add_argument("--likelihood-scale", type=float, default=0.75)
-    parser.add_argument("--amcl-alpha1", type=float, default=0.4)
-    parser.add_argument("--amcl-alpha2", type=float, default=0.4)
+    parser.add_argument("--update-min-d", type=float, default=0.04)
+    parser.add_argument("--update-min-a", type=float, default=0.035)
+    parser.add_argument("--likelihood-scale", type=float, default=4.0)
+    parser.add_argument("--amcl-alpha1", type=float, default=0.1)
+    parser.add_argument("--amcl-alpha2", type=float, default=0.2)
     parser.add_argument("--amcl-alpha3", type=float, default=0.2)
-    parser.add_argument("--amcl-alpha4", type=float, default=0.2)
-    parser.add_argument("--amcl-z-hit", type=float, default=0.95)
-    parser.add_argument("--amcl-z-rand", type=float, default=0.05)
-    parser.add_argument("--amcl-sigma-hit", type=float, default=0.10)
-    parser.add_argument("--amcl-resample-threshold", type=float, default=0.3)
-    parser.add_argument("--ekf-process-noise-scale", type=float, default=0.1)
+    parser.add_argument("--amcl-alpha4", type=float, default=0.25)
+    parser.add_argument("--amcl-z-hit", type=float, default=0.90)
+    parser.add_argument("--amcl-z-rand", type=float, default=0.10)
+    parser.add_argument("--amcl-sigma-hit", type=float, default=0.05)
+    parser.add_argument("--amcl-resample-threshold", type=float, default=0.5)
+    parser.add_argument("--ekf-process-noise-scale", type=float, default=0.2)
     parser.add_argument("--cloud-publish-rate", type=float, default=0.0)
     parser.add_argument("--system-monitor-cpu-sample-hz", type=float, default=100.0)
     parser.add_argument("--system-monitor-gpu-sample-hz", type=float, default=50.0)
@@ -761,7 +779,10 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--cluster-publish-min-weight", type=float, default=0.60)
     parser.add_argument("--use-cluster-estimate", action=argparse.BooleanOptionalAction,
                         default=True)
-    parser.add_argument("--sim-odom-source", choices=("vesc", "ground_truth"), default="vesc")
+    parser.add_argument(
+        "--sim-odom-source",
+        choices=("vesc", "ground_truth", "calibrated_drift"),
+        default="vesc")
     parser.add_argument("--sim-drive-input-mode", choices=("vesc", "ackermann"), default="vesc")
     parser.add_argument("--control-start-delay-sec", type=float, default=3.0)
     parser.add_argument("--mpc-raceline-speed-margin", type=float, default=0.0)

@@ -214,6 +214,7 @@ endif()
 # Install Python scripts as executables (skip optional legacy node if absent)
 set(LOCALIZATION_PYTHON_SCRIPTS
   optitrackBenchmark/optitrack_map_calibrator.py
+  scripts/calibrated_drift_odom_node.py
   scripts/sim_benchmark_logger.py
 )
 

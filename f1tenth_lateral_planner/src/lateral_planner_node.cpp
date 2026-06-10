@@ -69,6 +69,10 @@ public:
     avoidance_enabled_ = declare_parameter<bool>(
       "avoidance_enabled", LATERAL_PLANNER_ENABLE_AVOIDANCE);
     trajectory_file_ = declare_parameter<std::string>("trajectory_file", "");
+    startup_speed_initial_scale_ = declare_parameter<double>(
+      "startup_speed_initial_scale", 0.5);
+    startup_speed_ramp_duration_sec_ = declare_parameter<double>(
+      "startup_speed_ramp_duration_sec", 15.0);
 
     initPlanner();
     setupSubscribers();
@@ -282,14 +286,20 @@ private:
 
   double getStartupSpeedScale()
   {
+    const double initial_scale = std::clamp(startup_speed_initial_scale_, 0.0, 1.0);
+    const double ramp_duration = std::max(0.0, startup_speed_ramp_duration_sec_);
+    if (ramp_duration <= 1e-6) {
+      return 1.0;
+    }
+
     if (!speed_ramp_started_) {
       speed_ramp_start_time_ = now();
       speed_ramp_started_ = true;
     }
 
     const double elapsed = (now() - speed_ramp_start_time_).seconds();
-    const double alpha = std::clamp(elapsed / 15.0, 0.0, 1.0);
-    return 0.5 + 0.5 * alpha;  // 50% -> 100% over 15 seconds
+    const double alpha = std::clamp(elapsed / ramp_duration, 0.0, 1.0);
+    return initial_scale + (1.0 - initial_scale) * alpha;
   }
 
   // ── Publishing ────────────────────────────────────────────────────
@@ -564,6 +574,8 @@ private:
   std::mutex planner_mutex_;
   bool avoidance_enabled_{true};
   std::string trajectory_file_;
+  double startup_speed_initial_scale_{0.5};
+  double startup_speed_ramp_duration_sec_{15.0};
 
   // Frame IDs
   std::string map_frame_;

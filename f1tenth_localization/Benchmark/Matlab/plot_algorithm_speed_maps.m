@@ -86,6 +86,10 @@ results = struct( ...
     'lapCount', {}, ...
     'lapMeanS', {}, ...
     'lapBestS', {}, ...
+    'lapDistanceMeanM', {}, ...
+    'lapDistanceMinM', {}, ...
+    'lapDistanceMaxM', {}, ...
+    'speedMin', {}, ...
     'speedMean', {}, ...
     'speedMax', {}, ...
     'devMean', {}, ...
@@ -179,6 +183,8 @@ for i = 1:numel(runs)
         lapCrossingsS = lapCrossingsS(2:end);
     end
 
+    lapDistanceM = computeLapDistances(tEkf, xyEkf, lapCrossingsS);
+
     keepFullLaps = tEkf >= lapCrossingsS(1) & tEkf <= lapCrossingsS(end);
     if nnz(keepFullLaps) < 2
         warning('Full-lap window leaves too few samples in %s', cfg.bagName);
@@ -205,6 +211,10 @@ for i = 1:numel(runs)
     r.lapCount = numel(lapDurS);
     r.lapMeanS = mean(lapDurS);
     r.lapBestS = min(lapDurS);
+    r.lapDistanceMeanM = mean(lapDistanceM, 'omitnan');
+    r.lapDistanceMinM = min(lapDistanceM);
+    r.lapDistanceMaxM = max(lapDistanceM);
+    r.speedMin = min(speedAtEkf);
     r.speedMean = mean(speedAtEkf, 'omitnan');
     r.speedMax = max(speedAtEkf);
     r.devMean = mean(trajDev, 'omitnan');
@@ -284,14 +294,20 @@ bag = cellstr(string({results.bagName})');
 lapCount = [results.lapCount]';
 lapMean = [results.lapMeanS]';
 lapBest = [results.lapBestS]';
+lapDistanceMean = [results.lapDistanceMeanM]';
+lapDistanceMin = [results.lapDistanceMinM]';
+lapDistanceMax = [results.lapDistanceMaxM]';
+vMin = [results.speedMin]';
 vMean = [results.speedMean]';
 vMax = [results.speedMax]';
 devMean = [results.devMean]';
 devMax = [results.devMax]';
 
-summaryT = table(alg, bag, lapCount, lapMean, lapBest, vMean, vMax, devMean, devMax, ...
+summaryT = table(alg, bag, lapCount, lapMean, lapBest, ...
+    lapDistanceMean, lapDistanceMin, lapDistanceMax, vMin, vMean, vMax, devMean, devMax, ...
     'VariableNames', {'Algorithm', 'BagName', 'LapCount', 'LapMean_s', 'LapBest_s', ...
-    'SpeedMean_mps', 'SpeedMax_mps', ...
+    'LapDistanceMean_m', 'LapDistanceMin_m', 'LapDistanceMax_m', ...
+    'SpeedMin_mps', 'SpeedMean_mps', 'SpeedMax_mps', ...
     'DevMean_m', 'DevMax_m'});
 
 disp(' ');
@@ -560,6 +576,43 @@ valid = isfinite(lapDurS) & lapDurS >= minLapTimeS;
 lapDurS = lapDurS(valid);
 if isempty(lapDurS)
     crossingTimes = [];
+end
+end
+
+function lapDistanceM = computeLapDistances(t, xy, crossingTimes)
+nLaps = max(0, numel(crossingTimes) - 1);
+lapDistanceM = nan(nLaps, 1);
+
+if nLaps == 0 || numel(t) < 2 || size(xy, 1) ~= numel(t)
+    return;
+end
+
+t = t(:);
+valid = isfinite(t) & isfinite(xy(:, 1)) & isfinite(xy(:, 2));
+t = t(valid);
+xy = xy(valid, :);
+
+if numel(t) < 2
+    return;
+end
+
+[t, sortIdx] = sort(t);
+xy = xy(sortIdx, :);
+[t, uniqueIdx] = unique(t, 'stable');
+xy = xy(uniqueIdx, :);
+
+for iLap = 1:nLaps
+    t0 = crossingTimes(iLap);
+    t1 = crossingTimes(iLap + 1);
+    if ~isfinite(t0) || ~isfinite(t1) || t1 <= t0
+        continue;
+    end
+
+    inside = t > t0 & t < t1;
+    tLap = [t0; t(inside); t1];
+    xLap = interp1(t, xy(:, 1), tLap, 'linear', 'extrap');
+    yLap = interp1(t, xy(:, 2), tLap, 'linear', 'extrap');
+    lapDistanceM(iLap) = sum(hypot(diff(xLap), diff(yLap)), 'omitnan');
 end
 end
 

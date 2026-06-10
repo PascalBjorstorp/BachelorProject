@@ -29,6 +29,8 @@ namespace f1tenth_localization
 namespace
 {
 
+constexpr const char * kGpuEmcRatioPath = "/sys/devices/platform/bus@0/17000000.gpu/emc3d_ratio";
+
 bool starts_with(const std::string & value, const std::string & prefix)
 {
   return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
@@ -473,7 +475,35 @@ PerformanceMonitor::MemorySnapshot PerformanceMonitor::read_memory_snapshot() co
 PerformanceMonitor::MemoryControllerSnapshot
 PerformanceMonitor::read_memory_controller_snapshot() const
 {
-  return read_memory_controller_from_tegrastats();
+  auto snapshot = read_memory_controller_from_tegrastats();
+  if (snapshot.valid) {
+    return snapshot;
+  }
+
+  std::ifstream ratio_file(kGpuEmcRatioPath);
+  if (!ratio_file.is_open()) {
+    return snapshot;
+  }
+
+  double raw_ratio = -1.0;
+  ratio_file >> raw_ratio;
+  if (!std::isfinite(raw_ratio) || raw_ratio < 0.0) {
+    return snapshot;
+  }
+
+  // Jetson exposes gpu/emc3d_ratio as a GPU memory-controller demand ratio.
+  // It is not total system EMC bandwidth, but it is useful GPU memory-pressure telemetry.
+  snapshot.valid = true;
+  snapshot.source = "gpu_emc3d_ratio";
+  snapshot.emc_util_percent = std::clamp(raw_ratio / 10.0, 0.0, 100.0);
+  snapshot.emc_freq_mhz = -1.0;
+  snapshot.emc_peak_bandwidth_mib_s =
+    emc_peak_bandwidth_mib_s_ > 0.0 ? emc_peak_bandwidth_mib_s_ : -1.0;
+  if (snapshot.emc_peak_bandwidth_mib_s > 0.0) {
+    snapshot.emc_estimated_bandwidth_mib_s =
+      (snapshot.emc_util_percent / 100.0) * snapshot.emc_peak_bandwidth_mib_s;
+  }
+  return snapshot;
 }
 
 PerformanceMonitor::MemoryControllerSnapshot
@@ -484,7 +514,7 @@ PerformanceMonitor::read_memory_controller_from_tegrastats() const
   snapshot.emc_peak_bandwidth_mib_s =
     emc_peak_bandwidth_mib_s_ > 0.0 ? emc_peak_bandwidth_mib_s_ : -1.0;
 
-  FILE * pipe = popen("timeout 2s tegrastats --interval 100 --count 1 2>/dev/null", "r");
+  FILE * pipe = popen("timeout 1s tegrastats --interval 100 2>/dev/null", "r");
   if (pipe == nullptr) {
     return snapshot;
   }

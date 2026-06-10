@@ -390,9 +390,12 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
                         default=True)
     parser.add_argument('--sim-odom-source',
-                        choices=('vesc', 'ground_truth'),
+                        choices=('vesc', 'ground_truth', 'calibrated_drift'),
                         default='vesc',
-                        help='vesc uses simulated VESC/IMU sensors and vesc_to_odom; ground_truth uses old pose odom.')
+                        help=(
+                            'vesc uses simulated VESC/IMU sensors and vesc_to_odom; '
+                            'ground_truth uses ideal pose odom; calibrated_drift '
+                            'adds OptiTrack-calibrated local drift to ground truth.'))
     parser.add_argument('--sim-drive-input-mode',
                         choices=('vesc', 'ackermann'),
                         default='vesc',
@@ -444,15 +447,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--amcl-normalize-likelihood-by-beams',
                         action=argparse.BooleanOptionalAction,
                         default=True)
-    parser.add_argument('--amcl-likelihood-scale', type=float, default=0.75)
-    parser.add_argument('--amcl-alpha1', type=float, default=0.4)
-    parser.add_argument('--amcl-alpha2', type=float, default=0.4)
+    parser.add_argument('--amcl-likelihood-scale', type=float, default=4.0)
+    parser.add_argument('--amcl-alpha1', type=float, default=0.1)
+    parser.add_argument('--amcl-alpha2', type=float, default=0.2)
     parser.add_argument('--amcl-alpha3', type=float, default=0.2)
-    parser.add_argument('--amcl-alpha4', type=float, default=0.2)
-    parser.add_argument('--amcl-z-hit', type=float, default=0.95)
-    parser.add_argument('--amcl-z-rand', type=float, default=0.05)
-    parser.add_argument('--amcl-sigma-hit', type=float, default=0.10)
-    parser.add_argument('--amcl-resample-threshold', type=float, default=0.3)
+    parser.add_argument('--amcl-alpha4', type=float, default=0.25)
+    parser.add_argument('--amcl-z-hit', type=float, default=0.90)
+    parser.add_argument('--amcl-z-rand', type=float, default=0.10)
+    parser.add_argument('--amcl-sigma-hit', type=float, default=0.05)
+    parser.add_argument('--amcl-resample-threshold', type=float, default=0.5)
     parser.add_argument('--amcl-use-cluster-estimate',
                         action=argparse.BooleanOptionalAction,
                         default=True)
@@ -461,10 +464,10 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--amcl-cluster-iterations', type=int, default=3)
     parser.add_argument('--amcl-cluster-min-covariance', type=float, default=0.0001)
     parser.add_argument('--amcl-cluster-publish-min-weight', type=float, default=0.60)
-    parser.add_argument('--amcl-update-min-d', type=float, default=0.05)
-    parser.add_argument('--amcl-update-min-a', type=float, default=0.05)
-    parser.add_argument('--amcl-max-scan-age', type=float, default=0.12)
-    parser.add_argument('--ekf-process-noise-scale', type=float, default=0.1)
+    parser.add_argument('--amcl-update-min-d', type=float, default=0.04)
+    parser.add_argument('--amcl-update-min-a', type=float, default=0.035)
+    parser.add_argument('--amcl-max-scan-age', type=float, default=0.04)
+    parser.add_argument('--ekf-process-noise-scale', type=float, default=0.2)
     parser.add_argument('--recording-warmup-sec', type=float, default=2.0,
                         help='Seconds to let ros2 bag subscribe before launching sim.')
     parser.add_argument('--gpu-cache-profile', action='store_true',

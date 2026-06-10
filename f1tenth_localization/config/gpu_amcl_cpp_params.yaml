@@ -26,9 +26,9 @@
 gpu_amcl_cpp:
   ros__parameters:
     # ---- Particles ----
-    num_particles: 2000
+    num_particles: 1700
     min_particles: 600
-    max_particles: 2000
+    max_particles: 1700
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
@@ -53,8 +53,8 @@ gpu_amcl_cpp:
     # ---- Update thresholds (metres / radians) ----
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
-    update_min_d: 0.05
-    update_min_a: 0.05
+    update_min_d: 0.04
+    update_min_a: 0.035
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
@@ -69,10 +69,10 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.4    # rotation  → rotation  noise
-    alpha2: 0.4    # translation → rotation  noise
+    alpha1: 0.1    # rotation  → rotation  noise
+    alpha2: 0.2    # translation → rotation  noise
     alpha3: 0.2    # translation → translation noise
-    alpha4: 0.2    # rotation  → translation noise
+    alpha4: 0.25   # rotation  → translation noise
 
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
@@ -81,17 +81,17 @@ gpu_amcl_cpp:
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
-    z_hit: 0.95
-    z_rand: 0.05
-    sigma_hit: 0.10         # meters; standard AMCL-style softer likelihood field
+    z_hit: 0.90
+    z_rand: 0.10
+    sigma_hit: 0.05         # meters; selected by AMCL parameter sweep
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
     normalize_likelihood_by_beams: true  # use geometric mean, avoids first-scan global collapse
-    likelihood_scale: 0.75               # standard resampling needs softer weights at global init
+    likelihood_scale: 4.0                # selected by AMCL parameter sweep
 
     # ---- Resampling ----
-    resample_threshold: 0.3  # match sim benchmark default
+    resample_threshold: 0.5  # selected by AMCL parameter sweep
     enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
     recovery_injection_ratio: 0.00    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
@@ -168,6 +168,6 @@ ekf_localization:
 
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
-    process_noise_scale: 0.1     # multiplier on dt-scaled odom covariance for Q
+    process_noise_scale: 0.2     # multiplier on dt-scaled odom covariance for Q
     amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
     odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup
