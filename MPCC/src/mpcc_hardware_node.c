@@ -113,7 +113,7 @@ static uint32_t g_odom_update_count = 0;
 static uint32_t g_last_solve_odom_update_count = 0;
 static int g_odom_watchdog_active = 0;
 
-/* Measured control loop timing for cross-call scaling */
+/* Measured solve cadence used for control gating and cross-call scaling. */
 static struct timespec g_prev_solve_time = {0, 0};
 static double g_control_dt_filtered = 0.005;  /* Initial guess: 200 Hz */
 
@@ -126,7 +126,7 @@ static float g_prev_delta_cmd = 0.0f;
 static float g_prev_speed_cmd = 0.0f;
 static float g_prev_ax_cmd = 0.0f;
 static int g_have_published_drive_cmd = 0;
-static int g_publish_speed_command = 1;
+static int g_publish_speed_command = 0;
 static int g_use_local_raceline = 0;
 static int g_raceline_sub_ok = 0;
 
@@ -216,6 +216,48 @@ static void log_path_alignment_debug(uint32_t solve_count, float s_state)
             path_pt.y_ref,
             g_vehicle_state.pos_x,
             g_vehicle_state.pos_y);
+}
+
+static void log_solve_metrics(uint32_t solve_count,
+                              MPCCStatus_t status,
+                              const MPCCState_t *state,
+                              const MPCCResult_t *result,
+                              float delta_cmd,
+                              float a_x_cmd,
+                              float v_theta_cmd,
+                              float v_cmd,
+                              double solve_gap_sec,
+                              double target_dt_sec)
+{
+    const double solve_gap_ms = (solve_gap_sec > 0.0) ? (solve_gap_sec * 1000.0) : 0.0;
+    const double solve_rate_hz = (solve_gap_sec > 1e-9) ? (1.0 / solve_gap_sec) : 0.0;
+
+    fprintf(stderr,
+            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u s=%.2f x=%.2f y=%.2f psi=%.2f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f v_cmd=%.2f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f\n",
+            solve_count,
+            (int)status,
+            result->admm_iterations,
+            result->primal_residual,
+            result->dual_residual,
+            result->rho_final,
+            result->rho_u_final,
+            (unsigned)result->adaptive_rho_updates,
+            (unsigned)result->numeric_clip_count,
+            (unsigned)result->adaptive_rho_state_updates,
+            (unsigned)result->adaptive_rho_control_updates,
+            state->s,
+            state->X,
+            state->Y,
+            state->psi,
+            state->vx,
+            delta_cmd,
+            a_x_cmd,
+            v_theta_cmd,
+            v_cmd,
+            solve_gap_ms,
+            solve_rate_hz,
+            target_dt_sec * 1000.0);
+    fflush(stderr);
 }
 
 static int should_log_throttled(struct timespec *last_log_time,
@@ -640,7 +682,7 @@ static void publish_predicted_path(const MPCCResult_t *result)
         const MPCCState_t *st = &result->predicted_states[i];
         g_predicted_path_msg.poses.data[i].position.x = st->X;
         g_predicted_path_msg.poses.data[i].position.y = st->Y;
-        g_predicted_path_msg.poses.data[i].position.z = 0.0;
+        g_predicted_path_msg.poses.data[i].position.z = 0.08;
         g_predicted_path_msg.poses.data[i].orientation.x = 0.0;
         g_predicted_path_msg.poses.data[i].orientation.y = 0.0;
         g_predicted_path_msg.poses.data[i].orientation.z = sin(st->psi * 0.5f);
@@ -886,7 +928,8 @@ static void pose_callback(const void *msg_in)
 
     g_have_pose = 1;
 
-    /* ------- EKF-driven control: run solver on every new pose ------- */
+    /* ------- EKF-driven control: solve on new pose when the nominal
+     * control period has elapsed and a fresh odom sample is available. */
 
     if (!g_have_reference || !g_have_odom)
     {
@@ -933,6 +976,8 @@ static void pose_callback(const void *msg_in)
         return;
     }
 
+    double solve_gap_sec = 0.0;
+
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -950,82 +995,105 @@ static void pose_callback(const void *msg_in)
         }
     }
 
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+
+        if ((g_prev_solve_time.tv_sec != 0 || g_prev_solve_time.tv_nsec != 0)
+            && g_nominal_control_dt_sec > 0.0)
+        {
+            solve_gap_sec = timespec_diff_sec(&g_prev_solve_time, &now);
+
+            if (solve_gap_sec + 1e-9 < g_nominal_control_dt_sec)
+            {
+                if (g_verbose)
+                {
+                    printf("[MPCC] Solve gate active (%.1f ms < %.1f ms); keeping previous command\n",
+                           solve_gap_sec * 1000.0,
+                           g_nominal_control_dt_sec * 1000.0);
+                }
+                republish_last_drive_command("solve_rate_gate");
+                return;
+            }
+        }
+    }
+
     g_last_solve_odom_update_count = g_odom_update_count;
 
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
-    g_current_s = mpcc_state.s;
-
-    /* Measure actual control loop dt only when explicitly requested.
-     * The hardware-safe baseline keeps a fixed nominal rate scale. */
-    if (g_adapt_cross_call_scale)
     {
         struct timespec solve_now;
         clock_gettime(CLOCK_MONOTONIC, &solve_now);
-        if (g_prev_solve_time.tv_sec != 0 || g_prev_solve_time.tv_nsec != 0)
+
+        if (g_adapt_cross_call_scale)
         {
-            double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
-            if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
+            if (g_prev_solve_time.tv_sec != 0 || g_prev_solve_time.tv_nsec != 0)
             {
-                const double speed_for_adapt = fabs(g_latest_vx_mps);
-                if (speed_for_adapt < 0.5)
+                double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
+                if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
                 {
-                    if (!g_cross_call_motion_gate_logged)
+                    const double speed_for_adapt = fabs(g_latest_vx_mps);
+                    if (speed_for_adapt < 0.5)
                     {
-                        fprintf(stderr,
-                                "[MPCC] INFO: holding adaptive cross-call at baseline until |vx| >= 0.50 m/s (current %.2f m/s)\n",
-                                speed_for_adapt);
-                        g_cross_call_motion_gate_logged = 1;
-                    }
-                }
-                else
-                {
-                    if (!g_control_period_explicit && !g_adapt_nominal_dt_bootstrapped)
-                    {
-                        g_nominal_control_dt_sec = dt_actual;
-                        g_control_dt_filtered = dt_actual;
-                        g_adapt_nominal_dt_bootstrapped = 1;
-
-                        fprintf(stderr,
-                                "[MPCC] INFO: adaptive cross-call nominal bootstrapped to %.1f ms from measured solve cadence\n",
-                                dt_actual * 1000.0);
-                    }
-
-                    const double alpha =
-                        (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
-                    const double min_dt = 0.5 * g_nominal_control_dt_sec;
-                    const double max_dt = 2.0 * g_nominal_control_dt_sec;
-
-                    g_control_dt_filtered =
-                        (1.0 - alpha) * g_control_dt_filtered + alpha * dt_actual;
-                    if (g_control_dt_filtered < min_dt) g_control_dt_filtered = min_dt;
-                    if (g_control_dt_filtered > max_dt) g_control_dt_filtered = max_dt;
-
-                    double prediction_dt = (double)g_solver_dt_sec;
-                    if (prediction_dt > 0.0)
-                    {
-                        double scale = g_control_dt_filtered / prediction_dt;
-
-                        if (scale > 1.0)
+                        if (!g_cross_call_motion_gate_logged)
                         {
-                            if (!g_cross_call_upper_clamp_logged)
-                            {
-                                fprintf(stderr,
-                                        "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
-                                        g_control_dt_filtered * 1000.0,
-                                        prediction_dt * 1000.0,
-                                        scale);
-                                g_cross_call_upper_clamp_logged = 1;
-                            }
-                            scale = 1.0;
+                            fprintf(stderr,
+                                    "[MPCC] INFO: holding adaptive cross-call at baseline until |vx| >= 0.50 m/s (current %.2f m/s)\n",
+                                    speed_for_adapt);
+                            g_cross_call_motion_gate_logged = 1;
+                        }
+                    }
+                    else
+                    {
+                        if (!g_control_period_explicit && !g_adapt_nominal_dt_bootstrapped)
+                        {
+                            g_nominal_control_dt_sec = dt_actual;
+                            g_control_dt_filtered = dt_actual;
+                            g_adapt_nominal_dt_bootstrapped = 1;
+
+                            fprintf(stderr,
+                                    "[MPCC] INFO: adaptive cross-call nominal bootstrapped to %.1f ms from measured solve cadence\n",
+                                    dt_actual * 1000.0);
                         }
 
-                        MPCCConfiguration_t cfg = mpcc_get_configuration();
-                        cfg.cross_call_rate_scale = (float)scale;
-                        mpcc_set_configuration(&cfg);
+                        const double alpha =
+                            (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
+                        const double min_dt = 0.5 * g_nominal_control_dt_sec;
+                        const double max_dt = 2.0 * g_nominal_control_dt_sec;
+
+                        g_control_dt_filtered =
+                            (1.0 - alpha) * g_control_dt_filtered + alpha * dt_actual;
+                        if (g_control_dt_filtered < min_dt) g_control_dt_filtered = min_dt;
+                        if (g_control_dt_filtered > max_dt) g_control_dt_filtered = max_dt;
+
+                        double prediction_dt = (double)g_solver_dt_sec;
+                        if (prediction_dt > 0.0)
+                        {
+                            double scale = g_control_dt_filtered / prediction_dt;
+
+                            if (scale > 1.0)
+                            {
+                                if (!g_cross_call_upper_clamp_logged)
+                                {
+                                    fprintf(stderr,
+                                            "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
+                                            g_control_dt_filtered * 1000.0,
+                                            prediction_dt * 1000.0,
+                                            scale);
+                                    g_cross_call_upper_clamp_logged = 1;
+                                }
+                                scale = 1.0;
+                            }
+
+                            MPCCConfiguration_t cfg = mpcc_get_configuration();
+                            cfg.cross_call_rate_scale = (float)scale;
+                            mpcc_set_configuration(&cfg);
+                        }
                     }
                 }
             }
         }
+
         g_prev_solve_time = solve_now;
     }
 
@@ -1036,30 +1104,6 @@ static void pose_callback(const void *msg_in)
 
     if (status != MPCC_STATUS_SUCCESS && status != MPCC_STATUS_MAX_ITERATIONS)
     {
-        if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
-        {
-            const double control_dt_sec = current_control_dt_sec();
-
-            fprintf(stderr,
-                    "[MPCC %3u] solver failed (status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f clips=%u cross=%.3f ctrl_dt=%.1fms nominal=%.1fms pred_dt=%.1fms), applying safe fallback (prev d=%.3f v=%.2f)\n",
-                    g_solve_count,
-                    (int)status,
-                    result.admm_iterations,
-                    result.primal_residual,
-                    result.dual_residual,
-                    result.rho_final,
-                    result.rho_u_final,
-                    result.numeric_clip_count,
-                    (g_solver_dt_sec > 0.0)
-                        ? (control_dt_sec / g_solver_dt_sec)
-                        : 0.0,
-                    control_dt_sec * 1000.0,
-                    g_nominal_control_dt_sec * 1000.0,
-                    g_solver_dt_sec * 1000.0,
-                    g_prev_delta_cmd,
-                    g_prev_speed_cmd);
-            log_path_alignment_debug(g_solve_count, mpcc_state.s);
-        }
         {
             const double control_dt_sec = current_control_dt_sec();
             float delta_safe = 0.5f * g_prev_delta_cmd;
@@ -1095,6 +1139,22 @@ static void pose_callback(const void *msg_in)
             g_prev_delta_cmd = delta_safe;
             g_prev_speed_cmd = (float)v_safe;
             g_prev_ax_cmd = a_x_safe;
+
+            log_solve_metrics(g_solve_count,
+                              status,
+                              &mpcc_state,
+                              &result,
+                              delta_safe,
+                              a_x_safe,
+                              0.0f,
+                              (float)v_safe,
+                              solve_gap_sec,
+                              g_nominal_control_dt_sec);
+
+            if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
+            {
+                log_path_alignment_debug(g_solve_count, mpcc_state.s);
+            }
         }
         {
             rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL);
@@ -1207,6 +1267,17 @@ static void pose_callback(const void *msg_in)
             g_have_published_drive_cmd = 1;
         }
     }
+
+    log_solve_metrics(g_solve_count,
+                      status,
+                      &mpcc_state,
+                      &result,
+                      delta_cmd,
+                      a_x_cmd,
+                      v_theta_cmd,
+                      (float)v_cmd,
+                      solve_gap_sec,
+                      g_nominal_control_dt_sec);
 
     if (g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
     {
@@ -1445,6 +1516,7 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL) cfg.track_safety_buffer = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
+    if ((v = getenv("MPCC_S_QP_WINDOW")) != NULL) cfg.s_qp_window           = (float)atof(v);
     if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
     if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
     if ((v = getenv("MPCC_USE_RACELINE_VX_REF")) != NULL)
@@ -1458,6 +1530,7 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("R_DELTA")) != NULL)       cfg.weight_delta             = (float)atof(v);
     if ((v = getenv("R_AX")) != NULL)          cfg.weight_ax                = (float)atof(v);
     if ((v = getenv("R_VTHETA")) != NULL)      cfg.weight_v_theta           = (float)atof(v);
+    if ((v = getenv("W_VTHETA_PHYSICAL")) != NULL) cfg.weight_vtheta_physical = (float)atof(v);
     if ((v = getenv("W_DELTA_RATE")) != NULL)  cfg.weight_delta_rate        = (float)atof(v);
     if ((v = getenv("W_AX_RATE")) != NULL)     cfg.weight_ax_rate           = (float)atof(v);
     if ((v = getenv("W_VTHETA_RATE")) != NULL) cfg.weight_v_theta_rate      = (float)atof(v);
@@ -1479,6 +1552,8 @@ static void configure_mpcc_from_environment(void)
         cfg.max_iter_dual_tolerance = (float)atof(v);
     if ((v = getenv("MPCC_MAX_ITER_TRACK_TOL")) != NULL)
         cfg.max_iter_track_violation_tolerance = (float)atof(v);
+    if ((v = getenv("MPCC_WARM_START_MAX_S_ERROR")) != NULL)
+        cfg.warm_start_max_s_error = (float)atof(v);
     if ((v = getenv("HORIZON")) != NULL)
     {
         requested_horizon = atoi(v);
@@ -1545,7 +1620,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
            "OSQP",
 #else
@@ -1558,16 +1633,26 @@ static void configure_mpcc_from_environment(void)
             cfg.weight_wall_clearance,
             cfg.wall_clearance_margin,
            cfg.track_safety_buffer,
+           cfg.s_qp_window,
            cfg.weight_progress,
            cfg.weight_vx,
            (unsigned)cfg.use_raceline_vx_ref,
            (unsigned)cfg.use_raceline_vx_limit,
            cfg.weight_delta,
+           cfg.weight_v_theta,
+           cfg.weight_vtheta_physical,
+           cfg.weight_v_theta_rate,
+           cfg.warm_start_max_s_error,
            g_ax_min_hardware,
            cfg.cross_call_rate_scale,
            g_adapt_cross_call_scale,
            (unsigned)cfg.accept_max_iterations,
-           g_vx_min_cmd);
+           g_vx_min_cmd,
+           cfg.admm_rho,
+           cfg.admm_rho_u > 0.0f ? cfg.admm_rho_u : cfg.admm_rho,
+           (unsigned)cfg.admm_adaptive_rho,
+           (unsigned)cfg.admm_max_iterations,
+           cfg.admm_tolerance);
 }
 
 static const char *autodetect_trajectory_file(void)
@@ -1650,7 +1735,7 @@ int main(int argc, const char *argv[])
              MPCC_ODOM_MAX_ABS_VY_MPS,
              MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS);
         }
-        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s | local_raceline: %s\n",
+        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom + nominal_dt | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s | local_raceline: %s\n",
             g_nominal_control_dt_sec * 1000.0,
             g_adapt_cross_call_scale ? "adaptive" : "fixed",
             g_trajectory_file,
