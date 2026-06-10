@@ -120,10 +120,6 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
-                os.path.join(planning_share, "trajectories", "hardware_centerline_smooth.csv"),
-                os.path.join(planning_share, "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
-                os.path.join(planning_share, "trajectories", "my_track_centerline_smooth.csv"),
-                os.path.join(planning_share, "trajectories", "hardware_raceline.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
             ]
         )
@@ -140,16 +136,7 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
-                os.path.join(root, "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
-                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
-                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
-                os.path.join(root, "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
-                os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
-                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
-                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
-                os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
-                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
             ]
         )
 

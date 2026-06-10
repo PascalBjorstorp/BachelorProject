@@ -40,10 +40,10 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 1500.0f                         /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_LAT_ERROR 1250.0f                         /* Penalizes lateral tracking deviation from the reference path. */
 #define WEIGHT_HEADING 5.0f                            /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 200.0f                           /* Penalizes deviation from target longitudinal speed profile. */
-#define WEIGHT_LAT_VEL 10.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
+#define WEIGHT_VELOCITY 250.0f                           /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_VEL 5.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
 #define WEIGHT_YAW_RATE 1.5f                            /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
 #define WEIGHT_STEER_EFFORT 2.0f                        /* Penalizes steering-rate effort to limit aggressive steering actuation. */
 #define WEIGHT_ACCEL_EFFORT 0.5f                       /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
@@ -53,7 +53,7 @@
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 50                              /* Default solver iteration budget per control update. */
-#define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
+#define WALL_MARGIN 0.00f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 7.0f                                  /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 7.0f                                /* ADMM penalty applied to control-variable projection terms. */
 #define CONVERGENCE_TOLERANCE 0.01f                     /* Residual threshold used to declare solver convergence. */
@@ -73,7 +73,7 @@
  * implementation (FPGA_Implementations/MPC_FPGA_Kria) so CPU and FPGA make the
  * same cold-start decisions on identical input. Do not diverge these without
  * updating mpc_fpga_types.h to match. */
-#define MPC_WS_CURVATURE_THRESH 0.0f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
+#define MPC_WS_CURVATURE_THRESH 0.25f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
 #define MPC_WS_BOUND_THRESH 0.05f                        /* Slack on ey box before a stale warm start is treated as bound-incompatible (matches FPGA). */
 #define MPC_MODEL_SIGNATURE 1                            /* Bumped when the augmented model changes; a mismatch forces a cold start (matches FPGA). */
 #define WARMSTART_CURVATURE_RESET_THRESHOLD MPC_WS_CURVATURE_THRESH /* Back-compat alias; prefer MPC_WS_CURVATURE_THRESH. */
@@ -102,11 +102,11 @@
 #define VP_YAW_INERTIA_KGM2 0.035f                       /* Yaw inertia governing rotational response to tire moments. */
 #define VP_CG_HEIGHT_M 0.0703f                           /* Center-of-gravity height driving longitudinal load transfer. */
 #define VP_FRICTION_COEFF 0.72f                         /* Effective tire-road friction coefficient for force limits. */
-#define GRAVITY_MPS2 9.81f                               /* Gravitational acceleration constant used in vehicle load equations. */
+#define GRAVITY_MPS2 9.82f                               /* Gravitational acceleration constant used in vehicle load equations. */
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
 #define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
 #define VP_INV_YAW_INERTIA_1_PER_KGM2 (1.0f / VP_YAW_INERTIA_KGM2) /* Reciprocal yaw inertia used in yaw-rate Jacobians. */
-#define VP_MAX_ACCEL_MPS2 (VP_FRICTION_COEFF * GRAVITY_MPS2) /* Friction-limited forward acceleration derived from tire-road capacity. */
+#define VP_MAX_ACCEL_MPS2 (VP_FRICTION_COEFF * GRAVITY_MPS2 *1.4f) /* Friction-limited forward acceleration derived from tire-road capacity. */
 #define VP_MIN_ACCEL_MPS2 (-VP_MAX_ACCEL_MPS2)           /* Braking bound mirrored from the friction-limited acceleration envelope. */
 #define VP_C_ALPHA_F 51.40f                              /* Front tire lateral-force scale used by the nonlinear tire model. */
 #define VP_C_ALPHA_R 43.10f                              /* Rear tire lateral-force scale used by the nonlinear tire model. */

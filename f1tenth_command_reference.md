@@ -81,7 +81,7 @@ ros2 launch mpc_riccati mpc_hardware.launch.py
 ```
 ### Terminal 3 — ROS BAG Recording (on Jetson)
 ```bash
-# Record EVERYTHING (large files, but complete):
+# Record (large files, but complete):
 ./f1tenth_system/f1tenth_stack/scripts/record_lateral_planner_bag.sh
 ```
 
