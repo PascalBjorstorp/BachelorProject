@@ -48,6 +48,9 @@ static ackermann_msgs__msg__AckermannDriveStamped       drive_msg;
 static struct timespec prev_solve_time;
 static double target_control_period_sec = 0.05;  /* 20 Hz default */
 
+#define MPCC_STALE_SOLVE_GAP_RESET_FACTOR 4.0
+#define MPCC_STALE_SOLVE_GAP_MIN_SEC 0.10
+
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
 /* Extract yaw from quaternion (z-up) */
@@ -63,6 +66,34 @@ static double timespec_diff_sec(const struct timespec *start,
 {
     return (double)(end->tv_sec - start->tv_sec)
          + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
+}
+
+static void reset_mpcc_after_stale_solve_gap(double solve_gap_sec)
+{
+    double stale_gap_sec = MPCC_STALE_SOLVE_GAP_RESET_FACTOR
+                         * target_control_period_sec;
+
+    if (stale_gap_sec < MPCC_STALE_SOLVE_GAP_MIN_SEC)
+        stale_gap_sec = MPCC_STALE_SOLVE_GAP_MIN_SEC;
+
+    if (!isfinite(solve_gap_sec) || solve_gap_sec <= stale_gap_sec)
+        return;
+
+    if (ref_path_valid && active_ref_path.num_points >= 2) {
+        current_s = mpcc_find_closest_s(
+            &active_ref_path,
+            current_vehicle_state.pos_x,
+            current_vehicle_state.pos_y);
+    }
+
+    mpcc_reset();
+
+    fprintf(stderr,
+            "[MPCC] WARNING: solve gap %.1f ms exceeded stale threshold %.1f ms; "
+            "reset warm-start and re-anchored s=%.2f\n",
+            solve_gap_sec * 1000.0,
+            stale_gap_sec * 1000.0,
+            current_s);
 }
 
 static int compute_path_tracking_diag(
@@ -473,7 +504,7 @@ static void log_solve_metrics(const MPCCState_t *mpcc_state,
     const double compute_rate_hz = (compute_sec > 1e-9) ? (1.0 / compute_sec) : 0.0;
 
     fprintf(stderr,
-            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u s=%.2f x=%.2f y=%.2f psi=%.3f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f compute_ms=%.2f compute_hz=%.2f\n",
+            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u diag=0x%X hmin=%.2e tw=%.3f dw=%.3f axlim=%.3f vxm=%.3f s=%.2f x=%.2f y=%.2f psi=%.3f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f compute_ms=%.2f compute_hz=%.2f\n",
             solve_count,
             (int)status,
             result->admm_iterations,
@@ -485,6 +516,12 @@ static void log_solve_metrics(const MPCCState_t *mpcc_state,
             (unsigned)result->numeric_clip_count,
             (unsigned)result->adaptive_rho_state_updates,
             (unsigned)result->adaptive_rho_control_updates,
+            (unsigned)result->qp_diagnostic_flags,
+            result->qp_min_hessian_eigenvalue,
+            result->qp_min_track_width,
+            result->qp_min_delta_width,
+            result->qp_min_ax_limit,
+            result->qp_min_vx_margin,
             mpcc_state->s,
             mpcc_state->X,
             mpcc_state->Y,
@@ -508,13 +545,6 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     if (!state_valid) return;
 
-    /* Convert Cartesian vehicle state → MPCC Frenet state */
-    MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(
-                                &current_vehicle_state, current_s);
-
-    /* Update s hint for next iteration */
-    current_s = mpcc_state.s;
-
     double solve_gap_sec = 0.0;
     {
         struct timespec solve_now;
@@ -524,6 +554,15 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
         }
         prev_solve_time = solve_now;
     }
+
+    reset_mpcc_after_stale_solve_gap(solve_gap_sec);
+
+    /* Convert Cartesian vehicle state → MPCC Frenet state */
+    MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(
+                                &current_vehicle_state, current_s);
+
+    /* Update s hint for next iteration */
+    current_s = mpcc_state.s;
 
     /* Solve MPCC */
     MPCCResult_t result;
@@ -764,17 +803,20 @@ int main(int argc, const char *argv[])
             cfg.ax_max = (float)atof(v);
         if ((v = getenv("AX_MIN")) != NULL)
             cfg.ax_min = (float)atof(v);
+        if ((v = getenv("DELTA_RATE_MAX")) != NULL)
+            cfg.delta_rate_max = (float)atof(v);
         if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
             cfg.cross_call_rate_scale = (float)atof(v);
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
+        cfg = mpcc_get_configuration();
 
         printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
                "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f "
                "s_window=%.2f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u "
                "R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f "
-               "warm_s_err=%.2f W_drate=%.1f cross_call=%.4f accept_max_iter=%u "
+               "warm_s_err=%.2f W_drate=%.1f delta_rate=%.3f cross_call=%.4f accept_max_iter=%u "
                "rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
                "OSQP",
@@ -797,6 +839,7 @@ int main(int argc, const char *argv[])
                cfg.weight_v_theta_rate,
                cfg.warm_start_max_s_error,
                cfg.weight_delta_rate,
+               cfg.delta_rate_max,
                cfg.cross_call_rate_scale,
                (unsigned)cfg.accept_max_iterations,
                cfg.admm_rho,

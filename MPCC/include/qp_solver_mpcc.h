@@ -9,12 +9,14 @@
  *      + 0.5 x_N^T Q_N x_N + q_N^T x_N
  *
  *   s.t. x_{k+1} = A_k x_k + B_k u_k + d_k    (dynamics)
- *        x_lb <= x_k <= x_ub                    (state bounds incl. track)
+ *        x_lb <= x_k <= x_ub                    (state bounds)
  *        u_lb <= u_k <= u_ub                    (control bounds)
+ *        e_c(X_k, Y_k) within track corridor     (Cartesian projection)
  *        x_0 = x_init                          (initial condition)
  *
- * State bounds on n (index 1) encode track boundaries:
- *   n_left_k <= n_k <= n_right_k
+ * Track corridor constraints are enforced in the ADMM projection step by
+ * projecting Cartesian (X, Y) into the local path frame at each stage,
+ * clamping contouring error e_c, and reconstructing Cartesian position.
  *
  * ADMM (Alternating Direction Method of Multipliers):
  *   1. z-step: Equality-constrained QP (dynamics only)
@@ -22,15 +24,17 @@
  *
  *   2. w-step: Box-constrained proximal step
  *      w = clamp(z + lambda, lb, ub)
- *      Track bounds on n applied per-stage here.
+ *      Per-stage track corridor, speed, steering-rate, and friction
+ *      bounds are applied here.
  *
  *   3. Dual update:
  *      lambda += z - w
  *
  * Riccati recursion (for z-step):
  *   Backward pass (k = N-1 -> 0):
- *     G_k = R_tilde_k + B_k^T P_{k+1} B_k        [NU x NU = 2x2]
- *     K_k = -G_k^{-1} B_k^T P_{k+1} A_k           [NU x NX]
+ *     G_k = R_tilde_k + B_k^T P_{k+1} B_k        [NU x NU = 3x3]
+ *     H_k = B_k^T P_{k+1} A_k + S_k              [NU x NX]
+ *     K_k = -G_k^{-1} H_k                         [NU x NX]
  *     kk_k = -G_k^{-1} (r_tilde_k + B_k^T s_{k+1}) [NU]
  *     P_k = Q_tilde_k + A_k^T P_{k+1} A_k + H_k^T K_k
  *     p_k = q_tilde_k + A_k^T s_{k+1} + H_k^T kk_k
@@ -41,9 +45,9 @@
  *     x_{k+1} = A_k x_k + B_k u_k + d_k
  *
  * Matrix dimensions:
- *   NX = MPCC_NX = 10  (Lifted ODE state)
- *   NU = MPCC_NU = 2   (physical controls only)
- *   G_k inversion is only 2x2 -> analytic formula (trivial)
+ *   NX = MPCC_NX = 7  (s, vx, vy, omega, X, Y, psi)
+ *   NU = MPCC_NU = 3  (delta, a_x, v_theta)
+ *   G_k inversion is 3x3 -> analytic formula (small fixed matrix)
  *
  * Complexity: O(N * (NX + NU)^3) per ADMM iteration
  * Memory: O(N * (NX^2 + NX*NU)) — all statically allocated

@@ -809,10 +809,16 @@ void admm_projection_step(
             float val = ws->z_u[k][i] + ws->lambda_u[k][i];
 
             if (i == MPCC_IDX_DELTA) {
-                if (val < problem->delta_lower_stage[k])
-                    val = problem->delta_lower_stage[k];
-                if (val > problem->delta_upper_stage[k])
-                    val = problem->delta_upper_stage[k];
+                float lower = problem->delta_lower_stage[k];
+                float upper = problem->delta_upper_stage[k];
+
+                if (!(upper > lower)) {
+                    lower = problem->u_lower[i];
+                    upper = problem->u_upper[i];
+                }
+
+                if (val < lower) val = lower;
+                if (val > upper) val = upper;
             } else {
                 if (val < problem->u_lower[i]) val = problem->u_lower[i];
                 if (val > problem->u_upper[i]) val = problem->u_upper[i];

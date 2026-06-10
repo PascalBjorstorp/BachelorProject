@@ -109,22 +109,16 @@ static void test_3x3_inverse(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * TEST 2:  Unconstrained LQR — ADMM should converge to Riccati solution
+ * TEST 2:  Unconstrained one-step QP — acceleration should raise vx
  * ═══════════════════════════════════════════════════════════════════════════ */
 static void test_unconstrained_lqr(void)
 {
-    printf("\n--- Test 2: Unconstrained LQR (2-step, double integrator) ---\n");
+    printf("\n--- Test 2: Unconstrained QP (a_x drives vx) ---\n");
 
-    /* Simple 2-state double integrator embedded in 10-state system.
-     * Only states 0..1 have non-trivial dynamics; rest are identity / zero.
-     *
-     * A = I + dt * [0 1; 0 0; ...]   =>  A[0][1] = dt = 0.05
-     * B = [0; dt; 0; ...]            =>  B[1][0] = 0.05
-     *
-     * Q = diag(1, 0, ...)   R = diag(0.1, 0.1)
-     * x0 = [1, 0, ...]
-     *
-     * Expect the solver to steer state 0 toward zero. */
+    /* One-step problem in the current 7-state/3-control MPCC dimensions.
+     * The terminal cost targets vx=2 m/s and B[vx][a_x]=1.0, so the
+     * equality-constrained Riccati step should choose positive a_x and a
+     * positive next-step vx. */
 
     static MPCCQPProblem_t qp;
     static ADMMWorkspace_t ws;
@@ -135,14 +129,10 @@ static void test_unconstrained_lqr(void)
     memset(&ws, 0, sizeof(ws));
     memset(&result, 0, sizeof(result));
 
-    int N = 2; /* short horizon for simplicity */
+    int N = 1;
     qp.N = N;
 
-    /* Initial state */
-    qp.x0[0] = 1.0f;
-    for (int i = 1; i < MPCC_NX; i++) qp.x0[i] = 0;
-
-    float dt = 0.05f;
+    memset(qp.x0, 0, sizeof(qp.x0));
 
     for (int k = 0; k < N; k++) {
         MPCCLinearSystem_t *dyn = &qp.dynamics[k];
@@ -151,28 +141,17 @@ static void test_unconstrained_lqr(void)
         /* A = I */
         for (int i = 0; i < MPCC_NX; i++)
             dyn->A[i][i] = 1.0f;
-        /* A[0][1] = dt */
-        dyn->A[0][1] = dt;
 
-        /* B[1][0] = dt */
-        dyn->B[1][0] = dt;
+        dyn->B[MPCC_IDX_VX][MPCC_IDX_AX] = 1.0f;
 
-        /* d = 0 (already zeroed) */
-
-        /* Q: state 0 weight = 1.0 */
-        cost->Q[0][0] = 1.0f;
-
-        /* R: both controls = 0.1 */
-        cost->R[0][0] = 0.1f;
-        cost->R[1][1] = 0.1f;
-
-        /* Wide bounds (unconstrained) */
+        for (int i = 0; i < MPCC_NU; i++)
+            cost->R[i][i] = 0.2f;
         qp.track_left[k]  = 100.0f;
         qp.track_right[k] = 100.0f;
     }
 
-    /* Terminal cost: same as stage */
-    qp.terminal_cost.Q[0][0] = 1.0f;
+    qp.terminal_cost.Q[MPCC_IDX_VX][MPCC_IDX_VX] = 2.0f;
+    qp.terminal_cost.q[MPCC_IDX_VX] = -4.0f;
     qp.track_left[N]  = 100.0f;
     qp.track_right[N] = 100.0f;
 
@@ -197,29 +176,24 @@ static void test_unconstrained_lqr(void)
     MPCCStatus_t status = admm_solver_solve(&qp, &cfg, &ws, &result);
     printf("  Solver status: %d  iterations: %u\n", status, result.iterations);
 
-    /* Check: first control should be negative (push velocity toward negative,
-     * which after 2 steps will move position toward zero).
-     * With double integrator: x[k+1]=x[k]+dt*v[k], v[k+1]=v[k]+dt*u[k]
-     * u[0] acts on v, then v acts on x. So x barely changes at k=1. */
-    float u0 = result.u_opt[0][0];
-    printf("  u[0][0] = %.6f (expect < 0)\n", u0);
-    if (u0 < 0.0f) {
+    float ax0 = result.u_opt[0][MPCC_IDX_AX];
+    printf("  u[0][a_x] = %.6f (expect > 0)\n", ax0);
+    if (ax0 > 0.0f) {
         tests_passed++;
-        printf(GREEN "  [PASS] Control u[0][0] < 0 (drives state toward zero)\n" RESET);
+        printf(GREEN "  [PASS] Acceleration command is positive\n" RESET);
     } else {
         tests_failed++;
-        printf(RED   "  [FAIL] Control u[0][0] = %.4f, expected < 0\n" RESET, u0);
+        printf(RED   "  [FAIL] a_x = %.4f, expected > 0\n" RESET, ax0);
     }
 
-    /* Check: velocity at k=1 should be negative (heading back toward zero) */
-    float v1 = result.x_opt[1][1];
-    printf("  x[1][1] (velocity) = %.6f (expect < 0)\n", v1);
-    if (v1 < 0.0f) {
+    float vx1 = result.x_opt[1][MPCC_IDX_VX];
+    printf("  x[1][vx] = %.6f (expect > 0)\n", vx1);
+    if (vx1 > 0.0f) {
         tests_passed++;
-        printf(GREEN "  [PASS] Velocity driven negative\n" RESET);
+        printf(GREEN "  [PASS] Next-step vx is positive\n" RESET);
     } else {
         tests_failed++;
-        printf(RED   "  [FAIL] v[1] = %.4f, expected < 0\n" RESET, v1);
+        printf(RED   "  [FAIL] vx[1] = %.4f, expected > 0\n" RESET, vx1);
     }
 }
 
@@ -264,8 +238,8 @@ static void test_box_constrained_qp(void)
         /* Cost: penalize states, small control cost */
         for (int i = 0; i < MPCC_NX; i++)
             qp.stage_cost[k].Q[i][i] = 0.1f;
-        qp.stage_cost[k].R[0][0] = 0.01f;
-        qp.stage_cost[k].R[1][1] = 0.01f;
+        for (int i = 0; i < MPCC_NU; i++)
+            qp.stage_cost[k].R[i][i] = 0.01f;
 
         /* Linear term: push vy negative => pushes unconstrained vy far */
         qp.stage_cost[k].q[MPCC_IDX_VY] = -50.0f;
