@@ -1,21 +1,19 @@
 # v_mps,ax_max_machines_mps2
-# F1/10th motor limit: max_wheel_force=23.8N, mass=3.314kg
-# Low speed motor limit: a = F/m = 23.8/3.314 = 7.18 m/s^2
-# Clamped by tire grip for mu=0.72: mu*g = 7.06 m/s^2
-# High speed: drops due to back-EMF limiting motor current
-0.0,7.06
-1.0,7.06
-2.0,7.06
-3.0,7.06
-4.0,7.06
-5.0,7.06
-6.0,7.06
-7.0,7.06
-8.0,6.42
-9.0,5.71
-10.0,5.14
-11.0,4.67
-12.0,4.28
-13.0,3.95
-14.0,3.67
-15.0,3.43
+# F1/10th calibrated motor limit used for trajectory generation.
+# Positive longitudinal acceleration limit: 9.00 m/s^2.
+0.0,9.00
+1.0,9.00
+2.0,9.00
+3.0,9.00
+4.0,9.00
+5.0,9.00
+6.0,9.00
+7.0,9.00
+8.0,9.00
+9.0,9.00
+10.0,9.00
+11.0,9.00
+12.0,9.00
+13.0,9.00
+14.0,9.00
+15.0,9.00
