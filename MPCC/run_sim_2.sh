@@ -7,7 +7,7 @@
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_centerline_smooth.csv
+#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_centerline.csv
 #   MPCC_PROFILE     = track_racer
 #
 # This script:
@@ -23,7 +23,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline_smooth.csv}"
+DEFAULT_TRAJECTORY_FILE="${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline.csv"
+TRAJECTORY_FILE="${2:-${DEFAULT_TRAJECTORY_FILE}}"
 
 # Resolve to an absolute path so ROS2 nodes can find the trajectory regardless of cwd.
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -95,9 +96,22 @@ set +u
 source /opt/ros/jazzy/setup.bash
 set -u
 
+# Copy maps from f1tenth_planning to f1tenth_sim so they get installed with the package
+echo "Syncing maps from f1tenth_planning/maps to f1tenth_sim/maps..."
+if [[ -d "${ROOT_DIR}/f1tenth_planning/maps" ]]; then
+    mkdir -p "${ROOT_DIR}/f1tenth_sim/maps"
+    cp -v "${ROOT_DIR}/f1tenth_planning/maps"/*.pgm "${ROOT_DIR}/f1tenth_sim/maps/" 2>/dev/null || true
+    cp -v "${ROOT_DIR}/f1tenth_planning/maps"/*.png "${ROOT_DIR}/f1tenth_sim/maps/" 2>/dev/null || true
+    cp -v "${ROOT_DIR}/f1tenth_planning/maps"/*.yaml "${ROOT_DIR}/f1tenth_sim/maps/" 2>/dev/null || true
+fi
+
+# Clean build directory for gym package to force complete rebuild and reinstall of maps
+echo "Cleaning f1tenth_gym_ros build/install to force fresh rebuild with latest maps..."
+rm -rf "${ROOT_DIR}/build/f1tenth_gym_ros" "${ROOT_DIR}/install/f1tenth_gym_ros"
+
 # Build both packages that this script launches. The gym package owns the
 # installed launch/RViz files, so it must be rebuilt when visualization changes.
-colcon build --packages-select f1tenth_gym_ros mpcc_f1_10th --cmake-force-configure 2>&1 | tail -8
+colcon build --packages-select f1tenth_gym_ros mpcc_f1_10th --cmake-force-configure 2>&1 | tail -15
 
 # Re-source the workspace after build
 set +u
@@ -135,11 +149,52 @@ for site_dir in "${ROOT_DIR}"/.venv/lib/python*/site-packages "${ROOT_DIR}"/f1te
 done
 export PYTHONPATH="${PYTHONPATH_EXTRA}:${PYTHONPATH:-}"
 
-# Keep the gym spawn and map aligned with the selected trajectory. This prevents
-# the simulator from starting the car at a pose that is far away from MPCC's path.
-TRAJ_SX="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
-TRAJ_SY="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $3); print $3; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
-TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+# Keep the gym spawn and map aligned with the selected trajectory. For MPCC's
+# 9-column CSVs, prefer the waypoint with the largest side clearance so the
+# simulator does not start the car in or next to a wall.
+TRAJ_SPAWN="$(awk -F, '
+function trim(value) {
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+    return value
+}
+$1 ~ /^[[:space:]]*#/ || NF < 4 { next }
+{
+    x = trim($2)
+    y = trim($3)
+    psi = trim($4)
+    if (!have_first) {
+        first_x = x
+        first_y = y
+        first_psi = psi
+        have_first = 1
+    }
+    if (NF >= 9) {
+        left = trim($8) + 0.0
+        right = trim($9) + 0.0
+        clearance = (left < right) ? left : right
+        if (!have_best || clearance > best_clearance) {
+            best_clearance = clearance
+            best_x = x
+            best_y = y
+            best_psi = psi
+            have_best = 1
+        }
+    }
+}
+END {
+    if (have_best) {
+        printf "%s %s %s\n", best_x, best_y, best_psi
+    } else if (have_first) {
+        printf "%s %s %s\n", first_x, first_y, first_psi
+    }
+}
+' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+TRAJ_SX=""
+TRAJ_SY=""
+TRAJ_STHETA=""
+if [[ -n "${TRAJ_SPAWN}" ]]; then
+    read -r TRAJ_SX TRAJ_SY TRAJ_STHETA <<< "${TRAJ_SPAWN}"
+fi
 
 DEFAULT_GYM_MAP_PATH="my_track_map"
 DEFAULT_GYM_MAP_IMG_EXT=".pgm"
@@ -183,54 +238,60 @@ case "${MPCC_PROFILE}" in
         # Low-reference MPCC setup:
         # The reference line is used mostly as the path coordinate frame and
         # corridor center, while progress and wall clearance dominate.
-        set_default HORIZON 40
-        set_default DT 0.03
-        set_default Q_CONTOURING 50.0
-        set_default Q_LAG 150.0
+        set_default HORIZON 30
+        set_default DT 0.025
+        set_default Q_CONTOURING 30.0
+        set_default Q_LAG 20.0
+        set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 2000.0
-        set_default WALL_CLEARANCE_MARGIN 0.02
-        set_default MPCC_TRACK_BUFFER 0.03
-        set_default Q_PROGRESS 9.0
+        set_default WALL_CLEARANCE_MARGIN 0.0
+        set_default MPCC_TRACK_BUFFER 0.05
+        set_default Q_PROGRESS 6.0
+        set_default Q_PHYSICAL_PROGRESS 2.0
         # Soft physical-speed tracking prevents a zero-motion local optimum
         # after hard braking, while keeping the CSV speed limit disabled.
         set_default Q_VX 0.0
         set_default VX_REF 0.0
         set_default MPCC_USE_RACELINE_VX_REF 0
         set_default MPCC_USE_RACELINE_VX_LIMIT 0
-        set_default MPCC_RACELINE_VX_LIMIT_SCALE 1.0
+        set_default MPCC_RACELINE_VX_LIMIT_SCALE 0.85
         set_default Q_VY 0.0
-        set_default Q_OMEGA 3.0
+        set_default Q_OMEGA 1.0
         set_default R_DELTA 1.0
         set_default R_AX 0.2
+        set_default AX_MIN -6.0
         set_default R_VTHETA 0.1
         set_default W_DELTA_RATE 1.0
         set_default W_AX_RATE 1.0
         set_default W_VTHETA_RATE 0.3
         set_default Q_CONTOURING_TERM 150.0
         set_default Q_LAG_TERM 120.0
-        set_default Q_PROGRESS_TERM 10.0
+        set_default Q_HEADING_TERM 20.0
+        set_default Q_PROGRESS_TERM 60.0
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
-        set_default ADMM_MAX_ITER 300
+        set_default ADMM_MAX_ITER 150
         set_default ADMM_TOL 0.02
         set_default ADMM_ADAPTIVE_RHO 1
-        set_default ADMM_ALPHA_RELAX 1.6
+        set_default ADMM_ALPHA_RELAX 1.0
         set_default MPCC_ACCEPT_MAX_ITER 1
-        set_default MPCC_MAX_ITER_PRIMAL_TOL 0.20
-        set_default MPCC_MAX_ITER_DUAL_TOL 0.20
+        set_default MPCC_MAX_ITER_PRIMAL_TOL 0.04
+        set_default MPCC_MAX_ITER_DUAL_TOL 0.04
         set_default MPCC_MAX_ITER_TRACK_TOL 0.05
         set_default V_THETA_MAX 20.0
         set_default DELTA_RATE_MAX 2.849
-        set_default CROSS_CALL_SCALE 0.8333
+        set_default CROSS_CALL_SCALE 1.0
         ;;
     convergence_debug)
         set_default HORIZON 20
         set_default DT 0.03
         set_default Q_CONTOURING 60.0
         set_default Q_LAG 120.0
+        set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 6000.0
         set_default WALL_CLEARANCE_MARGIN 0.02
         set_default Q_PROGRESS 15.0
+        set_default Q_PHYSICAL_PROGRESS 1.0
         set_default Q_VX 0.0
         set_default VX_REF 0.0
         set_default MPCC_USE_RACELINE_VX_REF 0
@@ -246,6 +307,7 @@ case "${MPCC_PROFILE}" in
         set_default W_VTHETA_RATE 0.1105
         set_default Q_CONTOURING_TERM 800.0
         set_default Q_LAG_TERM 400.0
+        set_default Q_HEADING_TERM 20.0
         set_default Q_PROGRESS_TERM 30.0
         set_default ADMM_RHO 5.0
         set_default ADMM_RHO_U 0.0
@@ -262,9 +324,11 @@ case "${MPCC_PROFILE}" in
         set_default DT 0.03
         set_default Q_CONTOURING 960.0
         set_default Q_LAG 200.0
+        set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 3200.0
         set_default WALL_CLEARANCE_MARGIN 0.02
         set_default Q_PROGRESS 15.6
+        set_default Q_PHYSICAL_PROGRESS 1.0
         set_default Q_VX 30.0
         set_default VX_REF 4.0
         set_default MPCC_USE_RACELINE_VX_REF 0
@@ -280,6 +344,7 @@ case "${MPCC_PROFILE}" in
         set_default W_VTHETA_RATE 0.1105
         set_default Q_CONTOURING_TERM 4800.0
         set_default Q_LAG_TERM 800.0
+        set_default Q_HEADING_TERM 20.0
         set_default Q_PROGRESS_TERM 41.4
         set_default ADMM_RHO 5.0
         set_default ADMM_RHO_U 0.0
@@ -296,9 +361,11 @@ case "${MPCC_PROFILE}" in
         set_manual_default DT 0.03
         set_manual_default Q_CONTOURING 80.0
         set_manual_default Q_LAG 120.0
+        set_manual_default Q_HEADING 8.0
         set_manual_default Q_WALL_CLEARANCE 3200.0
         set_manual_default WALL_CLEARANCE_MARGIN 0.02
         set_manual_default Q_PROGRESS 10.0
+        set_manual_default Q_PHYSICAL_PROGRESS 1.0
         set_manual_default Q_VX 10.0
         set_manual_default VX_REF 4.0
         set_manual_default MPCC_USE_RACELINE_VX_REF 0
@@ -314,6 +381,7 @@ case "${MPCC_PROFILE}" in
         set_manual_default W_VTHETA_RATE 0.1105
         set_manual_default Q_CONTOURING_TERM 600.0
         set_manual_default Q_LAG_TERM 200.0
+        set_manual_default Q_HEADING_TERM 20.0
         set_manual_default Q_PROGRESS_TERM 30.0
         set_manual_default ADMM_RHO 5.0
         set_manual_default ADMM_RHO_U 0.0
@@ -360,10 +428,12 @@ HORIZON=${HORIZON}
 DT=${DT}
 Q_CONTOURING=${Q_CONTOURING}
 Q_LAG=${Q_LAG}
+Q_HEADING=${Q_HEADING}
 Q_WALL_CLEARANCE=${Q_WALL_CLEARANCE}
 WALL_CLEARANCE_MARGIN=${WALL_CLEARANCE_MARGIN}
 MPCC_TRACK_BUFFER=${MPCC_TRACK_BUFFER}
 Q_PROGRESS=${Q_PROGRESS}
+Q_PHYSICAL_PROGRESS=${Q_PHYSICAL_PROGRESS}
 Q_VX=${Q_VX}
 VX_REF=${VX_REF}
 MPCC_USE_RACELINE_VX_REF=${MPCC_USE_RACELINE_VX_REF}
@@ -379,6 +449,7 @@ W_AX_RATE=${W_AX_RATE}
 W_VTHETA_RATE=${W_VTHETA_RATE}
 Q_CONTOURING_TERM=${Q_CONTOURING_TERM}
 Q_LAG_TERM=${Q_LAG_TERM}
+Q_HEADING_TERM=${Q_HEADING_TERM}
 Q_PROGRESS_TERM=${Q_PROGRESS_TERM}
 ADMM_RHO=${ADMM_RHO}
 ADMM_RHO_U=${ADMM_RHO_U}
@@ -410,6 +481,8 @@ echo "Control period: MPCC_CONTROL_PERIOD_MS=${MPCC_CONTROL_PERIOD_MS}"
 echo "Run config: ${CONFIG_LOG}"
 
 echo "Launching gym_bridge..."
+echo "  Map: ${GYM_MAP_PATH}${GYM_MAP_IMG_EXT}"
+echo "  Spawn: x=${GYM_SX} y=${GYM_SY} theta=${GYM_STHETA}"
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py use_rviz:="${GYM_USE_RVIZ}" >"${GYM_LOG}" 2>&1 &
 SIM_PID=$!
 

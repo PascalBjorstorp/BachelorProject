@@ -9,7 +9,7 @@ Usage:
 
 Override trajectory and topics:
   ros2 launch mpcc_f1_10th mpcc_hardware.launch.py \
-      trajectory_file:=/path/to/hardware_raceline.csv \
+      trajectory_file:=/path/to/my_track_centerline.csv \
       odom_topic:=/ego_racecar/odom \
       pose_topic:=/ekf_pose \
       imu_topic:=/imu/filtered_angular_velocity
@@ -28,14 +28,16 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("horizon", "HORIZON", "40", "Prediction horizon steps"),
-    ("dt", "DT", "0.03", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "50.0", "Contouring weight"),
-    ("q_lag", "Q_LAG", "150.0", "Lag weight"),
+    ("horizon", "HORIZON", "30", "Prediction horizon steps"),
+    ("dt", "DT", "0.025", "Prediction time step in seconds"),
+    ("q_contouring", "Q_CONTOURING", "30.0", "Contouring weight"),
+    ("q_lag", "Q_LAG", "20.0", "Lag weight"),
+    ("q_heading", "Q_HEADING", "8.0", "Heading alignment weight"),
     ("q_wall_clearance", "Q_WALL_CLEARANCE", "2000.0", "Wall-clearance weight"),
-    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.02", "Soft wall-clearance margin in meters"),
-    ("track_buffer", "MPCC_TRACK_BUFFER", "0.03", "Hard buffer subtracted from each track bound in meters"),
-    ("q_progress", "Q_PROGRESS", "9.0", "Progress reward"),
+    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.0", "Soft wall-clearance margin in meters"),
+    ("track_buffer", "MPCC_TRACK_BUFFER", "0.05", "Hard buffer subtracted from each track bound in meters"),
+    ("q_progress", "Q_PROGRESS", "6.0", "Progress reward"),
+    ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "2.0", "Physical path-progress reward"),
     ("s_qp_window", "MPCC_S_QP_WINDOW", "1.0", "Per-stage s bound window in meters"),
     ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
     ("vx_ref", "VX_REF", "0.0", "Reference longitudinal velocity"),
@@ -54,13 +56,15 @@ HARDWARE_TUNING_DEFAULTS = [
     (
         "raceline_vx_limit_scale",
         "MPCC_RACELINE_VX_LIMIT_SCALE",
-        "1.0",
+        "0.85",
         "Multiplier for CSV velocity speed limit when enabled",
     ),
     ("q_vy", "Q_VY", "0.0", "Lateral velocity regularization weight"),
-    ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
+    ("q_omega", "Q_OMEGA", "1.0", "Yaw-rate regularization weight"),
     ("r_delta", "R_DELTA", "1.0", "Steering effort weight"),
     ("r_ax", "R_AX", "0.2", "Acceleration effort weight"),
+    ("ax_min", "AX_MIN", "-6.0", "Minimum solver acceleration in m/s^2"),
+    ("ax_min_hardware", "MPCC_AX_MIN_HARDWARE", "-6.0", "Hardware braking acceleration clamp in m/s^2"),
     ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
     ("w_delta_rate", "W_DELTA_RATE", "1.0", "Steering rate weight"),
     ("w_ax_rate", "W_AX_RATE", "1.0", "Acceleration rate weight"),
@@ -73,16 +77,17 @@ HARDWARE_TUNING_DEFAULTS = [
     ),
     ("q_contouring_term", "Q_CONTOURING_TERM", "150.0", "Terminal contouring weight"),
     ("q_lag_term", "Q_LAG_TERM", "120.0", "Terminal lag weight"),
-    ("q_progress_term", "Q_PROGRESS_TERM", "10.0", "Terminal progress reward"),
+    ("q_heading_term", "Q_HEADING_TERM", "20.0", "Terminal heading alignment weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "60.0", "Terminal progress reward"),
     ("admm_rho", "ADMM_RHO", "60.0", "ADMM penalty parameter"),
     ("admm_rho_u", "ADMM_RHO_U", "4.0", "Optional control ADMM penalty (0 uses rho)"),
-    ("admm_max_iter", "ADMM_MAX_ITER", "300", "ADMM maximum iterations"),
+    ("admm_max_iter", "ADMM_MAX_ITER", "150", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
     ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
-    ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.6", "ADMM over-relaxation factor"),
+    ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.0", "ADMM over-relaxation factor"),
     ("accept_max_iter", "MPCC_ACCEPT_MAX_ITER", "1", "Accept near-converged max-iteration solves (0/1)"),
-    ("max_iter_primal_tol", "MPCC_MAX_ITER_PRIMAL_TOL", "0.20", "Primal residual tolerance for accepted max-iteration solves"),
-    ("max_iter_dual_tol", "MPCC_MAX_ITER_DUAL_TOL", "0.20", "Dual residual tolerance for accepted max-iteration solves"),
+    ("max_iter_primal_tol", "MPCC_MAX_ITER_PRIMAL_TOL", "0.04", "Primal residual tolerance for accepted max-iteration solves"),
+    ("max_iter_dual_tol", "MPCC_MAX_ITER_DUAL_TOL", "0.04", "Dual residual tolerance for accepted max-iteration solves"),
     ("max_iter_track_tol", "MPCC_MAX_ITER_TRACK_TOL", "0.05", "Track-violation tolerance for accepted max-iteration solves"),
     ("warm_start_max_s_error", "MPCC_WARM_START_MAX_S_ERROR", "1.5", "Maximum warm-start geometry s error before reset"),
     ("v_theta_max", "V_THETA_MAX", "20.0", "Maximum virtual progress speed"),
@@ -90,8 +95,8 @@ HARDWARE_TUNING_DEFAULTS = [
     (
         "cross_call_scale",
         "MPCC_CROSS_CALL_SCALE",
-        "0.8333",
-        "Rate-scaling factor for a 25 ms control period with DT=0.03",
+        "1.0",
+        "Rate-scaling factor for a 25 ms control period with DT=0.025",
     ),
     (
         "adapt_cross_call_scale",
@@ -117,7 +122,7 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
-                os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
+                os.path.join(planning_share, "trajectories", "my_track_centerline.csv"),
             ]
         )
     except Exception:
@@ -133,7 +138,7 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
-                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline.csv"),
             ]
         )
 

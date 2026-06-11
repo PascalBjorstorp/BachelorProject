@@ -46,7 +46,9 @@ static rcl_timer_t          control_timer;
 static nav_msgs__msg__Odometry                          odom_msg;
 static ackermann_msgs__msg__AckermannDriveStamped       drive_msg;
 static struct timespec prev_solve_time;
-static double target_control_period_sec = 0.05;  /* 20 Hz default */
+static double target_control_period_sec = 0.025;  /* 40 Hz default */
+static float prev_delta_cmd = 0.0f;
+static float prev_ax_cmd = 0.0f;
 
 #define MPCC_STALE_SOLVE_GAP_RESET_FACTOR 4.0
 #define MPCC_STALE_SOLVE_GAP_MIN_SEC 0.10
@@ -87,6 +89,8 @@ static void reset_mpcc_after_stale_solve_gap(double solve_gap_sec)
     }
 
     mpcc_reset();
+    prev_delta_cmd = 0.0f;
+    prev_ax_cmd = 0.0f;
 
     fprintf(stderr,
             "[MPCC] WARNING: solve gap %.1f ms exceeded stale threshold %.1f ms; "
@@ -587,8 +591,18 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
         a_x_cmd = -7.0f;
     }
 
-    if (delta_cmd > 0.4189f) delta_cmd = 0.4189f;
-    if (delta_cmd < -0.4189f) delta_cmd = -0.4189f;
+    if (status != MPCC_STATUS_SUCCESS && status != MPCC_STATUS_MAX_ITERATIONS) {
+        delta_cmd = 0.5f * prev_delta_cmd;
+        a_x_cmd = prev_ax_cmd;
+        if (a_x_cmd > -1.0f)
+            a_x_cmd = -1.0f;
+        v_theta_cmd = 0.0f;
+    }
+
+    if (delta_cmd > F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
+        delta_cmd = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
+    if (delta_cmd < -F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
+        delta_cmd = -F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
     if (a_x_cmd > 7.31f) a_x_cmd = 7.31f;
     if (a_x_cmd < -7.31f) a_x_cmd = -7.31f;
 
@@ -658,6 +672,9 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     drive_msg.drive.acceleration  = a_x_cmd;
     drive_msg.drive.jerk          = 0.0f;
 
+    prev_delta_cmd = delta_cmd;
+    prev_ax_cmd = a_x_cmd;
+
     {
         const rcl_ret_t rc = rcl_publish(&drive_pub, &drive_msg, NULL);
         if (rc != RCL_RET_OK) {
@@ -723,12 +740,18 @@ int main(int argc, const char *argv[])
         }
 
         const char *v;
+        if ((v = getenv("Q_HEADING")) != NULL)
+            cfg.weight_heading = (float)atof(v);
+        if ((v = getenv("Q_HEADING_TERM")) != NULL)
+            cfg.weight_heading_terminal = (float)atof(v);
         if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL)
             cfg.wall_clearance_margin = (float)atof(v);
         if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL)
             cfg.track_safety_buffer = (float)atof(v);
         if ((v = getenv("Q_PROGRESS")) != NULL)
             cfg.weight_progress = (float)atof(v);
+        if ((v = getenv("Q_PHYSICAL_PROGRESS")) != NULL)
+            cfg.weight_physical_progress = (float)atof(v);
         if ((v = getenv("MPCC_S_QP_WINDOW")) != NULL)
             cfg.s_qp_window = (float)atof(v);
         if ((v = getenv("Q_VX")) != NULL)
@@ -812,8 +835,8 @@ int main(int argc, const char *argv[])
         mpcc_set_configuration(&cfg);
         cfg = mpcc_get_configuration();
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
-               "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f "
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f "
+               "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f Q_phys_prog=%.1f "
                "s_window=%.2f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u "
                "R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f "
                "warm_s_err=%.2f W_drate=%.1f delta_rate=%.3f cross_call=%.4f accept_max_iter=%u "
@@ -825,10 +848,12 @@ int main(int argc, const char *argv[])
 #endif
                cfg.horizon_steps, cfg.dt,
                cfg.weight_contouring, cfg.weight_lag,
+               cfg.weight_heading,
                cfg.weight_wall_clearance,
                cfg.wall_clearance_margin,
                cfg.track_safety_buffer,
                cfg.weight_progress,
+               cfg.weight_physical_progress,
                cfg.s_qp_window,
                cfg.weight_vx,
                (unsigned)cfg.use_raceline_vx_ref,

@@ -98,10 +98,12 @@ static MPCCConfiguration_t get_default_config(void)
     /* Frenet tracking */
     cfg.weight_contouring = MPCC_DEFAULT_WEIGHT_CONTOURING;
     cfg.weight_lag = MPCC_DEFAULT_WEIGHT_LAG;
+    cfg.weight_heading = MPCC_DEFAULT_WEIGHT_HEADING;
     cfg.weight_wall_clearance = MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE;
     cfg.wall_clearance_margin = MPCC_DEFAULT_WALL_CLEARANCE_MARGIN;
     cfg.track_safety_buffer = MPCC_DEFAULT_TRACK_SAFETY_BUFFER;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
+    cfg.weight_physical_progress = MPCC_DEFAULT_WEIGHT_PHYSICAL_PROGRESS;
     cfg.s_qp_window = MPCC_DEFAULT_S_QP_WINDOW;
 
     /* State regularization */
@@ -127,6 +129,7 @@ static MPCCConfiguration_t get_default_config(void)
     /* Terminal */
     cfg.weight_contouring_terminal = MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL;
     cfg.weight_lag_terminal = MPCC_DEFAULT_WEIGHT_LAG_TERMINAL;
+    cfg.weight_heading_terminal = MPCC_DEFAULT_WEIGHT_HEADING_TERMINAL;
     cfg.weight_progress_terminal = MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL;
 
     /* Obstacle avoidance */
@@ -176,6 +179,12 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->horizon_steps = MPCC_DEFAULT_HORIZON;
     if (cfg->horizon_steps > MPCC_MAX_HORIZON)
         cfg->horizon_steps = MPCC_MAX_HORIZON;
+    if (cfg->weight_heading < 0.0f)
+        cfg->weight_heading = 0.0f;
+    if (cfg->weight_heading_terminal < 0.0f)
+        cfg->weight_heading_terminal = 0.0f;
+    if (cfg->weight_physical_progress < 0.0f)
+        cfg->weight_physical_progress = 0.0f;
     if (cfg->weight_wall_clearance < 0.0f)
         cfg->weight_wall_clearance = 0.0f;
     if (cfg->wall_clearance_margin < 0.0f)
@@ -493,6 +502,17 @@ static float mpcc_normalize_s_delta(
     return delta;
 }
 
+static float mpcc_unwrap_s_near(
+    const MPCCReferencePath_t *path,
+    float s_wrapped,
+    float s_hint)
+{
+    if (!path->is_closed || path->total_length <= 0.0f)
+        return s_wrapped;
+
+    return s_hint + mpcc_normalize_s_delta(path, s_wrapped - s_hint);
+}
+
 static float mpcc_limit_s_jump(
     const MPCCReferencePath_t *path,
     float s_reference,
@@ -509,11 +529,6 @@ static float mpcc_limit_s_jump(
     if (delta < -max_jump) delta = -max_jump;
 
     s_candidate = s_reference + delta;
-    if (path->is_closed && path->total_length > 0.0f) {
-        while (s_candidate >= path->total_length) s_candidate -= path->total_length;
-        while (s_candidate < 0.0f) s_candidate += path->total_length;
-    }
-
     return s_candidate;
 }
 
@@ -641,6 +656,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
             s_anchor = mpcc_find_closest_s(&ref_path, st.X, st.Y);
 
         s_geom = mpcc_find_closest_s_with_hint(&ref_path, st.X, st.Y, s_anchor);
+        s_geom = mpcc_unwrap_s_near(&ref_path, s_geom, s_anchor);
 
         {
             float diff = mpcc_normalize_s_delta(&ref_path, s_geom - s_anchor);
@@ -657,10 +673,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
         }
 
         st.s = mpcc_limit_s_jump(&ref_path, s_anchor, st.s, st.vx);
-        if (ref_path.is_closed && ref_path.total_length > 0.0f) {
-            while (st.s >= ref_path.total_length) st.s -= ref_path.total_length;
-            while (st.s < 0.0f) st.s += ref_path.total_length;
-        } else {
+        if (!ref_path.is_closed) {
             if (st.s < 0.0f) st.s = 0.0f;
             if (st.s > ref_path.total_length) st.s = ref_path.total_length;
         }
@@ -855,6 +868,80 @@ static void add_contouring_lag_cost(
         float qc_dc_gi = q_c * d_c * g_c[i];
         float ql_dl_gi = q_l * d_l * g_l[i];
         cost->q[i] += 2.0f * (qc_dc_gi + ql_dl_gi);
+    }
+}
+
+static void add_heading_alignment_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float weight)
+{
+    if (!cost || !z_bar || !path_pt || weight <= 0.0f)
+        return;
+
+    float alpha_bar =
+        remainderf(z_bar->psi - path_pt->phi_ref, 2.0f * (float)M_PI);
+
+    float g[MPCC_NX];
+    float x_bar[MPCC_NX] = {
+        z_bar->s,
+        z_bar->vx,
+        z_bar->vy,
+        z_bar->omega,
+        z_bar->X,
+        z_bar->Y,
+        z_bar->psi
+    };
+
+    memset(g, 0, sizeof(g));
+    /* Keep the path tangent fixed for this one-SQP-step heading penalty.
+     * Contouring/lag already manage virtual s; coupling heading directly to s
+     * can make the horizon jump toward a different tangent in sharp corners. */
+    g[MPCC_IDX_PSI] = 1.0f;
+
+    float g_xbar = 0.0f;
+    for (int i = 0; i < MPCC_NX; i++)
+        g_xbar += g[i] * x_bar[i];
+
+    float d = alpha_bar - g_xbar;
+
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g[i] == 0.0f) continue;
+        for (int j = 0; j < MPCC_NX; j++) {
+            if (g[j] == 0.0f) continue;
+            cost->Q[i][j] += 2.0f * weight * g[i] * g[j];
+        }
+        cost->q[i] += 2.0f * weight * d * g[i];
+    }
+}
+
+static void add_physical_progress_reward(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float weight)
+{
+    if (!cost || !z_bar || !path_pt || weight <= 0.0f)
+        return;
+
+    float alpha = remainderf(z_bar->psi - path_pt->phi_ref,
+                             2.0f * (float)M_PI);
+    float cos_a = cosf(alpha);
+    float sin_a = sinf(alpha);
+    float dvpath_dangle = (-z_bar->vx * sin_a) - (z_bar->vy * cos_a);
+
+    float g[MPCC_NX];
+    memset(g, 0, sizeof(g));
+
+    /* v_path = vx*cos(alpha) - vy*sin(alpha), alpha = psi - phi_ref(s). */
+    g[MPCC_IDX_VX] = cos_a;
+    g[MPCC_IDX_VY] = -sin_a;
+    g[MPCC_IDX_PSI] = dvpath_dangle;
+
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g[i] == 0.0f) continue;
+        cost->q[i] -= weight * g[i];
     }
 }
 
@@ -1099,11 +1186,11 @@ static float compute_speed_limit(float s, float lookahead_m)
     const float mu = config.mu;
     const float vx_max = config.vx_max;
     const float ax_brake_ref = 4.0f;   /* braking for optional vx_ref limit */
-    const float ax_brake_curv = 2.0f;  /* conservative braking for curvature limit */
+    const float ax_brake_curv = 0.75f; /* conservative braking for curvature limit */
     const float vx_ref_scale = config.raceline_vx_limit_scale;
-    const float curv_safety = 0.95f;   /* keep cornering margin, but less conservative */
-    const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
-    const float shortcut_authority = 0.65f;
+    const float curv_safety = 0.85f;   /* friction margin for model-computed speed */
+    const float kappa_thresh = 0.20f;  /* start limiting before the tightest corners */
+    const float shortcut_authority = 0.0f;
     const uint8_t use_shortcut_relaxation =
         (config.weight_vx <= 0.0f) &&
         (config.use_raceline_vx_limit == 0);
@@ -1138,7 +1225,8 @@ static float compute_speed_limit(float s, float lookahead_m)
             if (usable_outside > 0.0f)
             {
                 /* Approximate the wider-radius arc the optimizer can realize by using
-                 * the outside half of the corridor instead of following centerline curvature. */
+                 * some outside corridor. Keep this modest; if it is too optimistic,
+                 * disabling the CSV speed cap lets the car overdrive tight bends. */
                 float shortcut_offset = shortcut_authority * usable_outside;
                 kappa_abs = kappa_abs / (1.0f + (shortcut_offset * kappa_abs));
             }
@@ -1463,7 +1551,7 @@ static void build_qp_problem(
     /* vx: bounded, tightened by curvature-based speed limit */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
     {
-        float v_safe = compute_speed_limit(x0->s, 5.0f);
+        float v_safe = compute_speed_limit(x0->s, 7.0f);
         float vx_ub = v_safe < config.vx_max ? v_safe : config.vx_max;
         qp->x_upper[MPCC_IDX_VX] = vx_ub;
 #ifdef MPCC_DEBUG_PRINT
@@ -1562,6 +1650,8 @@ static void build_qp_problem(
         build_stage_cost(&qp->stage_cost[k], 0, k);
         add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                                 config.weight_contouring, config.weight_lag);
+        add_heading_alignment_cost(&qp->stage_cost[k], &z_bar, &path_pt,
+                                   config.weight_heading);
         add_wall_clearance_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                     config.weight_wall_clearance,
                     config.wall_clearance_margin);
@@ -1583,6 +1673,9 @@ static void build_qp_problem(
             }
 #endif
         }
+
+        add_physical_progress_reward(&qp->stage_cost[k], &z_bar, &path_pt,
+                                     config.weight_physical_progress);
 
         /* Rate penalty cross-term: penalize (u_k - u_ref_k)^2.
          * The quadratic part (weight_rate * u_k^2) is already in R.
@@ -1637,7 +1730,7 @@ static void build_qp_problem(
          * braking limit along the horizon so sharp corners are slowed before
          * the vehicle reaches the locally hard-to-solve segment. */
         {
-            float v_safe_stage = compute_speed_limit(z_bar.s, 5.0f);
+            float v_safe_stage = compute_speed_limit(z_bar.s, 7.0f);
             qp->vx_max_stage[k] =
                 (v_safe_stage < config.vx_max) ? v_safe_stage : config.vx_max;
         }
@@ -1713,7 +1806,7 @@ static void build_qp_problem(
 
         /* Terminal stage gets the same horizon speed cap. */
         {
-            float v_safe_terminal = compute_speed_limit(z_terminal.s, 5.0f);
+            float v_safe_terminal = compute_speed_limit(z_terminal.s, 7.0f);
             qp->vx_max_stage[N] =
                 (v_safe_terminal < config.vx_max) ? v_safe_terminal : config.vx_max;
         }
@@ -1729,6 +1822,8 @@ static void build_qp_problem(
         add_contouring_lag_cost(&qp->terminal_cost, &z_terminal, &path_pt,  // ✓ correct op-point
                                 config.weight_contouring_terminal,
                                 config.weight_lag_terminal);
+        add_heading_alignment_cost(&qp->terminal_cost, &z_terminal, &path_pt,
+                                   config.weight_heading_terminal);
         add_wall_clearance_cost(&qp->terminal_cost, &z_terminal, &path_pt,
                                 config.weight_wall_clearance,
                                 config.wall_clearance_margin);
@@ -1791,8 +1886,13 @@ static void shift_warm_start(void)
                 x_next[i] += dyn_terminal.B[i][j] * u_arr[j];  /* B * u */
         }
 
-        x_next[MPCC_IDX_S] = mpcc_find_closest_s_with_hint(
-            &ref_path, x_next[MPCC_IDX_X], x_next[MPCC_IDX_Y], x_next[MPCC_IDX_S]);
+        {
+            float s_geom = mpcc_find_closest_s_with_hint(
+                &ref_path, x_next[MPCC_IDX_X], x_next[MPCC_IDX_Y],
+                x_next[MPCC_IDX_S]);
+            x_next[MPCC_IDX_S] =
+                mpcc_unwrap_s_near(&ref_path, s_geom, x_next[MPCC_IDX_S]);
+        }
 
         array_to_state(x_next, &prev_predicted_states[N]);      /* fresh x_N */
     }
