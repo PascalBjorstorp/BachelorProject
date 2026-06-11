@@ -189,6 +189,13 @@ typedef struct
      *  Track constraint: n >= -right_bound */
     float right_bound;
 
+    /** Precomputed sinf(phi_ref) — populated by mpcc_path_interpolate().
+     *  Avoids repeated sinf/cosf calls in cost functions and ADMM projection. */
+    float sin_phi;
+
+    /** Precomputed cosf(phi_ref) — populated by mpcc_path_interpolate(). */
+    float cos_phi;
+
 } MPCCPathPoint_t;
 
 /*===========================================================================

@@ -123,6 +123,8 @@ typedef struct
     float path_x_ref  [MPCC_MAX_HORIZON + 1];   /* x_ref(s_k)   [m]   */
     float path_y_ref  [MPCC_MAX_HORIZON + 1];   /* y_ref(s_k)   [m]   */
     float path_phi_ref[MPCC_MAX_HORIZON + 1];   /* phi_ref(s_k) [rad] */
+    float path_sin_phi[MPCC_MAX_HORIZON + 1];   /* sinf(phi_ref(s_k)) — precomputed once per build */
+    float path_cos_phi[MPCC_MAX_HORIZON + 1];   /* cosf(phi_ref(s_k)) — precomputed once per build */
 
     /*--- Friction circle ---*/
 

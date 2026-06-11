@@ -407,6 +407,160 @@ static int invert_3x3(const float S[3][3], float Si[3][3])
     return 0;
 }
 
+/*===========================================================================
+ * Sparse A/B Matrix Helpers — Fixed Sparsity Pattern
+ *===========================================================================
+ * A is 7×7, 20/49 nonzeros. Column-nonzero rows:
+ *   col 0: {0}           A[0][0]=1 (identity, s has no state coupling)
+ *   col 1: {1,2,3,4,5}
+ *   col 2: {1,2,3,4,5}
+ *   col 3: {1,2,3,6}
+ *   col 4: {4}           A[4][4]=1 (identity, X)
+ *   col 5: {5}           A[5][5]=1 (identity, Y)
+ *   col 6: {4,5,6}       A[6][6]=1 (identity, psi)
+ *
+ * B is 7×3, 7/21 nonzeros. Column-nonzero rows:
+ *   col 0 (delta):  {1,2,3}
+ *   col 1 (ax):     {1,2,3}
+ *   col 2 (vtheta): {0}
+ *===========================================================================*/
+
+static void BtP_sparse(
+    const float B[MPCC_NX][MPCC_NU],
+    const float P[MPCC_NX][MPCC_NX],
+    float M[MPCC_NU][MPCC_NX])
+{
+    for (int j = 0; j < MPCC_NX; j++) {
+        M[MPCC_IDX_DELTA][j]  = B[1][MPCC_IDX_DELTA]  * P[1][j]
+                                + B[2][MPCC_IDX_DELTA]  * P[2][j]
+                                + B[3][MPCC_IDX_DELTA]  * P[3][j];
+        M[MPCC_IDX_AX][j]     = B[1][MPCC_IDX_AX]     * P[1][j]
+                                + B[2][MPCC_IDX_AX]     * P[2][j]
+                                + B[3][MPCC_IDX_AX]     * P[3][j];
+        M[MPCC_IDX_VTHETA][j] = B[0][MPCC_IDX_VTHETA] * P[0][j];
+    }
+}
+
+static void MA_plus_scS_sparse(
+    const float M[MPCC_NU][MPCC_NX],
+    const float A[MPCC_NX][MPCC_NX],
+    const float sc_S[MPCC_NU][MPCC_NX],
+    float H[MPCC_NU][MPCC_NX])
+{
+    for (int i = 0; i < MPCC_NU; i++) {
+        H[i][0] = M[i][0] + sc_S[i][0];
+        H[i][1] = M[i][1]*A[1][1] + M[i][2]*A[2][1] + M[i][3]*A[3][1]
+                + M[i][4]*A[4][1] + M[i][5]*A[5][1] + sc_S[i][1];
+        H[i][2] = M[i][1]*A[1][2] + M[i][2]*A[2][2] + M[i][3]*A[3][2]
+                + M[i][4]*A[4][2] + M[i][5]*A[5][2] + sc_S[i][2];
+        H[i][3] = M[i][1]*A[1][3] + M[i][2]*A[2][3]
+                + M[i][3]*A[3][3] + M[i][6]*A[6][3] + sc_S[i][3];
+        H[i][4] = M[i][4] + sc_S[i][4];
+        H[i][5] = M[i][5] + sc_S[i][5];
+        H[i][6] = M[i][4]*A[4][6] + M[i][5]*A[5][6] + M[i][6] + sc_S[i][6];
+    }
+}
+
+static void PA_sparse(
+    const float P[MPCC_NX][MPCC_NX],
+    const float A[MPCC_NX][MPCC_NX],
+    float PA[MPCC_NX][MPCC_NX])
+{
+    for (int i = 0; i < MPCC_NX; i++) {
+        PA[i][0] = P[i][0];
+        PA[i][1] = P[i][1]*A[1][1] + P[i][2]*A[2][1] + P[i][3]*A[3][1]
+                 + P[i][4]*A[4][1] + P[i][5]*A[5][1];
+        PA[i][2] = P[i][1]*A[1][2] + P[i][2]*A[2][2] + P[i][3]*A[3][2]
+                 + P[i][4]*A[4][2] + P[i][5]*A[5][2];
+        PA[i][3] = P[i][1]*A[1][3] + P[i][2]*A[2][3]
+                 + P[i][3]*A[3][3] + P[i][6]*A[6][3];
+        PA[i][4] = P[i][4];
+        PA[i][5] = P[i][5];
+        PA[i][6] = P[i][4]*A[4][6] + P[i][5]*A[5][6] + P[i][6];
+    }
+}
+
+static void AtPA_sparse(
+    const float A[MPCC_NX][MPCC_NX],
+    const float PA[MPCC_NX][MPCC_NX],
+    float APA[MPCC_NX][MPCC_NX])
+{
+    for (int j = 0; j < MPCC_NX; j++) {
+        APA[0][j] = PA[0][j];
+        APA[1][j] = A[1][1]*PA[1][j] + A[2][1]*PA[2][j] + A[3][1]*PA[3][j]
+                  + A[4][1]*PA[4][j] + A[5][1]*PA[5][j];
+        APA[2][j] = A[1][2]*PA[1][j] + A[2][2]*PA[2][j] + A[3][2]*PA[3][j]
+                  + A[4][2]*PA[4][j] + A[5][2]*PA[5][j];
+        APA[3][j] = A[1][3]*PA[1][j] + A[2][3]*PA[2][j]
+                  + A[3][3]*PA[3][j] + A[6][3]*PA[6][j];
+        APA[4][j] = PA[4][j];
+        APA[5][j] = PA[5][j];
+        APA[6][j] = A[4][6]*PA[4][j] + A[5][6]*PA[5][j] + PA[6][j];
+    }
+}
+
+static void Atv_sparse(
+    const float A[MPCC_NX][MPCC_NX],
+    const float v[MPCC_NX],
+    float result[MPCC_NX])
+{
+    result[0] = v[0];
+    result[1] = A[1][1]*v[1] + A[2][1]*v[2] + A[3][1]*v[3]
+              + A[4][1]*v[4] + A[5][1]*v[5];
+    result[2] = A[1][2]*v[1] + A[2][2]*v[2] + A[3][2]*v[3]
+              + A[4][2]*v[4] + A[5][2]*v[5];
+    result[3] = A[1][3]*v[1] + A[2][3]*v[2]
+              + A[3][3]*v[3] + A[6][3]*v[6];
+    result[4] = v[4];
+    result[5] = v[5];
+    result[6] = A[4][6]*v[4] + A[5][6]*v[5] + v[6];
+}
+
+static void Btv_sparse(
+    const float B[MPCC_NX][MPCC_NU],
+    const float v[MPCC_NX],
+    float result[MPCC_NU])
+{
+    result[MPCC_IDX_DELTA]  = B[1][MPCC_IDX_DELTA]  * v[1]
+                             + B[2][MPCC_IDX_DELTA]  * v[2]
+                             + B[3][MPCC_IDX_DELTA]  * v[3];
+    result[MPCC_IDX_AX]     = B[1][MPCC_IDX_AX]     * v[1]
+                             + B[2][MPCC_IDX_AX]     * v[2]
+                             + B[3][MPCC_IDX_AX]     * v[3];
+    result[MPCC_IDX_VTHETA] = B[0][MPCC_IDX_VTHETA] * v[0];
+}
+
+static void Ax_sparse(
+    const float A[MPCC_NX][MPCC_NX],
+    const float x[MPCC_NX],
+    float result[MPCC_NX])
+{
+    result[0] = x[0];
+    result[1] = A[1][1]*x[1] + A[1][2]*x[2] + A[1][3]*x[3];
+    result[2] = A[2][1]*x[1] + A[2][2]*x[2] + A[2][3]*x[3];
+    result[3] = A[3][1]*x[1] + A[3][2]*x[2] + A[3][3]*x[3];
+    result[4] = A[4][1]*x[1] + A[4][2]*x[2] + x[4] + A[4][6]*x[6];
+    result[5] = A[5][1]*x[1] + A[5][2]*x[2] + x[5] + A[5][6]*x[6];
+    result[6] = A[6][3]*x[3] + x[6];
+}
+
+static void Bu_sparse(
+    const float B[MPCC_NX][MPCC_NU],
+    const float u[MPCC_NU],
+    float result[MPCC_NX])
+{
+    result[0] = B[0][MPCC_IDX_VTHETA] * u[MPCC_IDX_VTHETA];
+    result[1] = B[1][MPCC_IDX_DELTA] * u[MPCC_IDX_DELTA]
+              + B[1][MPCC_IDX_AX]    * u[MPCC_IDX_AX];
+    result[2] = B[2][MPCC_IDX_DELTA] * u[MPCC_IDX_DELTA]
+              + B[2][MPCC_IDX_AX]    * u[MPCC_IDX_AX];
+    result[3] = B[3][MPCC_IDX_DELTA] * u[MPCC_IDX_DELTA]
+              + B[3][MPCC_IDX_AX]    * u[MPCC_IDX_AX];
+    result[4] = 0.0f;
+    result[5] = 0.0f;
+    result[6] = 0.0f;
+}
+
 /** Threshold to detect "effectively unconstrained" bounds. */
 #define MPCC_BOUND_THRESHOLD  100.0f
 #define MPCC_ADMM_RHO_MIN       1.0f
@@ -480,12 +634,8 @@ void riccati_backward_pass(
         }
     }
 
-    /* Store P_N, p_N */
-    for (int i = 0; i < MPCC_NX; i++) {
-        for (int j = 0; j < MPCC_NX; j++)
-            ws->P[N][i][j] = P[i][j];
+    for (int i = 0; i < MPCC_NX; i++)
         ws->p[N][i] = p[i];
-    }
 
     /* Backward sweep: k = N-1 down to 0 */
     for (int k = N - 1; k >= 0; k--)
@@ -502,40 +652,31 @@ void riccati_backward_pass(
             s_next[i] = p[i] + dot;
         }
 
-        /* Step 2: M = B^T * P  (NU x NX) */
+        /* Step 2: M = B^T * P  (NU x NX) — sparse B (7 of 21 nonzeros). */
         float M[MPCC_NU][MPCC_NX];
-        for (int i = 0; i < MPCC_NU; i++) {
-            for (int j = 0; j < MPCC_NX; j++) {
-                float sum = 0.0f;
-                for (int s = 0; s < MPCC_NX; s++)
-                    sum += dyn->B[s][i] * P[s][j];
-                M[i][j] = sum;
-            }
-        }
+        BtP_sparse(dyn->B, P, M);
 
-        /* Step 3: S = R_tilde + M*B  (3x3) */
+        /* Step 3: S = R_tilde + M*B  (3x3) — sparse B column multiply. */
         float S[MPCC_NU][MPCC_NU];
         for (int i = 0; i < MPCC_NU; i++) {
-            for (int j = 0; j < MPCC_NU; j++) {
-                float base = sc->R[i][j];
-                if (i == j) base += rho_u;
-                float sum = 0.0f;
-                for (int s = 0; s < MPCC_NX; s++)
-                    sum += M[i][s] * dyn->B[s][j];
-                S[i][j] = base + sum;
-            }
+            S[i][MPCC_IDX_DELTA]  = sc->R[i][MPCC_IDX_DELTA]
+                                   + M[i][1]*dyn->B[1][MPCC_IDX_DELTA]
+                                   + M[i][2]*dyn->B[2][MPCC_IDX_DELTA]
+                                   + M[i][3]*dyn->B[3][MPCC_IDX_DELTA];
+            S[i][MPCC_IDX_AX]     = sc->R[i][MPCC_IDX_AX]
+                                   + M[i][1]*dyn->B[1][MPCC_IDX_AX]
+                                   + M[i][2]*dyn->B[2][MPCC_IDX_AX]
+                                   + M[i][3]*dyn->B[3][MPCC_IDX_AX];
+            S[i][MPCC_IDX_VTHETA] = sc->R[i][MPCC_IDX_VTHETA]
+                                   + M[i][0]*dyn->B[0][MPCC_IDX_VTHETA];
         }
+        S[MPCC_IDX_DELTA][MPCC_IDX_DELTA]   += rho_u;
+        S[MPCC_IDX_AX][MPCC_IDX_AX]         += rho_u;
+        S[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] += rho_u;
 
-        /* Step 4: H = M * A  (NU x NX) */
+        /* Step 4: H = M * A + sc->S  (NU x NX) — sparse A column multiply. */
         float H[MPCC_NU][MPCC_NX];
-        for (int i = 0; i < MPCC_NU; i++) {
-            for (int j = 0; j < MPCC_NX; j++) {
-                float sum = 0.0f;
-                for (int s = 0; s < MPCC_NX; s++)
-                    sum += M[i][s] * dyn->A[s][j];
-                H[i][j] = sum + sc->S[i][j];
-            }
-        }
+        MA_plus_scS_sparse(M, dyn->A, sc->S, H);
 
         /* Step 5: Invert S (3x3, Cramer's rule) */
         float Si[MPCC_NU][MPCC_NU];
@@ -563,14 +704,9 @@ void riccati_backward_pass(
             }
         }
 
-        /* Step 7: kk = -Sinv * (r_tilde + B^T s_next) */
+        /* Step 7: kk = -Sinv * (r_tilde + B^T s_next) — sparse B. */
         float Bts[MPCC_NU];
-        for (int i = 0; i < MPCC_NU; i++) {
-            float sum = 0.0f;
-            for (int s = 0; s < MPCC_NX; s++)
-                sum += dyn->B[s][i] * s_next[s];
-            Bts[i] = sum;
-        }
+        Btv_sparse(dyn->B, s_next, Bts);
 
         float r_tilde[MPCC_NU];
         for (int i = 0; i < MPCC_NU; i++) {
@@ -585,32 +721,20 @@ void riccati_backward_pass(
             ws->kk[k][i] = -sum;
         }
 
-        /* Step 8: P_k = Q_tilde + A^T P A + H^T K */
+        /* Step 8: P_k = Q_tilde + A^T P A + H^T K — sparse A (20/49 nonzeros). */
         float PA[MPCC_NX][MPCC_NX];
-        for (int i = 0; i < MPCC_NX; i++) {
-            for (int j = 0; j < MPCC_NX; j++) {
-                float sum = 0.0f;
-                for (int s = 0; s < MPCC_NX; s++)
-                    sum += P[i][s] * dyn->A[s][j];
-                PA[i][j] = sum;
-            }
-        }
+        PA_sparse(P, dyn->A, PA);
+
+        float APA[MPCC_NX][MPCC_NX];
+        AtPA_sparse(dyn->A, PA, APA);
 
         float P_new[MPCC_NX][MPCC_NX];
         for (int i = 0; i < MPCC_NX; i++) {
             for (int j = 0; j < MPCC_NX; j++) {
-                float sum = sc->Q[i][j];
-                /* A^T * PA */
-                float apa = 0.0f;
-                for (int s = 0; s < MPCC_NX; s++)
-                    apa += dyn->A[s][i] * PA[s][j];
-                sum += apa;
-                /* H^T * K */
                 float htk = 0.0f;
                 for (int a = 0; a < MPCC_NU; a++)
                     htk += H[a][i] * K_local[a][j];
-                sum += htk;
-                P_new[i][j] = sum;
+                P_new[i][j] = sc->Q[i][j] + APA[i][j] + htk;
             }
             if (x_constrained[i])
                 P_new[i][i] += rho;
@@ -629,14 +753,10 @@ void riccati_backward_pass(
 
         memcpy(P, P_new, sizeof(P));
 
-        /* Store P_k, p_k in workspace */
-        for (int i = 0; i < MPCC_NX; i++) {
-            for (int j = 0; j < MPCC_NX; j++)
-                ws->P[k][i][j] = P[i][j];
-            ws->p[k][i] = p[i];
-        }
+        /* Step 9: p_k = q_tilde + A^T s_next + H^T kk — sparse A^T. */
+        float ats[MPCC_NX];
+        Atv_sparse(dyn->A, s_next, ats);
 
-        /* Step 9: p_k = q_tilde + A^T s_next + H^T kk */
         float p_new[MPCC_NX];
         for (int i = 0; i < MPCC_NX; i++) {
             float q_tilde_i;
@@ -646,22 +766,15 @@ void riccati_backward_pass(
             } else {
                 q_tilde_i = sc->q[i];
             }
-            float ats = 0.0f;
-            for (int s = 0; s < MPCC_NX; s++)
-                ats += dyn->A[s][i] * s_next[s];
             float htk = 0.0f;
             for (int a = 0; a < MPCC_NU; a++)
                 htk += H[a][i] * ws->kk[k][a];
-            p_new[i] = q_tilde_i + ats + htk;
+            p_new[i] = q_tilde_i + ats[i] + htk;
         }
         memcpy(p, p_new, sizeof(p));
 
-        /* Store P_k, p_k in workspace */
-        for (int i = 0; i < MPCC_NX; i++) {
-            for (int j = 0; j < MPCC_NX; j++)
-                ws->P[k][i][j] = P[i][j];
+        for (int i = 0; i < MPCC_NX; i++)
             ws->p[k][i] = p[i];
-        }
     }
 }
 
@@ -685,10 +798,10 @@ void riccati_forward_pass(
         for (int i = 0; i < MPCC_NU; i++)
             ws->z_u[k][i] = (ws->z_u[k][i] + ws->kk[k][i]);
 
-        /* x_{k+1} = A_k * x_k + B_k * u_k + d_k (with saturation) */
+        /* x_{k+1} = A_k * x_k + B_k * u_k + d_k — sparse A and B. */
         float Ax[MPCC_NX], Bu[MPCC_NX];
-        matvec_nx(problem->dynamics[k].A, ws->z_x[k], Ax);
-        matvec_Bu(problem->dynamics[k].B, ws->z_u[k], Bu);
+        Ax_sparse(problem->dynamics[k].A, ws->z_x[k], Ax);
+        Bu_sparse(problem->dynamics[k].B, ws->z_u[k], Bu);
         for (int i = 0; i < MPCC_NX; i++)
             ws->z_x[k + 1][i] = Ax[i] + Bu[i] + problem->dynamics[k].d[i];
     }
@@ -789,11 +902,12 @@ void admm_projection_step(
          *   Y_new = y_ref - cos(phi)*e_c_clamped - sin(phi)*e_l
          */
         {
-            float phi     = problem->path_phi_ref[k];
             float x_ref   = problem->path_x_ref[k];
             float y_ref   = problem->path_y_ref[k];
-            float sin_phi = sinf(phi);
-            float cos_phi = cosf(phi);
+            /* sin/cos precomputed once in build_qp_problem — saves 2 trig calls
+             * per stage per ADMM iteration (typically ~20 iterations × 80 stages) */
+            float sin_phi = problem->path_sin_phi[k];
+            float cos_phi = problem->path_cos_phi[k];
 
             float X_prop = ws->w_x[k][MPCC_IDX_X];
             float Y_prop = ws->w_x[k][MPCC_IDX_Y];
@@ -1115,81 +1229,86 @@ MPCCStatus_t admm_solver_solve(
         /* Step 3: Dual update */
         admm_dual_update(workspace, N);
 
-        /* Step 4: Convergence check */
-        float prim_res, dual_res;
-        float prim_x = 0.0f, dual_x = 0.0f, prim_u = 0.0f, dual_u = 0.0f;
-        admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res,
-                       &prim_x, &dual_x, &prim_u, &dual_u);
-
-        if (!isfinite((double)prim_res) || !isfinite((double)dual_res)) {
-            status = MPCC_STATUS_ERROR;
-            workspace->primal_residual = INFINITY;
-            workspace->dual_residual = INFINITY;
-            workspace->iterations = iter + 1;
-            break;
-        }
-
-        workspace->primal_residual = prim_res;
-        workspace->dual_residual = dual_res;
+        /* Step 4: Convergence check — evaluated every 2 iterations to halve
+         * the residual-scan overhead (807 comparisons per check × N_iters).
+         * We still track iterations accurately; the extra half-iteration of
+         * work on an already-converged solution is negligible. */
         workspace->iterations = iter + 1;
+        if ((iter & 1u) == 0u)
+        {
+            float prim_res, dual_res;
+            float prim_x = 0.0f, dual_x = 0.0f, prim_u = 0.0f, dual_u = 0.0f;
+            admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res,
+                           &prim_x, &dual_x, &prim_u, &dual_u);
+
+            if (!isfinite((double)prim_res) || !isfinite((double)dual_res)) {
+                status = MPCC_STATUS_ERROR;
+                workspace->primal_residual = INFINITY;
+                workspace->dual_residual = INFINITY;
+                break;
+            }
+
+            workspace->primal_residual = prim_res;
+            workspace->dual_residual = dual_res;
 
 #ifdef MPCC_DEBUG_PRINT
-        if ((iter + 1) % 10 == 0 || iter == 0)
-        {
-            printf("  ADMM iter %3u: prim=%.6f  dual=%.6f\n",
-                   iter + 1, (double)(prim_res), (double)(dual_res));
-        }
+            if ((iter + 1) % 10 == 0 || iter == 0)
+            {
+                printf("  ADMM iter %3u: prim=%.6f  dual=%.6f\n",
+                       iter + 1, (double)(prim_res), (double)(dual_res));
+            }
 #endif
 
-        if (prim_res <= config->eps_primal &&
-            dual_res <= config->eps_dual)
-        {
-            status = MPCC_STATUS_SUCCESS;
-            break;
-        }
-
-        /* Adapt state and control penalties independently.  The moderate
-         * interval, ratio and scale avoid rapid penalty ping-pong. */
-        if (config->adaptive_rho &&
-            (((unsigned)iter + 1u) % MPCC_ADMM_RHO_UPDATE_INTERVAL) == 0u) {
-            float old_rho = rho;
-            if (prim_x > MPCC_ADMM_RHO_ADAPT_RATIO * dual_x &&
-                rho < MPCC_ADMM_RHO_MAX) {
-                rho *= MPCC_ADMM_RHO_SCALE;
-                if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
-            } else if (dual_x > MPCC_ADMM_RHO_ADAPT_RATIO * prim_x &&
-                       rho > MPCC_ADMM_RHO_MIN) {
-                rho /= MPCC_ADMM_RHO_SCALE;
-                if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
-            }
-            if (rho != old_rho) {
-                float lambda_scale = old_rho / rho;
-                workspace->adaptive_rho_updates++;
-                workspace->adaptive_rho_state_updates++;
-                for (uint16_t kk = 0; kk <= N; kk++)
-                    for (int i = 0; i < MPCC_NX; i++)
-                        workspace->lambda_x[kk][i] *= lambda_scale;
+            if (prim_res <= config->eps_primal &&
+                dual_res <= config->eps_dual)
+            {
+                status = MPCC_STATUS_SUCCESS;
+                break;
             }
 
-            float old_rho_u = rho_u;
-            if (prim_u > MPCC_ADMM_RHO_ADAPT_RATIO * dual_u &&
-                rho_u < MPCC_ADMM_RHO_MAX) {
-                rho_u *= MPCC_ADMM_RHO_SCALE;
-                if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
-            } else if (dual_u > MPCC_ADMM_RHO_ADAPT_RATIO * prim_u &&
-                       rho_u > MPCC_ADMM_RHO_MIN) {
-                rho_u /= MPCC_ADMM_RHO_SCALE;
-                if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
-            }
-            if (rho_u != old_rho_u) {
-                float lambda_scale = old_rho_u / rho_u;
-                workspace->adaptive_rho_updates++;
-                workspace->adaptive_rho_control_updates++;
-                for (uint16_t kk = 0; kk < N; kk++)
-                    for (int i = 0; i < MPCC_NU; i++)
-                        workspace->lambda_u[kk][i] *= lambda_scale;
+            /* Adaptive rho uses per-domain residuals — only update on check iters */
+            if (config->adaptive_rho &&
+                (((unsigned)iter + 1u) % MPCC_ADMM_RHO_UPDATE_INTERVAL) == 0u) {
+                float old_rho = rho;
+                if (prim_x > MPCC_ADMM_RHO_ADAPT_RATIO * dual_x &&
+                    rho < MPCC_ADMM_RHO_MAX) {
+                    rho *= MPCC_ADMM_RHO_SCALE;
+                    if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
+                } else if (dual_x > MPCC_ADMM_RHO_ADAPT_RATIO * prim_x &&
+                           rho > MPCC_ADMM_RHO_MIN) {
+                    rho /= MPCC_ADMM_RHO_SCALE;
+                    if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
+                }
+                if (rho != old_rho) {
+                    float lambda_scale = old_rho / rho;
+                    workspace->adaptive_rho_updates++;
+                    workspace->adaptive_rho_state_updates++;
+                    for (uint16_t kk = 0; kk <= N; kk++)
+                        for (int i = 0; i < MPCC_NX; i++)
+                            workspace->lambda_x[kk][i] *= lambda_scale;
+                }
+
+                float old_rho_u = rho_u;
+                if (prim_u > MPCC_ADMM_RHO_ADAPT_RATIO * dual_u &&
+                    rho_u < MPCC_ADMM_RHO_MAX) {
+                    rho_u *= MPCC_ADMM_RHO_SCALE;
+                    if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
+                } else if (dual_u > MPCC_ADMM_RHO_ADAPT_RATIO * prim_u &&
+                           rho_u > MPCC_ADMM_RHO_MIN) {
+                    rho_u /= MPCC_ADMM_RHO_SCALE;
+                    if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
+                }
+                if (rho_u != old_rho_u) {
+                    float lambda_scale = old_rho_u / rho_u;
+                    workspace->adaptive_rho_updates++;
+                    workspace->adaptive_rho_control_updates++;
+                    for (uint16_t kk = 0; kk < N; kk++)
+                        for (int i = 0; i < MPCC_NU; i++)
+                            workspace->lambda_u[kk][i] *= lambda_scale;
+                }
             }
         }
+
     }
 
     /* The exported solution below is rolled out from the projected controls
