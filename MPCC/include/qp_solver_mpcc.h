@@ -224,12 +224,6 @@ typedef struct
     float lambda_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
     float lambda_u[MPCC_MAX_HORIZON][MPCC_NU];
 
-    /*--- Riccati backward pass: cost-to-go ---*/
-    /** P_k: value function Hessian (NX x NX) at each stage */
-    float P[MPCC_MAX_HORIZON + 1][MPCC_NX][MPCC_NX];
-    /** p_k: value function gradient (NX) at each stage */
-    float p[MPCC_MAX_HORIZON + 1][MPCC_NX];
-
     /*--- Riccati gains ---*/
     /** K_k: feedback gain matrix (NU x NX) at each stage */
     float K[MPCC_MAX_HORIZON][MPCC_NU][MPCC_NX];

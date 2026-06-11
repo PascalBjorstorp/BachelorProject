@@ -25,158 +25,12 @@
 #include <stdio.h>
 #endif
 
-/*===========================================================================
- * Fixed-Size Matrix/Vector Helpers
- *===========================================================================
- * These operate on MPCC_NX and MPCC_NU dimensions.
- * Loop bounds follow the MPCC_NX and MPCC_NU macros directly.
- */
 
-/*---------------------------------------------------------------------------
- * NX x NX matrix operations
- *---------------------------------------------------------------------------*/
-
-/** C[NX][NX] = A[NX][NX] * B[NX][NX] */
-static void mat_nx_mul(
-    const float A[MPCC_NX][MPCC_NX],
-    const float B[MPCC_NX][MPCC_NX],
-    float C[MPCC_NX][MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        for (int j = 0; j < MPCC_NX; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NX; k++)
-                sum += A[i][k] * B[k][j];
-            C[i][j] = sum;
-        }
-    }
-}
-
-/** C[NX][NX] = A[NX][NX]^T * B[NX][NX] */
-static void mat_nx_trmul(
-    const float A[MPCC_NX][MPCC_NX],
-    const float B[MPCC_NX][MPCC_NX],
-    float C[MPCC_NX][MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        for (int j = 0; j < MPCC_NX; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NX; k++)
-                sum += A[k][i] * B[k][j];
-            C[i][j] = sum;
-        }
-    }
-}
-
-/** C[NX][NX] = A[NX][NX] + B[NX][NX] */
-static void mat_nx_add(
-    const float A[MPCC_NX][MPCC_NX],
-    const float B[MPCC_NX][MPCC_NX],
-    float C[MPCC_NX][MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-        for (int j = 0; j < MPCC_NX; j++)
-            C[i][j] = A[i][j] + B[i][j];
-}
-
-/** A[NX][NX] += rho * I */
-static void mat_nx_add_rhoI(
-    float A[MPCC_NX][MPCC_NX],
-    float rho)
-{
-    for (int i = 0; i < MPCC_NX; i++)
-        A[i][i] += rho;
-}
 
 /*---------------------------------------------------------------------------
  * Cross-dimension operations (B is NX x NU)
  *---------------------------------------------------------------------------*/
 
-/** result[NU][NX] = B^T * P * A */
-static void mat_BtPA(
-    const float B[MPCC_NX][MPCC_NU],
-    const float P[MPCC_NX][MPCC_NX],
-    const float A[MPCC_NX][MPCC_NX],
-    float result[MPCC_NU][MPCC_NX])
-{
-    float PA[MPCC_NX][MPCC_NX];
-    mat_nx_mul(P, A, PA);
-
-    for (int i = 0; i < MPCC_NU; i++)
-    {
-        for (int j = 0; j < MPCC_NX; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NX; k++)
-                sum += B[k][i] * PA[k][j];
-            result[i][j] = sum;
-        }
-    }
-}
-
-/** result[NU][NU] = B^T * P * B */
-static void mat_BtPB(
-    const float B[MPCC_NX][MPCC_NU],
-    const float P[MPCC_NX][MPCC_NX],
-    float result[MPCC_NU][MPCC_NU])
-{
-    float PB[MPCC_NX][MPCC_NU];
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        for (int j = 0; j < MPCC_NU; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NX; k++)
-                sum += P[i][k] * B[k][j];
-            PB[i][j] = sum;
-        }
-    }
-
-    for (int i = 0; i < MPCC_NU; i++)
-    {
-        for (int j = 0; j < MPCC_NU; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NX; k++)
-                sum += B[k][i] * PB[k][j];
-            result[i][j] = sum;
-        }
-    }
-}
-
-/** result[NU] = B^T * v */
-static void mat_Btv(
-    const float B[MPCC_NX][MPCC_NU],
-    const float v[MPCC_NX],
-    float result[MPCC_NU])
-{
-    for (int i = 0; i < MPCC_NU; i++)
-    {
-        float sum = 0.0f;
-        for (int k = 0; k < MPCC_NX; k++)
-            sum += B[k][i] * v[k];
-        result[i] = sum;
-    }
-}
-
-/** result[NX] = A^T * v */
-static void mat_Atv(
-    const float A[MPCC_NX][MPCC_NX],
-    const float v[MPCC_NX],
-    float result[MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        float sum = 0.0f;
-        for (int k = 0; k < MPCC_NX; k++)
-            sum += A[k][i] * v[k];
-        result[i] = sum;
-    }
-}
 
 /*---------------------------------------------------------------------------
  * Matrix-vector multiplies for forward pass
@@ -227,71 +81,6 @@ static void matvec_Kx(
     }
 }
 
-/** K[NU][NX] = -Ginv * H */
-static void mat_neg_GinvH(
-    const float Ginv[MPCC_NU][MPCC_NU],
-    const float H[MPCC_NU][MPCC_NX],
-    float K[MPCC_NU][MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NU; i++)
-    {
-        for (int j = 0; j < MPCC_NX; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NU; k++)
-                sum += Ginv[i][k] * H[k][j];
-            K[i][j] = -sum;
-        }
-    }
-}
-
-/** result[NU] = -Ginv * v */
-static void vec_neg_Ginv_v(
-    const float Ginv[MPCC_NU][MPCC_NU],
-    const float v[MPCC_NU],
-    float result[MPCC_NU])
-{
-    for (int i = 0; i < MPCC_NU; i++)
-    {
-        float sum = 0.0f;
-        for (int k = 0; k < MPCC_NU; k++)
-            sum += Ginv[i][k] * v[k];
-        result[i] = -sum;
-    }
-}
-
-/** C[NX][NX] += H^T * K */
-static void mat_accum_HtK(
-    float C[MPCC_NX][MPCC_NX],
-    const float H[MPCC_NU][MPCC_NX],
-    const float K[MPCC_NU][MPCC_NX])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        for (int j = 0; j < MPCC_NX; j++)
-        {
-            float sum = 0.0f;
-            for (int k = 0; k < MPCC_NU; k++)
-                sum += H[k][i] * K[k][j];
-            C[i][j] += sum;
-        }
-    }
-}
-
-/** result[NX] += H^T * v */
-static void vec_accum_Htv(
-    float result[MPCC_NX],
-    const float H[MPCC_NU][MPCC_NX],
-    const float v[MPCC_NU])
-{
-    for (int i = 0; i < MPCC_NX; i++)
-    {
-        float sum = 0.0f;
-        for (int k = 0; k < MPCC_NU; k++)
-            sum += H[k][i] * v[k];
-        result[i] += sum;
-    }
-}
 
 /*===========================================================================
  * 3x3 Matrix Inverse (Cramer's Rule — FPGA-friendly)
@@ -576,15 +365,6 @@ void riccati_backward_pass(
 {
     uint16_t N = problem->N;
 
-    /* All states get ADMM rho augmentation for proper consensus.
-     * Previously only "constrained" states (bounds < threshold) got rho,
-     * leaving vy, omega, psi without consensus penalty — causing poor
-     * P-matrix conditioning and ADMM non-convergence. */
-    uint8_t x_constrained[MPCC_NX];
-    for (int i = 0; i < MPCC_NX; i++) {
-        x_constrained[i] = 1;
-    }
-
     /* Rolling value function */
     float P[MPCC_NX][MPCC_NX];
     float p[MPCC_NX];
@@ -595,18 +375,11 @@ void riccati_backward_pass(
             P[i][j] = problem->terminal_cost.Q[i][j];
     }
 
-    /* ADMM augmentation of terminal cost-to-go:
-     *   P_N[i][i] += rho          (constrained states)
-     *   p_N[i]     = q_N[i] + rho*(lambda_x[N][i] - w_x[N][i])
-     */
+    /* ADMM augmentation of terminal cost-to-go */
     for (int i = 0; i < MPCC_NX; i++) {
-        if (x_constrained[i]) {
-            P[i][i] += rho;
-            p[i] = problem->terminal_cost.q[i]
-                 + rho * (ws->lambda_x[N][i] - ws->w_x[N][i]);
-        } else {
-            p[i] = problem->terminal_cost.q[i];
-        }
+        P[i][i] += rho;
+        p[i] = problem->terminal_cost.q[i]
+             + rho * (ws->lambda_x[N][i] - ws->w_x[N][i]);
     }
 
     /* Symmetrize P_N */
@@ -618,8 +391,6 @@ void riccati_backward_pass(
         }
     }
 
-    for (int i = 0; i < MPCC_NX; i++)
-        ws->p[N][i] = p[i];
 
     /* Backward sweep: k = N-1 down to 0 */
     for (int k = N - 1; k >= 0; k--)
@@ -720,8 +491,7 @@ void riccati_backward_pass(
                     htk += H[a][i] * K_local[a][j];
                 P_new[i][j] = sc->Q[i][j] + APA[i][j] + htk;
             }
-            if (x_constrained[i])
-                P_new[i][i] += rho;
+            P_new[i][i] += rho;
         }
 
         /* Symmetrize P to prevent floating-point asymmetry drift
@@ -741,24 +511,14 @@ void riccati_backward_pass(
         float ats[MPCC_NX];
         Atv_sparse(dyn->A, s_next, ats);
 
-        float p_new[MPCC_NX];
         for (int i = 0; i < MPCC_NX; i++) {
-            float q_tilde_i;
-            if (x_constrained[i]) {
-                q_tilde_i = sc->q[i]
-                          + rho * (ws->lambda_x[k][i] - ws->w_x[k][i]);
-            } else {
-                q_tilde_i = sc->q[i];
-            }
             float htk = 0.0f;
             for (int a = 0; a < MPCC_NU; a++)
                 htk += H[a][i] * ws->kk[k][a];
-            p_new[i] = q_tilde_i + ats[i] + htk;
+            p[i] = sc->q[i] + rho * (ws->lambda_x[k][i] - ws->w_x[k][i])
+                 + ats[i] + htk;
         }
-        memcpy(p, p_new, sizeof(p));
 
-        for (int i = 0; i < MPCC_NX; i++)
-            ws->p[k][i] = p[i];
     }
 }
 
