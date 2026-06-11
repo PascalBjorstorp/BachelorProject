@@ -28,8 +28,8 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("horizon", "HORIZON", "20", "Prediction horizon steps"),
-    ("dt", "DT", "0.025", "Prediction time step in seconds"),
+    ("horizon", "HORIZON", "30", "Prediction horizon steps"),
+    ("dt", "DT", "0.05", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "30.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "20.0", "Lag weight"),
     ("q_heading", "Q_HEADING", "8.0", "Heading alignment weight"),
@@ -95,7 +95,7 @@ HARDWARE_TUNING_DEFAULTS = [
     (
         "cross_call_scale",
         "MPCC_CROSS_CALL_SCALE",
-        "1.0",
+        "0.5",
         "Rate-scaling factor for a 25 ms control period with DT=0.025",
     ),
     (
