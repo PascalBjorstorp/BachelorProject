@@ -63,8 +63,8 @@ static double g_solver_dt_sec = MPCC_DEFAULT_DT;
 static double g_vx_max_mps = 8.0;
 static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
-/* Hardware safety: clamp acceleration to prevent violent braking */
-static double g_ax_min_hardware = -3.0;
+/* Hardware safety: clamp acceleration to the measured braking capability. */
+static double g_ax_min_hardware = -6.0;
 static double g_delta_rate_limit = MPCC_DEFAULT_DELTA_RATE_MAX;
 
 /* Odometry watchdog and twist sanity thresholds for real-car inputs. */
@@ -1563,9 +1563,12 @@ static void configure_mpcc_from_environment(void)
     /* Single-name parameters — no alias conflict possible */
     const char *v;
     int requested_horizon = -1;
+    if ((v = getenv("Q_HEADING")) != NULL)     cfg.weight_heading           = (float)atof(v);
+    if ((v = getenv("Q_HEADING_TERM")) != NULL) cfg.weight_heading_terminal = (float)atof(v);
     if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL) cfg.track_safety_buffer = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
+    if ((v = getenv("Q_PHYSICAL_PROGRESS")) != NULL) cfg.weight_physical_progress = (float)atof(v);
     if ((v = getenv("MPCC_S_QP_WINDOW")) != NULL) cfg.s_qp_window           = (float)atof(v);
     if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
     if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
@@ -1672,7 +1675,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_phys_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
            "OSQP",
 #else
@@ -1682,11 +1685,13 @@ static void configure_mpcc_from_environment(void)
            cfg.dt,
            cfg.weight_contouring,
            cfg.weight_lag,
+           cfg.weight_heading,
             cfg.weight_wall_clearance,
             cfg.wall_clearance_margin,
            cfg.track_safety_buffer,
            cfg.s_qp_window,
            cfg.weight_progress,
+           cfg.weight_physical_progress,
            cfg.weight_vx,
            (unsigned)cfg.use_raceline_vx_ref,
            (unsigned)cfg.use_raceline_vx_limit,
@@ -1711,14 +1716,14 @@ static void configure_mpcc_from_environment(void)
 static const char *autodetect_trajectory_file(void)
 {
     static const char *candidates[] = {
-        "hardware_raceline.csv",
-        "my_track_raceline.csv",
-        "f1tenth_planning/trajectories/hardware_raceline.csv",
-        "f1tenth_planning/trajectories/my_track_raceline.csv",
-        "../f1tenth_planning/trajectories/hardware_raceline.csv",
-        "../f1tenth_planning/trajectories/my_track_raceline.csv",
-        "/ros2_ws/src/f1tenth_planning/trajectories/hardware_raceline.csv",
-        "/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv",
+        "hardware_centerline.csv",
+        "my_track_centerline.csv",
+        "f1tenth_planning/trajectories/hardware_centerline.csv",
+        "f1tenth_planning/trajectories/my_track_centerline.csv",
+        "../f1tenth_planning/trajectories/hardware_centerline.csv",
+        "../f1tenth_planning/trajectories/my_track_centerline.csv",
+        "/ros2_ws/src/f1tenth_planning/trajectories/hardware_centerline.csv",
+        "/ros2_ws/src/f1tenth_planning/trajectories/my_track_centerline.csv",
         NULL
     };
 

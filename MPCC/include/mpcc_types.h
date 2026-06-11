@@ -69,7 +69,7 @@ typedef struct
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
 
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.39f           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.39f           /** F1/10th max steering [rad] */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  20.0f     /** F1/10th max velocity: 20.0 meters per second */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  0.0f      /** F1/10th min velocity: 0.0 meters per second */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS    0.166f                /** Distance from CG to front axle: 0.166 meters [CAD] */
@@ -280,7 +280,9 @@ typedef struct
  * Weight tuning guide:
  *   - weight_contouring: Penalizes Cartesian contouring error ec
  *   - weight_lag:        Penalizes Cartesian lag error el
+ *   - weight_heading:    Penalizes heading error psi - phi_ref(s)
  *   - weight_progress:   Rewards ds/dt (forward progress along path)
+ *   - weight_physical_progress: Rewards real velocity projected along path
  *   - weight_obstacle:   Penalty for violating obstacle constraints
  *   - Control rate weights: Higher = smoother, slower response
  *
@@ -328,6 +330,11 @@ typedef struct
      *  Keeps s from running too far ahead of the vehicle. */
     float weight_lag;
 
+    /** Heading alignment weight.
+     *  Penalizes wrap(psi - phi_ref(s))^2 so the vehicle is encouraged to
+     *  rotate into corners instead of only minimizing X/Y path error. */
+    float weight_heading;
+
     /** Wall-clearance weight.
      *  Adds a soft penalty when the predicted contouring state enters a
      *  near-wall band inside the hard corridor bounds. This lets the
@@ -352,6 +359,13 @@ typedef struct
      *  Reward for forward progress ds/dt. Higher = more aggressive.
      *  Applied as linear cost: -q_s on s-component. */
     float weight_progress;
+
+    /** Physical path-progress reward.
+     *  Rewards vx*cos(alpha) - vy*sin(alpha), where
+     *  alpha = wrap(psi - phi_ref(s)). Unlike vx_ref tracking, this does not
+     *  impose a target speed; it only rewards actual forward motion along the
+     *  path and helps avoid zero-motion local optima. */
+    float weight_physical_progress;
 
     /** Per-stage QP trust window around the linearization arc-length [m].
      *  Keeps the optimized s_k close to the geometry used for cost and
@@ -421,6 +435,9 @@ typedef struct
 
     /** Terminal lag error penalty */
     float weight_lag_terminal;
+
+    /** Terminal heading error penalty */
+    float weight_heading_terminal;
 
 
     /** Terminal progress reward (on s_N) */
@@ -645,7 +662,9 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.5f)                  /** Hard buffer subtracted from each track bound [m]. */
+#define MPCC_DEFAULT_WEIGHT_HEADING   (8.0f)                       /** Heading error penalty. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (4.0f)                      /** Progress reward. */
+#define MPCC_DEFAULT_WEIGHT_PHYSICAL_PROGRESS (1.0f)               /** Physical path-progress reward. */
 #define MPCC_DEFAULT_S_QP_WINDOW      (1.0f)                      /** Per-stage s trust window [m]. */
 
 /*--- State regularization ---*/
@@ -676,6 +695,7 @@ typedef struct
 /*--- Terminal weights ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (75.0f)     /** Terminal contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (60.0f)      /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_HEADING_TERMINAL        (20.0f)      /** Terminal heading error penalty. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (10.0f)       /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
