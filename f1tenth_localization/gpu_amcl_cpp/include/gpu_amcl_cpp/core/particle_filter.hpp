@@ -122,6 +122,7 @@ public:
         double kld_bin_x            = 0.5;  ///< metres
         double kld_bin_y            = 0.5;
         double kld_bin_theta        = 0.1;  ///< radians
+        double kld_min_bin_weight   = 0.0;  ///< normalized weight mass required to count a bin
     };
 
     struct KldDiagnostics {
@@ -134,6 +135,7 @@ public:
         double bin_x = 0.0;
         double bin_y = 0.0;
         double bin_theta = 0.0;
+        double min_bin_weight = 0.0;
         uint64_t sequence = 0;
     };
 

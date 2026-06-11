@@ -8,7 +8,6 @@
 #include <cstring>
 #include <limits>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace gpu_amcl_cpp {
 
@@ -625,16 +624,22 @@ void ParticleFilter::do_resample(int target_n) {
 int ParticleFilter::compute_kld_target() {
     const int pre_resample_particles = n_;
 
-    // Download particles from GPU → CPU using pinned memory
+    // Download particles and weights from GPU -> CPU using pinned memory.
     CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
                                n_ * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_weights_pinned_, d_weights_.ptr(),
+                               n_ * sizeof(float),
                                cudaMemcpyDeviceToHost, stream_.get()));
     CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
 
     const float* particles = h_particles_pinned_;
+    const float* weights = h_weights_pinned_;
 
-    // Bin particles into a 3D histogram (x, y, θ)
-    std::unordered_set<long long> bins;
+    // Bin particles into a 3D histogram (x, y, theta), then only count bins
+    // with enough normalized probability mass. This prevents low-weight
+    // recovery-injection particles from keeping KLD near max_particles.
+    std::unordered_map<long long, double> bin_weights;
     for (int i = 0; i < n_; ++i) {
         long long bx = static_cast<long long>(
             std::floor(particles[i * 3 + 0] / cfg_.kld_bin_x));
@@ -643,15 +648,22 @@ int ParticleFilter::compute_kld_target() {
         long long bt = static_cast<long long>(
             std::floor(particles[i * 3 + 2] / cfg_.kld_bin_theta));
         // Hash: assumes max 1000 bins per dimension (supports tracks up to 500m × 500m with 0.5m bins)
-        bins.insert(bx * 1000LL * 1000LL + by * 1000LL + bt);
+        const long long key = bx * 1000LL * 1000LL + by * 1000LL + bt;
+        bin_weights[key] += static_cast<double>(weights[i]);
     }
 
     // k = number of occupied bins (support of the distribution)
-    int k = static_cast<int>(bins.size());
+    const double min_bin_weight = std::max(0.0, cfg_.kld_min_bin_weight);
+    int k = 0;
+    for (const auto& entry : bin_weights) {
+        if (entry.second >= min_bin_weight) {
+            ++k;
+        }
+    }
     double target = static_cast<double>(cfg_.min_particles);
     int clamped_target = cfg_.min_particles;
 
-    if (k > 1) {
+    if (k > 1 && cfg_.kld_epsilon > 0.0) {
         // Fox et al. KLD formula.
         // n = (k-1) / (2ε) * [1 - 2/(9(k-1)) + sqrt(2/(9(k-1))) * z]³
         double eps = cfg_.kld_epsilon;
@@ -661,6 +673,9 @@ int ParticleFilter::compute_kld_target() {
         target = (km1 / (2.0 * eps)) * term * term * term;
         clamped_target = std::clamp(
             static_cast<int>(std::ceil(target)), cfg_.min_particles, cfg_.max_particles);
+    } else if (k > 1) {
+        target = static_cast<double>(cfg_.max_particles);
+        clamped_target = cfg_.max_particles;
     }
 
     last_kld_diag_.pre_resample_particles = pre_resample_particles;
@@ -672,6 +687,7 @@ int ParticleFilter::compute_kld_target() {
     last_kld_diag_.bin_x = cfg_.kld_bin_x;
     last_kld_diag_.bin_y = cfg_.kld_bin_y;
     last_kld_diag_.bin_theta = cfg_.kld_bin_theta;
+    last_kld_diag_.min_bin_weight = min_bin_weight;
     ++last_kld_diag_.sequence;
 
     return clamped_target;

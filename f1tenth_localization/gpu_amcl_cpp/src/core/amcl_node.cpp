@@ -98,6 +98,7 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("kld_bin_x", 0.5);
     declare_parameter<double>("kld_bin_y", 0.5);
     declare_parameter<double>("kld_bin_theta", 0.1);
+    declare_parameter<double>("kld_min_bin_weight", 0.0);
 
     // Frames
     declare_parameter<std::string>("base_frame_id", "ego_racecar/base_link");
@@ -404,6 +405,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.kld_bin_x         = get_parameter("kld_bin_x").as_double();
     pf_cfg.kld_bin_y         = get_parameter("kld_bin_y").as_double();
     pf_cfg.kld_bin_theta     = get_parameter("kld_bin_theta").as_double();
+    pf_cfg.kld_min_bin_weight = get_parameter("kld_min_bin_weight").as_double();
     pf_cfg.enable_recovery_injection = get_parameter("enable_recovery_injection").as_bool();
     pf_cfg.recovery_injection_ratio = get_parameter("recovery_injection_ratio").as_double();
     pf_cfg.enable_local_roughening = get_parameter("enable_local_roughening").as_bool();
@@ -684,6 +686,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
                 diag.bin_y,
                 diag.bin_theta,
                 static_cast<double>(diag.sequence),
+                diag.min_bin_weight,
             };
             kld_diag_pub_->publish(diag_msg);
             last_published_kld_diag_seq_ = diag.sequence;
