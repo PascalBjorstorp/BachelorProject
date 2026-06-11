@@ -141,8 +141,6 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("resample_threshold", 0.5);
     declare_parameter<bool>("enable_recovery_injection", false);
     declare_parameter<double>("recovery_injection_ratio", 0.05);
-    declare_parameter<bool>("recovery_injection_requires_bad_scan", true);
-    declare_parameter<int>("recovery_injection_min_bad_scans", 3);
     declare_parameter<bool>("enable_local_roughening", true);
     declare_parameter<double>("local_roughening_ratio", 0.20);
     declare_parameter<double>("local_roughening_xy_std_m", 0.12);
@@ -496,10 +494,6 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.kld_min_bin_weight = get_parameter("kld_min_bin_weight").as_double();
     pf_cfg.enable_recovery_injection = get_parameter("enable_recovery_injection").as_bool();
     pf_cfg.recovery_injection_ratio = get_parameter("recovery_injection_ratio").as_double();
-    pf_cfg.recovery_injection_requires_bad_scan =
-        get_parameter("recovery_injection_requires_bad_scan").as_bool();
-    pf_cfg.recovery_injection_min_bad_scans =
-        static_cast<int>(get_parameter("recovery_injection_min_bad_scans").as_int());
     pf_cfg.enable_local_roughening = get_parameter("enable_local_roughening").as_bool();
     pf_cfg.local_roughening_ratio = get_parameter("local_roughening_ratio").as_double();
     pf_cfg.local_roughening_xy_std_m = get_parameter("local_roughening_xy_std_m").as_double();
