@@ -40,6 +40,7 @@ gpu_amcl_cpp:
     kld_bin_x: 0.4             # metres per occupied KLD bin in x
     kld_bin_y: 0.4             # metres per occupied KLD bin in y
     kld_bin_theta: 0.1         # radians per occupied KLD bin in heading
+    kld_min_bin_weight: 0.0002  # only count KLD bins with this normalized weight mass
 
     # ---- Frame IDs ----
     base_frame_id: "ego_racecar/base_link"
