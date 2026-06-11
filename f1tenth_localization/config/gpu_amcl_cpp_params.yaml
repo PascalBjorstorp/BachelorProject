@@ -95,7 +95,7 @@ gpu_amcl_cpp:
     resample_threshold: 0.5  # selected by AMCL parameter sweep
     enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
     recovery_injection_ratio: 0.1    # runtime recovery particles; gated by bad scan streak below
-    recovery_injection_requires_bad_scan: true
+    recovery_injection_requires_bad_scan: false
     recovery_injection_min_bad_scans: 3
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
@@ -114,14 +114,14 @@ gpu_amcl_cpp:
     pose_jump_gate_enabled: true
     pose_jump_max_distance_m: 1.0
     pose_jump_max_yaw_rad: 1.2
-    pose_jump_confirm_scans: 5
+    pose_jump_confirm_scans: 3
     pose_jump_confirm_distance_m: 0.75
     pose_jump_confirm_yaw_rad: 0.6
 
     # ---- Initial pose ----
     # false: seed particles around initial_pose_*
     # true: seed particles globally along raceline corridor with forward heading cone
-    global_initialization: false
+    global_initialization: true
     initial_heading_from_raceline: true
     global_heading_cone_rad: 0.5235987756  # +/- 30 deg around nearest raceline heading
     global_track_margin_m: 0.05            # keep global samples this far from walls
