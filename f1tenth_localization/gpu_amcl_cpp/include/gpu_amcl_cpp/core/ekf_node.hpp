@@ -83,6 +83,11 @@ private:
      */
     void correct(const Eigen::Vector3d& z,
                  const Eigen::Matrix3d& R);
+    bool should_reset_from_amcl(const Eigen::Vector3d& z) const;
+    void reset_from_amcl(const Eigen::Vector3d& z,
+                         const Eigen::Matrix3d& R,
+                         const rclcpp::Time& amcl_stamp,
+                         rclcpp::Time& publish_stamp_out);
 
     // ── Helpers ────────────────────────────────────────────────────
     /**
@@ -187,6 +192,10 @@ private:
     // Process noise scaling (multiplied onto odom covariance)
     double process_noise_scale_ = 1.0;
     double amcl_max_latency_sec_ = 0.08;
+    bool amcl_jump_reset_enabled_ = true;
+    double amcl_jump_reset_distance_m_ = 1.0;
+    double amcl_jump_reset_yaw_rad_ = 1.2;
+    double amcl_jump_reset_covariance_scale_ = 1.0;
 
     std::string amcl_topic_;
     std::string odom_topic_;

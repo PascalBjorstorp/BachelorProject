@@ -163,6 +163,7 @@ void ParticleFilter::reinitialize(double x, double y, double theta,
                                   double cov_xx, double cov_yy,
                                   double cov_aa) {
     n_ = cfg_.num_particles;    // Reset to initial number of particles
+    last_scan_confidence_bad_ = false;
 
     // Create CPU arrays for particles and weights
     std::vector<float> particles(n_ * 3);       // x, y, θ for each particle
@@ -298,6 +299,7 @@ void ParticleFilter::reinitialize_global(const MapProcessor& map) {
     }
 
     n_ = cfg_.num_particles;
+    last_scan_confidence_bad_ = false;
 
     std::vector<float> particles(n_ * 3);
     std::vector<float> weights(n_, 1.0f / n_);
