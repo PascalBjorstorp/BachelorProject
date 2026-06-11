@@ -40,9 +40,9 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 1250.0f                         /* Penalizes lateral tracking deviation from the reference path. */
-#define WEIGHT_HEADING 5.0f                            /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 250.0f                           /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_ERROR 1500.0f                         /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_HEADING 50.0f                            /* Penalizes heading misalignment relative to path tangent. */
+#define WEIGHT_VELOCITY 200.0f                           /* Penalizes deviation from target longitudinal speed profile. */
 #define WEIGHT_LAT_VEL 5.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
 #define WEIGHT_YAW_RATE 1.5f                            /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
 #define WEIGHT_STEER_EFFORT 2.0f                        /* Penalizes steering-rate effort to limit aggressive steering actuation. */

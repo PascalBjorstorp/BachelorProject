@@ -92,7 +92,7 @@ gpu_amcl_cpp:
 
     # ---- Resampling ----
     resample_threshold: 0.5  # selected by AMCL parameter sweep
-    enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
+    enable_recovery_injection: false   # standard random-particle recovery; no custom resampling
     recovery_injection_ratio: 0.10    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
