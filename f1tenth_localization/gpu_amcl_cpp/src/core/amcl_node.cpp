@@ -141,6 +141,8 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("resample_threshold", 0.5);
     declare_parameter<bool>("enable_recovery_injection", false);
     declare_parameter<double>("recovery_injection_ratio", 0.05);
+    declare_parameter<bool>("recovery_injection_requires_bad_scan", true);
+    declare_parameter<int>("recovery_injection_min_bad_scans", 3);
     declare_parameter<bool>("enable_local_roughening", true);
     declare_parameter<double>("local_roughening_ratio", 0.20);
     declare_parameter<double>("local_roughening_xy_std_m", 0.12);
@@ -153,6 +155,14 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<int>("cluster_iterations", 3);
     declare_parameter<double>("cluster_min_covariance", 1e-4);
     declare_parameter<double>("cluster_publish_min_weight", 0.60);
+
+    // Pose jump guard
+    declare_parameter<bool>("pose_jump_gate_enabled", true);
+    declare_parameter<double>("pose_jump_max_distance_m", 1.0);
+    declare_parameter<double>("pose_jump_max_yaw_rad", 1.2);
+    declare_parameter<int>("pose_jump_confirm_scans", 5);
+    declare_parameter<double>("pose_jump_confirm_distance_m", 0.75);
+    declare_parameter<double>("pose_jump_confirm_yaw_rad", 0.6);
 
     // Initial pose
     declare_parameter<bool>("global_initialization", false);
@@ -196,6 +206,17 @@ void AmclNode::load_parameters() {
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
     odom_history_duration_s_ = std::max(
         0.0, get_parameter("odom_history_duration_s").as_double());
+    pose_jump_gate_enabled_ = get_parameter("pose_jump_gate_enabled").as_bool();
+    pose_jump_max_distance_m_ = std::max(
+        0.0, get_parameter("pose_jump_max_distance_m").as_double());
+    pose_jump_max_yaw_rad_ = std::max(
+        0.0, get_parameter("pose_jump_max_yaw_rad").as_double());
+    pose_jump_confirm_scans_ = std::max(
+        1, static_cast<int>(get_parameter("pose_jump_confirm_scans").as_int()));
+    pose_jump_confirm_distance_m_ = std::max(
+        0.0, get_parameter("pose_jump_confirm_distance_m").as_double());
+    pose_jump_confirm_yaw_rad_ = std::max(
+        0.0, get_parameter("pose_jump_confirm_yaw_rad").as_double());
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
@@ -205,6 +226,73 @@ void AmclNode::load_parameters() {
         cloud_publish_rate_, debug_pre_resample_particles_ ? "true" : "false",
         slip_angular_threshold_,
         initial_heading_from_raceline_ ? "true" : "false");
+}
+
+void AmclNode::reset_pose_jump_gate() {
+    have_last_published_pose_ = false;
+    have_pending_jump_pose_ = false;
+    pending_jump_pose_count_ = 0;
+}
+
+bool AmclNode::should_publish_pose_estimate(const PoseEstimate& est) {
+    if (!pose_jump_gate_enabled_ || !have_last_published_pose_) {
+        have_pending_jump_pose_ = false;
+        pending_jump_pose_count_ = 0;
+        return true;
+    }
+
+    const double dx = est.x - last_published_pose_.x;
+    const double dy = est.y - last_published_pose_.y;
+    const double jump_distance = std::hypot(dx, dy);
+    const double jump_yaw =
+        std::abs(math_utils::angle_diff(est.theta, last_published_pose_.theta));
+    const bool is_jump =
+        jump_distance > pose_jump_max_distance_m_ ||
+        jump_yaw > pose_jump_max_yaw_rad_;
+
+    if (!is_jump) {
+        have_pending_jump_pose_ = false;
+        pending_jump_pose_count_ = 0;
+        return true;
+    }
+
+    bool same_pending = false;
+    if (have_pending_jump_pose_) {
+        const double pdx = est.x - pending_jump_pose_.x;
+        const double pdy = est.y - pending_jump_pose_.y;
+        const double pending_distance = std::hypot(pdx, pdy);
+        const double pending_yaw =
+            std::abs(math_utils::angle_diff(est.theta, pending_jump_pose_.theta));
+        same_pending =
+            pending_distance <= pose_jump_confirm_distance_m_ &&
+            pending_yaw <= pose_jump_confirm_yaw_rad_;
+    }
+
+    if (!same_pending) {
+        pending_jump_pose_ = est;
+        pending_jump_pose_count_ = 1;
+        have_pending_jump_pose_ = true;
+        RCLCPP_WARN(
+            get_logger(),
+            "AMCL pose jump gated: %.2f m, %.2f rad. Waiting for %d consistent scans.",
+            jump_distance,
+            jump_yaw,
+            pose_jump_confirm_scans_);
+        return false;
+    }
+
+    ++pending_jump_pose_count_;
+    if (pending_jump_pose_count_ < pose_jump_confirm_scans_) {
+        return false;
+    }
+
+    RCLCPP_WARN(
+        get_logger(),
+        "AMCL accepted confirmed pose jump after %d scans.",
+        pending_jump_pose_count_);
+    have_pending_jump_pose_ = false;
+    pending_jump_pose_count_ = 0;
+    return true;
 }
 
 void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -408,6 +496,10 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.kld_min_bin_weight = get_parameter("kld_min_bin_weight").as_double();
     pf_cfg.enable_recovery_injection = get_parameter("enable_recovery_injection").as_bool();
     pf_cfg.recovery_injection_ratio = get_parameter("recovery_injection_ratio").as_double();
+    pf_cfg.recovery_injection_requires_bad_scan =
+        get_parameter("recovery_injection_requires_bad_scan").as_bool();
+    pf_cfg.recovery_injection_min_bad_scans =
+        static_cast<int>(get_parameter("recovery_injection_min_bad_scans").as_int());
     pf_cfg.enable_local_roughening = get_parameter("enable_local_roughening").as_bool();
     pf_cfg.local_roughening_ratio = get_parameter("local_roughening_ratio").as_double();
     pf_cfg.local_roughening_xy_std_m = get_parameter("local_roughening_xy_std_m").as_double();
@@ -483,6 +575,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
 
     prediction_baseline_ready_ = false;
     global_pose_published_ = false;
+    reset_pose_jump_gate();
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
                 pf_cfg.global_initialization ? "global" : "local");
@@ -706,7 +799,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     bool pose_published = false;
     double callback_to_pose_publish_ms =
         std::numeric_limits<double>::quiet_NaN();
-    if (publish_cluster) {
+    if (publish_cluster && should_publish_pose_estimate(est)) {
         // Publish only when the best local mode is dominant enough. During
         // global localization, ambiguous clusters should stay visible in RViz
         // but not pull the EKF/controller to a wrong symmetric pose.
@@ -796,6 +889,7 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
                      get_parameter("initial_cov_xx").as_double(),
                      get_parameter("initial_cov_yy").as_double(),
                      get_parameter("initial_cov_aa").as_double());
+    reset_pose_jump_gate();
 
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
@@ -843,6 +937,8 @@ void AmclNode::publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp) 
     cov[35] = est.covariance(2, 2);  // yaw-yaw
 
     pose_pub_->publish(pose_msg);
+    last_published_pose_ = est;
+    have_last_published_pose_ = true;
 }
 
 // ─── Particle cloud publish (called after PF updates) ───────────────

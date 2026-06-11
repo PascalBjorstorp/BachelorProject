@@ -55,6 +55,10 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<double>("process_noise_scale", 1.0);
     declare_parameter<double>("amcl_max_latency_sec", 0.08);
     declare_parameter<double>("odom_history_duration_s", 0.2);
+    declare_parameter<bool>("amcl_jump_reset_enabled", true);
+    declare_parameter<double>("amcl_jump_reset_distance_m", 1.0);
+    declare_parameter<double>("amcl_jump_reset_yaw_rad", 1.2);
+    declare_parameter<double>("amcl_jump_reset_covariance_scale", 1.0);
 }
 
 void EkfNode::load_parameters() {
@@ -69,6 +73,14 @@ void EkfNode::load_parameters() {
     amcl_max_latency_sec_ = get_parameter("amcl_max_latency_sec").as_double();
     odom_history_duration_s_ = std::max(
         0.0, get_parameter("odom_history_duration_s").as_double());
+    amcl_jump_reset_enabled_ =
+        get_parameter("amcl_jump_reset_enabled").as_bool();
+    amcl_jump_reset_distance_m_ = std::max(
+        0.0, get_parameter("amcl_jump_reset_distance_m").as_double());
+    amcl_jump_reset_yaw_rad_ = std::max(
+        0.0, get_parameter("amcl_jump_reset_yaw_rad").as_double());
+    amcl_jump_reset_covariance_scale_ = std::max(
+        0.0, get_parameter("amcl_jump_reset_covariance_scale").as_double());
 
     if (amcl_max_latency_sec_ <= 0.0) {
         RCLCPP_WARN(get_logger(),
@@ -182,6 +194,41 @@ void EkfNode::correct(const Eigen::Vector3d& z,
     P_ = ImKH * P_ * ImKH.transpose() + K * R * K.transpose();
 }
 
+bool EkfNode::should_reset_from_amcl(const Eigen::Vector3d& z) const {
+    if (!amcl_jump_reset_enabled_ || !initialized_) {
+        return false;
+    }
+
+    const double dx = z[0] - state_[0];
+    const double dy = z[1] - state_[1];
+    const double distance = std::hypot(dx, dy);
+    const double yaw = std::abs(math_utils::angle_diff(z[2], state_[2]));
+    return distance > amcl_jump_reset_distance_m_ ||
+           yaw > amcl_jump_reset_yaw_rad_;
+}
+
+void EkfNode::reset_from_amcl(const Eigen::Vector3d& z,
+                              const Eigen::Matrix3d& R,
+                              const rclcpp::Time& amcl_stamp,
+                              rclcpp::Time& publish_stamp_out) {
+    Eigen::Vector3d reset_state = z;
+    publish_stamp_out = amcl_stamp;
+
+    Eigen::Vector3d odom_at_amcl;
+    if (odom_received_ && interpolate_odom_pose(amcl_stamp, odom_at_amcl)) {
+        const Eigen::Vector3d odom_delta =
+            math_utils::se2_relative(odom_at_amcl, prev_odom_);
+        reset_state = math_utils::se2_compose(z, odom_delta);
+        publish_stamp_out = prev_odom_stamp_;
+    }
+
+    state_ = reset_state;
+    P_ = amcl_jump_reset_covariance_scale_ * R;
+    P_(0, 0) = std::max(P_(0, 0), 1e-6);
+    P_(1, 1) = std::max(P_(1, 1), 1e-6);
+    P_(2, 2) = std::max(P_(2, 2), 1e-6);
+}
+
 // ─── Odom callback (prediction source) ─────────────────────────────
 void EkfNode::odom_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
@@ -263,6 +310,17 @@ void EkfNode::amcl_callback(
         P_           = R;
         initialized_ = true;
         RCLCPP_INFO(get_logger(), "EKF initialised from AMCL pose.");
+        return;
+    }
+
+    if (should_reset_from_amcl(z)) {
+        rclcpp::Time publish_stamp = amcl_stamp;
+        reset_from_amcl(z, R, amcl_stamp, publish_stamp);
+        RCLCPP_WARN(
+            get_logger(),
+            "EKF reset to accepted AMCL relocalization.");
+        lock.unlock();
+        publish_and_broadcast(publish_stamp);
         return;
     }
 

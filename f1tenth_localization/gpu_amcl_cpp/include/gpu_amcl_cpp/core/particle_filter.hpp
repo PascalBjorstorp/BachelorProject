@@ -102,6 +102,8 @@ public:
         double resample_threshold   = 0.5;
         bool   enable_recovery_injection = false;
         double recovery_injection_ratio = 0.05;
+        bool   recovery_injection_requires_bad_scan = true;
+        int    recovery_injection_min_bad_scans = 3;
         bool   enable_local_roughening = true;
         double local_roughening_ratio = 0.20;
         double local_roughening_xy_std_m = 0.12;
@@ -297,6 +299,7 @@ private:
     int sensor_max_beams_ = 0;
     bool last_scan_confidence_bad_ = false;
     double last_scan_log_weight_per_beam_ = 0.0;
+    int bad_scan_streak_ = 0;
 
     std::mt19937 rng_{42};                   // For reinitialize() Gaussian sampling
 

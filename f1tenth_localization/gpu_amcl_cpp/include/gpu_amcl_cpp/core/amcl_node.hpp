@@ -52,6 +52,8 @@ private:
         double y,
         double fallback_yaw,
         const std::vector<ParticleFilter::TrackHeadingPoint>& heading_points) const;
+    bool should_publish_pose_estimate(const PoseEstimate& est);
+    void reset_pose_jump_gate();
     void push_odom_sample(const rclcpp::Time& stamp,
                           double x,
                           double y,
@@ -115,6 +117,20 @@ private:
 
     std::deque<OdomSample> odom_history_;
     double odom_history_duration_s_ = 0.2;
+
+    // Pose-jump guard: prevents one-frame false global relocalization from
+    // teleporting the EKF/controller.
+    bool pose_jump_gate_enabled_ = true;
+    double pose_jump_max_distance_m_ = 1.0;
+    double pose_jump_max_yaw_rad_ = 1.2;
+    double pose_jump_confirm_distance_m_ = 0.75;
+    double pose_jump_confirm_yaw_rad_ = 0.6;
+    int pose_jump_confirm_scans_ = 5;
+    bool have_last_published_pose_ = false;
+    PoseEstimate last_published_pose_;
+    bool have_pending_jump_pose_ = false;
+    PoseEstimate pending_jump_pose_;
+    int pending_jump_pose_count_ = 0;
 
     // Thread safety
     std::mutex pf_mutex_;                       // Protects pf_ during GPU ops
