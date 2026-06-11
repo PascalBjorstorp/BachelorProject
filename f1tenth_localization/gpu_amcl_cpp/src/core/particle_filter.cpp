@@ -163,7 +163,6 @@ void ParticleFilter::reinitialize(double x, double y, double theta,
                                   double cov_xx, double cov_yy,
                                   double cov_aa) {
     n_ = cfg_.num_particles;    // Reset to initial number of particles
-    bad_scan_streak_ = 0;
     last_scan_confidence_bad_ = false;
 
     // Create CPU arrays for particles and weights
@@ -300,7 +299,6 @@ void ParticleFilter::reinitialize_global(const MapProcessor& map) {
     }
 
     n_ = cfg_.num_particles;
-    bad_scan_streak_ = 0;
     last_scan_confidence_bad_ = false;
 
     std::vector<float> particles(n_ * 3);
@@ -341,12 +339,6 @@ void ParticleFilter::inject_recovery_particles() {
         !map_->is_loaded() ||
         cfg_.global_heading_points.empty()) {
         return;
-    }
-    if (cfg_.recovery_injection_requires_bad_scan) {
-        const int min_bad_scans = std::max(1, cfg_.recovery_injection_min_bad_scans);
-        if (bad_scan_streak_ < min_bad_scans) {
-            return;
-        }
     }
 
     const double ratio = std::clamp(cfg_.recovery_injection_ratio, 0.0, 1.0);
@@ -561,11 +553,7 @@ void ParticleFilter::resample_if_needed() {
 void ParticleFilter::update_scan_confidence(int num_ranges) {
     last_scan_confidence_bad_ = false;
     last_scan_log_weight_per_beam_ = 0.0;
-    const bool need_scan_confidence =
-        cfg_.enable_local_roughening ||
-        (cfg_.enable_recovery_injection && cfg_.recovery_injection_requires_bad_scan);
-    if (!need_scan_confidence || num_ranges <= 0 || sensor_max_beams_ <= 0) {
-        bad_scan_streak_ = 0;
+    if (!cfg_.enable_local_roughening || num_ranges <= 0 || sensor_max_beams_ <= 0) {
         return;
     }
 
@@ -581,11 +569,6 @@ void ParticleFilter::update_scan_confidence(int num_ranges) {
     last_scan_confidence_bad_ =
         std::isfinite(last_scan_log_weight_per_beam_) &&
         last_scan_log_weight_per_beam_ < cfg_.local_roughening_bad_log_weight_per_beam;
-    if (last_scan_confidence_bad_) {
-        ++bad_scan_streak_;
-    } else {
-        bad_scan_streak_ = 0;
-    }
 }
 
 void ParticleFilter::check_resample() {
