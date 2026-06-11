@@ -10,7 +10,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 406 \
+    id 403 \
     name kappa \
     type other \
     dir I \
@@ -18,14 +18,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_kappa \
     op interface \
-    ports { kappa { I 26 vector } } \
+    ports { kappa { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 407 \
+    id 404 \
     name ey \
     type other \
     dir I \
@@ -33,7 +33,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ey \
     op interface \
-    ports { ey { I 26 vector } } \
+    ports { ey { I 21 vector } } \
 } "
 }
 
@@ -61,7 +61,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 23 vector } } \
+    ports { ap_return { O 20 vector } } \
 } "
 }
 

@@ -15,19 +15,19 @@ set hasInterrupt 0
 set DLRegFirstOffset 0
 set DLRegItemOffset 0
 set svuvm_can_support 1
-set cdfgNum 76
+set cdfgNum 74
 set C_modelName {fp_trig_pair_fused_fn}
-set C_modelType { int 52 }
+set C_modelType { int 42 }
 set ap_memory_interface_dict [dict create]
 set C_modelArgList {
-	{ angle int 26 regular  }
+	{ angle int 21 regular  }
 }
 set hasAXIMCache 0
 set l_AXIML2Cache [list]
 set AXIMCacheInstDict [dict create]
 set C_modelArgMapList {[ 
-	{ "Name" : "angle", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 52} ]}
+	{ "Name" : "angle", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 42} ]}
 # RTL Port declarations: 
 set portNum 9
 set portList { 
@@ -37,9 +37,9 @@ set portList {
 	{ ap_done sc_out sc_logic 1 predone -1 } 
 	{ ap_idle sc_out sc_logic 1 done -1 } 
 	{ ap_ready sc_out sc_logic 1 ready -1 } 
-	{ angle sc_in sc_lv 26 signal 0 } 
-	{ ap_return_0 sc_out sc_lv 26 signal -1 } 
-	{ ap_return_1 sc_out sc_lv 26 signal -1 } 
+	{ angle sc_in sc_lv 21 signal 0 } 
+	{ ap_return_0 sc_out sc_lv 21 signal -1 } 
+	{ ap_return_1 sc_out sc_lv 21 signal -1 } 
 }
 set NewPortList {[ 
 	{ "name": "ap_clk", "direction": "in", "datatype": "sc_logic", "bitwidth":1, "type": "clock", "bundle":{"name": "ap_clk", "role": "default" }} , 
@@ -48,9 +48,9 @@ set NewPortList {[
  	{ "name": "ap_done", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "predone", "bundle":{"name": "ap_done", "role": "default" }} , 
  	{ "name": "ap_idle", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "done", "bundle":{"name": "ap_idle", "role": "default" }} , 
  	{ "name": "ap_ready", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "ready", "bundle":{"name": "ap_ready", "role": "default" }} , 
- 	{ "name": "angle", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "angle", "role": "default" }} , 
- 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
- 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }}  ]}
+ 	{ "name": "angle", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "angle", "role": "default" }} , 
+ 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
+ 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }}  ]}
 
 set ArgLastReadFirstWriteLatency {
 	fp_trig_pair_fused_fn {
@@ -61,13 +61,13 @@ set ArgLastReadFirstWriteLatency {
 set hasDtUnsupportedChannel 0
 
 set PerformanceInfo {[
-	{"Name" : "Latency", "Min" : "10", "Max" : "10"}
-	, {"Name" : "Interval", "Min" : "11", "Max" : "11"}
+	{"Name" : "Latency", "Min" : "8", "Max" : "8"}
+	, {"Name" : "Interval", "Min" : "9", "Max" : "9"}
 ]}
 
 set PipelineEnableSignalInfo {[
 ]}
 
 set Spec2ImplPortList { 
-	angle { ap_none {  { angle in_data 0 26 } } }
+	angle { ap_none {  { angle in_data 0 21 } } }
 }

@@ -13,7 +13,13 @@
 #endif
 
 static constexpr int HORIZON = 20;
-static constexpr float SCALE_QP = MPC_FPGA_QP_SCALE_F32;  // Q18, single-sourced from mpc_fpga_constants.h
+// Bag/comparison recording scale is FIXED at Q14.18 (262144): recorded bags
+// and make_comparison_csv.py both use it. Decoupled from MPC_FPGA_QP_SCALE_F32,
+// which now describes the kernel's INTERNAL Q12.14 format. The harness drives
+// the solver in physical float units (decode bag raw -> float here, solver
+// works Q12.14 internally, re-encode output -> raw here at the recording
+// scale), so this must stay at the recording scale, not the kernel scale.
+static constexpr float SCALE_QP = 262144.0f;  // Q14.18 bag/comparison recording scale
 
 /* Mirror of mpc_receiver.cpp constants. Anything that decides what gets fed
  * back as prev_accel_fp must match the hardware host exactly, or the kernel's

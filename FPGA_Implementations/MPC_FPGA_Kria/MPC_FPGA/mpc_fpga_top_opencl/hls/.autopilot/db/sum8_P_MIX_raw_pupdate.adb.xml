@@ -3,7 +3,7 @@
 
 <trans_list>
 
-<trans id="31" from="1" to="2">
+<trans id="25" from="1" to="2">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
@@ -23,9 +23,9 @@
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="17" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="9" bw="44" op_0_bw="44" op_1_bw="44">
 <![CDATA[
-entry:8 %a7_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a7
+entry:0 %a7_read = read i44 @_ssdm_op_Read.ap_auto.i44, i44 %a7
 
 ]]></Node>
 <StgValue><ssdm name="a7_read"/></StgValue>
@@ -38,9 +38,9 @@ entry:8 %a7_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a7
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="18" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="10" bw="44" op_0_bw="44" op_1_bw="44">
 <![CDATA[
-entry:9 %a6_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a6
+entry:1 %a6_read = read i44 @_ssdm_op_Read.ap_auto.i44, i44 %a6
 
 ]]></Node>
 <StgValue><ssdm name="a6_read"/></StgValue>
@@ -53,9 +53,9 @@ entry:9 %a6_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a6
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="19" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="11" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:10 %a5_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a5
+entry:2 %a5_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a5
 
 ]]></Node>
 <StgValue><ssdm name="a5_read"/></StgValue>
@@ -68,9 +68,9 @@ entry:10 %a5_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a5
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="20" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="12" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:11 %a4_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a4
+entry:3 %a4_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a4
 
 ]]></Node>
 <StgValue><ssdm name="a4_read"/></StgValue>
@@ -83,9 +83,9 @@ entry:11 %a4_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a4
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="13" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:12 %a3_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a3
+entry:4 %a3_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a3
 
 ]]></Node>
 <StgValue><ssdm name="a3_read"/></StgValue>
@@ -98,9 +98,9 @@ entry:12 %a3_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a3
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="22" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="14" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:13 %a2_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a2
+entry:5 %a2_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a2
 
 ]]></Node>
 <StgValue><ssdm name="a2_read"/></StgValue>
@@ -113,9 +113,9 @@ entry:13 %a2_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a2
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="23" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="15" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:14 %a1_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a1
+entry:6 %a1_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a1
 
 ]]></Node>
 <StgValue><ssdm name="a1_read"/></StgValue>
@@ -128,87 +128,87 @@ entry:14 %a1_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a1
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="24" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="16" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:15 %a0_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a0
+entry:7 %a0_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a0
 
 ]]></Node>
 <StgValue><ssdm name="a0_read"/></StgValue>
 </operation>
 
 <operation id="11" st_id="1" stage="1" lat="1">
-<core>Adder</core>
+<core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="27" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="19" bw="41" op_0_bw="44">
 <![CDATA[
-entry:18 %add_ln257 = add i58 %a3_read, i58 %a2_read
+entry:10 %trunc_ln263 = trunc i44 %a6_read
 
 ]]></Node>
-<StgValue><ssdm name="add_ln257"/></StgValue>
+<StgValue><ssdm name="trunc_ln263"/></StgValue>
 </operation>
 
 <operation id="12" st_id="1" stage="1" lat="1">
-<core>Adder</core>
+<core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="28" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="20" bw="41" op_0_bw="44">
 <![CDATA[
-entry:19 %add_ln257_1 = add i58 %a0_read, i58 %a1_read
+entry:11 %trunc_ln263_1 = trunc i44 %a7_read
 
 ]]></Node>
-<StgValue><ssdm name="add_ln257_1"/></StgValue>
+<StgValue><ssdm name="trunc_ln263_1"/></StgValue>
 </operation>
 
 <operation id="13" st_id="1" stage="1" lat="1">
-<core>TAddSub</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="29" bw="58" op_0_bw="58" op_1_bw="58">
-<![CDATA[
-entry:20 %add_ln257_3 = add i58 %add_ln257_1, i58 %add_ln257
-
-]]></Node>
-<StgValue><ssdm name="add_ln257_3"/></StgValue>
-</operation>
-
-<operation id="14" st_id="1" stage="1" lat="1">
-<core>TAddSub</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="30" bw="58" op_0_bw="58" op_1_bw="58">
-<![CDATA[
-entry:21 %add_ln257_4 = add i58 %a4_read, i58 %a5_read
-
-]]></Node>
-<StgValue><ssdm name="add_ln257_4"/></StgValue>
-</operation>
-
-<operation id="15" st_id="1" stage="1" lat="1">
 <core>Adder</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="31" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="21" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:22 %add_ln257_5 = add i58 %a6_read, i58 %a7_read
+entry:12 %add_ln272 = add i41 %a3_read, i41 %a2_read
 
 ]]></Node>
-<StgValue><ssdm name="add_ln257_5"/></StgValue>
+<StgValue><ssdm name="add_ln272"/></StgValue>
+</operation>
+
+<operation id="14" st_id="1" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="22" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+entry:13 %add_ln272_1 = add i41 %a0_read, i41 %a1_read
+
+]]></Node>
+<StgValue><ssdm name="add_ln272_1"/></StgValue>
+</operation>
+
+<operation id="15" st_id="1" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="23" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+entry:14 %add_ln272_2 = add i41 %add_ln272_1, i41 %add_ln272
+
+]]></Node>
+<StgValue><ssdm name="add_ln272_2"/></StgValue>
 </operation>
 
 <operation id="16" st_id="1" stage="1" lat="1">
@@ -218,61 +218,61 @@ entry:22 %add_ln257_5 = add i58 %a6_read, i58 %a7_read
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="32" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="24" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:23 %add_ln257_6 = add i58 %add_ln257_5, i58 %add_ln257_4
+entry:15 %add_ln272_3 = add i41 %a4_read, i41 %a5_read
 
 ]]></Node>
-<StgValue><ssdm name="add_ln257_6"/></StgValue>
+<StgValue><ssdm name="add_ln272_3"/></StgValue>
 </operation>
 
 <operation id="17" st_id="1" stage="1" lat="1">
+<core>Adder</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="25" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+entry:16 %add_ln272_4 = add i41 %trunc_ln263, i41 %trunc_ln263_1
+
+]]></Node>
+<StgValue><ssdm name="add_ln272_4"/></StgValue>
+</operation>
+
+<operation id="18" st_id="1" stage="1" lat="1">
 <core>TAddSub</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="33" bw="58" op_0_bw="58" op_1_bw="58">
+<Node id="26" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-entry:24 %add_ln257_2 = add i58 %add_ln257_6, i58 %add_ln257_3
+entry:17 %add_ln272_5 = add i41 %add_ln272_4, i41 %add_ln272_3
 
 ]]></Node>
-<StgValue><ssdm name="add_ln257_2"/></StgValue>
+<StgValue><ssdm name="add_ln272_5"/></StgValue>
+</operation>
+
+<operation id="19" st_id="1" stage="1" lat="1">
+<core>TAddSub</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+entry:18 %add_ln273 = add i41 %add_ln272_5, i41 %add_ln272_2
+
+]]></Node>
+<StgValue><ssdm name="add_ln273"/></StgValue>
 </operation>
 </state>
 
 <state id="2" st_id="2">
-
-<operation id="18" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="9" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-entry:0 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a7, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
-
-<operation id="19" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="10" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-entry:1 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a6, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
 
 <operation id="20" st_id="2" stage="1" lat="1">
 <core>NULL</core>
@@ -281,12 +281,12 @@ entry:1 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a6, i64 12,
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="11" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="17" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32" op_5_bw="32" op_6_bw="0">
 <![CDATA[
-entry:2 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a5, i64 12, i64 3, i64 3, i1 0
+entry:8 %specpipeline_ln245 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, i32 4294967295, void @empty_524
 
 ]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
+<StgValue><ssdm name="specpipeline_ln245"/></StgValue>
 </operation>
 
 <operation id="21" st_id="2" stage="1" lat="1">
@@ -296,12 +296,12 @@ entry:2 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a5, i64 12,
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="12" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="18" bw="0" op_0_bw="0" op_1_bw="64" op_2_bw="64" op_3_bw="0">
 <![CDATA[
-entry:3 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a4, i64 12, i64 3, i64 3, i1 0
+entry:9 %speclatency_ln253 = speclatency void @_ssdm_op_SpecLatency, i64 1, i64 1, void @empty_524
 
 ]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
+<StgValue><ssdm name="speclatency_ln253"/></StgValue>
 </operation>
 
 <operation id="22" st_id="2" stage="1" lat="1">
@@ -311,315 +311,133 @@ entry:3 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a4, i64 12,
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="13" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="28" bw="0" op_0_bw="41">
 <![CDATA[
-entry:4 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a3, i64 12, i64 3, i64 3, i1 0
+entry:19 %ret_ln273 = ret i41 %add_ln273
 
 ]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
-
-<operation id="23" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="14" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-entry:5 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a2, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
-
-<operation id="24" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="15" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-entry:6 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a1, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
-
-<operation id="25" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="16" bw="0" op_0_bw="0" op_1_bw="58" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-entry:7 %specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a0, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln0"/></StgValue>
-</operation>
-
-<operation id="26" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="25" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32" op_5_bw="32" op_6_bw="0">
-<![CDATA[
-entry:16 %specpipeline_ln230 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, i32 4294967295, void @empty_485
-
-]]></Node>
-<StgValue><ssdm name="specpipeline_ln230"/></StgValue>
-</operation>
-
-<operation id="27" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="26" bw="0" op_0_bw="0" op_1_bw="64" op_2_bw="64" op_3_bw="0">
-<![CDATA[
-entry:17 %speclatency_ln238 = speclatency void @_ssdm_op_SpecLatency, i64 1, i64 1, void @empty_485
-
-]]></Node>
-<StgValue><ssdm name="speclatency_ln238"/></StgValue>
-</operation>
-
-<operation id="28" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="34" bw="0" op_0_bw="58">
-<![CDATA[
-entry:25 %ret_ln258 = ret i58 %add_ln257_2
-
-]]></Node>
-<StgValue><ssdm name="ret_ln258"/></StgValue>
+<StgValue><ssdm name="ret_ln273"/></StgValue>
 </operation>
 </state>
 </state_list>
 
 
 <ports>
-<port id="32" name="a0" dir="0" iftype="0">
+<port id="26" name="a0" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a0"/></StgValue>
 </port>
-<port id="33" name="a1" dir="0" iftype="0">
+<port id="27" name="a1" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a1"/></StgValue>
 </port>
-<port id="34" name="a2" dir="0" iftype="0">
+<port id="28" name="a2" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a2"/></StgValue>
 </port>
-<port id="35" name="a3" dir="0" iftype="0">
+<port id="29" name="a3" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a3"/></StgValue>
 </port>
-<port id="36" name="a4" dir="0" iftype="0">
+<port id="30" name="a4" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a4"/></StgValue>
 </port>
-<port id="37" name="a5" dir="0" iftype="0">
+<port id="31" name="a5" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a5"/></StgValue>
 </port>
-<port id="38" name="a6" dir="0" iftype="0">
+<port id="32" name="a6" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a6"/></StgValue>
 </port>
-<port id="39" name="a7" dir="0" iftype="0">
+<port id="33" name="a7" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="a7"/></StgValue>
 </port>
 </ports>
 
 
 <dataflows>
-<dataflow id="41" from="_ssdm_op_Read.ap_auto.i58" to="a7_read" fromId="40" toId="3">
+<dataflow id="35" from="_ssdm_op_Read.ap_auto.i44" to="a7_read" fromId="34" toId="3">
 </dataflow>
-<dataflow id="42" from="a7" to="a7_read" fromId="39" toId="3">
+<dataflow id="36" from="a7" to="a7_read" fromId="33" toId="3">
 </dataflow>
-<dataflow id="43" from="_ssdm_op_Read.ap_auto.i58" to="a6_read" fromId="40" toId="4">
+<dataflow id="37" from="_ssdm_op_Read.ap_auto.i44" to="a6_read" fromId="34" toId="4">
 </dataflow>
-<dataflow id="44" from="a6" to="a6_read" fromId="38" toId="4">
+<dataflow id="38" from="a6" to="a6_read" fromId="32" toId="4">
 </dataflow>
-<dataflow id="45" from="_ssdm_op_Read.ap_auto.i58" to="a5_read" fromId="40" toId="5">
+<dataflow id="40" from="_ssdm_op_Read.ap_auto.i41" to="a5_read" fromId="39" toId="5">
 </dataflow>
-<dataflow id="46" from="a5" to="a5_read" fromId="37" toId="5">
+<dataflow id="41" from="a5" to="a5_read" fromId="31" toId="5">
 </dataflow>
-<dataflow id="47" from="_ssdm_op_Read.ap_auto.i58" to="a4_read" fromId="40" toId="6">
+<dataflow id="42" from="_ssdm_op_Read.ap_auto.i41" to="a4_read" fromId="39" toId="6">
 </dataflow>
-<dataflow id="48" from="a4" to="a4_read" fromId="36" toId="6">
+<dataflow id="43" from="a4" to="a4_read" fromId="30" toId="6">
 </dataflow>
-<dataflow id="49" from="_ssdm_op_Read.ap_auto.i58" to="a3_read" fromId="40" toId="7">
+<dataflow id="44" from="_ssdm_op_Read.ap_auto.i41" to="a3_read" fromId="39" toId="7">
 </dataflow>
-<dataflow id="50" from="a3" to="a3_read" fromId="35" toId="7">
+<dataflow id="45" from="a3" to="a3_read" fromId="29" toId="7">
 </dataflow>
-<dataflow id="51" from="_ssdm_op_Read.ap_auto.i58" to="a2_read" fromId="40" toId="8">
+<dataflow id="46" from="_ssdm_op_Read.ap_auto.i41" to="a2_read" fromId="39" toId="8">
 </dataflow>
-<dataflow id="52" from="a2" to="a2_read" fromId="34" toId="8">
+<dataflow id="47" from="a2" to="a2_read" fromId="28" toId="8">
 </dataflow>
-<dataflow id="53" from="_ssdm_op_Read.ap_auto.i58" to="a1_read" fromId="40" toId="9">
+<dataflow id="48" from="_ssdm_op_Read.ap_auto.i41" to="a1_read" fromId="39" toId="9">
 </dataflow>
-<dataflow id="54" from="a1" to="a1_read" fromId="33" toId="9">
+<dataflow id="49" from="a1" to="a1_read" fromId="27" toId="9">
 </dataflow>
-<dataflow id="55" from="_ssdm_op_Read.ap_auto.i58" to="a0_read" fromId="40" toId="10">
+<dataflow id="50" from="_ssdm_op_Read.ap_auto.i41" to="a0_read" fromId="39" toId="10">
 </dataflow>
-<dataflow id="56" from="a0" to="a0_read" fromId="32" toId="10">
+<dataflow id="51" from="a0" to="a0_read" fromId="26" toId="10">
 </dataflow>
-<dataflow id="57" from="a3_read" to="add_ln257" fromId="7" toId="11">
+<dataflow id="52" from="a6_read" to="trunc_ln263" fromId="4" toId="11">
 </dataflow>
-<dataflow id="58" from="a2_read" to="add_ln257" fromId="8" toId="11">
+<dataflow id="53" from="a7_read" to="trunc_ln263_1" fromId="3" toId="12">
 </dataflow>
-<dataflow id="59" from="a0_read" to="add_ln257_1" fromId="10" toId="12">
+<dataflow id="54" from="a3_read" to="add_ln272" fromId="7" toId="13">
 </dataflow>
-<dataflow id="60" from="a1_read" to="add_ln257_1" fromId="9" toId="12">
+<dataflow id="55" from="a2_read" to="add_ln272" fromId="8" toId="13">
 </dataflow>
-<dataflow id="61" from="add_ln257_1" to="add_ln257_3" fromId="12" toId="13">
+<dataflow id="56" from="a0_read" to="add_ln272_1" fromId="10" toId="14">
 </dataflow>
-<dataflow id="62" from="add_ln257" to="add_ln257_3" fromId="11" toId="13">
+<dataflow id="57" from="a1_read" to="add_ln272_1" fromId="9" toId="14">
 </dataflow>
-<dataflow id="63" from="a4_read" to="add_ln257_4" fromId="6" toId="14">
+<dataflow id="58" from="add_ln272_1" to="add_ln272_2" fromId="14" toId="15">
 </dataflow>
-<dataflow id="64" from="a5_read" to="add_ln257_4" fromId="5" toId="14">
+<dataflow id="59" from="add_ln272" to="add_ln272_2" fromId="13" toId="15">
 </dataflow>
-<dataflow id="65" from="a6_read" to="add_ln257_5" fromId="4" toId="15">
+<dataflow id="60" from="a4_read" to="add_ln272_3" fromId="6" toId="16">
 </dataflow>
-<dataflow id="66" from="a7_read" to="add_ln257_5" fromId="3" toId="15">
+<dataflow id="61" from="a5_read" to="add_ln272_3" fromId="5" toId="16">
 </dataflow>
-<dataflow id="67" from="add_ln257_5" to="add_ln257_6" fromId="15" toId="16">
+<dataflow id="62" from="trunc_ln263" to="add_ln272_4" fromId="11" toId="17">
 </dataflow>
-<dataflow id="68" from="add_ln257_4" to="add_ln257_6" fromId="14" toId="16">
+<dataflow id="63" from="trunc_ln263_1" to="add_ln272_4" fromId="12" toId="17">
 </dataflow>
-<dataflow id="69" from="add_ln257_6" to="add_ln257_2" fromId="16" toId="17">
+<dataflow id="64" from="add_ln272_4" to="add_ln272_5" fromId="17" toId="18">
 </dataflow>
-<dataflow id="70" from="add_ln257_3" to="add_ln257_2" fromId="13" toId="17">
+<dataflow id="65" from="add_ln272_3" to="add_ln272_5" fromId="16" toId="18">
 </dataflow>
-<dataflow id="72" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="18">
+<dataflow id="66" from="add_ln272_5" to="add_ln273" fromId="18" toId="19">
 </dataflow>
-<dataflow id="73" from="a7" to="specfucore_ln0" fromId="39" toId="18">
+<dataflow id="67" from="add_ln272_2" to="add_ln273" fromId="15" toId="19">
 </dataflow>
-<dataflow id="75" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="18">
+<dataflow id="69" from="_ssdm_op_SpecPipeline" to="specpipeline_ln245" fromId="68" toId="20">
 </dataflow>
-<dataflow id="77" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="18">
+<dataflow id="71" from="StgValue_70" to="specpipeline_ln245" fromId="70" toId="20">
 </dataflow>
-<dataflow id="78" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="18">
+<dataflow id="73" from="StgValue_72" to="specpipeline_ln245" fromId="72" toId="20">
 </dataflow>
-<dataflow id="80" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="18">
+<dataflow id="74" from="StgValue_72" to="specpipeline_ln245" fromId="72" toId="20">
 </dataflow>
-<dataflow id="81" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="19">
+<dataflow id="75" from="StgValue_72" to="specpipeline_ln245" fromId="72" toId="20">
 </dataflow>
-<dataflow id="82" from="a6" to="specfucore_ln0" fromId="38" toId="19">
+<dataflow id="77" from="StgValue_76" to="specpipeline_ln245" fromId="76" toId="20">
 </dataflow>
-<dataflow id="83" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="19">
+<dataflow id="79" from="empty_524" to="specpipeline_ln245" fromId="78" toId="20">
 </dataflow>
-<dataflow id="84" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="19">
+<dataflow id="81" from="_ssdm_op_SpecLatency" to="speclatency_ln253" fromId="80" toId="21">
 </dataflow>
-<dataflow id="85" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="19">
+<dataflow id="83" from="StgValue_82" to="speclatency_ln253" fromId="82" toId="21">
 </dataflow>
-<dataflow id="86" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="19">
+<dataflow id="84" from="StgValue_82" to="speclatency_ln253" fromId="82" toId="21">
 </dataflow>
-<dataflow id="87" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="20">
+<dataflow id="85" from="empty_524" to="speclatency_ln253" fromId="78" toId="21">
 </dataflow>
-<dataflow id="88" from="a5" to="specfucore_ln0" fromId="37" toId="20">
-</dataflow>
-<dataflow id="89" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="20">
-</dataflow>
-<dataflow id="90" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="20">
-</dataflow>
-<dataflow id="91" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="20">
-</dataflow>
-<dataflow id="92" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="20">
-</dataflow>
-<dataflow id="93" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="21">
-</dataflow>
-<dataflow id="94" from="a4" to="specfucore_ln0" fromId="36" toId="21">
-</dataflow>
-<dataflow id="95" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="21">
-</dataflow>
-<dataflow id="96" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="21">
-</dataflow>
-<dataflow id="97" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="21">
-</dataflow>
-<dataflow id="98" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="21">
-</dataflow>
-<dataflow id="99" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="22">
-</dataflow>
-<dataflow id="100" from="a3" to="specfucore_ln0" fromId="35" toId="22">
-</dataflow>
-<dataflow id="101" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="22">
-</dataflow>
-<dataflow id="102" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="22">
-</dataflow>
-<dataflow id="103" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="22">
-</dataflow>
-<dataflow id="104" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="22">
-</dataflow>
-<dataflow id="105" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="23">
-</dataflow>
-<dataflow id="106" from="a2" to="specfucore_ln0" fromId="34" toId="23">
-</dataflow>
-<dataflow id="107" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="23">
-</dataflow>
-<dataflow id="108" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="23">
-</dataflow>
-<dataflow id="109" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="23">
-</dataflow>
-<dataflow id="110" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="23">
-</dataflow>
-<dataflow id="111" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="24">
-</dataflow>
-<dataflow id="112" from="a1" to="specfucore_ln0" fromId="33" toId="24">
-</dataflow>
-<dataflow id="113" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="24">
-</dataflow>
-<dataflow id="114" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="24">
-</dataflow>
-<dataflow id="115" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="24">
-</dataflow>
-<dataflow id="116" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="24">
-</dataflow>
-<dataflow id="117" from="_ssdm_op_SpecFUCore" to="specfucore_ln0" fromId="71" toId="25">
-</dataflow>
-<dataflow id="118" from="a0" to="specfucore_ln0" fromId="32" toId="25">
-</dataflow>
-<dataflow id="119" from="StgValue_74" to="specfucore_ln0" fromId="74" toId="25">
-</dataflow>
-<dataflow id="120" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="25">
-</dataflow>
-<dataflow id="121" from="StgValue_76" to="specfucore_ln0" fromId="76" toId="25">
-</dataflow>
-<dataflow id="122" from="StgValue_79" to="specfucore_ln0" fromId="79" toId="25">
-</dataflow>
-<dataflow id="124" from="_ssdm_op_SpecPipeline" to="specpipeline_ln230" fromId="123" toId="26">
-</dataflow>
-<dataflow id="126" from="StgValue_125" to="specpipeline_ln230" fromId="125" toId="26">
-</dataflow>
-<dataflow id="128" from="StgValue_127" to="specpipeline_ln230" fromId="127" toId="26">
-</dataflow>
-<dataflow id="129" from="StgValue_127" to="specpipeline_ln230" fromId="127" toId="26">
-</dataflow>
-<dataflow id="130" from="StgValue_127" to="specpipeline_ln230" fromId="127" toId="26">
-</dataflow>
-<dataflow id="132" from="StgValue_131" to="specpipeline_ln230" fromId="131" toId="26">
-</dataflow>
-<dataflow id="134" from="empty_485" to="specpipeline_ln230" fromId="133" toId="26">
-</dataflow>
-<dataflow id="136" from="_ssdm_op_SpecLatency" to="speclatency_ln238" fromId="135" toId="27">
-</dataflow>
-<dataflow id="138" from="StgValue_137" to="speclatency_ln238" fromId="137" toId="27">
-</dataflow>
-<dataflow id="139" from="StgValue_137" to="speclatency_ln238" fromId="137" toId="27">
-</dataflow>
-<dataflow id="140" from="empty_485" to="speclatency_ln238" fromId="133" toId="27">
-</dataflow>
-<dataflow id="141" from="add_ln257_2" to="ret_ln258" fromId="17" toId="28">
+<dataflow id="86" from="add_ln273" to="ret_ln273" fromId="19" toId="22">
 </dataflow>
 </dataflows>
 

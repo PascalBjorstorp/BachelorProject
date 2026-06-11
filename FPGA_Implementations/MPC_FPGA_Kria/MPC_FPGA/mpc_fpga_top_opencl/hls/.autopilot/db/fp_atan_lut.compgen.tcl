@@ -1,8 +1,8 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_32s_20s_51_4_1
+set name mpc_fpga_top_opencl_mul_26s_16s_42_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -29,7 +29,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_x \
     op interface \
-    ports { x { I 32 vector } } \
+    ports { x { I 26 vector } } \
 } "
 }
 
@@ -57,7 +57,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 32 vector } } \
+    ports { ap_return { O 26 vector } } \
 } "
 }
 

@@ -10,7 +10,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1122 \
+    id 1190 \
     name a0 \
     type other \
     dir I \
@@ -18,14 +18,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a0 \
     op interface \
-    ports { a0 { I 57 vector } } \
+    ports { a0 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1123 \
+    id 1191 \
     name a1 \
     type other \
     dir I \
@@ -33,14 +33,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a1 \
     op interface \
-    ports { a1 { I 57 vector } } \
+    ports { a1 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1124 \
+    id 1192 \
     name a2 \
     type other \
     dir I \
@@ -48,14 +48,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a2 \
     op interface \
-    ports { a2 { I 57 vector } } \
+    ports { a2 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1125 \
+    id 1193 \
     name a3 \
     type other \
     dir I \
@@ -63,14 +63,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a3 \
     op interface \
-    ports { a3 { I 57 vector } } \
+    ports { a3 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1126 \
+    id 1194 \
     name a4 \
     type other \
     dir I \
@@ -78,14 +78,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a4 \
     op interface \
-    ports { a4 { I 57 vector } } \
+    ports { a4 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1127 \
+    id 1195 \
     name a5 \
     type other \
     dir I \
@@ -93,14 +93,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a5 \
     op interface \
-    ports { a5 { I 57 vector } } \
+    ports { a5 { I 41 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1128 \
+    id 1196 \
     name a6 \
     type other \
     dir I \
@@ -108,14 +108,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a6 \
     op interface \
-    ports { a6 { I 57 vector } } \
+    ports { a6 { I 44 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 1129 \
+    id 1197 \
     name a7 \
     type other \
     dir I \
@@ -123,7 +123,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a7 \
     op interface \
-    ports { a7 { I 57 vector } } \
+    ports { a7 { I 44 vector } } \
 } "
 }
 
@@ -151,7 +151,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 57 vector } } \
+    ports { ap_return { O 41 vector } } \
 } "
 }
 

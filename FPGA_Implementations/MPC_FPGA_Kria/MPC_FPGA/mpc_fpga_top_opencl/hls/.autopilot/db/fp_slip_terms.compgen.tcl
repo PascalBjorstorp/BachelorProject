@@ -1,20 +1,20 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_23s_26s_49_4_1
+set name mpc_fpga_top_opencl_mul_20s_21s_41_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_23s_49_4_1
+set name mpc_fpga_top_opencl_mul_21s_20s_41_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_16ns_42_4_1
+set name mpc_fpga_top_opencl_mul_21s_11ns_32_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
@@ -36,7 +36,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vy \
     op interface \
-    ports { vy { I 26 vector } } \
+    ports { vy { I 21 vector } } \
 } "
 }
 
@@ -51,7 +51,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_omega \
     op interface \
-    ports { omega { I 26 vector } } \
+    ports { omega { I 21 vector } } \
 } "
 }
 
@@ -66,7 +66,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_inv_vx \
     op interface \
-    ports { inv_vx { I 23 vector } } \
+    ports { inv_vx { I 20 vector } } \
 } "
 }
 

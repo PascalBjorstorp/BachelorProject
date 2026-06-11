@@ -11,7 +11,7 @@ use ieee.std_logic_unsigned.all;
 entity mpc_fpga_top_opencl_mpc_compute_hls_z_u_RAM_AUTO_1R1W is
     generic(
         MEM_TYPE        : string    := "auto";
-        DataWidth       : integer   := 32;
+        DataWidth       : integer   := 26;
         AddressWidth    : integer   := 5;
         AddressRange    : integer   := 20
     );

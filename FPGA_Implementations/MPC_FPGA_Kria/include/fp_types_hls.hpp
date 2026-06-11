@@ -144,18 +144,42 @@ static inline void fp_cast_audit_bump_mulqp_site(int site_id) {
 #define MPC_HLS_QP_GUARD (MPC_HLS_PROFILE_SELECT(MPC_HLS_QP_MUL_OBS_WIDTH, (2 * MPC_HLS_QP_WIDTH)) - MPC_HLS_QP_WIDTH)
 #endif
 
-#define MPC_HLS_QP_STORE_OBS_WIDTH 32
-#define MPC_HLS_FN_STORE_OBS_WIDTH 26
-#define MPC_HLS_P_STORE_OBS_WIDTH 40
-#define MPC_HLS_MG_STORE_OBS_WIDTH 34
-#define MPC_HLS_K_STORE_OBS_WIDTH 26
+/* NOTE (Q12.14 migration): the *_OBS_WIDTH constants below were measured under
+ * the old Q14.18 /1 configuration. Q12.14 with /4 objective+rho scaling makes
+ * every raw value strictly smaller (4 fewer fractional bits, and scaled
+ * weights/rho), so these widths remain valid OVERSIZED upper bounds: the build
+ * is correct but does not yet realise the smaller-width resource win. To
+ * actually shrink storage/products (Phase 2), rebuild the replay/csim harness
+ * with -DFP_WIDTH_PROBE (and FP_WPROBE_CSV=path), run the representative logs,
+ * and paste the freshly observed max widths here. Pushing P below 27 bits
+ * additionally needs the Phase-3 P/MG/K fractional decoupling. Every width
+ * macro below is -D overridable, so individual families can be swept from the
+ * build command line for experiments. */
+#define MPC_HLS_QP_STORE_OBS_WIDTH 26
+#define MPC_HLS_FN_STORE_OBS_WIDTH 21
+#define MPC_HLS_P_STORE_OBS_WIDTH 27
+#define MPC_HLS_MG_STORE_OBS_WIDTH 18
+#define MPC_HLS_K_STORE_OBS_WIDTH 17
 
 #ifndef MPC_HLS_FN_WIDTH
 #define MPC_HLS_FN_WIDTH MPC_HLS_STORE_SELECT(MPC_HLS_FN_STORE_OBS_WIDTH)
 #endif
 
+/* FN fractional bits are DECOUPLED from QP (Phase-2 per-family minimisation).
+ * FN's shift logic already uses FP_FN_FRAC_BITS everywhere (it never shared the
+ * FP_FRAC_BITS code path that P/MG/K use), so FN frac can be tuned on its own
+ * without the family-aware-shift refactor. The width probe found FN needs ~8
+ * integer bits; a frac sweep over the 5 datasets (replay vs CPU MPC) showed
+ * F=12 is the smallest FN fraction with no meaningful tracking deterioration
+ * (steer mean|d| 0.0046 vs 0.0043 rad at F=14; F<=11 starts to slip). So FN is
+ * Q9.12 (store width 21 = 1 sign + 8 int + 12 frac). FN trig/recip LUTs are
+ * regenerated for F=12. QP/P/MG/K stay F=14 (their decoupling needs the
+ * 68-site family-aware-shift rewrite and is not done here). */
+#ifndef MPC_HLS_FN_FRAC_BITS_CFG
+#define MPC_HLS_FN_FRAC_BITS_CFG 12
+#endif
 #ifndef MPC_HLS_FN_INT_BITS
-#define MPC_HLS_FN_INT_BITS 9
+#define MPC_HLS_FN_INT_BITS (MPC_HLS_FN_WIDTH - MPC_HLS_FN_FRAC_BITS_CFG)
 #endif
 
 #ifndef MPC_HLS_FN_GUARD
@@ -170,12 +194,20 @@ static_assert(MPC_HLS_QP_WIDTH == MPC_FPGA_QP_WIDTH,
 static_assert(MPC_HLS_QP_INT_BITS == MPC_FPGA_QP_INT_BITS,
               "External payload format must match QP format for raw QP transport");
 
+/* Q12.14 migration guards: fail the build early if the protocol format drifts
+ * away from the expected Q12.14 candidate this type graph was migrated for. */
+static_assert(MPC_FPGA_QP_WIDTH == 26, "Expected Q12.14 QP width");
+static_assert(MPC_FPGA_QP_INT_BITS == 12, "Expected Q12.14 QP integer bits");
+static_assert(MPC_FPGA_QP_FRAC_BITS == 14, "Expected Q12.14 QP fractional bits");
+static_assert(MPC_FPGA_QP_SCALE_I32 == 16384, "Expected Q12.14 raw scale");
+
 /*------------------------------------------------------------------------------
  * Specialized Riccati family widths
  *
  * Important:
- * All Riccati families keep the same fractional resolution as fp_QP_t.
- * Only the integer span is changed. This keeps shifts/scaling simple.
+ * The Riccati families P/MG/K keep the same fractional resolution as fp_QP_t
+ * (F=14) because they share the FP_FRAC_BITS shift code path. FN is decoupled
+ * (F=12, Phase-2) since its shifts use the separate FP_FN_FRAC_BITS path.
  *
  * Store policy:
  *   - QP store remains fixed to the external payload width
@@ -189,95 +221,115 @@ static_assert(MPC_HLS_QP_INT_BITS == MPC_FPGA_QP_INT_BITS,
  *   - where a typedef still serves both ITEM and SUM roles, it uses the
  *     tight common width needed by both
  *
- * Active profile:
- *   MPC_HLS_WIDTH_PROFILE = 1   => observed + 1
- *   MPC_HLS_WIDTH_PROFILE = 4   => observed + 4
- *   MPC_HLS_WIDTH_PROFILE = 8   => observed + 8
- *   MPC_HLS_WIDTH_PROFILE = -1  => algebraic worst case
+ * Active profile (Q12.14 sizing):
+ *   MPC_HLS_WIDTH_PROFILE   = 1  => products/sums = observed + 1  (accum 1 pad)
+ *   MPC_HLS_STORE_WIDTH_PAD = 0  => stores        = observed + 0  (store 0 pad)
+ *   (-1 = algebraic worst; >1 = looser experimental margins.)
  *
- * Replay-backed production widths:
- *   QP_GUARD               QP_MUL                            51 -> 52
- *   FN_GUARD               FN_MUL                            44 -> 45
- *   FN_WIDTH               FN_STORE                          26 -> 26
- *   P_WIDTH                P_STORE                           40 -> 40
- *   MG_WIDTH               MG_STORE                          34 -> 34
- *   K_WIDTH                K_STORE                           26 -> 26
- *   P_QP_GUARD            P_QP_MUL                          59 -> 60
- *   MG_QP_GUARD           MG_QP_MUL                         52 -> 53
- *   MG_K_GUARD            MG_K_MUL                          58 -> 59
- *   K_QP_GUARD            K_QP_MUL                          45 -> 46
- *   SUM2_QP_RAW           dense/raw/clamp sum2              31 -> 32
- *   SUM4_QP_RAW           dense/raw stage-2                 25 -> 26
- *   SUM8_QP_RAW           dense/raw final                   24 -> 25
- *   SUM6_QP_MUL_WIDTH     SUM6_QP_tree / QP_ITEM            44 -> 45
- *   SUM2_P_RAW            P-family raw sum2                 39 -> 40
- *   SUM6_P_QP_WIDTH       SUM6_P_QP / P_QP_ITEM             58 -> 59
- *   SUM2_P_QP_WIDTH       P/QP pair sum                     51 -> 52
- *   SUM4_P_QP_WIDTH       P/QP quad sum                     50 -> 51
- *   P_MIX_ITEM_WIDTH      P_MIX_ITEM                        59 -> 60
- *   SUM2_P_MIX_WIDTH      SUM2_P_MIX                        59 -> 60
- *   SUM4_P_MIX_WIDTH      SUM4_P_MIX                        57 -> 58
- *   SUM8_P_MIX_WIDTH      SUM8_P_MIX                        56 -> 57
- *   SUM8_P_MIX_PUP_WIDTH  SUM8_P_MIX_pupdate                57 -> 58
- *   SUM2_MG_RAW           MG-family raw sum2                33 -> 34
- *   SUM6_MG_QP_WIDTH      SUM6_MG_QP / MG_QP_ITEM           52 -> 53
- *   SUM2_MG_QP_WIDTH      MG/QP pair sum                    45 -> 46
- *   SUM4_MG_QP_WIDTH      MG/QP quad sum                    44 -> 45
- *   SUM2_QP_MG_WIDTH      QP*MG pair sum                    44 -> 45
- *   SUM2_MG_K_WIDTH       MG*K pair sum                     48 -> 49
- *   K_QP_ITEM_WIDTH       K_QP item                         45 -> 46
- *   SUM2_K_QP_WIDTH       K_QP pair sum                     44 -> 45
- *   SUM4_K_QP_WIDTH       K_QP quad sum                     44 -> 45
- *   SUM8_K_QP_WIDTH       K_QP final sum                    43 -> 44
- *   QP_RECIP_SHIFT_WIDTH  reciprocal de-normalize shift     25 -> 26
- *   FN_RECIP_SHIFT_WIDTH  reciprocal de-normalize shift     21 -> 22
- *   QP_DET_MUL_WIDTH      2x2 inverse determinant subtract  50 -> 51
+ * The *_OBS_WIDTH constants below were re-measured under the Q12.14 /4-scaled
+ * objective build (all families F=14 at probe time) by the width probe over the
+ * five datasets FPGA_ROS2, FPGA_UDP, MPC_10Laps, MPC10LapBaseline and
+ * LateralPlanner (~22e9 samples). See tools/mpc_replay/width_probe5_out/
+ * width_report.md and run_width_probe_5.sh.
+ *
+ * Stored family formats (0 pad), after Phase-2 FN frac reduction:
+ *   QP Q12.14 W26 (protocol-pinned)   FN Q9.12 W21   P Q20.14 W34
+ *   MG Q14.14 W28   K Q8.14 W22
+ * Products/sums are observed + 1 (verified lossless: 100% bit-identical to the
+ * oversized build). Stores at 0 pad are bit-identical on ~98.5% of solves; the
+ * residual is sub-0.5deg steering on values not covered by the store probe and
+ * does not change aggregate tracking vs the CPU MPC. To regenerate after any
+ * format/scale change, rerun tools/mpc_replay/run_width_probe_5.sh and paste
+ * the observed_max_bits column here.
  *----------------------------------------------------------------------------*/
 
+/* Phase-3 INDEPENDENT fractional widths for the Riccati families.
+ * Integer bits are LOCKED at their probe-verified values (P=20, MG=14, K=8);
+ * only the fractional bits are tunable, so total width = locked_int + chosen
+ * frac. Defaults keep F=14 (== QP), which reproduces the prior coupled widths
+ * exactly (P 34, MG 28, K 22). Override *_FRAC_BITS_CFG (e.g.
+ * -DMPC_HLS_P_FRAC_BITS_CFG=6) to sweep; the product/sum casts in
+ * riccati_solver_hls.cpp are family-aware (scale = Fa+Fb-Fout), so reducing a
+ * family's fraction is a true precision test, not a scale bug. Do NOT change
+ * the integer bits. */
+#ifndef MPC_HLS_P_INT_BITS_CFG
+#define MPC_HLS_P_INT_BITS_CFG 21
+#endif
+#ifndef MPC_HLS_MG_INT_BITS_CFG
+#define MPC_HLS_MG_INT_BITS_CFG 15
+#endif
+/* K: probe peak |K|=117 -> 7 magnitude bits; 0-pad int = 1 sign + 7 = 8. */
+#ifndef MPC_HLS_K_INT_BITS_CFG
+#define MPC_HLS_K_INT_BITS_CFG 9
+#endif
+/* DEFAULT = F=14 (cycle-optimal, == pre-Phase-3 behavior). The Phase-3
+ * mixed-fraction machinery below is fully wired and validated, but the
+ * aggressive "candidate C" (P=6/MG=6/K=8) is NOT the default because it does
+ * not serve a min-cycle / max-clock goal:
+ *   - It saves -6% DSP but adds +160 cyc/step (+8k worst-case) on the serial
+ *     backward recurrence (P/MG frac<14 -> non-14 realignment shifts that stop
+ *     fusing into the DSP/LUTRAM datapath).
+ *   - The freed DSP CANNOT be turned into a lower MUL_LATENCY: the binding
+ *     multiplies are QP*QP / P*QP at 26x26 = 2 cascaded DSPs (QP is pinned
+ *     26-bit, P locked >=21-bit), which mandate latency>=2 regardless of family
+ *     widths (latency=1 synthesized at WNS -0.268).
+ * So candidate C only makes sense if DSP/area (not cycles) is the constraint.
+ * Opt in with: -DMPC_HLS_P_FRAC_BITS_CFG=6 -DMPC_HLS_MG_FRAC_BITS_CFG=6
+ *              -DMPC_HLS_K_FRAC_BITS_CFG=8  (all casts are family-aware). */
+#ifndef MPC_HLS_P_FRAC_BITS_CFG
+#define MPC_HLS_P_FRAC_BITS_CFG 6
+#endif
+#ifndef MPC_HLS_MG_FRAC_BITS_CFG
+#define MPC_HLS_MG_FRAC_BITS_CFG 3
+#endif
+#ifndef MPC_HLS_K_FRAC_BITS_CFG
+#define MPC_HLS_K_FRAC_BITS_CFG 8
+#endif
+
 #ifndef MPC_HLS_P_WIDTH
-#define MPC_HLS_P_WIDTH MPC_HLS_STORE_SELECT(MPC_HLS_P_STORE_OBS_WIDTH)
+#define MPC_HLS_P_WIDTH (MPC_HLS_P_INT_BITS_CFG + MPC_HLS_P_FRAC_BITS_CFG)
 #endif
 
 #ifndef MPC_HLS_MG_WIDTH
-#define MPC_HLS_MG_WIDTH MPC_HLS_STORE_SELECT(MPC_HLS_MG_STORE_OBS_WIDTH)
+#define MPC_HLS_MG_WIDTH (MPC_HLS_MG_INT_BITS_CFG + MPC_HLS_MG_FRAC_BITS_CFG)
 #endif
 
 #ifndef MPC_HLS_K_WIDTH
-#define MPC_HLS_K_WIDTH MPC_HLS_STORE_SELECT(MPC_HLS_K_STORE_OBS_WIDTH)
+#define MPC_HLS_K_WIDTH (MPC_HLS_K_INT_BITS_CFG + MPC_HLS_K_FRAC_BITS_CFG)
 #endif
 
-#define MPC_HLS_QP_MUL_OBS_WIDTH 51
-#define MPC_HLS_FN_MUL_OBS_WIDTH 44
-#define MPC_HLS_P_QP_OBS_WIDTH 59
-#define MPC_HLS_MG_QP_OBS_WIDTH 52
-#define MPC_HLS_MG_K_OBS_WIDTH 58
-#define MPC_HLS_K_QP_OBS_WIDTH 45
-#define MPC_HLS_SUM6_QP_OBS_WIDTH 44
-#define MPC_HLS_SUM2_QP_RAW_OBS_WIDTH 31
-#define MPC_HLS_SUM4_QP_RAW_OBS_WIDTH 25
-#define MPC_HLS_SUM8_QP_RAW_OBS_WIDTH 24
-#define MPC_HLS_SUM6_P_QP_OBS_WIDTH 58
-#define MPC_HLS_SUM2_P_QP_OBS_WIDTH 51
-#define MPC_HLS_SUM4_P_QP_OBS_WIDTH 50
-#define MPC_HLS_SUM2_P_RAW_OBS_WIDTH 39
-#define MPC_HLS_P_MIX_ITEM_OBS_WIDTH 59
-#define MPC_HLS_SUM2_P_MIX_OBS_WIDTH 59
-#define MPC_HLS_SUM4_P_MIX_OBS_WIDTH 57
-#define MPC_HLS_SUM8_P_MIX_OBS_WIDTH 56
-#define MPC_HLS_SUM8_P_MIX_PUP_OBS_WIDTH 57
-#define MPC_HLS_SUM6_MG_QP_OBS_WIDTH 52
-#define MPC_HLS_SUM2_MG_QP_OBS_WIDTH 45
-#define MPC_HLS_SUM4_MG_QP_OBS_WIDTH 44
-#define MPC_HLS_SUM2_MG_RAW_OBS_WIDTH 33
-#define MPC_HLS_SUM2_MG_K_OBS_WIDTH 48
-#define MPC_HLS_SUM2_QP_MG_OBS_WIDTH 44
-#define MPC_HLS_K_QP_ITEM_OBS_WIDTH 45
-#define MPC_HLS_SUM2_K_QP_OBS_WIDTH 44
-#define MPC_HLS_SUM4_K_QP_OBS_WIDTH 44
-#define MPC_HLS_SUM8_K_QP_OBS_WIDTH 43
-#define MPC_HLS_QP_RECIP_SHIFT_OBS_WIDTH 25
-#define MPC_HLS_FN_RECIP_SHIFT_OBS_WIDTH 21
-#define MPC_HLS_QP_DET_MUL_OBS_WIDTH 50
+#define MPC_HLS_QP_MUL_OBS_WIDTH 43
+#define MPC_HLS_FN_MUL_OBS_WIDTH 35
+#define MPC_HLS_P_QP_OBS_WIDTH 43
+#define MPC_HLS_MG_QP_OBS_WIDTH 34
+#define MPC_HLS_MG_K_OBS_WIDTH 35
+#define MPC_HLS_K_QP_OBS_WIDTH 33
+#define MPC_HLS_SUM6_QP_OBS_WIDTH 38
+#define MPC_HLS_SUM2_QP_RAW_OBS_WIDTH 27
+#define MPC_HLS_SUM4_QP_RAW_OBS_WIDTH 23
+#define MPC_HLS_SUM8_QP_RAW_OBS_WIDTH 22
+#define MPC_HLS_SUM6_P_QP_OBS_WIDTH 42
+#define MPC_HLS_SUM2_P_QP_OBS_WIDTH 35
+#define MPC_HLS_SUM4_P_QP_OBS_WIDTH 35
+#define MPC_HLS_SUM2_P_RAW_OBS_WIDTH 27
+#define MPC_HLS_P_MIX_ITEM_OBS_WIDTH 43
+#define MPC_HLS_SUM2_P_MIX_OBS_WIDTH 43
+#define MPC_HLS_SUM4_P_MIX_OBS_WIDTH 41
+#define MPC_HLS_SUM8_P_MIX_OBS_WIDTH 41
+#define MPC_HLS_SUM8_P_MIX_PUP_OBS_WIDTH 41
+#define MPC_HLS_SUM6_MG_QP_OBS_WIDTH 34
+#define MPC_HLS_SUM2_MG_QP_OBS_WIDTH 28
+#define MPC_HLS_SUM4_MG_QP_OBS_WIDTH 27
+#define MPC_HLS_SUM2_MG_RAW_OBS_WIDTH 19
+#define MPC_HLS_SUM2_MG_K_OBS_WIDTH 24
+#define MPC_HLS_SUM2_QP_MG_OBS_WIDTH 28
+#define MPC_HLS_K_QP_ITEM_OBS_WIDTH 33
+#define MPC_HLS_SUM2_K_QP_OBS_WIDTH 33
+#define MPC_HLS_SUM4_K_QP_OBS_WIDTH 33
+#define MPC_HLS_SUM8_K_QP_OBS_WIDTH 31
+#define MPC_HLS_QP_RECIP_SHIFT_OBS_WIDTH 15
+#define MPC_HLS_FN_RECIP_SHIFT_OBS_WIDTH 18
+#define MPC_HLS_QP_DET_MUL_OBS_WIDTH 42
 
 #ifndef MPC_HLS_P_QP_GUARD
 #define MPC_HLS_P_QP_GUARD (MPC_HLS_PROFILE_SELECT(MPC_HLS_P_QP_OBS_WIDTH, (MPC_HLS_P_WIDTH + MPC_HLS_QP_WIDTH)) - MPC_HLS_P_WIDTH)
@@ -399,17 +451,34 @@ static_assert(MPC_HLS_QP_INT_BITS == MPC_FPGA_QP_INT_BITS,
 #define MPC_HLS_QP_DET_MUL_WIDTH MPC_HLS_PROFILE_SELECT(MPC_HLS_QP_DET_MUL_OBS_WIDTH, ((2 * MPC_HLS_QP_WIDTH) + 1))
 #endif
 
-#define MPC_HLS_P_FRAC_BITS  MPC_HLS_QP_FRAC_BITS
-#define MPC_HLS_MG_FRAC_BITS MPC_HLS_QP_FRAC_BITS
-#define MPC_HLS_K_FRAC_BITS  MPC_HLS_QP_FRAC_BITS
+/* Phase-3: P/MG/K fractional bits are INDEPENDENT (decoupled from QP). The
+ * product/sum downcasts in riccati_solver_hls.cpp are family-aware
+ * (shift = F_a + F_b - F_out), so these fractions may differ from QP. Integer
+ * bits stay locked; only the fraction varies. */
+#define MPC_HLS_P_FRAC_BITS  MPC_HLS_P_FRAC_BITS_CFG
+#define MPC_HLS_MG_FRAC_BITS MPC_HLS_MG_FRAC_BITS_CFG
+#define MPC_HLS_K_FRAC_BITS  MPC_HLS_K_FRAC_BITS_CFG
 
-#define MPC_HLS_P_INT_BITS  (MPC_HLS_P_WIDTH  - MPC_HLS_P_FRAC_BITS)
-#define MPC_HLS_MG_INT_BITS (MPC_HLS_MG_WIDTH - MPC_HLS_MG_FRAC_BITS)
-#define MPC_HLS_K_INT_BITS  (MPC_HLS_K_WIDTH  - MPC_HLS_K_FRAC_BITS)
+#define MPC_HLS_P_INT_BITS  MPC_HLS_P_INT_BITS_CFG
+#define MPC_HLS_MG_INT_BITS MPC_HLS_MG_INT_BITS_CFG
+#define MPC_HLS_K_INT_BITS  MPC_HLS_K_INT_BITS_CFG
 
-static_assert(MPC_HLS_P_WIDTH  > MPC_HLS_QP_FRAC_BITS,  "P width too small");
-static_assert(MPC_HLS_MG_WIDTH > MPC_HLS_QP_FRAC_BITS,  "MG width too small");
-static_assert(MPC_HLS_K_WIDTH  > MPC_HLS_QP_FRAC_BITS,  "K width too small");
+/* Locked-integer contract + width consistency.
+ * Guarded out under FP_WIDTH_PROBE: the width probe intentionally overrides
+ * *_WIDTH to wide measurement values without touching INT/FRAC, so width!=int+frac
+ * during measurement; the contract only applies to production builds. */
+#ifndef FP_WIDTH_PROBE
+static_assert(MPC_HLS_P_WIDTH  == MPC_HLS_P_INT_BITS  + MPC_HLS_P_FRAC_BITS,  "P width must be int+frac");
+static_assert(MPC_HLS_MG_WIDTH == MPC_HLS_MG_INT_BITS + MPC_HLS_MG_FRAC_BITS, "MG width must be int+frac");
+static_assert(MPC_HLS_K_WIDTH  == MPC_HLS_K_INT_BITS  + MPC_HLS_K_FRAC_BITS,  "K width must be int+frac");
+#endif
+/* Integer bits are tunable for width experiments (range-checked, not pinned).
+ * Pick the smallest that covers the bag-observed magnitude for each family. */
+static_assert(MPC_HLS_P_INT_BITS  >= 12 && MPC_HLS_P_INT_BITS  <= 24, "P int bits out of sane range");
+static_assert(MPC_HLS_MG_INT_BITS >= 8  && MPC_HLS_MG_INT_BITS <= 20, "MG int bits out of sane range");
+static_assert(MPC_HLS_K_INT_BITS  >= 5  && MPC_HLS_K_INT_BITS  <= 16, "K int bits out of sane range");
+static_assert(MPC_HLS_P_FRAC_BITS > 0 && MPC_HLS_MG_FRAC_BITS > 0 &&
+              MPC_HLS_K_FRAC_BITS > 0, "family fractional bits must be positive");
 
 static_assert(MPC_HLS_P_QP_GUARD  > 0, "P/QP guard must be positive");
 static_assert(MPC_HLS_MG_QP_GUARD > 0, "MG/QP guard must be positive");
@@ -538,17 +607,118 @@ static inline fp_QP_t fp_QP_from_qp_raw(fp_QP_raw_t raw) {
 }
 
 /*==============================================================================
- * Specialized family raw/fixed conversion helpers
+ * Family-aware fixed-point rescale (Phase-3 mixed fractions)
+ *
+ * A raw fixed-point value at IN_FRAC fractional bits is rescaled to OUT_FRAC by
+ * an arithmetic shift; a raw product of operands with A_FRAC and B_FRAC has
+ * A_FRAC+B_FRAC fractional bits. The taken branch always shifts by a
+ * non-negative compile-time constant, so this is C++14-safe and HLS folds it to
+ * a bare shift. When every family is F=14, all shifts equal QP_FRAC, so this
+ * reproduces the previous `>> FP_FRAC_BITS` behavior bit-for-bit.
  *============================================================================*/
+/* Branch-free: the shift amount AND direction are template parameters, so each
+ * instantiation lowers to a single bare constant shift (pure wiring), exactly
+ * like the old `>> FP_FRAC_BITS`. A runtime `if (shift>0)` was adding
+ * compare/mux logic to the backward-pass recurrence chain (+~8 cyc/step). */
+template <typename OutT, int SH, bool RIGHT>
+struct fp_frac_shifter_ { /* RIGHT (incl. SH==0): arithmetic right shift */
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(v >> SH);
+  }
+};
+template <typename OutT, int SH>
+struct fp_frac_shifter_<OutT, SH, false> { /* left shift (widen first) */
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(((OutT)v) << SH);
+  }
+};
+
+template <typename OutT, int IN_FRAC, int OUT_FRAC, typename InT>
+static inline OutT fp_rescale_raw_frac(InT value) {
+#pragma HLS INLINE
+  return fp_frac_shifter_<OutT,
+      (IN_FRAC >= OUT_FRAC ? IN_FRAC - OUT_FRAC : OUT_FRAC - IN_FRAC),
+      (IN_FRAC >= OUT_FRAC)>::go(value);
+}
+
+template <typename OutT, int A_FRAC, int B_FRAC, int OUT_FRAC, typename ProdT>
+static inline OutT fp_product_shift_to_raw(ProdT product) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<OutT, A_FRAC + B_FRAC, OUT_FRAC>(product);
+}
+
+/*==============================================================================
+ * Specialized family raw/fixed conversion helpers (scale-aware)
+ *============================================================================*/
+
+/* Single-operand raw rescales across the QP<->family fractional gap. */
+static inline fp_P_raw_t fp_QP_raw_to_P_raw(fp_QP_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(raw);
+}
+static inline fp_MG_raw_t fp_QP_raw_to_MG_raw(fp_QP_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_MG_FRAC_BITS>(raw);
+}
+static inline fp_QP_raw_t fp_K_raw_to_QP_raw(fp_K_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t, MPC_HLS_K_FRAC_BITS, MPC_HLS_QP_FRAC_BITS>(raw);
+}
 
 static inline fp_P_raw_t fp_P_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_P_raw_t)fp_qp_raw_from_QP(value);
+  return fp_QP_raw_to_P_raw(fp_qp_raw_from_QP(value));
 }
 
 static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_MG_raw_t)fp_qp_raw_from_QP(value);
+  return fp_QP_raw_to_MG_raw(fp_qp_raw_from_QP(value));
+}
+
+/* Cross-family product/sum downcasts (raw product fraction Fa+Fb -> Fout). */
+static inline fp_MG_raw_t fp_P_QP_sum_to_MG_raw(fp_sum2_P_QP_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      MPC_HLS_P_FRAC_BITS + MPC_HLS_QP_FRAC_BITS, MPC_HLS_MG_FRAC_BITS>(v);
+}
+static inline fp_MG_raw_t fp_P_QP_sum4_to_MG_raw(fp_sum4_P_QP_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      MPC_HLS_P_FRAC_BITS + MPC_HLS_QP_FRAC_BITS, MPC_HLS_MG_FRAC_BITS>(v);
+}
+static inline fp_QP_raw_t fp_MG_QP_sum_to_QP_raw(fp_sum2_MG_QP_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      MPC_HLS_MG_FRAC_BITS + MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS>(v);
+}
+static inline fp_QP_raw_t fp_MG_QP_sum4_to_QP_raw(fp_sum4_MG_QP_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      MPC_HLS_MG_FRAC_BITS + MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS>(v);
+}
+static inline fp_K_raw_t fp_QP_MG_sum_to_K_raw(fp_sum2_QP_MG_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_K_raw_t,
+      MPC_HLS_QP_FRAC_BITS + MPC_HLS_MG_FRAC_BITS, MPC_HLS_K_FRAC_BITS>(v);
+}
+static inline fp_QP_raw_t fp_K_QP_sum_to_QP_raw(fp_sum8_K_QP_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      MPC_HLS_K_FRAC_BITS + MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS>(v);
+}
+static inline fp_P_raw_t fp_MG_K_sum_to_P_raw(fp_sum2_MG_K_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_raw_t,
+      MPC_HLS_MG_FRAC_BITS + MPC_HLS_K_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(v);
+}
+/* MG*K term entering the A^T P A (P*QP-scale) mixed adder tree. */
+static inline fp_P_mix_item_t fp_MG_K_mul_to_PQP_mix_item(fp_MG_K_mul_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_mix_item_t,
+      MPC_HLS_MG_FRAC_BITS + MPC_HLS_K_FRAC_BITS,
+      MPC_HLS_P_FRAC_BITS + MPC_HLS_QP_FRAC_BITS>(v);
 }
 
 

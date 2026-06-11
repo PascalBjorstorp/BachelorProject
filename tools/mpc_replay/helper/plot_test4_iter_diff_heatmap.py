@@ -8,9 +8,9 @@ snapped and averaged onto that path, and the figures are drawn as
 LineCollection curves instead of point clouds.
 
 Outputs:
-    test4_iter_diff_heatmap.png     cold - warm along the full shared path
-    test4_iter_diff_heatmap_zoom.png cold - warm zoomed to selected window
-  test4_iter_per_run_heatmaps.png warm vs cold mean iterations along the
+        test4_iter_diff_heatmap.svg     cold - warm along the full shared path
+        test4_iter_diff_heatmap_zoom.svg cold - warm zoomed to selected window
+    test4_iter_per_run_heatmaps.svg warm vs cold mean iterations along the
                                   shared reference path
 """
 
@@ -23,6 +23,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
+
+plt.rcParams.update({
+    "font.size": 18,
+    "axes.titlesize": 20,
+    "axes.labelsize": 18,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+})
 
 
 def load(path):
@@ -297,14 +306,14 @@ def main():
     # Full-track diff heatmap with zoom inset in the bottom-right corner.
     # Keep the main view fully zoomed out; xlim/ylim apply only to the inset.
     plot_diff_heatmap(ref_xy_plot, diff,
-                      out_dir / "test4_iter_diff_heatmap.png",
+                      out_dir / "test4_iter_diff_heatmap.svg",
                       inset_xy=ref_xy_zoom, inset_diff=diff_zoom,
                       inset_xlim=xlim, inset_ylim=ylim)
     # Zoomed diff heatmap for the selected section.
     plot_diff_heatmap(ref_xy_zoom, diff_zoom,
-                      out_dir / "test4_iter_diff_heatmap_zoom.png")
+                      out_dir / "test4_iter_diff_heatmap_zoom.svg")
     # Per-run panel stays full-track for context.
-    plot_per_run_heatmaps(ref_xy_plot, warm_m, cold_m, out_dir / "test4_iter_per_run_heatmaps.png")
+    plot_per_run_heatmaps(ref_xy_plot, warm_m, cold_m, out_dir / "test4_iter_per_run_heatmaps.svg")
 
     print(f"Wrote heatmaps to {out_dir}")
     return 0

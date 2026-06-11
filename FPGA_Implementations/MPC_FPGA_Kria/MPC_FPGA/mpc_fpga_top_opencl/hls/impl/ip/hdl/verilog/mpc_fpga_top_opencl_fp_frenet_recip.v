@@ -19,19 +19,16 @@ module mpc_fpga_top_opencl_fp_frenet_recip (
         ap_return
 );
 
-parameter    ap_ST_fsm_state1 = 13'd1;
-parameter    ap_ST_fsm_state2 = 13'd2;
-parameter    ap_ST_fsm_state3 = 13'd4;
-parameter    ap_ST_fsm_state4 = 13'd8;
-parameter    ap_ST_fsm_state5 = 13'd16;
-parameter    ap_ST_fsm_state6 = 13'd32;
-parameter    ap_ST_fsm_state7 = 13'd64;
-parameter    ap_ST_fsm_state8 = 13'd128;
-parameter    ap_ST_fsm_state9 = 13'd256;
-parameter    ap_ST_fsm_state10 = 13'd512;
-parameter    ap_ST_fsm_state11 = 13'd1024;
-parameter    ap_ST_fsm_state12 = 13'd2048;
-parameter    ap_ST_fsm_state13 = 13'd4096;
+parameter    ap_ST_fsm_state1 = 10'd1;
+parameter    ap_ST_fsm_state2 = 10'd2;
+parameter    ap_ST_fsm_state3 = 10'd4;
+parameter    ap_ST_fsm_state4 = 10'd8;
+parameter    ap_ST_fsm_state5 = 10'd16;
+parameter    ap_ST_fsm_state6 = 10'd32;
+parameter    ap_ST_fsm_state7 = 10'd64;
+parameter    ap_ST_fsm_state8 = 10'd128;
+parameter    ap_ST_fsm_state9 = 10'd256;
+parameter    ap_ST_fsm_state10 = 10'd512;
 
 input   ap_clk;
 input   ap_rst;
@@ -39,35 +36,37 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-input  [25:0] kappa;
-input  [25:0] ey;
-output  [22:0] ap_return;
+input  [20:0] kappa;
+input  [20:0] ey;
+output  [19:0] ap_return;
 
 reg ap_done;
 reg ap_idle;
 reg ap_ready;
 
-(* fsm_encoding = "none" *) reg   [12:0] ap_CS_fsm;
+(* fsm_encoding = "none" *) reg   [9:0] ap_CS_fsm;
 wire    ap_CS_fsm_state1;
-reg   [25:0] product_q_reg_144;
-wire    ap_CS_fsm_state4;
-wire   [25:0] denom_fu_126_p3;
-reg   [25:0] denom_reg_149;
-wire    ap_CS_fsm_state5;
-wire   [22:0] grp_fp_recip_fn_fu_54_ap_return;
-reg    grp_fp_recip_fn_fu_54_ap_ce;
-wire    ap_CS_fsm_state6;
-wire    ap_CS_fsm_state13;
-wire    ap_CS_fsm_state2;
+wire   [20:0] denom_2_fu_93_p2;
+reg   [20:0] denom_2_reg_171;
 wire    ap_CS_fsm_state3;
-wire   [42:0] grp_fu_61_p2;
-wire   [25:0] denom_2_fu_85_p2;
-wire   [0:0] tmp_fu_90_p3;
-wire   [25:0] sub_ln408_fu_98_p2;
-wire   [25:0] a_126_fu_104_p3;
-wire   [0:0] icmp_ln73_fu_112_p2;
-wire   [25:0] select_ln73_fu_118_p3;
-reg   [12:0] ap_NS_fsm;
+wire   [0:0] tmp_fu_99_p3;
+reg   [0:0] tmp_reg_176;
+wire   [0:0] icmp_ln73_fu_141_p2;
+reg   [0:0] icmp_ln73_reg_181;
+wire    ap_CS_fsm_state4;
+wire   [20:0] grp_fp_recip_fn_fu_62_x;
+wire   [19:0] grp_fp_recip_fn_fu_62_ap_return;
+reg    grp_fp_recip_fn_fu_62_ap_ce;
+wire    ap_CS_fsm_state10;
+wire    ap_CS_fsm_state2;
+wire   [41:0] grp_fu_69_p2;
+wire   [20:0] product_q_fu_83_p4;
+wire   [20:0] sub_ln380_fu_107_p2;
+wire   [18:0] tmp_103_fu_113_p4;
+wire   [18:0] tmp_104_fu_123_p4;
+wire   [18:0] select_ln380_fu_133_p3;
+wire   [20:0] select_ln73_fu_147_p3;
+reg   [9:0] ap_NS_fsm;
 reg    ap_ST_fsm_state1_blk;
 wire    ap_ST_fsm_state2_blk;
 wire    ap_ST_fsm_state3_blk;
@@ -78,37 +77,34 @@ wire    ap_ST_fsm_state7_blk;
 wire    ap_ST_fsm_state8_blk;
 wire    ap_ST_fsm_state9_blk;
 wire    ap_ST_fsm_state10_blk;
-wire    ap_ST_fsm_state11_blk;
-wire    ap_ST_fsm_state12_blk;
-wire    ap_ST_fsm_state13_blk;
 wire    ap_ce_reg;
 
 // power-on initialization
 initial begin
-#0 ap_CS_fsm = 13'd1;
+#0 ap_CS_fsm = 10'd1;
 end
 
-mpc_fpga_top_opencl_fp_recip_fn grp_fp_recip_fn_fu_54(
+mpc_fpga_top_opencl_fp_recip_fn grp_fp_recip_fn_fu_62(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .x(denom_reg_149),
-    .ap_return(grp_fp_recip_fn_fu_54_ap_return),
-    .ap_ce(grp_fp_recip_fn_fu_54_ap_ce)
+    .x(grp_fp_recip_fn_fu_62_x),
+    .ap_return(grp_fp_recip_fn_fu_62_ap_return),
+    .ap_ce(grp_fp_recip_fn_fu_62_ap_ce)
 );
 
-mpc_fpga_top_opencl_mul_26s_26s_43_4_1_x #(
+mpc_fpga_top_opencl_mul_21s_21s_42_3_1_x #(
     .ID( 1 ),
-    .NUM_STAGE( 4 ),
-    .din0_WIDTH( 26 ),
-    .din1_WIDTH( 26 ),
-    .dout_WIDTH( 43 ))
-mul_26s_26s_43_4_1_x_U405(
+    .NUM_STAGE( 3 ),
+    .din0_WIDTH( 21 ),
+    .din1_WIDTH( 21 ),
+    .dout_WIDTH( 42 ))
+mul_21s_21s_42_3_1_x_U402(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(ey),
     .din1(kappa),
     .ce(1'b1),
-    .dout(grp_fu_61_p2)
+    .dout(grp_fu_69_p2)
 );
 
 always @ (posedge ap_clk) begin
@@ -120,24 +116,14 @@ always @ (posedge ap_clk) begin
 end
 
 always @ (posedge ap_clk) begin
-    if ((1'b1 == ap_CS_fsm_state5)) begin
-        denom_reg_149 <= denom_fu_126_p3;
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        product_q_reg_144 <= {{grp_fu_61_p2[42:17]}};
+    if ((1'b1 == ap_CS_fsm_state3)) begin
+        denom_2_reg_171 <= denom_2_fu_93_p2;
+        icmp_ln73_reg_181 <= icmp_ln73_fu_141_p2;
+        tmp_reg_176 <= denom_2_fu_93_p2[32'd20];
     end
 end
 
 assign ap_ST_fsm_state10_blk = 1'b0;
-
-assign ap_ST_fsm_state11_blk = 1'b0;
-
-assign ap_ST_fsm_state12_blk = 1'b0;
-
-assign ap_ST_fsm_state13_blk = 1'b0;
 
 always @ (*) begin
     if ((ap_start == 1'b0)) begin
@@ -164,7 +150,7 @@ assign ap_ST_fsm_state8_blk = 1'b0;
 assign ap_ST_fsm_state9_blk = 1'b0;
 
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state13) | ((1'b1 == ap_CS_fsm_state1) & (ap_start == 1'b0)))) begin
+    if (((1'b1 == ap_CS_fsm_state10) | ((1'b1 == ap_CS_fsm_state1) & (ap_start == 1'b0)))) begin
         ap_done = 1'b1;
     end else begin
         ap_done = 1'b0;
@@ -180,7 +166,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state13)) begin
+    if ((1'b1 == ap_CS_fsm_state10)) begin
         ap_ready = 1'b1;
     end else begin
         ap_ready = 1'b0;
@@ -188,10 +174,10 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state5) | (1'b1 == ap_CS_fsm_state4) | (1'b1 == ap_CS_fsm_state1) | (1'b1 == ap_CS_fsm_state3) | (1'b1 == ap_CS_fsm_state2))) begin
-        grp_fp_recip_fn_fu_54_ap_ce = 1'b0;
+    if (((1'b1 == ap_CS_fsm_state2) | (1'b1 == ap_CS_fsm_state3) | (1'b1 == ap_CS_fsm_state1))) begin
+        grp_fp_recip_fn_fu_62_ap_ce = 1'b0;
     end else begin
-        grp_fp_recip_fn_fu_54_ap_ce = 1'b1;
+        grp_fp_recip_fn_fu_62_ap_ce = 1'b1;
     end
 end
 
@@ -229,15 +215,6 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state10;
         end
         ap_ST_fsm_state10 : begin
-            ap_NS_fsm = ap_ST_fsm_state11;
-        end
-        ap_ST_fsm_state11 : begin
-            ap_NS_fsm = ap_ST_fsm_state12;
-        end
-        ap_ST_fsm_state12 : begin
-            ap_NS_fsm = ap_ST_fsm_state13;
-        end
-        ap_ST_fsm_state13 : begin
             ap_NS_fsm = ap_ST_fsm_state1;
         end
         default : begin
@@ -246,11 +223,9 @@ always @ (*) begin
     endcase
 end
 
-assign a_126_fu_104_p3 = ((tmp_fu_90_p3[0:0] == 1'b1) ? sub_ln408_fu_98_p2 : denom_2_fu_85_p2);
-
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
-assign ap_CS_fsm_state13 = ap_CS_fsm[32'd12];
+assign ap_CS_fsm_state10 = ap_CS_fsm[32'd9];
 
 assign ap_CS_fsm_state2 = ap_CS_fsm[32'd1];
 
@@ -258,22 +233,26 @@ assign ap_CS_fsm_state3 = ap_CS_fsm[32'd2];
 
 assign ap_CS_fsm_state4 = ap_CS_fsm[32'd3];
 
-assign ap_CS_fsm_state5 = ap_CS_fsm[32'd4];
+assign ap_return = grp_fp_recip_fn_fu_62_ap_return;
 
-assign ap_CS_fsm_state6 = ap_CS_fsm[32'd5];
+assign denom_2_fu_93_p2 = (21'd4096 - product_q_fu_83_p4);
 
-assign ap_return = grp_fp_recip_fn_fu_54_ap_return;
+assign grp_fp_recip_fn_fu_62_x = ((icmp_ln73_reg_181[0:0] == 1'b1) ? select_ln73_fu_147_p3 : denom_2_reg_171);
 
-assign denom_2_fu_85_p2 = (26'd131072 - product_q_reg_144);
+assign icmp_ln73_fu_141_p2 = (($signed(select_ln380_fu_133_p3) < $signed(19'd1)) ? 1'b1 : 1'b0);
 
-assign denom_fu_126_p3 = ((icmp_ln73_fu_112_p2[0:0] == 1'b1) ? select_ln73_fu_118_p3 : denom_2_fu_85_p2);
+assign product_q_fu_83_p4 = {{grp_fu_69_p2[32:12]}};
 
-assign icmp_ln73_fu_112_p2 = (($signed(a_126_fu_104_p3) < $signed(26'd131)) ? 1'b1 : 1'b0);
+assign select_ln380_fu_133_p3 = ((tmp_fu_99_p3[0:0] == 1'b1) ? tmp_103_fu_113_p4 : tmp_104_fu_123_p4);
 
-assign select_ln73_fu_118_p3 = ((tmp_fu_90_p3[0:0] == 1'b1) ? 26'd67108733 : 26'd131);
+assign select_ln73_fu_147_p3 = ((tmp_reg_176[0:0] == 1'b1) ? 21'd2097148 : 21'd4);
 
-assign sub_ln408_fu_98_p2 = (26'd0 - denom_2_fu_85_p2);
+assign sub_ln380_fu_107_p2 = (21'd0 - denom_2_fu_93_p2);
 
-assign tmp_fu_90_p3 = denom_2_fu_85_p2[32'd25];
+assign tmp_103_fu_113_p4 = {{sub_ln380_fu_107_p2[20:2]}};
+
+assign tmp_104_fu_123_p4 = {{denom_2_fu_93_p2[20:2]}};
+
+assign tmp_fu_99_p3 = denom_2_fu_93_p2[32'd20];
 
 endmodule //mpc_fpga_top_opencl_fp_frenet_recip

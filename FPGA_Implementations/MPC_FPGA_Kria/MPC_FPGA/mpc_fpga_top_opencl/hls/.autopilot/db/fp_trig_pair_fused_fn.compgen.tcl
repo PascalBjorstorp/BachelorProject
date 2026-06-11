@@ -1,20 +1,20 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_20s_26s_46_4_1
+set name mpc_fpga_top_opencl_mul_20ns_22ns_41_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_25ns_27ns_51_4_1
+set name mpc_fpga_top_opencl_mul_21s_14s_35_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_19s_45_4_1
+set name mpc_fpga_top_opencl_mul_15s_21s_36_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -46,7 +46,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_angle \
     op interface \
-    ports { angle { I 26 vector } } \
+    ports { angle { I 21 vector } } \
 } "
 }
 

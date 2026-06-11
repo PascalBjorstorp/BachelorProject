@@ -115,75 +115,75 @@ output   lane_words_2_ce0;
 input  [31:0] lane_words_2_q0;
 output  [3:0] lane_words_3_address0;
 output   lane_words_3_ce0;
-input  [31:0] lane_words_3_q0;
+input  [25:0] lane_words_3_q0;
 output  [3:0] lane_words_4_address0;
 output   lane_words_4_ce0;
-input  [31:0] lane_words_4_q0;
+input  [25:0] lane_words_4_q0;
 output  [3:0] lane_words_5_address0;
 output   lane_words_5_ce0;
-input  [31:0] lane_words_5_q0;
+input  [25:0] lane_words_5_q0;
 output  [3:0] lane_words_6_address0;
 output   lane_words_6_ce0;
-input  [31:0] lane_words_6_q0;
+input  [25:0] lane_words_6_q0;
 output  [3:0] lane_words_7_address0;
 output   lane_words_7_ce0;
 input  [31:0] lane_words_7_q0;
 output  [3:0] lane_words_8_address0;
 output   lane_words_8_ce0;
-input  [31:0] lane_words_8_q0;
+input  [25:0] lane_words_8_q0;
 output  [3:0] lane_words_9_address0;
 output   lane_words_9_ce0;
-input  [31:0] lane_words_9_q0;
+input  [25:0] lane_words_9_q0;
 output  [3:0] lane_words_10_address0;
 output   lane_words_10_ce0;
-input  [31:0] lane_words_10_q0;
+input  [25:0] lane_words_10_q0;
 output  [3:0] lane_words_11_address0;
 output   lane_words_11_ce0;
-input  [31:0] lane_words_11_q0;
+input  [25:0] lane_words_11_q0;
 output  [3:0] lane_words_12_address0;
 output   lane_words_12_ce0;
-input  [31:0] lane_words_12_q0;
+input  [25:0] lane_words_12_q0;
 output  [3:0] lane_words_13_address0;
 output   lane_words_13_ce0;
-input  [31:0] lane_words_13_q0;
+input  [25:0] lane_words_13_q0;
 output  [3:0] lane_words_14_address0;
 output   lane_words_14_ce0;
-input  [31:0] lane_words_14_q0;
+input  [25:0] lane_words_14_q0;
 output  [3:0] lane_words_15_address0;
 output   lane_words_15_ce0;
-input  [31:0] lane_words_15_q0;
+input  [25:0] lane_words_15_q0;
 output  [4:0] out_ref_reference_heading_error_address0;
 output   out_ref_reference_heading_error_ce0;
 output   out_ref_reference_heading_error_we0;
-output  [31:0] out_ref_reference_heading_error_d0;
+output  [25:0] out_ref_reference_heading_error_d0;
 output  [4:0] out_ref_reference_lateral_error_address0;
 output   out_ref_reference_lateral_error_ce0;
 output   out_ref_reference_lateral_error_we0;
-output  [31:0] out_ref_reference_lateral_error_d0;
+output  [25:0] out_ref_reference_lateral_error_d0;
 output  [4:0] out_ref_reference_velocity_address0;
 output   out_ref_reference_velocity_ce0;
 output   out_ref_reference_velocity_we0;
-output  [31:0] out_ref_reference_velocity_d0;
+output  [25:0] out_ref_reference_velocity_d0;
 output  [4:0] out_ref_reference_lateral_velocity_address0;
 output   out_ref_reference_lateral_velocity_ce0;
 output   out_ref_reference_lateral_velocity_we0;
-output  [31:0] out_ref_reference_lateral_velocity_d0;
+output  [25:0] out_ref_reference_lateral_velocity_d0;
 output  [4:0] out_ref_reference_yaw_rate_address0;
 output   out_ref_reference_yaw_rate_ce0;
 output   out_ref_reference_yaw_rate_we0;
-output  [31:0] out_ref_reference_yaw_rate_d0;
+output  [25:0] out_ref_reference_yaw_rate_d0;
 output  [4:0] out_ref_path_curvature_address0;
 output   out_ref_path_curvature_ce0;
 output   out_ref_path_curvature_we0;
-output  [31:0] out_ref_path_curvature_d0;
+output  [25:0] out_ref_path_curvature_d0;
 output  [4:0] out_ref_left_wall_bound_address0;
 output   out_ref_left_wall_bound_ce0;
 output   out_ref_left_wall_bound_we0;
-output  [31:0] out_ref_left_wall_bound_d0;
+output  [25:0] out_ref_left_wall_bound_d0;
 output  [4:0] out_ref_right_wall_bound_address0;
 output   out_ref_right_wall_bound_ce0;
 output   out_ref_right_wall_bound_we0;
-output  [31:0] out_ref_right_wall_bound_d0;
+output  [25:0] out_ref_right_wall_bound_d0;
 
 reg ap_idle;
 
@@ -193,24 +193,24 @@ wire    ap_enable_reg_pp0_iter0;
 reg    ap_enable_reg_pp0_iter1;
 reg    ap_idle_pp0;
 wire    ap_block_pp0_stage0_subdone;
-wire   [0:0] icmp_ln187_fu_424_p2;
+wire   [0:0] icmp_ln184_fu_424_p2;
 reg    ap_condition_exit_pp0_iter0_stage0;
 wire    ap_loop_exit_ready;
 reg    ap_ready_int;
-reg   [4:0] k_18_reg_718;
+reg   [4:0] k_18_reg_734;
 wire    ap_block_pp0_stage0_11001;
-wire   [63:0] zext_ln192_fu_460_p1;
+wire   [63:0] zext_ln189_fu_460_p1;
 wire    ap_block_pp0_stage0;
-wire   [63:0] zext_ln194_fu_482_p1;
-wire   [63:0] zext_ln196_fu_504_p1;
-wire   [63:0] zext_ln198_fu_526_p1;
-wire   [63:0] zext_ln200_fu_548_p1;
-wire   [63:0] zext_ln202_fu_570_p1;
-wire   [63:0] zext_ln204_fu_592_p1;
-wire   [63:0] zext_ln206_fu_614_p1;
-wire   [63:0] zext_ln187_fu_625_p1;
+wire   [63:0] zext_ln191_fu_482_p1;
+wire   [63:0] zext_ln193_fu_504_p1;
+wire   [63:0] zext_ln195_fu_526_p1;
+wire   [63:0] zext_ln197_fu_548_p1;
+wire   [63:0] zext_ln199_fu_570_p1;
+wire   [63:0] zext_ln201_fu_592_p1;
+wire   [63:0] zext_ln203_fu_614_p1;
+wire   [63:0] zext_ln184_fu_625_p1;
 reg   [4:0] k_fu_100;
-wire   [4:0] add_ln187_fu_430_p2;
+wire   [4:0] add_ln184_fu_430_p2;
 wire    ap_loop_init;
 reg   [4:0] ap_sig_allocacmp_k_18;
 reg    lane_words_0_ce0_local;
@@ -230,47 +230,51 @@ reg    lane_words_14_ce0_local;
 reg    lane_words_7_ce0_local;
 reg    lane_words_15_ce0_local;
 reg    out_ref_reference_lateral_error_we0_local;
-wire   [31:0] out_fu_639_p3;
+wire   [25:0] raw_fu_643_p3;
 reg    out_ref_reference_lateral_error_ce0_local;
 reg    out_ref_reference_heading_error_we0_local;
-wire   [31:0] out_306_fu_648_p3;
+wire   [25:0] raw_47_fu_656_p3;
 reg    out_ref_reference_heading_error_ce0_local;
 reg    out_ref_reference_velocity_we0_local;
-wire   [31:0] out_307_fu_657_p3;
+wire   [25:0] raw_48_fu_669_p3;
 reg    out_ref_reference_velocity_ce0_local;
 reg    out_ref_reference_lateral_velocity_we0_local;
-wire   [31:0] out_308_fu_666_p3;
+wire   [25:0] raw_49_fu_678_p3;
 reg    out_ref_reference_lateral_velocity_ce0_local;
 reg    out_ref_reference_yaw_rate_we0_local;
-wire   [31:0] out_309_fu_675_p3;
+wire   [25:0] raw_50_fu_687_p3;
 reg    out_ref_reference_yaw_rate_ce0_local;
 reg    out_ref_path_curvature_we0_local;
-wire   [31:0] out_310_fu_684_p3;
+wire   [25:0] raw_51_fu_696_p3;
 reg    out_ref_path_curvature_ce0_local;
 reg    out_ref_left_wall_bound_we0_local;
-wire   [31:0] out_311_fu_693_p3;
+wire   [25:0] raw_52_fu_705_p3;
 reg    out_ref_left_wall_bound_ce0_local;
 reg    out_ref_right_wall_bound_we0_local;
-wire   [31:0] out_312_fu_702_p3;
+wire   [25:0] raw_53_fu_718_p3;
 reg    out_ref_right_wall_bound_ce0_local;
 wire   [7:0] shl_ln_fu_436_p3;
-wire   [7:0] add_ln192_fu_444_p2;
+wire   [7:0] add_ln189_fu_444_p2;
 wire   [3:0] lshr_ln_fu_450_p4;
-wire   [7:0] add_ln194_fu_466_p2;
+wire   [7:0] add_ln191_fu_466_p2;
 wire   [3:0] lshr_ln1_fu_472_p4;
-wire   [7:0] add_ln196_fu_488_p2;
+wire   [7:0] add_ln193_fu_488_p2;
 wire   [3:0] lshr_ln2_fu_494_p4;
-wire   [7:0] add_ln198_fu_510_p2;
+wire   [7:0] add_ln195_fu_510_p2;
 wire   [3:0] lshr_ln3_fu_516_p4;
-wire   [7:0] add_ln200_fu_532_p2;
+wire   [7:0] add_ln197_fu_532_p2;
 wire   [3:0] lshr_ln4_fu_538_p4;
-wire   [7:0] add_ln202_fu_554_p2;
+wire   [7:0] add_ln199_fu_554_p2;
 wire   [3:0] lshr_ln5_fu_560_p4;
-wire   [7:0] add_ln204_fu_576_p2;
+wire   [7:0] add_ln201_fu_576_p2;
 wire   [3:0] lshr_ln6_fu_582_p4;
-wire   [7:0] add_ln206_fu_598_p2;
+wire   [7:0] add_ln203_fu_598_p2;
 wire   [3:0] lshr_ln7_fu_604_p4;
-wire   [0:0] trunc_ln187_fu_636_p1;
+wire   [0:0] trunc_ln184_fu_636_p1;
+wire   [25:0] trunc_ln189_fu_639_p1;
+wire   [25:0] trunc_ln191_fu_652_p1;
+wire   [25:0] trunc_ln193_fu_665_p1;
+wire   [25:0] trunc_ln203_fu_714_p1;
 reg    ap_done_reg;
 wire    ap_continue_int;
 reg    ap_done_int;
@@ -338,8 +342,8 @@ end
 
 always @ (posedge ap_clk) begin
     if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-        if (((icmp_ln187_fu_424_p2 == 1'd0) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
-            k_fu_100 <= add_ln187_fu_430_p2;
+        if (((icmp_ln184_fu_424_p2 == 1'd0) & (ap_enable_reg_pp0_iter0 == 1'b1))) begin
+            k_fu_100 <= add_ln184_fu_430_p2;
         end else if ((ap_loop_init == 1'b1)) begin
             k_fu_100 <= 5'd0;
         end
@@ -348,12 +352,12 @@ end
 
 always @ (posedge ap_clk) begin
     if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-        k_18_reg_718 <= ap_sig_allocacmp_k_18;
+        k_18_reg_734 <= ap_sig_allocacmp_k_18;
     end
 end
 
 always @ (*) begin
-    if (((icmp_ln187_fu_424_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+    if (((icmp_ln184_fu_424_p2 == 1'd1) & (1'b0 == ap_block_pp0_stage0_subdone) & (ap_enable_reg_pp0_iter0 == 1'b1) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b1;
     end else begin
         ap_condition_exit_pp0_iter0_stage0 = 1'b0;
@@ -667,23 +671,23 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln187_fu_430_p2 = (ap_sig_allocacmp_k_18 + 5'd1);
+assign add_ln184_fu_430_p2 = (ap_sig_allocacmp_k_18 + 5'd1);
 
-assign add_ln192_fu_444_p2 = (shl_ln_fu_436_p3 + 8'd8);
+assign add_ln189_fu_444_p2 = (shl_ln_fu_436_p3 + 8'd8);
 
-assign add_ln194_fu_466_p2 = (shl_ln_fu_436_p3 + 8'd9);
+assign add_ln191_fu_466_p2 = (shl_ln_fu_436_p3 + 8'd9);
 
-assign add_ln196_fu_488_p2 = (shl_ln_fu_436_p3 + 8'd10);
+assign add_ln193_fu_488_p2 = (shl_ln_fu_436_p3 + 8'd10);
 
-assign add_ln198_fu_510_p2 = (shl_ln_fu_436_p3 + 8'd11);
+assign add_ln195_fu_510_p2 = (shl_ln_fu_436_p3 + 8'd11);
 
-assign add_ln200_fu_532_p2 = (shl_ln_fu_436_p3 + 8'd12);
+assign add_ln197_fu_532_p2 = (shl_ln_fu_436_p3 + 8'd12);
 
-assign add_ln202_fu_554_p2 = (shl_ln_fu_436_p3 + 8'd13);
+assign add_ln199_fu_554_p2 = (shl_ln_fu_436_p3 + 8'd13);
 
-assign add_ln204_fu_576_p2 = (shl_ln_fu_436_p3 + 8'd14);
+assign add_ln201_fu_576_p2 = (shl_ln_fu_436_p3 + 8'd14);
 
-assign add_ln206_fu_598_p2 = (shl_ln_fu_436_p3 + 8'd15);
+assign add_ln203_fu_598_p2 = (shl_ln_fu_436_p3 + 8'd15);
 
 assign ap_CS_fsm_pp0_stage0 = ap_CS_fsm[32'd0];
 
@@ -703,188 +707,196 @@ assign ap_loop_exit_ready = ap_condition_exit_pp0_iter0_stage0;
 
 assign ap_ready = ap_ready_sig;
 
-assign icmp_ln187_fu_424_p2 = ((ap_sig_allocacmp_k_18 == 5'd20) ? 1'b1 : 1'b0);
+assign icmp_ln184_fu_424_p2 = ((ap_sig_allocacmp_k_18 == 5'd20) ? 1'b1 : 1'b0);
 
-assign lane_words_0_address0 = zext_ln192_fu_460_p1;
+assign lane_words_0_address0 = zext_ln189_fu_460_p1;
 
 assign lane_words_0_ce0 = lane_words_0_ce0_local;
 
-assign lane_words_10_address0 = zext_ln196_fu_504_p1;
+assign lane_words_10_address0 = zext_ln193_fu_504_p1;
 
 assign lane_words_10_ce0 = lane_words_10_ce0_local;
 
-assign lane_words_11_address0 = zext_ln198_fu_526_p1;
+assign lane_words_11_address0 = zext_ln195_fu_526_p1;
 
 assign lane_words_11_ce0 = lane_words_11_ce0_local;
 
-assign lane_words_12_address0 = zext_ln200_fu_548_p1;
+assign lane_words_12_address0 = zext_ln197_fu_548_p1;
 
 assign lane_words_12_ce0 = lane_words_12_ce0_local;
 
-assign lane_words_13_address0 = zext_ln202_fu_570_p1;
+assign lane_words_13_address0 = zext_ln199_fu_570_p1;
 
 assign lane_words_13_ce0 = lane_words_13_ce0_local;
 
-assign lane_words_14_address0 = zext_ln204_fu_592_p1;
+assign lane_words_14_address0 = zext_ln201_fu_592_p1;
 
 assign lane_words_14_ce0 = lane_words_14_ce0_local;
 
-assign lane_words_15_address0 = zext_ln206_fu_614_p1;
+assign lane_words_15_address0 = zext_ln203_fu_614_p1;
 
 assign lane_words_15_ce0 = lane_words_15_ce0_local;
 
-assign lane_words_1_address0 = zext_ln194_fu_482_p1;
+assign lane_words_1_address0 = zext_ln191_fu_482_p1;
 
 assign lane_words_1_ce0 = lane_words_1_ce0_local;
 
-assign lane_words_2_address0 = zext_ln196_fu_504_p1;
+assign lane_words_2_address0 = zext_ln193_fu_504_p1;
 
 assign lane_words_2_ce0 = lane_words_2_ce0_local;
 
-assign lane_words_3_address0 = zext_ln198_fu_526_p1;
+assign lane_words_3_address0 = zext_ln195_fu_526_p1;
 
 assign lane_words_3_ce0 = lane_words_3_ce0_local;
 
-assign lane_words_4_address0 = zext_ln200_fu_548_p1;
+assign lane_words_4_address0 = zext_ln197_fu_548_p1;
 
 assign lane_words_4_ce0 = lane_words_4_ce0_local;
 
-assign lane_words_5_address0 = zext_ln202_fu_570_p1;
+assign lane_words_5_address0 = zext_ln199_fu_570_p1;
 
 assign lane_words_5_ce0 = lane_words_5_ce0_local;
 
-assign lane_words_6_address0 = zext_ln204_fu_592_p1;
+assign lane_words_6_address0 = zext_ln201_fu_592_p1;
 
 assign lane_words_6_ce0 = lane_words_6_ce0_local;
 
-assign lane_words_7_address0 = zext_ln206_fu_614_p1;
+assign lane_words_7_address0 = zext_ln203_fu_614_p1;
 
 assign lane_words_7_ce0 = lane_words_7_ce0_local;
 
-assign lane_words_8_address0 = zext_ln192_fu_460_p1;
+assign lane_words_8_address0 = zext_ln189_fu_460_p1;
 
 assign lane_words_8_ce0 = lane_words_8_ce0_local;
 
-assign lane_words_9_address0 = zext_ln194_fu_482_p1;
+assign lane_words_9_address0 = zext_ln191_fu_482_p1;
 
 assign lane_words_9_ce0 = lane_words_9_ce0_local;
 
-assign lshr_ln1_fu_472_p4 = {{add_ln194_fu_466_p2[7:4]}};
+assign lshr_ln1_fu_472_p4 = {{add_ln191_fu_466_p2[7:4]}};
 
-assign lshr_ln2_fu_494_p4 = {{add_ln196_fu_488_p2[7:4]}};
+assign lshr_ln2_fu_494_p4 = {{add_ln193_fu_488_p2[7:4]}};
 
-assign lshr_ln3_fu_516_p4 = {{add_ln198_fu_510_p2[7:4]}};
+assign lshr_ln3_fu_516_p4 = {{add_ln195_fu_510_p2[7:4]}};
 
-assign lshr_ln4_fu_538_p4 = {{add_ln200_fu_532_p2[7:4]}};
+assign lshr_ln4_fu_538_p4 = {{add_ln197_fu_532_p2[7:4]}};
 
-assign lshr_ln5_fu_560_p4 = {{add_ln202_fu_554_p2[7:4]}};
+assign lshr_ln5_fu_560_p4 = {{add_ln199_fu_554_p2[7:4]}};
 
-assign lshr_ln6_fu_582_p4 = {{add_ln204_fu_576_p2[7:4]}};
+assign lshr_ln6_fu_582_p4 = {{add_ln201_fu_576_p2[7:4]}};
 
-assign lshr_ln7_fu_604_p4 = {{add_ln206_fu_598_p2[7:4]}};
+assign lshr_ln7_fu_604_p4 = {{add_ln203_fu_598_p2[7:4]}};
 
-assign lshr_ln_fu_450_p4 = {{add_ln192_fu_444_p2[7:4]}};
+assign lshr_ln_fu_450_p4 = {{add_ln189_fu_444_p2[7:4]}};
 
-assign out_306_fu_648_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_1_q0 : lane_words_9_q0);
-
-assign out_307_fu_657_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_2_q0 : lane_words_10_q0);
-
-assign out_308_fu_666_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_3_q0 : lane_words_11_q0);
-
-assign out_309_fu_675_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_4_q0 : lane_words_12_q0);
-
-assign out_310_fu_684_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_5_q0 : lane_words_13_q0);
-
-assign out_311_fu_693_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_6_q0 : lane_words_14_q0);
-
-assign out_312_fu_702_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_7_q0 : lane_words_15_q0);
-
-assign out_fu_639_p3 = ((trunc_ln187_fu_636_p1[0:0] == 1'b1) ? lane_words_0_q0 : lane_words_8_q0);
-
-assign out_ref_left_wall_bound_address0 = zext_ln187_fu_625_p1;
+assign out_ref_left_wall_bound_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_left_wall_bound_ce0 = out_ref_left_wall_bound_ce0_local;
 
-assign out_ref_left_wall_bound_d0 = out_311_fu_693_p3;
+assign out_ref_left_wall_bound_d0 = raw_52_fu_705_p3;
 
 assign out_ref_left_wall_bound_we0 = out_ref_left_wall_bound_we0_local;
 
-assign out_ref_path_curvature_address0 = zext_ln187_fu_625_p1;
+assign out_ref_path_curvature_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_path_curvature_ce0 = out_ref_path_curvature_ce0_local;
 
-assign out_ref_path_curvature_d0 = out_310_fu_684_p3;
+assign out_ref_path_curvature_d0 = raw_51_fu_696_p3;
 
 assign out_ref_path_curvature_we0 = out_ref_path_curvature_we0_local;
 
-assign out_ref_reference_heading_error_address0 = zext_ln187_fu_625_p1;
+assign out_ref_reference_heading_error_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_reference_heading_error_ce0 = out_ref_reference_heading_error_ce0_local;
 
-assign out_ref_reference_heading_error_d0 = out_306_fu_648_p3;
+assign out_ref_reference_heading_error_d0 = raw_47_fu_656_p3;
 
 assign out_ref_reference_heading_error_we0 = out_ref_reference_heading_error_we0_local;
 
-assign out_ref_reference_lateral_error_address0 = zext_ln187_fu_625_p1;
+assign out_ref_reference_lateral_error_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_reference_lateral_error_ce0 = out_ref_reference_lateral_error_ce0_local;
 
-assign out_ref_reference_lateral_error_d0 = out_fu_639_p3;
+assign out_ref_reference_lateral_error_d0 = raw_fu_643_p3;
 
 assign out_ref_reference_lateral_error_we0 = out_ref_reference_lateral_error_we0_local;
 
-assign out_ref_reference_lateral_velocity_address0 = zext_ln187_fu_625_p1;
+assign out_ref_reference_lateral_velocity_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_reference_lateral_velocity_ce0 = out_ref_reference_lateral_velocity_ce0_local;
 
-assign out_ref_reference_lateral_velocity_d0 = out_308_fu_666_p3;
+assign out_ref_reference_lateral_velocity_d0 = raw_49_fu_678_p3;
 
 assign out_ref_reference_lateral_velocity_we0 = out_ref_reference_lateral_velocity_we0_local;
 
-assign out_ref_reference_velocity_address0 = zext_ln187_fu_625_p1;
+assign out_ref_reference_velocity_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_reference_velocity_ce0 = out_ref_reference_velocity_ce0_local;
 
-assign out_ref_reference_velocity_d0 = out_307_fu_657_p3;
+assign out_ref_reference_velocity_d0 = raw_48_fu_669_p3;
 
 assign out_ref_reference_velocity_we0 = out_ref_reference_velocity_we0_local;
 
-assign out_ref_reference_yaw_rate_address0 = zext_ln187_fu_625_p1;
+assign out_ref_reference_yaw_rate_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_reference_yaw_rate_ce0 = out_ref_reference_yaw_rate_ce0_local;
 
-assign out_ref_reference_yaw_rate_d0 = out_309_fu_675_p3;
+assign out_ref_reference_yaw_rate_d0 = raw_50_fu_687_p3;
 
 assign out_ref_reference_yaw_rate_we0 = out_ref_reference_yaw_rate_we0_local;
 
-assign out_ref_right_wall_bound_address0 = zext_ln187_fu_625_p1;
+assign out_ref_right_wall_bound_address0 = zext_ln184_fu_625_p1;
 
 assign out_ref_right_wall_bound_ce0 = out_ref_right_wall_bound_ce0_local;
 
-assign out_ref_right_wall_bound_d0 = out_312_fu_702_p3;
+assign out_ref_right_wall_bound_d0 = raw_53_fu_718_p3;
 
 assign out_ref_right_wall_bound_we0 = out_ref_right_wall_bound_we0_local;
 
+assign raw_47_fu_656_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? trunc_ln191_fu_652_p1 : lane_words_9_q0);
+
+assign raw_48_fu_669_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? trunc_ln193_fu_665_p1 : lane_words_10_q0);
+
+assign raw_49_fu_678_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? lane_words_3_q0 : lane_words_11_q0);
+
+assign raw_50_fu_687_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? lane_words_4_q0 : lane_words_12_q0);
+
+assign raw_51_fu_696_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? lane_words_5_q0 : lane_words_13_q0);
+
+assign raw_52_fu_705_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? lane_words_6_q0 : lane_words_14_q0);
+
+assign raw_53_fu_718_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? trunc_ln203_fu_714_p1 : lane_words_15_q0);
+
+assign raw_fu_643_p3 = ((trunc_ln184_fu_636_p1[0:0] == 1'b1) ? trunc_ln189_fu_639_p1 : lane_words_8_q0);
+
 assign shl_ln_fu_436_p3 = {{ap_sig_allocacmp_k_18}, {3'd0}};
 
-assign trunc_ln187_fu_636_p1 = k_18_reg_718[0:0];
+assign trunc_ln184_fu_636_p1 = k_18_reg_734[0:0];
 
-assign zext_ln187_fu_625_p1 = k_18_reg_718;
+assign trunc_ln189_fu_639_p1 = lane_words_0_q0[25:0];
 
-assign zext_ln192_fu_460_p1 = lshr_ln_fu_450_p4;
+assign trunc_ln191_fu_652_p1 = lane_words_1_q0[25:0];
 
-assign zext_ln194_fu_482_p1 = lshr_ln1_fu_472_p4;
+assign trunc_ln193_fu_665_p1 = lane_words_2_q0[25:0];
 
-assign zext_ln196_fu_504_p1 = lshr_ln2_fu_494_p4;
+assign trunc_ln203_fu_714_p1 = lane_words_7_q0[25:0];
 
-assign zext_ln198_fu_526_p1 = lshr_ln3_fu_516_p4;
+assign zext_ln184_fu_625_p1 = k_18_reg_734;
 
-assign zext_ln200_fu_548_p1 = lshr_ln4_fu_538_p4;
+assign zext_ln189_fu_460_p1 = lshr_ln_fu_450_p4;
 
-assign zext_ln202_fu_570_p1 = lshr_ln5_fu_560_p4;
+assign zext_ln191_fu_482_p1 = lshr_ln1_fu_472_p4;
 
-assign zext_ln204_fu_592_p1 = lshr_ln6_fu_582_p4;
+assign zext_ln193_fu_504_p1 = lshr_ln2_fu_494_p4;
 
-assign zext_ln206_fu_614_p1 = lshr_ln7_fu_604_p4;
+assign zext_ln195_fu_526_p1 = lshr_ln3_fu_516_p4;
+
+assign zext_ln197_fu_548_p1 = lshr_ln4_fu_538_p4;
+
+assign zext_ln199_fu_570_p1 = lshr_ln5_fu_560_p4;
+
+assign zext_ln201_fu_592_p1 = lshr_ln6_fu_582_p4;
+
+assign zext_ln203_fu_614_p1 = lshr_ln7_fu_604_p4;
 
 endmodule //mpc_fpga_top_opencl_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words

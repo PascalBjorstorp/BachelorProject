@@ -1,11 +1,5 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_25s_26s_43_4_1
-if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
-}
-
-
 # clear list
 if {${::AESL::PGuard_autoexp_gen}} {
     cg_default_interface_gen_dc_begin
@@ -16,7 +10,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 374 \
+    id 373 \
     name C_eff_r \
     type other \
     dir I \
@@ -24,14 +18,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_C_eff_r \
     op interface \
-    ports { C_eff_r { I 26 vector } } \
+    ports { C_eff_r { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 375 \
+    id 374 \
     name rear_num \
     type other \
     dir I \
@@ -39,14 +33,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_rear_num \
     op interface \
-    ports { rear_num { I 26 vector } } \
+    ports { rear_num { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 376 \
+    id 375 \
     name vx_safe \
     type other \
     dir I \
@@ -54,14 +48,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx_safe \
     op interface \
-    ports { vx_safe { I 25 vector } } \
+    ports { vx_safe { I 20 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 377 \
+    id 376 \
     name inv_D_r \
     type other \
     dir I \
@@ -69,7 +63,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_inv_D_r \
     op interface \
-    ports { inv_D_r { I 23 vector } } \
+    ports { inv_D_r { I 20 vector } } \
 } "
 }
 

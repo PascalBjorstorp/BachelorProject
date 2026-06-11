@@ -15,25 +15,25 @@ set hasInterrupt 0
 set DLRegFirstOffset 0
 set DLRegItemOffset 0
 set svuvm_can_support 1
-set cdfgNum 76
+set cdfgNum 74
 set C_modelName {fp_rear_force_jacobians_fn}
-set C_modelType { int 78 }
+set C_modelType { int 63 }
 set ap_memory_interface_dict [dict create]
 set C_modelArgList {
-	{ C_eff_r int 26 regular  }
-	{ rear_num int 26 regular  }
-	{ vx_safe int 25 regular  }
-	{ inv_D_r int 23 regular  }
+	{ C_eff_r int 21 regular  }
+	{ rear_num int 21 regular  }
+	{ vx_safe int 20 regular  }
+	{ inv_D_r int 20 regular  }
 }
 set hasAXIMCache 0
 set l_AXIML2Cache [list]
 set AXIMCacheInstDict [dict create]
 set C_modelArgMapList {[ 
-	{ "Name" : "C_eff_r", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "rear_num", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "vx_safe", "interface" : "wire", "bitwidth" : 25, "direction" : "READONLY"} , 
- 	{ "Name" : "inv_D_r", "interface" : "wire", "bitwidth" : 23, "direction" : "READONLY"} , 
- 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 78} ]}
+	{ "Name" : "C_eff_r", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "rear_num", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "vx_safe", "interface" : "wire", "bitwidth" : 20, "direction" : "READONLY"} , 
+ 	{ "Name" : "inv_D_r", "interface" : "wire", "bitwidth" : 20, "direction" : "READONLY"} , 
+ 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 63} ]}
 # RTL Port declarations: 
 set portNum 13
 set portList { 
@@ -43,13 +43,13 @@ set portList {
 	{ ap_done sc_out sc_logic 1 predone -1 } 
 	{ ap_idle sc_out sc_logic 1 done -1 } 
 	{ ap_ready sc_out sc_logic 1 ready -1 } 
-	{ C_eff_r sc_in sc_lv 26 signal 0 } 
-	{ rear_num sc_in sc_lv 26 signal 1 } 
-	{ vx_safe sc_in sc_lv 25 signal 2 } 
-	{ inv_D_r sc_in sc_lv 23 signal 3 } 
-	{ ap_return_0 sc_out sc_lv 26 signal -1 } 
-	{ ap_return_1 sc_out sc_lv 26 signal -1 } 
-	{ ap_return_2 sc_out sc_lv 26 signal -1 } 
+	{ C_eff_r sc_in sc_lv 21 signal 0 } 
+	{ rear_num sc_in sc_lv 21 signal 1 } 
+	{ vx_safe sc_in sc_lv 20 signal 2 } 
+	{ inv_D_r sc_in sc_lv 20 signal 3 } 
+	{ ap_return_0 sc_out sc_lv 21 signal -1 } 
+	{ ap_return_1 sc_out sc_lv 21 signal -1 } 
+	{ ap_return_2 sc_out sc_lv 21 signal -1 } 
 }
 set NewPortList {[ 
 	{ "name": "ap_clk", "direction": "in", "datatype": "sc_logic", "bitwidth":1, "type": "clock", "bundle":{"name": "ap_clk", "role": "default" }} , 
@@ -58,17 +58,17 @@ set NewPortList {[
  	{ "name": "ap_done", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "predone", "bundle":{"name": "ap_done", "role": "default" }} , 
  	{ "name": "ap_idle", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "done", "bundle":{"name": "ap_idle", "role": "default" }} , 
  	{ "name": "ap_ready", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "ready", "bundle":{"name": "ap_ready", "role": "default" }} , 
- 	{ "name": "C_eff_r", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "C_eff_r", "role": "default" }} , 
- 	{ "name": "rear_num", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "rear_num", "role": "default" }} , 
- 	{ "name": "vx_safe", "direction": "in", "datatype": "sc_lv", "bitwidth":25, "type": "signal", "bundle":{"name": "vx_safe", "role": "default" }} , 
- 	{ "name": "inv_D_r", "direction": "in", "datatype": "sc_lv", "bitwidth":23, "type": "signal", "bundle":{"name": "inv_D_r", "role": "default" }} , 
- 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
- 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }} , 
- 	{ "name": "ap_return_2", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_2", "role": "default" }}  ]}
+ 	{ "name": "C_eff_r", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "C_eff_r", "role": "default" }} , 
+ 	{ "name": "rear_num", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "rear_num", "role": "default" }} , 
+ 	{ "name": "vx_safe", "direction": "in", "datatype": "sc_lv", "bitwidth":20, "type": "signal", "bundle":{"name": "vx_safe", "role": "default" }} , 
+ 	{ "name": "inv_D_r", "direction": "in", "datatype": "sc_lv", "bitwidth":20, "type": "signal", "bundle":{"name": "inv_D_r", "role": "default" }} , 
+ 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
+ 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }} , 
+ 	{ "name": "ap_return_2", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_2", "role": "default" }}  ]}
 
 set ArgLastReadFirstWriteLatency {
 	fp_rear_force_jacobians_fn {
-		C_eff_r {Type I LastRead 4 FirstWrite -1}
+		C_eff_r {Type I LastRead 2 FirstWrite -1}
 		rear_num {Type I LastRead 1 FirstWrite -1}
 		vx_safe {Type I LastRead 0 FirstWrite -1}
 		inv_D_r {Type I LastRead 0 FirstWrite -1}}}
@@ -76,16 +76,16 @@ set ArgLastReadFirstWriteLatency {
 set hasDtUnsupportedChannel 0
 
 set PerformanceInfo {[
-	{"Name" : "Latency", "Min" : "9", "Max" : "9"}
-	, {"Name" : "Interval", "Min" : "10", "Max" : "10"}
+	{"Name" : "Latency", "Min" : "6", "Max" : "6"}
+	, {"Name" : "Interval", "Min" : "7", "Max" : "7"}
 ]}
 
 set PipelineEnableSignalInfo {[
 ]}
 
 set Spec2ImplPortList { 
-	C_eff_r { ap_none {  { C_eff_r in_data 0 26 } } }
-	rear_num { ap_none {  { rear_num in_data 0 26 } } }
-	vx_safe { ap_none {  { vx_safe in_data 0 25 } } }
-	inv_D_r { ap_none {  { inv_D_r in_data 0 23 } } }
+	C_eff_r { ap_none {  { C_eff_r in_data 0 21 } } }
+	rear_num { ap_none {  { rear_num in_data 0 21 } } }
+	vx_safe { ap_none {  { vx_safe in_data 0 20 } } }
+	inv_D_r { ap_none {  { inv_D_r in_data 0 20 } } }
 }

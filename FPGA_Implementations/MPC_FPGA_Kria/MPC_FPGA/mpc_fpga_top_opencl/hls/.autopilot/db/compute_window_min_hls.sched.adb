@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>compute_window_min_hls</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>32</ret_bitwidth>
+		<ret_bitwidth>26</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>21</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -109,7 +109,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -145,7 +145,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -181,7 +181,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -217,7 +217,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -253,7 +253,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -289,7 +289,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -325,7 +325,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -361,7 +361,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -397,7 +397,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -433,7 +433,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -469,7 +469,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -505,7 +505,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -541,7 +541,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -577,7 +577,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -613,7 +613,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -649,7 +649,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -685,7 +685,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -721,7 +721,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -779,7 +779,7 @@
 						<name>center_idx_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -795,7 +795,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -836,7 +836,7 @@
 						<name>ref_wall_19_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -852,7 +852,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -868,7 +868,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -893,7 +893,7 @@
 						<name>ref_wall_18_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -909,7 +909,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -925,7 +925,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -950,7 +950,7 @@
 						<name>ref_wall_17_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -966,7 +966,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -982,7 +982,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1007,7 +1007,7 @@
 						<name>ref_wall_16_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1023,7 +1023,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1039,7 +1039,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1064,7 +1064,7 @@
 						<name>ref_wall_15_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1080,7 +1080,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1096,7 +1096,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1121,7 +1121,7 @@
 						<name>ref_wall_14_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1137,7 +1137,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1153,7 +1153,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1178,7 +1178,7 @@
 						<name>ref_wall_13_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1194,7 +1194,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1210,7 +1210,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1235,7 +1235,7 @@
 						<name>ref_wall_12_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1251,7 +1251,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1267,7 +1267,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1292,7 +1292,7 @@
 						<name>ref_wall_11_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1308,7 +1308,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1324,7 +1324,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1349,7 +1349,7 @@
 						<name>ref_wall_10_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1365,7 +1365,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1381,7 +1381,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1406,7 +1406,7 @@
 						<name>ref_wall_9_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1422,7 +1422,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1438,7 +1438,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1463,7 +1463,7 @@
 						<name>ref_wall_8_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1479,7 +1479,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1495,7 +1495,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1520,7 +1520,7 @@
 						<name>ref_wall_7_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1536,7 +1536,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1552,7 +1552,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1577,7 +1577,7 @@
 						<name>ref_wall_6_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1593,7 +1593,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1609,7 +1609,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1634,7 +1634,7 @@
 						<name>ref_wall_5_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1650,7 +1650,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1666,7 +1666,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1691,7 +1691,7 @@
 						<name>ref_wall_4_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1707,7 +1707,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1723,7 +1723,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1748,7 +1748,7 @@
 						<name>ref_wall_3_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1764,7 +1764,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1780,7 +1780,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1805,7 +1805,7 @@
 						<name>ref_wall_2_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1821,7 +1821,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1837,7 +1837,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1862,7 +1862,7 @@
 						<name>ref_wall_1_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1878,7 +1878,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1894,7 +1894,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1919,7 +1919,7 @@
 						<name>ref_wall_0_val_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1935,7 +1935,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -1951,7 +1951,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -1973,10 +1973,10 @@
 					<Obj>
 						<type>0</type>
 						<id>43</id>
-						<name>zext_ln89</name>
+						<name>zext_ln87</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>89</lineNumber>
+						<lineNumber>87</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1992,7 +1992,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>89</second>
+										<second>87</second>
 									</item>
 								</second>
 							</item>
@@ -2032,7 +2032,7 @@
 						<name>jj</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>95</lineNumber>
+						<lineNumber>93</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2048,7 +2048,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>95</second>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -2086,10 +2086,10 @@
 					<Obj>
 						<type>0</type>
 						<id>45</id>
-						<name>icmp_ln97</name>
+						<name>icmp_ln95</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2105,7 +2105,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2146,7 +2146,7 @@
 						<name>tmp</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2162,7 +2162,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2178,7 +2178,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>37</count>
@@ -2238,64 +2238,6 @@
 						<name>cand</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>97</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName>cand</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>193</item>
-					<item>194</item>
-					<item>196</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>26</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_48">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>48</id>
-						<name>jj_1</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -2313,6 +2255,64 @@
 											<second>compute_window_min_hls</second>
 										</first>
 										<second>95</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>cand</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>193</item>
+					<item>194</item>
+					<item>196</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>26</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_48">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>48</id>
+						<name>jj_1</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>93</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -2350,10 +2350,10 @@
 					<Obj>
 						<type>0</type>
 						<id>49</id>
-						<name>icmp_ln97_1</name>
+						<name>icmp_ln95_1</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2369,7 +2369,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2410,7 +2410,7 @@
 						<name>tmp_s</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2426,7 +2426,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2442,7 +2442,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>39</count>
@@ -2504,64 +2504,6 @@
 						<name>cand_1</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>97</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName>cand</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>243</item>
-					<item>244</item>
-					<item>245</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>30</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_52">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>52</id>
-						<name>jj_2</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -2579,6 +2521,64 @@
 											<second>compute_window_min_hls</second>
 										</first>
 										<second>95</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>cand</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>243</item>
+					<item>244</item>
+					<item>245</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>30</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_52">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>52</id>
+						<name>jj_2</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>93</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -2616,10 +2616,10 @@
 					<Obj>
 						<type>0</type>
 						<id>53</id>
-						<name>icmp_ln97_2</name>
+						<name>icmp_ln95_2</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2635,7 +2635,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2676,7 +2676,7 @@
 						<name>tmp_1</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2692,7 +2692,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2708,7 +2708,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>41</count>
@@ -2772,7 +2772,7 @@
 						<name>cand_2</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2788,7 +2788,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2804,7 +2804,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -2818,7 +2818,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>34</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -2830,7 +2830,7 @@
 						<name>cand_3</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2846,7 +2846,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -2862,7 +2862,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>43</count>
@@ -2928,7 +2928,7 @@
 						<name>jj_3</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>95</lineNumber>
+						<lineNumber>93</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -2944,7 +2944,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>95</second>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -2982,10 +2982,10 @@
 					<Obj>
 						<type>0</type>
 						<id>58</id>
-						<name>icmp_ln97_3</name>
+						<name>icmp_ln95_3</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3001,7 +3001,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3042,7 +3042,7 @@
 						<name>tmp_3</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3058,7 +3058,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3074,7 +3074,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>41</count>
@@ -3138,64 +3138,6 @@
 						<name>cand_4</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>97</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName>cand</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>388</item>
-					<item>389</item>
-					<item>390</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>39</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_61">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>61</id>
-						<name>jj_4</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -3213,6 +3155,64 @@
 											<second>compute_window_min_hls</second>
 										</first>
 										<second>95</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>cand</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>388</item>
+					<item>389</item>
+					<item>390</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>39</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_61">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>61</id>
+						<name>jj_4</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>93</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -3250,10 +3250,10 @@
 					<Obj>
 						<type>0</type>
 						<id>62</id>
-						<name>icmp_ln97_4</name>
+						<name>icmp_ln95_4</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3269,7 +3269,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3310,7 +3310,7 @@
 						<name>tmp_4</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3326,7 +3326,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3342,7 +3342,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>39</count>
@@ -3404,64 +3404,6 @@
 						<name>cand_5</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>97</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName>cand</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>434</item>
-					<item>435</item>
-					<item>436</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>43</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_65">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>65</id>
-						<name>jj_5</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -3479,6 +3421,64 @@
 											<second>compute_window_min_hls</second>
 										</first>
 										<second>95</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>cand</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>434</item>
+					<item>435</item>
+					<item>436</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>43</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_65">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>65</id>
+						<name>jj_5</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>93</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>93</second>
 									</item>
 								</second>
 							</item>
@@ -3516,10 +3516,10 @@
 					<Obj>
 						<type>0</type>
 						<id>66</id>
-						<name>icmp_ln97_5</name>
+						<name>icmp_ln95_5</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3535,7 +3535,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3576,7 +3576,7 @@
 						<name>tmp_5</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3592,7 +3592,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3608,7 +3608,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>37</count>
@@ -3668,7 +3668,7 @@
 						<name>cand_7</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>97</lineNumber>
+						<lineNumber>95</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3684,7 +3684,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>97</second>
+										<second>95</second>
 									</item>
 								</second>
 							</item>
@@ -3700,7 +3700,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -3714,7 +3714,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>47</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -3723,10 +3723,10 @@
 					<Obj>
 						<type>0</type>
 						<id>69</id>
-						<name>icmp_ln100</name>
+						<name>icmp_ln98</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>100</lineNumber>
+						<lineNumber>98</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3742,7 +3742,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>100</second>
+										<second>98</second>
 									</item>
 								</second>
 							</item>
@@ -3771,7 +3771,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
+				<m_delay>0.95</m_delay>
 				<m_topoIndex>48</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -3780,10 +3780,10 @@
 					<Obj>
 						<type>0</type>
 						<id>70</id>
-						<name>xor_ln100</name>
+						<name>xor_ln98</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>100</lineNumber>
+						<lineNumber>98</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3799,7 +3799,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>100</second>
+										<second>98</second>
 									</item>
 								</second>
 							</item>
@@ -3840,7 +3840,7 @@
 						<name>l2_0</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>100</lineNumber>
+						<lineNumber>98</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3856,7 +3856,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>100</second>
+										<second>98</second>
 									</item>
 								</second>
 							</item>
@@ -3872,7 +3872,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -3886,7 +3886,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>50</m_topoIndex>
 				<m_clusterGroupNumber>1</m_clusterGroupNumber>
 			</item>
@@ -3895,10 +3895,10 @@
 					<Obj>
 						<type>0</type>
 						<id>72</id>
-						<name>icmp_ln101</name>
+						<name>icmp_ln99</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>101</lineNumber>
+						<lineNumber>99</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3914,7 +3914,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>101</second>
+										<second>99</second>
 									</item>
 								</second>
 							</item>
@@ -3943,7 +3943,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
+				<m_delay>0.95</m_delay>
 				<m_topoIndex>51</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -3952,10 +3952,10 @@
 					<Obj>
 						<type>0</type>
 						<id>73</id>
-						<name>xor_ln101</name>
+						<name>xor_ln99</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>101</lineNumber>
+						<lineNumber>99</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -3971,7 +3971,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>101</second>
+										<second>99</second>
 									</item>
 								</second>
 							</item>
@@ -4012,7 +4012,7 @@
 						<name>l2_1</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>101</lineNumber>
+						<lineNumber>99</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -4028,7 +4028,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>101</second>
+										<second>99</second>
 									</item>
 								</second>
 							</item>
@@ -4044,7 +4044,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -4058,7 +4058,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>53</m_topoIndex>
 				<m_clusterGroupNumber>2</m_clusterGroupNumber>
 			</item>
@@ -4067,10 +4067,10 @@
 					<Obj>
 						<type>0</type>
 						<id>75</id>
-						<name>icmp_ln102</name>
+						<name>icmp_ln100</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>102</lineNumber>
+						<lineNumber>100</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -4086,7 +4086,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>102</second>
+										<second>100</second>
 									</item>
 								</second>
 							</item>
@@ -4115,7 +4115,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
+				<m_delay>0.95</m_delay>
 				<m_topoIndex>54</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -4124,10 +4124,10 @@
 					<Obj>
 						<type>0</type>
 						<id>76</id>
-						<name>xor_ln102</name>
+						<name>xor_ln100</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>102</lineNumber>
+						<lineNumber>100</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -4143,7 +4143,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>102</second>
+										<second>100</second>
 									</item>
 								</second>
 							</item>
@@ -4184,7 +4184,7 @@
 						<name>l2_2</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>102</lineNumber>
+						<lineNumber>100</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -4200,7 +4200,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>102</second>
+										<second>100</second>
 									</item>
 								</second>
 							</item>
@@ -4216,7 +4216,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -4230,7 +4230,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>56</m_topoIndex>
 				<m_clusterGroupNumber>3</m_clusterGroupNumber>
 			</item>
@@ -4239,6 +4239,236 @@
 					<Obj>
 						<type>0</type>
 						<id>78</id>
+						<name>icmp_ln103</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>103</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>103</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>1</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>2</count>
+					<item_version>0</item_version>
+					<item>503</item>
+					<item>504</item>
+				</oprand_edges>
+				<opcode>icmp</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.95</m_delay>
+				<m_topoIndex>57</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_79">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>79</id>
+						<name>l3_0</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>103</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>103</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>l3_0</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>505</item>
+					<item>506</item>
+					<item>507</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>58</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_80">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>80</id>
+						<name>icmp_ln104</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>104</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>104</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>1</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>2</count>
+					<item_version>0</item_version>
+					<item>508</item>
+					<item>509</item>
+				</oprand_edges>
+				<opcode>icmp</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.95</m_delay>
+				<m_topoIndex>59</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_81">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>81</id>
+						<name>l3_1</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>104</lineNumber>
+						<contextFuncName>compute_window_min_hls</contextFuncName>
+						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>compute_window_min_hls</second>
+										</first>
+										<second>104</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName>l3_1</originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>3</count>
+					<item_version>0</item_version>
+					<item>510</item>
+					<item>511</item>
+					<item>512</item>
+				</oprand_edges>
+				<opcode>select</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.32</m_delay>
+				<m_topoIndex>60</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_82">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>82</id>
 						<name>icmp_ln105</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
@@ -4279,24 +4509,24 @@
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>503</item>
-					<item>504</item>
+					<item>513</item>
+					<item>514</item>
 				</oprand_edges>
 				<opcode>icmp</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
-				<m_topoIndex>57</m_topoIndex>
+				<m_delay>0.95</m_delay>
+				<m_topoIndex>61</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
-			<item class_id_reference="9" object_id="_79">
+			<item class_id_reference="9" object_id="_83">
 				<Value>
 					<Obj>
 						<type>0</type>
-						<id>79</id>
-						<name>l3_0</name>
+						<id>83</id>
+						<name>select_ln105</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>105</lineNumber>
@@ -4320,64 +4550,6 @@
 								</second>
 							</item>
 						</inlineStackInfo>
-						<originalName>l3_0</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>505</item>
-					<item>506</item>
-					<item>507</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>58</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_80">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>80</id>
-						<name>icmp_ln106</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>106</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>106</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
 						<originalName></originalName>
 						<rtlName></rtlName>
 						<control></control>
@@ -4389,179 +4561,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>1</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>2</count>
-					<item_version>0</item_version>
-					<item>508</item>
-					<item>509</item>
-				</oprand_edges>
-				<opcode>icmp</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
-				<m_topoIndex>59</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_81">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>81</id>
-						<name>l3_1</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>106</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>106</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName>l3_1</originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>3</count>
-					<item_version>0</item_version>
-					<item>510</item>
-					<item>511</item>
-					<item>512</item>
-				</oprand_edges>
-				<opcode>select</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
-				<m_topoIndex>60</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_82">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>82</id>
-						<name>icmp_ln107</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>107</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>107</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName></originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>1</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>2</count>
-					<item_version>0</item_version>
-					<item>513</item>
-					<item>514</item>
-				</oprand_edges>
-				<opcode>icmp</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.01</m_delay>
-				<m_topoIndex>61</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_83">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>83</id>
-						<name>select_ln107</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>107</lineNumber>
-						<contextFuncName>compute_window_min_hls</contextFuncName>
-						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>compute_window_min_hls</second>
-										</first>
-										<second>107</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName></originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -4575,7 +4575,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.44</m_delay>
+				<m_delay>0.32</m_delay>
 				<m_topoIndex>62</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -4584,10 +4584,10 @@
 					<Obj>
 						<type>0</type>
 						<id>84</id>
-						<name>_ln108</name>
+						<name>_ln106</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>108</lineNumber>
+						<lineNumber>106</lineNumber>
 						<contextFuncName>compute_window_min_hls</contextFuncName>
 						<contextNormFuncName>compute_window_min_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -4603,7 +4603,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>compute_window_min_hls</second>
 										</first>
-										<second>108</second>
+										<second>106</second>
 									</item>
 								</second>
 							</item>
@@ -5254,7 +5254,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<const_type>5</const_type>
 				<content>0</content>
@@ -5285,10 +5285,10 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>13107200</content>
+				<content>819200</content>
 			</item>
 			<item class_id_reference="16" object_id="_106">
 				<Value>
@@ -8634,28 +8634,28 @@
 		<item>
 			<first>78</first>
 			<second>
-				<first>1</first>
+				<first>0</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>79</first>
 			<second>
-				<first>1</first>
+				<first>0</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>80</first>
 			<second>
-				<first>1</first>
+				<first>0</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>81</first>
 			<second>
-				<first>1</first>
+				<first>0</first>
 				<second>0</second>
 			</second>
 		</item>

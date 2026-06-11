@@ -722,10 +722,13 @@ class GymBridge(Node):
     def _publish_static_laser_transforms(self, num_agents: int) -> None:
         """Publish static transforms for laser frames (relative to base_link)."""
         static_transforms = []
+        static_stamp = self.get_clock().now().to_msg()
+        static_stamp.sec = 0
+        static_stamp.nanosec = 0
 
         # Ego laser transform
         ego_laser_tf = TransformStamped()
-        ego_laser_tf.header.stamp = self.get_clock().now().to_msg()
+        ego_laser_tf.header.stamp = static_stamp
         ego_laser_tf.header.frame_id = f'{self.ego_namespace}/base_link'
         ego_laser_tf.child_frame_id = f'{self.ego_namespace}/laser'
         ego_laser_tf.transform.translation.x = self.scan_distance_to_base_link
@@ -739,7 +742,7 @@ class GymBridge(Node):
 
         if num_agents == 2:
             opp_laser_tf = TransformStamped()
-            opp_laser_tf.header.stamp = self.get_clock().now().to_msg()
+            opp_laser_tf.header.stamp = static_stamp
             opp_laser_tf.header.frame_id = f'{self.opp_namespace}/base_link'
             opp_laser_tf.child_frame_id = f'{self.opp_namespace}/laser'
             opp_laser_tf.transform.translation.x = self.scan_distance_to_base_link

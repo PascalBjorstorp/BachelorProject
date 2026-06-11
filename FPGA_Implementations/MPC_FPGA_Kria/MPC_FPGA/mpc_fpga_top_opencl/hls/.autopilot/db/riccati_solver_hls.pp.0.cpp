@@ -157,7 +157,7 @@ extern "C" {
 # 1 "../src/../include/riccati_solver_hls.h" 1
 # 13 "../src/../include/riccati_solver_hls.h"
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h" 1
-# 20 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
+# 13 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h" 1
 
 
@@ -167,13 +167,13 @@ extern "C" {
 
 
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_pragma_ablation.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 10 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h" 2
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 1
 # 21 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_constants.h" 1
 # 22 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_profile_config.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 23 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/ap_fixed.h" 1
 
@@ -54705,99 +54705,161 @@ static inline void fp_cast_audit_bump_mulqp_site(int site_id) {
 #pragma HLS INLINE
   (void)site_id;
 }
-# 168 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(32 == 32,
+# 192 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert(26 == 26,
               "External payload width must match QP width for raw QP transport");
-static_assert(14 == 14,
+static_assert(12 == 12,
               "External payload format must match QP format for raw QP transport");
-# 410 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(((40) + 0) > (32 - 14), "P width too small");
-static_assert(((34) + 0) > (32 - 14), "MG width too small");
-static_assert(((26) + 0) > (32 - 14), "K width too small");
-
-static_assert((((59) + 1) - ((40) + 0)) > 0, "P/QP guard must be positive");
-static_assert((((52) + 1) - ((34) + 0)) > 0, "MG/QP guard must be positive");
-static_assert((((58) + 1) - ((34) + 0)) > 0, "MG/K guard must be positive");
-static_assert((((45) + 1) - ((26) + 0)) > 0, "K/QP guard must be positive");
 
 
 
+static_assert(26 == 26, "Expected Q12.14 QP width");
+static_assert(12 == 12, "Expected Q12.14 QP integer bits");
+static_assert((26 - 12) == 14, "Expected Q12.14 QP fractional bits");
+static_assert((1 << (26 - 12)) == 16384, "Expected Q12.14 raw scale");
+# 471 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert((21 + 6) == 21 + 6, "P width must be int+frac");
+static_assert((15 + 3) == 15 + 3, "MG width must be int+frac");
+static_assert((9 + 8) == 9 + 8, "K width must be int+frac");
 
 
 
-typedef ap_fixed<32, 14, AP_TRN, AP_WRAP> fp_QP_t;
-typedef ap_int<32> fp_QP_raw_t;
+static_assert(21 >= 12 && 21 <= 24, "P int bits out of sane range");
+static_assert(15 >= 8 && 15 <= 20, "MG int bits out of sane range");
+static_assert(9 >= 5 && 9 <= 16, "K int bits out of sane range");
+static_assert(6 > 0 && 3 > 0 &&
+              8 > 0, "family fractional bits must be positive");
+
+static_assert((((43) + 1) - (21 + 6)) > 0, "P/QP guard must be positive");
+static_assert((((34) + 1) - (15 + 3)) > 0, "MG/QP guard must be positive");
+static_assert((((35) + 1) - (15 + 3)) > 0, "MG/K guard must be positive");
+static_assert((((33) + 1) - (9 + 8)) > 0, "K/QP guard must be positive");
+
+
+
+
+
+
+typedef ap_fixed<26, 12, AP_TRN, AP_WRAP> fp_QP_t;
+typedef ap_int<26> fp_QP_raw_t;
 
 
 typedef fp_QP_raw_t fp_stream_raw_t;
 
 
-typedef ap_int<(32 + (((51) + 1) - 32))> fp_QP_mul_t;
+typedef ap_int<(26 + (((43) + 1) - 26))> fp_QP_mul_t;
 
 
-typedef ap_int<((44) + 1)> fp_sum6_QP_mul_t;
+typedef ap_int<((38) + 1)> fp_sum6_QP_mul_t;
 
 
-typedef ap_fixed<((26) + 0), 9, AP_TRN, AP_WRAP> fp_FN_t;
-typedef ap_int<((26) + 0)> fp_fn_raw_t;
-typedef ap_int<(((26) + 0) + (((44) + 1) - ((26) + 0)))> fp_fn_accum_t;
-
-
-
+typedef ap_fixed<((21) + 0), (((21) + 0) - 12), AP_TRN, AP_WRAP> fp_FN_t;
+typedef ap_int<((21) + 0)> fp_fn_raw_t;
+typedef ap_int<(((21) + 0) + (((35) + 1) - ((21) + 0)))> fp_fn_accum_t;
 
 
 
-typedef ap_fixed<((40) + 0), (((40) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_P_t;
-typedef ap_int<((40) + 0)> fp_P_raw_t;
 
 
-typedef ap_fixed<((34) + 0), (((34) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_MG_t;
-typedef ap_int<((34) + 0)> fp_MG_raw_t;
+
+typedef ap_fixed<(21 + 6), 21, AP_TRN, AP_WRAP> fp_P_t;
+typedef ap_int<(21 + 6)> fp_P_raw_t;
 
 
-typedef ap_fixed<((26) + 0), (((26) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_K_t;
-typedef ap_int<((26) + 0)> fp_K_raw_t;
-# 465 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-typedef ap_int<(((40) + 0) + (((59) + 1) - ((40) + 0)))> fp_P_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((52) + 1) - ((34) + 0)))> fp_MG_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((58) + 1) - ((34) + 0)))> fp_MG_K_mul_t;
-typedef ap_int<(((26) + 0) + (((45) + 1) - ((26) + 0)))> fp_K_QP_mul_t;
+typedef ap_fixed<(15 + 3), 15, AP_TRN, AP_WRAP> fp_MG_t;
+typedef ap_int<(15 + 3)> fp_MG_raw_t;
 
-typedef ap_int<((31) + 1)> fp_sum2_QP_raw_t;
-typedef ap_int<((25) + 1)> fp_sum4_QP_raw_t;
-typedef ap_int<((24) + 1)> fp_sum8_QP_raw_t;
-typedef ap_int<((39) + 1)> fp_sum2_P_raw_t;
-typedef ap_int<((33) + 1)> fp_sum2_MG_raw_t;
-typedef ap_int<((58) + 1)> fp_sum6_P_QP_t;
-typedef ap_int<((52) + 1)> fp_sum6_MG_QP_t;
-typedef ap_int<((51) + 1)> fp_sum2_P_QP_t;
-typedef ap_int<((50) + 1)> fp_sum4_P_QP_t;
-typedef ap_int<((45) + 1)> fp_sum2_MG_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_MG_QP_t;
-typedef ap_int<((48) + 1)> fp_sum2_MG_K_t;
+
+typedef ap_fixed<(9 + 8), 9, AP_TRN, AP_WRAP> fp_K_t;
+typedef ap_int<(9 + 8)> fp_K_raw_t;
+# 534 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+typedef ap_int<((21 + 6) + (((43) + 1) - (21 + 6)))> fp_P_QP_mul_t;
+typedef ap_int<((15 + 3) + (((34) + 1) - (15 + 3)))> fp_MG_QP_mul_t;
+typedef ap_int<((15 + 3) + (((35) + 1) - (15 + 3)))> fp_MG_K_mul_t;
+typedef ap_int<((9 + 8) + (((33) + 1) - (9 + 8)))> fp_K_QP_mul_t;
+
+typedef ap_int<((27) + 1)> fp_sum2_QP_raw_t;
+typedef ap_int<((23) + 1)> fp_sum4_QP_raw_t;
+typedef ap_int<((22) + 1)> fp_sum8_QP_raw_t;
+typedef ap_int<((27) + 1)> fp_sum2_P_raw_t;
+typedef ap_int<((19) + 1)> fp_sum2_MG_raw_t;
+typedef ap_int<((42) + 1)> fp_sum6_P_QP_t;
+typedef ap_int<((34) + 1)> fp_sum6_MG_QP_t;
+typedef ap_int<((35) + 1)> fp_sum2_P_QP_t;
+typedef ap_int<((35) + 1)> fp_sum4_P_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_MG_QP_t;
+typedef ap_int<((27) + 1)> fp_sum4_MG_QP_t;
+typedef ap_int<((24) + 1)> fp_sum2_MG_K_t;
 enum {
   MPC_HLS_P_MIX_MUL_WIDTH =
-      ((((40) + 0) + (((59) + 1) - ((40) + 0))) >
-       (((34) + 0) + (((58) + 1) - ((34) + 0))))
-          ? (((40) + 0) + (((59) + 1) - ((40) + 0)))
-          : (((34) + 0) + (((58) + 1) - ((34) + 0)))
+      (((21 + 6) + (((43) + 1) - (21 + 6))) >
+       ((15 + 3) + (((35) + 1) - (15 + 3))))
+          ? ((21 + 6) + (((43) + 1) - (21 + 6)))
+          : ((15 + 3) + (((35) + 1) - (15 + 3)))
 };
-typedef ap_int<((59) + 1)> fp_P_mix_item_t;
-typedef ap_int<((59) + 1)> fp_sum2_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum4_P_MIX_t;
-typedef ap_int<((56) + 1)> fp_sum8_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum8_P_MIX_pup_t;
-typedef ap_int<((45) + 1)> fp_K_qp_item_t;
-typedef ap_int<((44) + 1)> fp_sum2_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_K_QP_t;
-typedef ap_int<((43) + 1)> fp_sum8_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum2_QP_MG_t;
-typedef ap_int<((25) + 1)> fp_QP_recip_shift_t;
-typedef ap_int<((21) + 1)> fp_FN_recip_shift_t;
-typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
+typedef ap_int<((43) + 1)> fp_P_mix_item_t;
+typedef ap_int<((43) + 1)> fp_sum2_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum4_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_pup_t;
+typedef ap_int<((33) + 1)> fp_K_qp_item_t;
+typedef ap_int<((33) + 1)> fp_sum2_K_QP_t;
+typedef ap_int<((33) + 1)> fp_sum4_K_QP_t;
+typedef ap_int<((31) + 1)> fp_sum8_K_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_QP_MG_t;
+typedef ap_int<((15) + 1)> fp_QP_recip_shift_t;
+typedef ap_int<((18) + 1)> fp_FN_recip_shift_t;
+typedef ap_int<((42) + 1)> fp_QP_det_mul_t;
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_probe.hpp" 1
-# 504 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
+# 80 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp"
+enum FpWidthProbeId {
+  FP_WP_QP_MUL = 0,
+  FP_WP_P_QP_MUL,
+  FP_WP_MG_QP_MUL,
+  FP_WP_MG_K_MUL,
+  FP_WP_K_QP_MUL,
+  FP_WP_FN_MUL,
+  FP_WP_SUM2_QP_RAW,
+  FP_WP_SUM4_QP_RAW,
+  FP_WP_SUM8_QP_RAW,
+  FP_WP_SUM6_QP,
+  FP_WP_SUM6_QP_ACC,
+  FP_WP_SUM2_P_RAW,
+  FP_WP_SUM6_P_QP,
+  FP_WP_SUM2_P_QP,
+  FP_WP_SUM4_P_QP,
+  FP_WP_SUM2_P_MIX,
+  FP_WP_SUM4_P_MIX,
+  FP_WP_SUM8_P_MIX,
+  FP_WP_SUM8_P_MIX_PUP,
+  FP_WP_SUM2_MG_RAW,
+  FP_WP_SUM6_MG_QP,
+  FP_WP_SUM2_MG_QP,
+  FP_WP_SUM4_MG_QP,
+  FP_WP_SUM2_QP_MG,
+  FP_WP_SUM2_MG_K,
+  FP_WP_SUM2_K_QP,
+  FP_WP_SUM4_K_QP,
+  FP_WP_SUM8_K_QP,
+  FP_WP_QP_RECIP_SHIFT,
+  FP_WP_FN_RECIP_SHIFT,
+  FP_WP_QP_DET_MUL,
+  FP_WP_QP_ITEM,
+  FP_WP_P_QP_ITEM,
+  FP_WP_P_MIX_ITEM,
+  FP_WP_MG_QP_ITEM,
+  FP_WP_K_QP_ITEM,
+  FP_WP_QP_STORE,
+  FP_WP_FN_STORE,
+  FP_WP_P_STORE,
+  FP_WP_MG_STORE,
+  FP_WP_K_STORE,
+  FP_WP_COUNT
+};
+# 574 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
 
 
 
@@ -54806,126 +54868,143 @@ typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
 static inline fp_QP_t fp_QP_from_raw(fp_stream_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_stream_raw_t fp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_stream_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_QP_raw_t fp_qp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_QP_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
-  ((void)0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
+  VITIS_LOOP_598_1: do { (void)(FP_WP_QP_STORE); (void)(out.to_int64()); (void)((26 - 12)); } while (0);
   return out;
 }
 
 static inline fp_QP_t fp_QP_from_qp_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
+}
+# 623 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+template <typename OutT, int SH, bool RIGHT>
+struct fp_frac_shifter_ {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(v >> SH);
+  }
+};
+template <typename OutT, int SH>
+struct fp_frac_shifter_<OutT, SH, false> {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(((OutT)v) << SH);
+  }
+};
+
+template <typename OutT, int IN_FRAC, int OUT_FRAC, typename InT>
+static inline OutT fp_rescale_raw_frac(InT value) {
+#pragma HLS INLINE
+  return fp_frac_shifter_<OutT,
+      (IN_FRAC >= OUT_FRAC ? IN_FRAC - OUT_FRAC : OUT_FRAC - IN_FRAC),
+      (IN_FRAC >= OUT_FRAC)>::go(value);
+}
+
+template <typename OutT, int A_FRAC, int B_FRAC, int OUT_FRAC, typename ProdT>
+static inline OutT fp_product_shift_to_raw(ProdT product) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<OutT, A_FRAC + B_FRAC, OUT_FRAC>(product);
 }
 
 
 
 
 
-static inline fp_P_raw_t fp_P_raw_from_P(fp_P_t value) {
-#pragma HLS INLINE
-  fp_P_raw_t out = 0;
-  out.range(((40) + 0) - 1, 0) = value.range(((40) + 0) - 1, 0);
-  return out;
-}
 
-static inline fp_P_t fp_P_from_raw(fp_P_raw_t raw) {
+static inline fp_P_raw_t fp_QP_raw_to_P_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
-  fp_P_t out = 0;
-  out.range(((40) + 0) - 1, 0) = raw.range(((40) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_P_raw_t, (26 - 12), 6>(raw);
+}
+static inline fp_MG_raw_t fp_QP_raw_to_MG_raw(fp_QP_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t, (26 - 12), 3>(raw);
+}
+static inline fp_QP_raw_t fp_K_raw_to_QP_raw(fp_K_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t, 8, (26 - 12)>(raw);
 }
 
 static inline fp_P_raw_t fp_P_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_P_raw_t)fp_qp_raw_from_QP(value);
-}
-
-static inline fp_P_t fp_P_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_P_from_raw(fp_P_raw_from_QP(value));
-}
-
-static inline fp_MG_raw_t fp_MG_raw_from_MG(fp_MG_t value) {
-#pragma HLS INLINE
-  fp_MG_raw_t out = 0;
-  out.range(((34) + 0) - 1, 0) = value.range(((34) + 0) - 1, 0);
-  return out;
-}
-
-static inline fp_MG_t fp_MG_from_raw(fp_MG_raw_t raw) {
-#pragma HLS INLINE
-  fp_MG_t out = 0;
-  out.range(((34) + 0) - 1, 0) = raw.range(((34) + 0) - 1, 0);
-  return out;
+  return fp_QP_raw_to_P_raw(fp_qp_raw_from_QP(value));
 }
 
 static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_MG_raw_t)fp_qp_raw_from_QP(value);
+  return fp_QP_raw_to_MG_raw(fp_qp_raw_from_QP(value));
 }
 
-static inline fp_MG_t fp_MG_from_QP(fp_QP_t value) {
+
+static inline fp_MG_raw_t fp_P_QP_sum_to_MG_raw(fp_sum2_P_QP_t v) {
 #pragma HLS INLINE
-  return fp_MG_from_raw(fp_MG_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_K(fp_K_t value) {
+static inline fp_MG_raw_t fp_P_QP_sum4_to_MG_raw(fp_sum4_P_QP_t v) {
 #pragma HLS INLINE
-  fp_K_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_t fp_K_from_raw(fp_K_raw_t raw) {
+static inline fp_QP_raw_t fp_MG_QP_sum_to_QP_raw(fp_sum2_MG_QP_t v) {
 #pragma HLS INLINE
-  fp_K_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_QP(fp_QP_t value) {
+static inline fp_QP_raw_t fp_MG_QP_sum4_to_QP_raw(fp_sum4_MG_QP_t v) {
 #pragma HLS INLINE
-  return (fp_K_raw_t)fp_qp_raw_from_QP(value);
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_t fp_K_from_QP(fp_QP_t value) {
+static inline fp_K_raw_t fp_QP_MG_sum_to_K_raw(fp_sum2_QP_MG_t v) {
 #pragma HLS INLINE
-  return fp_K_from_raw(fp_K_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_K_raw_t,
+      (26 - 12) + 3, 8>(v);
 }
-
-
-
-
-
-static inline fp_QP_raw_t fp_cast_K_raw_to_qp(fp_K_raw_t value) {
+static inline fp_QP_raw_t fp_K_QP_sum_to_QP_raw(fp_sum8_K_QP_t v) {
 #pragma HLS INLINE
-
-
-
-
-  return (fp_QP_raw_t)value;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      8 + (26 - 12), (26 - 12)>(v);
 }
+static inline fp_P_raw_t fp_MG_K_sum_to_P_raw(fp_sum2_MG_K_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_raw_t,
+      3 + 8, 6>(v);
+}
+
+static inline fp_P_mix_item_t fp_MG_K_mul_to_PQP_mix_item(fp_MG_K_mul_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_mix_item_t,
+      3 + 8,
+      6 + (26 - 12)>(v);
+}
+
+
+
+
+
 
 static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp_site(fp_sum2_QP_raw_t value,
                                                        int site_id) {
 #pragma HLS INLINE
   (void)site_id;
-  ((void)0);
+  VITIS_LOOP_733_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(value.to_int64()); } while (0);
   return (fp_QP_raw_t)value;
 }
 
@@ -54947,12 +55026,6 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp_site(fp_QP_mul_t value,
   return (fp_QP_raw_t)(value >> shift);
 }
 
-static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return fp_shift_right_cast_to_qp_site(value, shift, FP_CAST_SITE_UNKNOWN);
-}
-
 
 
 
@@ -54960,15 +55033,15 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
 static inline fp_fn_raw_t fp_fn_raw_from_FN(fp_FN_t value) {
 #pragma HLS INLINE
   fp_fn_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  ((void)0);
+  out.range(((21) + 0) - 1, 0) = value.range(((21) + 0) - 1, 0);
+  VITIS_LOOP_763_1: do { (void)(FP_WP_FN_STORE); (void)(out.to_int64()); (void)((((21) + 0) - (((21) + 0) - 12))); } while (0);
   return out;
 }
 
 static inline fp_FN_t fp_FN_from_fn_raw(fp_fn_raw_t raw) {
 #pragma HLS INLINE
   fp_FN_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
+  out.range(((21) + 0) - 1, 0) = raw.range(((21) + 0) - 1, 0);
   return out;
 }
 
@@ -54982,7 +55055,6 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
   return (fp_QP_t)fn_value;
 }
 # 11 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h" 2
-
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 1 3
 # 40 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 3
 
@@ -55020,20 +55092,18 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
 # 204 "/usr/include/limits.h" 2 3 4
 # 22 "/home/akselmo/Vivado_program/2025.2/lnx64/tools/clang-16/lib/clang/16/include/limits.h" 2 3
 # 43 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 2 3
-# 13 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h" 2
-# 38 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
+# 12 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h" 2
+# 62 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
 static_assert((1 << 3) == 8,
               "FP_ATAN_LUT_DOMAIN_LOG2 must be log2(FP_ATAN_LUT_DOMAIN)");
-# 83 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
+# 107 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
 fp_QP_t fp_recip(fp_QP_t x);
 
 
 fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id);
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
-fp_QP_t fp_sq(fp_QP_t x);
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b);
-# 99 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
+# 121 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h"
 fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b);
 fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b);
 
@@ -55043,13 +55113,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b);
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b);
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b);
-
-static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  if (a == 0 || b == 0)
-    return 0;
-  return fp_mul(a, fp_recip(b));
-}
 
 static inline fp_QP_t fp_abs(fp_QP_t a) {
 #pragma HLS INLINE
@@ -55072,7 +55135,7 @@ static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi) {
 
 static inline fp_QP_raw_t fp_qp_raw_from_neg_pow2(int exp) {
 #pragma HLS INLINE
-  const int shift = ((32 - 14)) - exp;
+  const int shift = ((26 - 12)) - exp;
   if (shift <= 0)
     return (fp_QP_raw_t)1;
   return ((fp_QP_raw_t)1) << shift;
@@ -55094,7 +55157,7 @@ static inline fp_QP_raw_t fp_add3_cast_qp_raw(fp_QP_raw_t a, fp_QP_raw_t b,
                                                fp_QP_raw_t c, int site_id) {
 #pragma HLS INLINE
   fp_sum2_QP_raw_t sum_ab = (fp_sum2_QP_raw_t)a + (fp_sum2_QP_raw_t)b;
-  ((void)0);
+  VITIS_LOOP_174_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(sum_ab.to_int64()); } while (0);
   fp_sum2_QP_raw_t sum_abc = sum_ab + (fp_sum2_QP_raw_t)c;
   return cast_sum2_qp_raw_to_qp_site(sum_abc, site_id);
 }
@@ -55113,11 +55176,11 @@ static fp_sum6_P_QP_t sum6_P_QP_raw(fp_sum6_P_QP_t a0,
                                     fp_sum6_P_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_193_1: do { (void)(FP_WP_SUM6_P_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_197_2: do { (void)(FP_WP_P_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_P_QP_t s01 = a0 + a1;
   fp_sum6_P_QP_t s23 = a2 + a3;
   fp_sum6_P_QP_t s45 = a4 + a5;
@@ -55135,24 +55198,24 @@ static fp_sum8_P_MIX_t sum8_P_MIX_raw(fp_P_mix_item_t a0,
                                       fp_P_mix_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_215_1: do { (void)(FP_WP_SUM8_P_MIX); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_220_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_225_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_226_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_227_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_228_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_231_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_232_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_t)(s0123 + s4567);
 }
 
@@ -55174,24 +55237,24 @@ static fp_sum8_P_MIX_pup_t sum8_P_MIX_raw_pupdate(fp_P_mix_item_t a0,
 
 
 #pragma HLS LATENCY min = 1 max = 1
-  ((void)0);
+  VITIS_LOOP_254_1: do { (void)(FP_WP_SUM8_P_MIX_PUP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_259_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_264_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_265_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_266_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_267_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_270_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_271_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_pup_t)(s0123 + s4567);
 }
 
@@ -55203,11 +55266,11 @@ static fp_sum6_QP_mul_t sum6_QP_raw(fp_sum6_QP_mul_t a0,
                                     fp_sum6_QP_mul_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_283_1: do { (void)(FP_WP_SUM6_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_287_2: do { (void)(FP_WP_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_QP_mul_t s01 = a0 + a1;
   fp_sum6_QP_mul_t s23 = a2 + a3;
   fp_sum6_QP_mul_t s45 = a4 + a5;
@@ -55223,11 +55286,11 @@ static fp_sum6_MG_QP_t sum6_MG_QP_raw(fp_sum6_MG_QP_t a0,
                                       fp_sum6_MG_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_303_1: do { (void)(FP_WP_SUM6_MG_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_307_2: do { (void)(FP_WP_MG_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_MG_QP_t s01 = a0 + a1;
   fp_sum6_MG_QP_t s23 = a2 + a3;
   fp_sum6_MG_QP_t s45 = a4 + a5;
@@ -55245,24 +55308,24 @@ static fp_sum8_K_QP_t sum8_K_QP_raw(fp_K_qp_item_t a0,
                                     fp_K_qp_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_325_1: do { (void)(FP_WP_SUM8_K_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_330_2: do { (void)(FP_WP_K_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_K_QP_t s01 = a0 + a1;
   fp_sum2_K_QP_t s23 = a2 + a3;
   fp_sum2_K_QP_t s45 = a4 + a5;
   fp_sum2_K_QP_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_335_3: do { (void)(FP_WP_SUM2_K_QP); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_336_4: do { (void)(FP_WP_SUM2_K_QP); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_337_5: do { (void)(FP_WP_SUM2_K_QP); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_338_6: do { (void)(FP_WP_SUM2_K_QP); (void)(s67.to_int64()); } while (0);
   fp_sum4_K_QP_t s0123 = s01 + s23;
   fp_sum4_K_QP_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_341_7: do { (void)(FP_WP_SUM4_K_QP); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_342_8: do { (void)(FP_WP_SUM4_K_QP); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_K_QP_t)(s0123 + s4567);
 }
 
@@ -55289,72 +55352,27 @@ static inline fp_QP_t fp_max3_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2) {
   return fp_max2(fp_max2(x0, x1), x2);
 }
 
-static inline fp_QP_t fp_max4_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2,
-                                 fp_QP_t x3) {
-#pragma HLS INLINE
-  const fp_QP_t m01 = fp_max2(x0, x1);
-  const fp_QP_t m23 = fp_max2(x2, x3);
-  return fp_max2(m01, m23);
-}
-
-
-
-
-
-static inline fp_P_raw_t fp_shift_right_cast_to_P(fp_P_QP_mul_t value,
-                                                  int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_PQ_to_MG(fp_P_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_KQ_to_qp(fp_K_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)(value >> shift);
-}
-
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
-fp_QP_t fp_sin(fp_QP_t angle);
-fp_QP_t fp_cos(fp_QP_t angle);
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out);
 fp_QP_t fp_atan_lut(fp_QP_t x);
 
 
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b);
+
+
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE
   return (a < 0) ? fp_FN_t(-a) : a;
 }
 
-fp_FN_t fp_sin_fn(fp_FN_t angle);
-fp_FN_t fp_cos_fn(fp_FN_t angle);
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out);
 fp_FN_t fp_atan_lut_fn(fp_FN_t x);
 fp_FN_t fp_recip_fn(fp_FN_t x);
 
 int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]);
-# 21 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h" 2
-# 279 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
+# 14 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h" 2
+# 237 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
 typedef struct {
   fp_QP_t x;
   fp_QP_t y;
@@ -55380,7 +55398,7 @@ typedef struct alignas(32) {
   fp_QP_t left_wall_bound;
   fp_QP_t right_wall_bound;
 } MpcRefPoint_t;
-# 327 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
+# 285 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h"
 typedef struct alignas(32) {
   fp_QP_raw_t A[6][6];
 
@@ -55418,17 +55436,17 @@ static inline void mpc_admm_reset_all_hls(AdmmState_t *admm_state) {
   if (!admm_state)
     return;
 
-  VITIS_LOOP_364_1: for (int k = 0; k <= 20; ++k) {
+  VITIS_LOOP_322_1: for (int k = 0; k <= 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_366_2: for (int s = 0; s < 8; ++s) {
+    VITIS_LOOP_324_2: for (int s = 0; s < 8; ++s) {
       admm_state->z_x[k][s] = ((fp_QP_t)(0.0));
       admm_state->y_x[k][s] = ((fp_QP_t)(0.0));
     }
   }
 
-  VITIS_LOOP_372_3: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_330_3: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_374_4: for (int a = 0; a < 2; ++a) {
+    VITIS_LOOP_332_4: for (int a = 0; a < 2; ++a) {
       admm_state->z_u[k][a] = ((fp_QP_t)(0.0));
       admm_state->y_u[k][a] = ((fp_QP_t)(0.0));
     }
@@ -55444,16 +55462,16 @@ static inline void mpc_admm_zero_duals_hls(AdmmState_t *admm_state) {
   if (!admm_state)
     return;
 
-  VITIS_LOOP_390_1: for (int k = 0; k <= 20; ++k) {
+  VITIS_LOOP_348_1: for (int k = 0; k <= 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_392_2: for (int s = 0; s < 8; ++s) {
+    VITIS_LOOP_350_2: for (int s = 0; s < 8; ++s) {
       admm_state->y_x[k][s] = ((fp_QP_t)(0.0));
     }
   }
 
-  VITIS_LOOP_397_3: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_355_3: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_399_4: for (int a = 0; a < 2; ++a) {
+    VITIS_LOOP_357_4: for (int a = 0; a < 2; ++a) {
       admm_state->y_u[k][a] = ((fp_QP_t)(0.0));
     }
   }
@@ -55563,7 +55581,7 @@ int riccati_hls_debug_get_trace_sample(int index, MpcHlsDebugIterSample_t *out);
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 1 3
 # 40 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 3
 # 14 "../src/riccati_solver_hls.cpp" 2
-# 65 "../src/riccati_solver_hls.cpp"
+# 82 "../src/riccati_solver_hls.cpp"
 extern "C" int riccati_hls_debug_get_trace_count(void) {
   return 0;
 }
@@ -55618,67 +55636,67 @@ static inline fp_QP_t step_accel_ub(const StepData_t *sd) {
 
 static inline fp_P_raw_t fp_probe_store_P(fp_P_raw_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_136_1: do { (void)(FP_WP_P_STORE); (void)(raw.to_int64()); (void)(6); } while (0);
   return raw;
 }
 
 static inline fp_MG_raw_t fp_probe_store_MG(fp_MG_raw_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_142_1: do { (void)(FP_WP_MG_STORE); (void)(raw.to_int64()); (void)(3); } while (0);
   return raw;
 }
 
 static inline fp_K_raw_t fp_probe_store_K(fp_K_raw_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_148_1: do { (void)(FP_WP_K_STORE); (void)(raw.to_int64()); (void)(8); } while (0);
   return raw;
 }
 
 static inline fp_sum2_P_raw_t fp_probe_sum2_P_raw(fp_sum2_P_raw_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_154_1: do { (void)(FP_WP_SUM2_P_RAW); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum2_MG_raw_t fp_probe_sum2_MG_raw(fp_sum2_MG_raw_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_160_1: do { (void)(FP_WP_SUM2_MG_RAW); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum2_P_QP_t fp_probe_sum2_P_QP(fp_sum2_P_QP_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_166_1: do { (void)(FP_WP_SUM2_P_QP); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum4_P_QP_t fp_probe_sum4_P_QP(fp_sum4_P_QP_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_172_1: do { (void)(FP_WP_SUM4_P_QP); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum2_MG_QP_t fp_probe_sum2_MG_QP(fp_sum2_MG_QP_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_178_1: do { (void)(FP_WP_SUM2_MG_QP); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum4_MG_QP_t fp_probe_sum4_MG_QP(fp_sum4_MG_QP_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_184_1: do { (void)(FP_WP_SUM4_MG_QP); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum2_QP_MG_t fp_probe_sum2_QP_MG(fp_sum2_QP_MG_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_190_1: do { (void)(FP_WP_SUM2_QP_MG); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
 static inline fp_sum2_MG_K_t fp_probe_sum2_MG_K(fp_sum2_MG_K_t raw) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_196_1: do { (void)(FP_WP_SUM2_MG_K); (void)(raw.to_int64()); } while (0);
   return raw;
 }
 
@@ -55694,7 +55712,7 @@ admm_update_state_channel_raw(fp_QP_t x_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
   const fp_QP_raw_t ub_raw = fp_qp_raw_from_QP(ub);
 
   fp_sum2_QP_raw_t val = (fp_sum2_QP_raw_t)x_raw + (fp_sum2_QP_raw_t)y_raw;
-  ((void)0);
+  VITIS_LOOP_212_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(val.to_int64()); } while (0);
   if (val < (fp_sum2_QP_raw_t)lb_raw)
     val = (fp_sum2_QP_raw_t)lb_raw;
   if (val > (fp_sum2_QP_raw_t)ub_raw)
@@ -55743,7 +55761,7 @@ admm_update_control_channel_raw(fp_QP_t u_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
   const fp_QP_raw_t ub_raw = fp_qp_raw_from_QP(ub);
 
   fp_sum2_QP_raw_t val = (fp_sum2_QP_raw_t)u_raw + (fp_sum2_QP_raw_t)y_raw;
-  ((void)0);
+  VITIS_LOOP_261_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(val.to_int64()); } while (0);
   if (val < (fp_sum2_QP_raw_t)lb_raw)
     val = (fp_sum2_QP_raw_t)lb_raw;
   if (val > (fp_sum2_QP_raw_t)ub_raw)
@@ -55779,7 +55797,7 @@ admm_update_control_channel_raw(fp_QP_t u_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
     *lambda_norm_k = abs_l;
   *z_slot = z_new;
 }
-# 306 "../src/riccati_solver_hls.cpp"
+# 323 "../src/riccati_solver_hls.cpp"
 static void
 riccati_forward_pass(const StepData_t step_data[20],
                      const fp_QP_raw_t B_sparse[20][4],
@@ -55799,14 +55817,14 @@ riccati_forward_pass(const StepData_t step_data[20],
 
   int i, k, s;
 
-  VITIS_LOOP_325_1: for (s = 0; s < 8; s++) {
+  VITIS_LOOP_342_1: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
     x_out[0][s] = x0[s];
   }
 
 
 
-  VITIS_LOOP_332_2: for (k = 0; k < 20; k++) {
+  VITIS_LOOP_349_2: for (k = 0; k < 20; k++) {
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
     const fp_QP_raw_t d0_fwd = sd->d[0];
@@ -55818,7 +55836,7 @@ riccati_forward_pass(const StepData_t step_data[20],
 
     fp_QP_raw_t xk_raw[8];
 #pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
-    VITIS_LOOP_344_3: for (s = 0; s < 8; ++s) {
+    VITIS_LOOP_361_3: for (s = 0; s < 8; ++s) {
 #pragma HLS UNROLL
       xk_raw[s] = fp_qp_raw_from_QP(x_out[k][s]);
     }
@@ -55843,21 +55861,20 @@ riccati_forward_pass(const StepData_t step_data[20],
         (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][6], xk_raw[6]),
         (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][7], xk_raw[7]));
 
+
     const fp_QP_raw_t u0_raw =
-        add_cast_QP_raw((fp_QP_raw_t)kk[k][0],
-                        fp_shift_right_cast<fp_QP_raw_t>(prod_sum0,
-                                                         ((32 - 14))));
+        add_cast_QP_raw(fp_K_raw_to_QP_raw(kk[k][0]),
+                        fp_K_QP_sum_to_QP_raw(prod_sum0));
     const fp_QP_raw_t u1_raw =
-        add_cast_QP_raw((fp_QP_raw_t)kk[k][1],
-                        fp_shift_right_cast<fp_QP_raw_t>(prod_sum1,
-                                                         ((32 - 14))));
+        add_cast_QP_raw(fp_K_raw_to_QP_raw(kk[k][1]),
+                        fp_K_QP_sum_to_QP_raw(prod_sum1));
 
     const fp_QP_t u0_k = fp_QP_from_qp_raw(u0_raw);
     const fp_QP_t u1_k = fp_QP_from_qp_raw(u1_raw);
     u_out[k][0] = u0_k;
     u_out[k][1] = u1_k;
 
-    VITIS_LOOP_383_4: for (i = 0; i < 6; i++) {
+    VITIS_LOOP_399_4: for (i = 0; i < 6; i++) {
 #pragma HLS PIPELINE II = 1
       fp_QP_raw_t d_i = d0_fwd;
       if (i == 1) d_i = d1_fwd;
@@ -55875,7 +55892,7 @@ riccati_forward_pass(const StepData_t step_data[20],
           (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][5], xk_raw[5]));
 
       fp_sum6_QP_mul_t sum =
-          ((fp_sum6_QP_mul_t)d_i << ((32 - 14))) +
+          ((fp_sum6_QP_mul_t)d_i << ((26 - 12))) +
           (fp_sum6_QP_mul_t)ax_sum;
 
       if (i == 2) {
@@ -55892,8 +55909,8 @@ riccati_forward_pass(const StepData_t step_data[20],
             B_sparse[k][MPC_BSP_DELTA_RATE], u0_raw);
       }
 
-      ((void)0);
-      fp_QP_raw_t result = fp_shift_right_cast<fp_QP_raw_t>(sum, ((32 - 14)));
+      VITIS_LOOP_434_5: do { (void)(FP_WP_SUM6_QP_ACC); (void)(sum.to_int64()); } while (0);
+      fp_QP_raw_t result = fp_shift_right_cast<fp_QP_raw_t>(sum, ((26 - 12)));
       x_out[k + 1][i] = fp_QP_from_qp_raw(result);
     }
 
@@ -55901,7 +55918,7 @@ riccati_forward_pass(const StepData_t step_data[20],
     x_out[k + 1][7] = u1_k;
   }
 }
-# 442 "../src/riccati_solver_hls.cpp"
+# 458 "../src/riccati_solver_hls.cpp"
 static void
 riccati_backward_pass(const StepData_t step_data[20],
                       const fp_QP_raw_t B_sparse[20][4],
@@ -55937,16 +55954,16 @@ riccati_backward_pass(const StepData_t step_data[20],
 
   int s, i, j, a, b, k;
 
-  VITIS_LOOP_477_1: for (i = 0; i < nx; i++) {
+  VITIS_LOOP_493_1: for (i = 0; i < nx; i++) {
 #pragma HLS UNROLL
-    VITIS_LOOP_479_2: for (j = 0; j < nx; j++) {
+    VITIS_LOOP_495_2: for (j = 0; j < nx; j++) {
 #pragma HLS UNROLL
       P[i][j] = 0;
     }
     p[i] = 0;
   }
 
-  VITIS_LOOP_486_3: for (s = 0; s < nx; s++) {
+  VITIS_LOOP_502_3: for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
     P[s][s] = fp_probe_store_P(fp_P_raw_from_QP(terminal_q_diag[s]));
     p[s] = fp_probe_store_P(fp_P_raw_from_QP(terminal_q_linear[s]));
@@ -55963,7 +55980,7 @@ riccati_backward_pass(const StepData_t step_data[20],
     fp_QP_mul_t rho_state_mul =
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
-        (fp_P_raw_t)(rho_state_mul >> ((32 - 14)));
+        fp_product_shift_to_raw<fp_P_raw_t, (26 - 12), (26 - 12), 6>(rho_state_mul);
     p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
         (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
@@ -55979,12 +55996,12 @@ riccati_backward_pass(const StepData_t step_data[20],
     fp_QP_mul_t rho_state_mul =
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
-        (fp_P_raw_t)(rho_state_mul >> ((32 - 14)));
+        fp_product_shift_to_raw<fp_P_raw_t, (26 - 12), (26 - 12), 6>(rho_state_mul);
     p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
         (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
-# 535 "../src/riccati_solver_hls.cpp"
-  VITIS_LOOP_535_4: for (k = N - 1; k >= 0; k--) {
+# 551 "../src/riccati_solver_hls.cpp"
+  VITIS_LOOP_551_4: for (k = N - 1; k >= 0; k--) {
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
     const fp_QP_raw_t d0_raw = sd->d[0];
@@ -56004,27 +56021,27 @@ riccati_backward_pass(const StepData_t step_data[20],
 #pragma HLS ARRAY_PARTITION variable = r_aug_linear complete dim = 1
 
     const bool first_stage = (k == 0);
-    q_aug_diag[0] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(1500.0f))) << 1)));
-    q_aug_diag[1] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(5.0f))) << 1)));
-    q_aug_diag[2] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(200.0f))) << 1)));
-    q_aug_diag[3] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(10.0f))) << 1)));
-    q_aug_diag[4] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(1.5f))) << 1)));
-    q_aug_diag[5] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(1.0f))) << 1)));
-    fp_QP_t q_diag_delta_prev = (fp_QP_t)((((fp_QP_t)(5.0f))) << 1);
-    fp_QP_t q_diag_accel_prev = (fp_QP_t)((((fp_QP_t)(5.0f))) << 1);
+    q_aug_diag[0] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((2000.0f) / 4.0f)))) << 1)));
+    q_aug_diag[1] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((50.0f) / 4.0f)))) << 1)));
+    q_aug_diag[2] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((250.0f) / 4.0f)))) << 1)));
+    q_aug_diag[3] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((5.0f) / 4.0f)))) << 1)));
+    q_aug_diag[4] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((1.5f) / 4.0f)))) << 1)));
+    q_aug_diag[5] = fp_probe_store_P(fp_P_raw_from_QP(((((fp_QP_t)(((1.0f) / 4.0f)))) << 1)));
+    fp_QP_t q_diag_delta_prev = (fp_QP_t)((((fp_QP_t)(((5.0f) / 4.0f)))) << 1);
+    fp_QP_t q_diag_accel_prev = (fp_QP_t)((((fp_QP_t)(((5.0f) / 4.0f)))) << 1);
     if (first_stage) {
-      q_diag_delta_prev = (fp_QP_t)((((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14)))))))) << 1);
-      q_diag_accel_prev = (fp_QP_t)((((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14)))))))) << 1);
+      q_diag_delta_prev = (fp_QP_t)((((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12)))))))) << 1);
+      q_diag_accel_prev = (fp_QP_t)((((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12)))))))) << 1);
     }
     q_aug_diag[6] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_delta_prev));
     q_aug_diag[7] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_accel_prev));
 
-    q_aug_linear[0] = fp_probe_store_P((fp_P_raw_t)sd->q[0]);
-    q_aug_linear[1] = fp_probe_store_P((fp_P_raw_t)sd->q[1]);
-    q_aug_linear[2] = fp_probe_store_P((fp_P_raw_t)sd->q[2]);
-    q_aug_linear[3] = fp_probe_store_P((fp_P_raw_t)sd->q[3]);
-    q_aug_linear[4] = fp_probe_store_P((fp_P_raw_t)sd->q[4]);
-    q_aug_linear[5] = fp_probe_store_P((fp_P_raw_t)sd->q[5]);
+    q_aug_linear[0] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[0]));
+    q_aug_linear[1] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[1]));
+    q_aug_linear[2] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[2]));
+    q_aug_linear[3] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[3]));
+    q_aug_linear[4] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[4]));
+    q_aug_linear[5] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[5]));
     q_aug_linear[6] = fp_probe_store_P(0);
     q_aug_linear[7] = fp_probe_store_P(0);
 
@@ -56040,7 +56057,7 @@ riccati_backward_pass(const StepData_t step_data[20],
       fp_QP_mul_t rho_state_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
-          (fp_P_raw_t)(rho_state_mul >> ((32 - 14)));
+          fp_product_shift_to_raw<fp_P_raw_t, (26 - 12), (26 - 12), 6>(rho_state_mul);
       q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[idx] +
           (fp_sum2_P_raw_t)(-rho_state_term)));
@@ -56058,22 +56075,22 @@ riccati_backward_pass(const StepData_t step_data[20],
       fp_QP_mul_t rho_state_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
-          (fp_P_raw_t)(rho_state_mul >> ((32 - 14)));
+          fp_product_shift_to_raw<fp_P_raw_t, (26 - 12), (26 - 12), 6>(rho_state_mul);
       q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[idx] +
           (fp_sum2_P_raw_t)(-rho_state_term)));
     }
 
-    VITIS_LOOP_615_5: for (a = 0; a < nu; a++) {
+    VITIS_LOOP_631_5: for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
-      fp_QP_t r_diag = (fp_QP_t)(((((fp_QP_t)(0.5f))) + (((fp_QP_t)(5.0f)))) << 1);
+      fp_QP_t r_diag = (fp_QP_t)(((((fp_QP_t)(((0.5f) / 4.0f)))) + (((fp_QP_t)(((5.0f) / 4.0f))))) << 1);
       if (a == 0) {
-        r_diag = (fp_QP_t)(((((fp_QP_t)(2.0f))) + (((fp_QP_t)(5.0f)))) << 1);
+        r_diag = (fp_QP_t)(((((fp_QP_t)(((2.0f) / 4.0f)))) + (((fp_QP_t)(((5.0f) / 4.0f))))) << 1);
       }
       if (first_stage) {
-        r_diag = (fp_QP_t)(((((fp_QP_t)(0.5f))) + (((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14))))))))) << 1);
+        r_diag = (fp_QP_t)(((((fp_QP_t)(((0.5f) / 4.0f)))) + (((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12))))))))) << 1);
         if (a == 0) {
-          r_diag = (fp_QP_t)(((((fp_QP_t)(2.0f))) + (((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14))))))))) << 1);
+          r_diag = (fp_QP_t)(((((fp_QP_t)(((2.0f) / 4.0f)))) + (((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12))))))))) << 1);
         }
       }
       r_aug_diag[a] =
@@ -56085,9 +56102,9 @@ riccati_backward_pass(const StepData_t step_data[20],
       fp_QP_mul_t rho_ctrl_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho_u), zu_minus_yu);
       const fp_MG_raw_t rho_ctrl_term =
-          (fp_MG_raw_t)(rho_ctrl_mul >> ((32 - 14)));
-      fp_sum2_QP_raw_t rlin = -(fp_sum2_QP_raw_t)rho_ctrl_term;
-      ((void)0);
+          fp_product_shift_to_raw<fp_MG_raw_t, (26 - 12), (26 - 12), 3>(rho_ctrl_mul);
+      fp_sum2_MG_raw_t rlin = -(fp_sum2_MG_raw_t)rho_ctrl_term;
+      VITIS_LOOP_654_6: do { (void)(FP_WP_SUM2_QP_RAW); (void)(rlin.to_int64()); } while (0);
       r_aug_linear[a] = fp_probe_store_MG((fp_MG_raw_t)rlin);
     }
 
@@ -56100,62 +56117,62 @@ riccati_backward_pass(const StepData_t step_data[20],
     const fp_QP_raw_t b11 = B_sparse[k][MPC_BSP_VY_ACCEL];
     const fp_QP_raw_t b12 = B_sparse[k][MPC_BSP_OMEGA_ACCEL];
 
-    VITIS_LOOP_651_6: for (j = 0; j < nx; j++) {
+    VITIS_LOOP_667_7: for (j = 0; j < nx; j++) {
 #pragma HLS UNROLL
       fp_sum2_P_QP_t s0 =
           (fp_sum2_P_QP_t)fp_mul_QP_P(b00, P[5][j]) +
-          ((fp_sum2_P_QP_t)P[6][j] << ((32 - 14)));
+          ((fp_sum2_P_QP_t)P[6][j] << ((26 - 12)));
       fp_probe_sum2_P_QP(s0);
 
       fp_sum4_P_QP_t s1 =
           (fp_sum4_P_QP_t)fp_mul_QP_P(b10, P[2][j]) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b11, P[3][j]) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b12, P[4][j]) +
-          ((fp_sum4_P_QP_t)P[7][j] << ((32 - 14)));
+          ((fp_sum4_P_QP_t)P[7][j] << ((26 - 12)));
       fp_probe_sum4_P_QP(s1);
 
-      M[0][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s0, ((32 - 14))));
-      M[1][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s1, ((32 - 14))));
+      M[0][j] = fp_probe_store_MG(fp_P_QP_sum_to_MG_raw(s0));
+      M[1][j] = fp_probe_store_MG(fp_P_QP_sum4_to_MG_raw(s1));
     }
 
     fp_QP_raw_t S[2][2];
     {
       fp_sum2_MG_QP_t mb00 =
           (fp_sum2_MG_QP_t)fp_mul_MG_QP(M[0][5], b00) +
-          ((fp_sum2_MG_QP_t)M[0][6] << ((32 - 14)));
+          ((fp_sum2_MG_QP_t)M[0][6] << ((26 - 12)));
       fp_probe_sum2_MG_QP(mb00);
 
       fp_sum4_MG_QP_t mb01 =
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][2], b10) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][3], b11) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][4], b12) +
-          ((fp_sum4_MG_QP_t)M[0][7] << ((32 - 14)));
+          ((fp_sum4_MG_QP_t)M[0][7] << ((26 - 12)));
       fp_probe_sum4_MG_QP(mb01);
 
       fp_sum2_MG_QP_t mb10 =
           (fp_sum2_MG_QP_t)fp_mul_MG_QP(M[1][5], b00) +
-          ((fp_sum2_MG_QP_t)M[1][6] << ((32 - 14)));
+          ((fp_sum2_MG_QP_t)M[1][6] << ((26 - 12)));
       fp_probe_sum2_MG_QP(mb10);
 
       fp_sum4_MG_QP_t mb11 =
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][2], b10) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][3], b11) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][4], b12) +
-          ((fp_sum4_MG_QP_t)M[1][7] << ((32 - 14)));
+          ((fp_sum4_MG_QP_t)M[1][7] << ((26 - 12)));
       fp_probe_sum4_MG_QP(mb11);
 
       S[0][0] =
           (fp_QP_raw_t)((fp_sum2_QP_raw_t)r_aug_diag[0] +
-                        (fp_sum2_QP_raw_t)fp_shift_right_cast<fp_QP_raw_t>(mb00, ((32 - 14))));
-      S[0][1] = fp_shift_right_cast<fp_QP_raw_t>(mb01, ((32 - 14)));
-      S[1][0] = fp_shift_right_cast<fp_QP_raw_t>(mb10, ((32 - 14)));
+                        (fp_sum2_QP_raw_t)fp_MG_QP_sum_to_QP_raw(mb00));
+      S[0][1] = fp_MG_QP_sum4_to_QP_raw(mb01);
+      S[1][0] = fp_MG_QP_sum_to_QP_raw(mb10);
       S[1][1] =
           (fp_QP_raw_t)((fp_sum2_QP_raw_t)r_aug_diag[1] +
-                        (fp_sum2_QP_raw_t)fp_shift_right_cast<fp_QP_raw_t>(mb11, ((32 - 14))));
+                        (fp_sum2_QP_raw_t)fp_MG_QP_sum4_to_QP_raw(mb11));
 
       fp_sum2_QP_raw_t s01 = (((fp_sum2_QP_raw_t)S[0][1]) +
                               ((fp_sum2_QP_raw_t)S[1][0])) >> 1;
-      ((void)0);
+      VITIS_LOOP_722_8: do { (void)(FP_WP_SUM2_QP_RAW); (void)(s01.to_int64()); } while (0);
       S[0][1] = (fp_QP_raw_t)s01;
       S[1][0] = (fp_QP_raw_t)s01;
     }
@@ -56175,8 +56192,9 @@ riccati_backward_pass(const StepData_t step_data[20],
     fp_MG_raw_t G[2][8];
 #pragma HLS ARRAY_PARTITION variable = G complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = G complete dim = 2
-    VITIS_LOOP_726_7: for (a = 0; a < nu; a++) {
-      VITIS_LOOP_727_8: for (j = 0; j < 6; j++) {
+    VITIS_LOOP_742_9: for (a = 0; a < nu; a++) {
+      VITIS_LOOP_743_10: for (j = 0; j < 6; j++) {
+#pragma HLS UNROLL factor = 6
 #pragma HLS PIPELINE II = 1
         fp_sum6_MG_QP_t sum = sum6_MG_QP_raw(
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][0], sd->A[0][j]),
@@ -56185,21 +56203,21 @@ riccati_backward_pass(const StepData_t step_data[20],
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][3], sd->A[3][j]),
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][4], sd->A[4][j]),
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][5], sd->A[5][j]));
-        G[a][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(sum, ((32 - 14))));
+        G[a][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(sum, ((26 - 12))));
       }
     }
-    fp_QP_t g06 = (fp_QP_t)(-((((fp_QP_t)(5.0f))) << 1));
-    fp_QP_t g17 = (fp_QP_t)(-((((fp_QP_t)(5.0f))) << 1));
+    fp_QP_t g06 = (fp_QP_t)(-((((fp_QP_t)(((5.0f) / 4.0f)))) << 1));
+    fp_QP_t g17 = (fp_QP_t)(-((((fp_QP_t)(((5.0f) / 4.0f)))) << 1));
     if (first_stage) {
-      g06 = (fp_QP_t)(-((((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14)))))))) << 1));
-      g17 = (fp_QP_t)(-((((fp_QP_t)(((5.0f * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (32 - 14)))))) + (0.5 / ((double)(1 << (32 - 14)))))))) << 1));
+      g06 = (fp_QP_t)(-((((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12)))))))) << 1));
+      g17 = (fp_QP_t)(-((((fp_QP_t)(((((5.0f) / 4.0f) * (((1.0 / 200.0f) / 0.03f) + (0.5 / ((double)(1 << (26 - 12)))))) + (0.5 / ((double)(1 << (26 - 12)))))))) << 1));
     }
     G[0][6] = fp_probe_store_MG(fp_MG_raw_from_QP(g06));
     G[1][6] = 0;
     G[0][7] = 0;
     G[1][7] = fp_probe_store_MG(fp_MG_raw_from_QP(g17));
 
-    VITIS_LOOP_750_9: for (j = 0; j < nx; j++) {
+    VITIS_LOOP_767_11: for (j = 0; j < nx; j++) {
 #pragma HLS PIPELINE II = 1
       fp_sum2_QP_MG_t val0 =
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][0], G[0][j]) +
@@ -56209,13 +56227,13 @@ riccati_backward_pass(const StepData_t step_data[20],
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], G[1][j]);
       fp_probe_sum2_QP_MG(val0);
       fp_probe_sum2_QP_MG(val1);
-      K[k][0][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, ((32 - 14))));
-      K[k][1][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, ((32 - 14))));
+      K[k][0][j] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val0));
+      K[k][1][j] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val1));
     }
 
     fp_P_raw_t p_shift[8];
 #pragma HLS ARRAY_PARTITION variable = p_shift complete dim = 1
-    VITIS_LOOP_766_10: for (i = 0; i < nx; i++) {
+    VITIS_LOOP_783_12: for (i = 0; i < nx; i++) {
 #pragma HLS PIPELINE II = 1
       fp_sum6_P_QP_t pd_sum = sum6_P_QP_raw(
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], d0_raw),
@@ -56226,7 +56244,7 @@ riccati_backward_pass(const StepData_t step_data[20],
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], d5_raw));
       p_shift[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)p[i] +
-          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(pd_sum, ((32 - 14)))));
+          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(pd_sum, ((26 - 12)))));
     }
 
     fp_MG_raw_t Bp[2];
@@ -56241,17 +56259,17 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       fp_sum2_P_QP_t bp0 =
           (fp_sum2_P_QP_t)fp_mul_QP_P(b00, ps5) +
-          ((fp_sum2_P_QP_t)ps6 << ((32 - 14)));
+          ((fp_sum2_P_QP_t)ps6 << ((26 - 12)));
       fp_probe_sum2_P_QP(bp0);
-      Bp[0] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp0, ((32 - 14))));
+      Bp[0] = fp_probe_store_MG(fp_P_QP_sum_to_MG_raw(bp0));
 
       fp_sum4_P_QP_t bp1 =
           (fp_sum4_P_QP_t)fp_mul_QP_P(b10, ps2) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b11, ps3) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b12, ps4) +
-          ((fp_sum4_P_QP_t)ps7 << ((32 - 14)));
+          ((fp_sum4_P_QP_t)ps7 << ((26 - 12)));
       fp_probe_sum4_P_QP(bp1);
-      Bp[1] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp1, ((32 - 14))));
+      Bp[1] = fp_probe_store_MG(fp_P_QP_sum4_to_MG_raw(bp1));
     }
 
     {
@@ -56267,21 +56285,22 @@ riccati_backward_pass(const StepData_t step_data[20],
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], rhs1);
       fp_probe_sum2_QP_MG(val0);
       fp_probe_sum2_QP_MG(val1);
-      kk[k][0] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, ((32 - 14))));
-      kk[k][1] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, ((32 - 14))));
+      kk[k][0] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val0));
+      kk[k][1] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val1));
     }
 
     fp_P_raw_t PA[6][6];
 #pragma HLS ARRAY_PARTITION variable = PA complete dim = 1
 #pragma HLS BIND_STORAGE variable = PA type = RAM_2P impl = LUTRAM latency = 1
 
-    VITIS_LOOP_826_11: for (i = 0; i < 6; i++) {
+    VITIS_LOOP_843_13: for (i = 0; i < 6; i++) {
 #pragma HLS UNROLL
       PA[i][0] = fp_probe_store_P(P[i][0]);
     }
 
-    VITIS_LOOP_831_12: for (i = 0; i < 6; i++) {
-      VITIS_LOOP_832_13: for (j = 1; j < 6; j++) {
+    VITIS_LOOP_848_14: for (i = 0; i < 6; i++) {
+      VITIS_LOOP_849_15: for (j = 1; j < 6; j++) {
+#pragma HLS UNROLL factor = 5
 #pragma HLS PIPELINE II = 1
         fp_sum6_P_QP_t sum = sum6_P_QP_raw(
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], sd->A[0][j]),
@@ -56290,26 +56309,26 @@ riccati_backward_pass(const StepData_t step_data[20],
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][3], sd->A[3][j]),
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][4], sd->A[4][j]),
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], sd->A[5][j]));
-        PA[i][j] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(sum, ((32 - 14))));
+        PA[i][j] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(sum, ((26 - 12))));
       }
     }
 
     {
-# 862 "../src/riccati_solver_hls.cpp"
+# 880 "../src/riccati_solver_hls.cpp"
       {
         fp_sum8_P_MIX_pup_t p00_raw, p01_raw, p02_raw, p03_raw, p04_raw, p05_raw;
-        VITIS_LOOP_864_14: do { (p00_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(0)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(0)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(0)])); } while (0);
-        VITIS_LOOP_865_15: do { (p01_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(1)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(1)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(1)])); } while (0);
-        VITIS_LOOP_866_16: do { (p02_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(2)])); } while (0);
-        VITIS_LOOP_867_17: do { (p03_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(3)])); } while (0);
-        VITIS_LOOP_868_18: do { (p04_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(4)])); } while (0);
-        VITIS_LOOP_869_19: do { (p05_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(0)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(0)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r0_0 = fp_shift_right_cast<fp_P_raw_t>((p00_raw), ((32 - 14)));
-        fp_P_raw_t r0_1 = fp_shift_right_cast<fp_P_raw_t>((p01_raw), ((32 - 14)));
-        fp_P_raw_t r0_2 = fp_shift_right_cast<fp_P_raw_t>((p02_raw), ((32 - 14)));
-        fp_P_raw_t r0_3 = fp_shift_right_cast<fp_P_raw_t>((p03_raw), ((32 - 14)));
-        fp_P_raw_t r0_4 = fp_shift_right_cast<fp_P_raw_t>((p04_raw), ((32 - 14)));
-        fp_P_raw_t r0_5 = fp_shift_right_cast<fp_P_raw_t>((p05_raw), ((32 - 14)));
+        VITIS_LOOP_882_16: do { (p00_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(0)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(0)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(0)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(0)]))); } while (0);
+        VITIS_LOOP_883_17: do { (p01_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(1)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(1)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(1)]))); } while (0);
+        VITIS_LOOP_884_18: do { (p02_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(2)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(2)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(2)]))); } while (0);
+        VITIS_LOOP_885_19: do { (p03_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(3)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(3)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(3)]))); } while (0);
+        VITIS_LOOP_886_20: do { (p04_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(4)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(4)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(4)]))); } while (0);
+        VITIS_LOOP_887_21: do { (p05_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(0)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(0)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(0)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(0)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(0)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(0)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(0)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(0)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r0_0 = fp_shift_right_cast<fp_P_raw_t>((p00_raw), ((26 - 12)));
+        fp_P_raw_t r0_1 = fp_shift_right_cast<fp_P_raw_t>((p01_raw), ((26 - 12)));
+        fp_P_raw_t r0_2 = fp_shift_right_cast<fp_P_raw_t>((p02_raw), ((26 - 12)));
+        fp_P_raw_t r0_3 = fp_shift_right_cast<fp_P_raw_t>((p03_raw), ((26 - 12)));
+        fp_P_raw_t r0_4 = fp_shift_right_cast<fp_P_raw_t>((p04_raw), ((26 - 12)));
+        fp_P_raw_t r0_5 = fp_shift_right_cast<fp_P_raw_t>((p05_raw), ((26 - 12)));
         P[0][0] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[0] + (fp_sum2_P_raw_t)r0_0));
         P[0][1] = P[1][0] = fp_probe_store_P(r0_1);
@@ -56321,16 +56340,16 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       {
         fp_sum8_P_MIX_pup_t p11_raw, p12_raw, p13_raw, p14_raw, p15_raw;
-        VITIS_LOOP_887_20: do { (p11_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(1)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(1)], K[k][0][(1)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(1)], K[k][1][(1)])); } while (0);
-        VITIS_LOOP_888_21: do { (p12_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(1)], K[k][0][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(1)], K[k][1][(2)])); } while (0);
-        VITIS_LOOP_889_22: do { (p13_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(1)], K[k][0][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(1)], K[k][1][(3)])); } while (0);
-        VITIS_LOOP_890_23: do { (p14_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(1)], K[k][0][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(1)], K[k][1][(4)])); } while (0);
-        VITIS_LOOP_891_24: do { (p15_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(1)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(1)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r1_1 = fp_shift_right_cast<fp_P_raw_t>((p11_raw), ((32 - 14)));
-        fp_P_raw_t r1_2 = fp_shift_right_cast<fp_P_raw_t>((p12_raw), ((32 - 14)));
-        fp_P_raw_t r1_3 = fp_shift_right_cast<fp_P_raw_t>((p13_raw), ((32 - 14)));
-        fp_P_raw_t r1_4 = fp_shift_right_cast<fp_P_raw_t>((p14_raw), ((32 - 14)));
-        fp_P_raw_t r1_5 = fp_shift_right_cast<fp_P_raw_t>((p15_raw), ((32 - 14)));
+        VITIS_LOOP_905_22: do { (p11_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(1)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(1)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(1)], K[k][0][(1)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(1)], K[k][1][(1)]))); } while (0);
+        VITIS_LOOP_906_23: do { (p12_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(2)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(1)], K[k][0][(2)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(1)], K[k][1][(2)]))); } while (0);
+        VITIS_LOOP_907_24: do { (p13_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(3)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(1)], K[k][0][(3)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(1)], K[k][1][(3)]))); } while (0);
+        VITIS_LOOP_908_25: do { (p14_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(4)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(1)], K[k][0][(4)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(1)], K[k][1][(4)]))); } while (0);
+        VITIS_LOOP_909_26: do { (p15_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(1)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(1)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(1)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(1)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(1)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(1)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(1)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(1)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r1_1 = fp_shift_right_cast<fp_P_raw_t>((p11_raw), ((26 - 12)));
+        fp_P_raw_t r1_2 = fp_shift_right_cast<fp_P_raw_t>((p12_raw), ((26 - 12)));
+        fp_P_raw_t r1_3 = fp_shift_right_cast<fp_P_raw_t>((p13_raw), ((26 - 12)));
+        fp_P_raw_t r1_4 = fp_shift_right_cast<fp_P_raw_t>((p14_raw), ((26 - 12)));
+        fp_P_raw_t r1_5 = fp_shift_right_cast<fp_P_raw_t>((p15_raw), ((26 - 12)));
         P[1][1] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[1] + (fp_sum2_P_raw_t)r1_1));
         P[1][2] = P[2][1] = fp_probe_store_P(r1_2);
@@ -56341,14 +56360,14 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       {
         fp_sum8_P_MIX_pup_t p22_raw, p23_raw, p24_raw, p25_raw;
-        VITIS_LOOP_907_25: do { (p22_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(2)], K[k][0][(2)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(2)], K[k][1][(2)])); } while (0);
-        VITIS_LOOP_908_26: do { (p23_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(2)], K[k][0][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(2)], K[k][1][(3)])); } while (0);
-        VITIS_LOOP_909_27: do { (p24_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(2)], K[k][0][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(2)], K[k][1][(4)])); } while (0);
-        VITIS_LOOP_910_28: do { (p25_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(2)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(2)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r2_2 = fp_shift_right_cast<fp_P_raw_t>((p22_raw), ((32 - 14)));
-        fp_P_raw_t r2_3 = fp_shift_right_cast<fp_P_raw_t>((p23_raw), ((32 - 14)));
-        fp_P_raw_t r2_4 = fp_shift_right_cast<fp_P_raw_t>((p24_raw), ((32 - 14)));
-        fp_P_raw_t r2_5 = fp_shift_right_cast<fp_P_raw_t>((p25_raw), ((32 - 14)));
+        VITIS_LOOP_925_27: do { (p22_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(2)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(2)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(2)], K[k][0][(2)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(2)], K[k][1][(2)]))); } while (0);
+        VITIS_LOOP_926_28: do { (p23_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(3)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(2)], K[k][0][(3)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(2)], K[k][1][(3)]))); } while (0);
+        VITIS_LOOP_927_29: do { (p24_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(4)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(2)], K[k][0][(4)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(2)], K[k][1][(4)]))); } while (0);
+        VITIS_LOOP_928_30: do { (p25_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(2)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(2)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(2)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(2)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(2)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(2)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(2)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(2)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r2_2 = fp_shift_right_cast<fp_P_raw_t>((p22_raw), ((26 - 12)));
+        fp_P_raw_t r2_3 = fp_shift_right_cast<fp_P_raw_t>((p23_raw), ((26 - 12)));
+        fp_P_raw_t r2_4 = fp_shift_right_cast<fp_P_raw_t>((p24_raw), ((26 - 12)));
+        fp_P_raw_t r2_5 = fp_shift_right_cast<fp_P_raw_t>((p25_raw), ((26 - 12)));
         P[2][2] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[2] + (fp_sum2_P_raw_t)r2_2));
         P[2][3] = P[3][2] = fp_probe_store_P(r2_3);
@@ -56358,12 +56377,12 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       {
         fp_sum8_P_MIX_pup_t p33_raw, p34_raw, p35_raw;
-        VITIS_LOOP_924_29: do { (p33_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(3)], K[k][0][(3)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(3)], K[k][1][(3)])); } while (0);
-        VITIS_LOOP_925_30: do { (p34_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(3)], K[k][0][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(3)], K[k][1][(4)])); } while (0);
-        VITIS_LOOP_926_31: do { (p35_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(3)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(3)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r3_3 = fp_shift_right_cast<fp_P_raw_t>((p33_raw), ((32 - 14)));
-        fp_P_raw_t r3_4 = fp_shift_right_cast<fp_P_raw_t>((p34_raw), ((32 - 14)));
-        fp_P_raw_t r3_5 = fp_shift_right_cast<fp_P_raw_t>((p35_raw), ((32 - 14)));
+        VITIS_LOOP_942_31: do { (p33_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(3)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(3)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(3)], K[k][0][(3)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(3)], K[k][1][(3)]))); } while (0);
+        VITIS_LOOP_943_32: do { (p34_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(4)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(3)], K[k][0][(4)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(3)], K[k][1][(4)]))); } while (0);
+        VITIS_LOOP_944_33: do { (p35_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(3)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(3)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(3)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(3)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(3)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(3)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(3)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(3)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r3_3 = fp_shift_right_cast<fp_P_raw_t>((p33_raw), ((26 - 12)));
+        fp_P_raw_t r3_4 = fp_shift_right_cast<fp_P_raw_t>((p34_raw), ((26 - 12)));
+        fp_P_raw_t r3_5 = fp_shift_right_cast<fp_P_raw_t>((p35_raw), ((26 - 12)));
         P[3][3] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[3] + (fp_sum2_P_raw_t)r3_3));
         P[3][4] = P[4][3] = fp_probe_store_P(r3_4);
@@ -56372,10 +56391,10 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       {
         fp_sum8_P_MIX_pup_t p44_raw, p45_raw;
-        VITIS_LOOP_938_32: do { (p44_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(4)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(4)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(4)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(4)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(4)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(4)], PA[5][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(4)], K[k][0][(4)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(4)], K[k][1][(4)])); } while (0);
-        VITIS_LOOP_939_33: do { (p45_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(4)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(4)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(4)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(4)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(4)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(4)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(4)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(4)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r4_4 = fp_shift_right_cast<fp_P_raw_t>((p44_raw), ((32 - 14)));
-        fp_P_raw_t r4_5 = fp_shift_right_cast<fp_P_raw_t>((p45_raw), ((32 - 14)));
+        VITIS_LOOP_956_34: do { (p44_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(4)], PA[0][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(4)], PA[1][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(4)], PA[2][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(4)], PA[3][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(4)], PA[4][(4)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(4)], PA[5][(4)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(4)], K[k][0][(4)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(4)], K[k][1][(4)]))); } while (0);
+        VITIS_LOOP_957_35: do { (p45_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(4)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(4)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(4)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(4)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(4)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(4)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(4)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(4)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r4_4 = fp_shift_right_cast<fp_P_raw_t>((p44_raw), ((26 - 12)));
+        fp_P_raw_t r4_5 = fp_shift_right_cast<fp_P_raw_t>((p45_raw), ((26 - 12)));
         P[4][4] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[4] + (fp_sum2_P_raw_t)r4_4));
         P[4][5] = P[5][4] = fp_probe_store_P(r4_5);
@@ -56383,8 +56402,8 @@ riccati_backward_pass(const StepData_t step_data[20],
 
       {
         fp_sum8_P_MIX_pup_t p55_raw;
-        VITIS_LOOP_949_34: do { (p55_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(5)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(5)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(5)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(5)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(5)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(5)], PA[5][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[0][(5)], K[k][0][(5)]), (fp_P_mix_item_t)fp_mul_MG_K(G[1][(5)], K[k][1][(5)])); } while (0);
-        fp_P_raw_t r5_5 = fp_shift_right_cast<fp_P_raw_t>((p55_raw), ((32 - 14)));
+        VITIS_LOOP_967_36: do { (p55_raw) = sum8_P_MIX_raw_pupdate( (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(5)], PA[0][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(5)], PA[1][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(5)], PA[2][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(5)], PA[3][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(5)], PA[4][(5)]), (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(5)], PA[5][(5)]), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(5)], K[k][0][(5)])), fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(5)], K[k][1][(5)]))); } while (0);
+        fp_P_raw_t r5_5 = fp_shift_right_cast<fp_P_raw_t>((p55_raw), ((26 - 12)));
         P[5][5] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
             (fp_sum2_P_raw_t)q_aug_diag[5] + (fp_sum2_P_raw_t)r5_5));
       }
@@ -56399,7 +56418,7 @@ riccati_backward_pass(const StepData_t step_data[20],
 #pragma HLS ARRAY_PARTITION variable = gtk_i6 complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = gtk_i7 complete dim = 1
 
-      VITIS_LOOP_965_35: for (i = 0; i < 6; i++) {
+      VITIS_LOOP_983_37: for (i = 0; i < 6; i++) {
 #pragma HLS UNROLL
         fp_sum2_MG_K_t s6 =
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][i], K[k][0][6]) +
@@ -56410,8 +56429,8 @@ riccati_backward_pass(const StepData_t step_data[20],
         fp_probe_sum2_MG_K(s6);
         fp_probe_sum2_MG_K(s7);
 
-        gtk_i6[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s6, ((32 - 14))));
-        gtk_i7[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s7, ((32 - 14))));
+        gtk_i6[i] = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s6));
+        gtk_i7[i] = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s7));
       }
 
       {
@@ -56425,12 +56444,12 @@ riccati_backward_pass(const StepData_t step_data[20],
         fp_probe_sum2_MG_K(s67);
         fp_probe_sum2_MG_K(s77);
 
-        gtk_66 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s66, ((32 - 14))));
-        gtk_67 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s67, ((32 - 14))));
-        gtk_77 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s77, ((32 - 14))));
+        gtk_66 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s66));
+        gtk_67 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s67));
+        gtk_77 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s77));
       }
 
-      VITIS_LOOP_996_36: for (i = 0; i < 6; i++) {
+      VITIS_LOOP_1014_38: for (i = 0; i < 6; i++) {
 #pragma HLS UNROLL
         P[i][6] = gtk_i6[i];
         P[6][i] = gtk_i6[i];
@@ -56447,7 +56466,8 @@ riccati_backward_pass(const StepData_t step_data[20],
 
     fp_P_raw_t p_new[8];
 #pragma HLS ARRAY_PARTITION variable = p_new complete dim = 1
-    VITIS_LOOP_1013_37: for (i = 0; i < 6; i++) {
+    VITIS_LOOP_1031_39: for (i = 0; i < 6; i++) {
+#pragma HLS UNROLL factor = 6
 #pragma HLS PIPELINE II = 1
       fp_sum8_P_MIX_t total = sum8_P_MIX_raw(
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][i], p_shift[0]),
@@ -56456,14 +56476,14 @@ riccati_backward_pass(const StepData_t step_data[20],
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][i], p_shift[3]),
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][i], p_shift[4]),
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][i], p_shift[5]),
-          (fp_P_mix_item_t)fp_mul_MG_K(G[0][i], kk[k][0]),
-          (fp_P_mix_item_t)fp_mul_MG_K(G[1][i], kk[k][1]));
+          fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][i], kk[k][0])),
+          fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][i], kk[k][1])));
       p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[i] +
-          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, ((32 - 14)))));
+          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, ((26 - 12)))));
     }
 
-    VITIS_LOOP_1029_38: for (i = 6; i < nx; i++) {
+    VITIS_LOOP_1048_40: for (i = 6; i < nx; i++) {
 #pragma HLS PIPELINE II = 1
       fp_sum2_MG_K_t total =
           (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][i], kk[k][0]) +
@@ -56471,16 +56491,16 @@ riccati_backward_pass(const StepData_t step_data[20],
       fp_probe_sum2_MG_K(total);
       p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[i] +
-          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, ((32 - 14)))));
+          (fp_sum2_P_raw_t)fp_MG_K_sum_to_P_raw(total)));
     }
 
-    VITIS_LOOP_1040_39: for (i = 0; i < nx; i++) {
+    VITIS_LOOP_1059_41: for (i = 0; i < nx; i++) {
 #pragma HLS UNROLL
       p[i] = fp_probe_store_P(p_new[i]);
     }
   }
 }
-# 1054 "../src/riccati_solver_hls.cpp"
+# 1073 "../src/riccati_solver_hls.cpp"
 static void
 riccati_pass_hls(const StepData_t step_data[20],
                  const fp_QP_raw_t B_sparse[20][4],
@@ -56536,7 +56556,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
   const fp_QP_t cfg_rho =
       (config && config->rho > ((fp_QP_t)(0.0)))
           ? config->rho
-          : ((fp_QP_t)(((fp_QP_t)(1.0))));
+          : ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))));
 
   const fp_QP_t cfg_rho_u =
       (config && config->rho_u > ((fp_QP_t)(0.0)))
@@ -56553,18 +56573,18 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
           ? admm_state->rho_u
           : cfg_rho_u;
 
-  if (rho < ((fp_QP_t)(((fp_QP_t)(1.0)))))
-    rho = ((fp_QP_t)(((fp_QP_t)(1.0))));
-  if (rho_u < ((fp_QP_t)(((fp_QP_t)(1.0)))))
-    rho_u = ((fp_QP_t)(((fp_QP_t)(1.0))));
-  if (rho > ((fp_QP_t)(((fp_QP_t)(80.0)))))
-    rho = ((fp_QP_t)(((fp_QP_t)(80.0))));
-  if (rho_u > ((fp_QP_t)(((fp_QP_t)(80.0)))))
-    rho_u = ((fp_QP_t)(((fp_QP_t)(80.0))));
+  if (rho < ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f))))))
+    rho = ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))));
+  if (rho_u < ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f))))))
+    rho_u = ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))));
+  if (rho > ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f))))))
+    rho = ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f)))));
+  if (rho_u > ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f))))))
+    rho_u = ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f)))));
 
   int max_iter = config->max_iterations;
   fp_QP_t abs_tolerance = config->tolerance;
-  const fp_QP_t rel_tolerance = ((fp_QP_t)(0.02));
+  const fp_QP_t rel_tolerance = ((fp_QP_t)(0.05f));
 
 
   fp_QP_t z_x[(20 + 1)][8];
@@ -56600,42 +56620,42 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
   int k, s, a, i;
 
   const bool cold_start = !admm_state->initialized;
-# 1182 "../src/riccati_solver_hls.cpp"
+# 1201 "../src/riccati_solver_hls.cpp"
   if (cold_start) {
-    VITIS_LOOP_1183_1: for (k = 0; k < 20; k++) {
-      VITIS_LOOP_1184_2: for (s = 0; s < 8; s++) {
+    VITIS_LOOP_1202_1: for (k = 0; k < 20; k++) {
+      VITIS_LOOP_1203_2: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
         z_x[k][s] = 0;
         y_x[k][s] = 0;
       }
     }
-    VITIS_LOOP_1190_3: for (s = 0; s < 8; s++) {
+    VITIS_LOOP_1209_3: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
       z_x[20][s] = 0;
       y_x[20][s] = 0;
     }
-    VITIS_LOOP_1195_4: for (k = 0; k < 20; k++) {
-      VITIS_LOOP_1196_5: for (a = 0; a < 2; a++) {
+    VITIS_LOOP_1214_4: for (k = 0; k < 20; k++) {
+      VITIS_LOOP_1215_5: for (a = 0; a < 2; a++) {
 #pragma HLS UNROLL
         z_u[k][a] = 0;
         y_u[k][a] = 0;
       }
     }
   } else {
-    VITIS_LOOP_1203_6: for (k = 0; k < 20; k++) {
-      VITIS_LOOP_1204_7: for (s = 0; s < 8; s++) {
+    VITIS_LOOP_1222_6: for (k = 0; k < 20; k++) {
+      VITIS_LOOP_1223_7: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
         z_x[k][s] = admm_state->z_x[k][s];
         y_x[k][s] = admm_state->y_x[k][s];
       }
     }
-    VITIS_LOOP_1210_8: for (s = 0; s < 8; s++) {
+    VITIS_LOOP_1229_8: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
       z_x[20][s] = admm_state->z_x[20][s];
       y_x[20][s] = admm_state->y_x[20][s];
     }
-    VITIS_LOOP_1215_9: for (k = 0; k < 20; k++) {
-      VITIS_LOOP_1216_10: for (a = 0; a < 2; a++) {
+    VITIS_LOOP_1234_9: for (k = 0; k < 20; k++) {
+      VITIS_LOOP_1235_10: for (a = 0; a < 2; a++) {
 #pragma HLS UNROLL
         z_u[k][a] = admm_state->z_u[k][a];
         y_u[k][a] = admm_state->y_u[k][a];
@@ -56650,7 +56670,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
   const int total_passes = max_iter + (cold_start ? 1 : 0);
   int iter;
 
-  VITIS_LOOP_1231_11: for (iter = 0; iter < total_passes; iter++) {
+  VITIS_LOOP_1250_11: for (iter = 0; iter < total_passes; iter++) {
 #pragma HLS LOOP_TRIPCOUNT min = 1 max = (50 + 1) avg = 5
     const bool bootstrap_pass = cold_start && (iter == 0);
     const int admm_iter = cold_start ? (iter - 1) : iter;
@@ -56665,8 +56685,8 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
 
     if (bootstrap_pass) {
 
-      VITIS_LOOP_1246_12: for (k = 0; k < (20 + 1); k++) {
-        VITIS_LOOP_1247_13: for (s = 0; s < 8; s++) {
+      VITIS_LOOP_1265_12: for (k = 0; k < (20 + 1); k++) {
+        VITIS_LOOP_1266_13: for (s = 0; s < 8; s++) {
 #pragma HLS UNROLL
           z_x[k][s] = sol_x[k][s];
         }
@@ -56701,11 +56721,11 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
           z_x[k][idx] = val;
         }
       }
-      VITIS_LOOP_1282_14: for (k = 0; k < 20; k++) {
-        VITIS_LOOP_1283_15: for (a = 0; a < 2; a++) {
+      VITIS_LOOP_1301_14: for (k = 0; k < 20; k++) {
+        VITIS_LOOP_1302_15: for (a = 0; a < 2; a++) {
 #pragma HLS UNROLL
           fp_QP_t val = sol_u[k][a];
-          fp_QP_t lb = (-((((fp_QP_t)(0.72f)) * ((fp_QP_t)(9.81f)))));
+          fp_QP_t lb = (-(((fp_QP_t)(0.72f * 9.81f * 1.4f))));
           fp_QP_t ub = step_accel_ub(&step_data[k]);
           if (a == 0) {
             lb = (fp_QP_t)(-((fp_QP_t)(2.849f)));
@@ -56720,12 +56740,12 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
       }
 
 
-      VITIS_LOOP_1301_16: for (k = 0; k < (20 + 1); k++) {
+      VITIS_LOOP_1320_16: for (k = 0; k < (20 + 1); k++) {
         y_x[k][0] = sol_x[k][0] - z_x[k][0];
         y_x[k][5] = sol_x[k][5] - z_x[k][5];
       }
-      VITIS_LOOP_1305_17: for (k = 0; k < 20; k++) {
-        VITIS_LOOP_1306_18: for (a = 0; a < 2; a++) {
+      VITIS_LOOP_1324_17: for (k = 0; k < 20; k++) {
+        VITIS_LOOP_1325_18: for (a = 0; a < 2; a++) {
 #pragma HLS UNROLL
           y_u[k][a] = sol_u[k][a] - z_u[k][a];
         }
@@ -56754,9 +56774,8 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
     fp_QP_t primal_da = 0, dual_da = 0, znorm_da = 0, lnorm_da = 0;
     fp_QP_t primal_u0 = 0, dual_u0 = 0, znorm_u0 = 0, lnorm_u0 = 0;
     fp_QP_t primal_u1 = 0, dual_u1 = 0, znorm_u1 = 0, lnorm_u1 = 0;
-
-
-    VITIS_LOOP_1337_19: for (k = 0; k < (20 + 1); k++) {
+# 1362 "../src/riccati_solver_hls.cpp"
+    VITIS_LOOP_1362_19: for (k = 0; k < (20 + 1); k++) {
 
 
 
@@ -56802,43 +56821,38 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
             &primal_da,
             &dual_da, &znorm_da, &lnorm_da);
       }
+
+
+      if (k < 20) {
+        const StepData_t *sd = &step_data[k];
+
+        fp_QP_t u_norm_k = fp_max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
+        if (u_norm_k > u_norm)
+          u_norm = u_norm_k;
+
+        admm_update_control_channel_raw(
+            sol_u[k][0], &z_u[k][0], &y_u[k][0], rho_u,
+            (fp_QP_t)(-((fp_QP_t)(2.849f))), (fp_QP_t)(((fp_QP_t)(2.849f))),
+            &primal_u0, &dual_u0, &znorm_u0, &lnorm_u0);
+
+        admm_update_control_channel_raw(
+            sol_u[k][1], &z_u[k][1], &y_u[k][1], rho_u,
+            (-(((fp_QP_t)(0.72f * 9.81f * 1.4f)))), step_accel_ub(sd),
+            &primal_u1, &dual_u1, &znorm_u1, &lnorm_u1);
+      }
     }
 
     state_primal = fp_max2(primal_ey, primal_da);
     state_dual = fp_max2(dual_ey, dual_da);
-    {
-      const fp_QP_t z_norm_state = fp_max2(znorm_ey, znorm_da);
-      const fp_QP_t lnorm_state = fp_max2(lnorm_ey, lnorm_da);
-      z_norm = fp_max2(z_norm, z_norm_state);
-      lambda_norm = fp_max2(lambda_norm, lnorm_state);
-    }
-
-
-    VITIS_LOOP_1395_20: for (k = 0; k < 20; k++) {
-      const StepData_t *sd = &step_data[k];
-
-      fp_QP_t u_norm_k = fp_max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
-      if (u_norm_k > u_norm)
-        u_norm = u_norm_k;
-
-      admm_update_control_channel_raw(
-          sol_u[k][0], &z_u[k][0], &y_u[k][0], rho_u,
-          (fp_QP_t)(-((fp_QP_t)(2.849f))), (fp_QP_t)(((fp_QP_t)(2.849f))),
-          &primal_u0, &dual_u0, &znorm_u0, &lnorm_u0);
-
-      admm_update_control_channel_raw(
-          sol_u[k][1], &z_u[k][1], &y_u[k][1], rho_u,
-          (-((((fp_QP_t)(0.72f)) * ((fp_QP_t)(9.81f))))), step_accel_ub(sd),
-          &primal_u1, &dual_u1, &znorm_u1, &lnorm_u1);
-    }
-
     ctrl_primal = fp_max2(primal_u0, primal_u1);
     ctrl_dual = fp_max2(dual_u0, dual_u1);
     {
+      const fp_QP_t z_norm_state = fp_max2(znorm_ey, znorm_da);
+      const fp_QP_t lnorm_state = fp_max2(lnorm_ey, lnorm_da);
       const fp_QP_t z_norm_ctrl = fp_max2(znorm_u0, znorm_u1);
       const fp_QP_t lnorm_ctrl = fp_max2(lnorm_u0, lnorm_u1);
-      z_norm = fp_max2(z_norm, z_norm_ctrl);
-      lambda_norm = fp_max2(lambda_norm, lnorm_ctrl);
+      z_norm = fp_max2(z_norm, fp_max2(z_norm_state, z_norm_ctrl));
+      lambda_norm = fp_max2(lambda_norm, fp_max2(lnorm_state, lnorm_ctrl));
     }
     const fp_QP_t primal_res = fp_max2(state_primal, ctrl_primal);
     const fp_QP_t dual_res = fp_max2(state_dual, ctrl_dual);
@@ -56850,7 +56864,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
 
     final_primal_residual = primal_res;
     final_dual_residual = dual_res;
-# 1440 "../src/riccati_solver_hls.cpp"
+# 1460 "../src/riccati_solver_hls.cpp"
     if (primal_res <= eps_primal && dual_res <= eps_dual) {
       status = MPC_STATUS_OPTIMAL;
       break;
@@ -56863,10 +56877,10 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
       const fp_QP_t ctrl_dual_x2 = ctrl_dual + ctrl_dual;
       const fp_QP_t ctrl_primal_x2 = ctrl_primal + ctrl_primal;
 
-      const bool can_scale_rho_up = (rho <= ((fp_QP_t)(((fp_QP_t)(80.0)))));
-      const bool can_scale_rho_down = (rho >= ((fp_QP_t)(((fp_QP_t)(1.0)))));
-      const bool can_scale_rho_u_up = (rho_u <= ((fp_QP_t)(((fp_QP_t)(80.0)))));
-      const bool can_scale_rho_u_down = (rho_u >= ((fp_QP_t)(((fp_QP_t)(1.0)))));
+      const bool can_scale_rho_up = (rho <= ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f))))));
+      const bool can_scale_rho_down = (rho >= ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f))))));
+      const bool can_scale_rho_u_up = (rho_u <= ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f))))));
+      const bool can_scale_rho_u_down = (rho_u >= ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f))))));
 
       const bool scale_rho_up =
           can_scale_rho_up && (state_primal > state_dual_x2);
@@ -56883,15 +56897,15 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
 
 
       if (scale_rho_up || scale_rho_down || scale_rho_u_up || scale_rho_u_down) {
-# 1480 "../src/riccati_solver_hls.cpp"
+# 1500 "../src/riccati_solver_hls.cpp"
         if (scale_rho_up || scale_rho_down) {
           if (scale_rho_up) {
             rho <<= 1;
-            rho = (rho > ((fp_QP_t)(((fp_QP_t)(80.0))))) ? ((fp_QP_t)(((fp_QP_t)(80.0))))
+            rho = (rho > ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f)))))) ? ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f)))))
                                                     : rho;
           } else {
             rho >>= 1;
-            rho = (rho < ((fp_QP_t)(((fp_QP_t)(1.0))))) ? ((fp_QP_t)(((fp_QP_t)(1.0))))
+            rho = (rho < ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))))) ? ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))))
                                                     : rho;
           }
         }
@@ -56900,13 +56914,13 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
         if (scale_rho_u_up || scale_rho_u_down) {
           if (scale_rho_u_up) {
             rho_u <<= 1;
-            rho_u = (rho_u > ((fp_QP_t)(((fp_QP_t)(80.0)))))
-                        ? ((fp_QP_t)(((fp_QP_t)(80.0))))
+            rho_u = (rho_u > ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f))))))
+                        ? ((fp_QP_t)(((fp_QP_t)((80.0f / 4.0f)))))
                         : rho_u;
           } else {
             rho_u >>= 1;
-            rho_u = (rho_u < ((fp_QP_t)(((fp_QP_t)(1.0)))))
-                        ? ((fp_QP_t)(((fp_QP_t)(1.0))))
+            rho_u = (rho_u < ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f))))))
+                        ? ((fp_QP_t)(((fp_QP_t)((1.0f / 4.0f)))))
                         : rho_u;
           }
         }
@@ -56915,7 +56929,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
 
 
         if (scale_rho_up || scale_rho_down) {
-          VITIS_LOOP_1511_21: for (k = 0; k < (20 + 1); k++) {
+          VITIS_LOOP_1531_20: for (k = 0; k < (20 + 1); k++) {
 #pragma HLS PIPELINE II = 1
             if (scale_rho_up) {
               y_x[k][0] >>= 1;
@@ -56929,9 +56943,9 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
 
 
         if (scale_rho_u_up || scale_rho_u_down) {
-          VITIS_LOOP_1525_22: for (k = 0; k < 20; k++) {
+          VITIS_LOOP_1545_21: for (k = 0; k < 20; k++) {
 #pragma HLS PIPELINE II = 1
-            VITIS_LOOP_1527_23: for (a = 0; a < 2; a++) {
+            VITIS_LOOP_1547_22: for (a = 0; a < 2; a++) {
               if (scale_rho_u_up) {
                 y_u[k][a] >>= 1;
               } else {
@@ -56950,18 +56964,18 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
   solution->iterations = completed_admm_iters;
   solution->primal_residual = final_primal_residual;
   solution->dual_residual = final_dual_residual;
-# 1554 "../src/riccati_solver_hls.cpp"
+# 1574 "../src/riccati_solver_hls.cpp"
   if (status == MPC_STATUS_OPTIMAL || status == MPC_STATUS_MAX_ITER) {
-    VITIS_LOOP_1555_24: for (k = 0; k < (20 + 1); k++) {
+    VITIS_LOOP_1575_23: for (k = 0; k < (20 + 1); k++) {
 #pragma HLS PIPELINE II = 1
-      VITIS_LOOP_1557_25: for (i = 0; i < 8; i++) {
+      VITIS_LOOP_1577_24: for (i = 0; i < 8; i++) {
         admm_state->z_x[k][i] = z_x[k][i];
         admm_state->y_x[k][i] = y_x[k][i];
       }
     }
-    VITIS_LOOP_1562_26: for (k = 0; k < 20; k++) {
+    VITIS_LOOP_1582_25: for (k = 0; k < 20; k++) {
 #pragma HLS PIPELINE II = 1
-      VITIS_LOOP_1564_27: for (a = 0; a < 2; a++) {
+      VITIS_LOOP_1584_26: for (a = 0; a < 2; a++) {
         admm_state->z_u[k][a] = z_u[k][a];
         admm_state->y_u[k][a] = y_u[k][a];
       }
@@ -56970,16 +56984,16 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[20],
     admm_state->rho_u = rho_u;
     admm_state->initialized = 1;
   } else {
-    VITIS_LOOP_1573_28: for (k = 0; k < (20 + 1); k++) {
+    VITIS_LOOP_1593_27: for (k = 0; k < (20 + 1); k++) {
 #pragma HLS PIPELINE II = 1
-      VITIS_LOOP_1575_29: for (i = 0; i < 8; i++) {
+      VITIS_LOOP_1595_28: for (i = 0; i < 8; i++) {
         admm_state->z_x[k][i] = ((fp_QP_t)(0.0));
         admm_state->y_x[k][i] = ((fp_QP_t)(0.0));
       }
     }
-    VITIS_LOOP_1580_30: for (k = 0; k < 20; k++) {
+    VITIS_LOOP_1600_29: for (k = 0; k < 20; k++) {
 #pragma HLS PIPELINE II = 1
-      VITIS_LOOP_1582_31: for (a = 0; a < 2; a++) {
+      VITIS_LOOP_1602_30: for (a = 0; a < 2; a++) {
         admm_state->z_u[k][a] = ((fp_QP_t)(0.0));
         admm_state->y_u[k][a] = ((fp_QP_t)(0.0));
       }

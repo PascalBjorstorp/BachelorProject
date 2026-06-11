@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'fp_rollout_from_forces_fn'" level="0">
-<item name = "Date">Thu May 21 15:23:09 2026
+<item name = "Date">Thu Jun 11 16:07:00 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.351 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.376 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,14 +24,14 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">23, 23, 0.115 us, 0.115 us, 24, 24, yes</column>
+<column name="">18, 18, 90.000 ns, 90.000 ns, 19, 19, yes</column>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_fp_recip_fn_fu_214">fp_recip_fn, 6, 6, 30.000 ns, 30.000 ns, 1, 1, yes</column>
+<column name="grp_fp_recip_fn_fu_214">fp_recip_fn, 5, 5, 25.000 ns, 25.000 ns, 1, 1, yes</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -47,40 +47,40 @@
 <section name = "Utilization Estimates" level="0">
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="DSP">-, 1, -, -, -</column>
-<column name="Expression">-, -, 0, 537, -</column>
+<column name="DSP">-, 2, -, -, -</column>
+<column name="Expression">-, -, 0, 412, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">1, 17, 2826, 3087, -</column>
+<column name="Instance">1, 14, 1663, 2232, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 228, -</column>
-<column name="Register">-, -, 1127, -, -</column>
+<column name="Multiplexer">-, -, 0, 204, -</column>
+<column name="Register">-, -, 975, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
-<specialColumn name="Utilization (%)">~0, 1, 1, 3, 0</specialColumn>
+<specialColumn name="Utilization (%)">~0, 1, 1, 2, 0</specialColumn>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="grp_fp_recip_fn_fu_214">fp_recip_fn, 1, 1, 2033, 2710, 0</column>
-<column name="mul_23s_26s_49_4_1_U433">mul_23s_26s_49_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U439">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U440">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U441">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U442">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U443">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U444">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U445">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U436">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U437">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_17ns_43_4_1_U438">mul_26s_17ns_43_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_23ns_49_4_1_U435">mul_26s_23ns_49_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_26s_43_4_1_x_U434">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+<column name="grp_fp_recip_fn_fu_214">fp_recip_fn, 1, 0, 1573, 2061, 0</column>
+<column name="mul_20s_21s_41_3_1_U430">mul_20s_21s_41_3_1, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_11ns_32_1_1_U432">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U433">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_12ns_33_1_1_U434">mul_21s_12ns_33_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_21s_42_3_1_x_U431">mul_21s_21s_42_3_1_x, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U435">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U436">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U437">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U438">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U439">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U440">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_3_1_U441">mul_21s_8ns_29_3_1, 0, 1, 10, 14, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
 <keys size="3">Instance, Module, Expression</keys>
-<column name="am_addmul_26s_26s_16ns_43_4_1_U446">am_addmul_26s_26s_16ns_43_4_1, (i0 + i1) * i2</column>
+<column name="am_addmul_21s_21s_11ns_33_4_1_U442">am_addmul_21s_21s_11ns_33_4_1, (i0 + i1) * i2</column>
+<column name="am_submul_20s_20s_17ns_33_4_1_U443">am_submul_20s_20s_17ns_33_4_1, (i0 - i1) * i2</column>
 </table>
 </item>
 <item name = "Memory"><table name="" hasTotal="1">
@@ -93,76 +93,78 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="add_ln209_1_fu_587_p2">+, 0, 0, 26, 26, 26</column>
-<column name="add_ln209_fu_582_p2">+, 0, 0, 26, 26, 26</column>
-<column name="add_ln210_fu_704_p2">+, 0, 0, 26, 26, 26</column>
-<column name="add_ln216_fu_616_p2">+, 0, 0, 33, 26, 26</column>
-<column name="add_ln217_fu_682_p2">+, 0, 0, 33, 26, 26</column>
-<column name="dvx_dt_fu_450_p2">+, 0, 0, 33, 26, 26</column>
-<column name="next_vx_local_fu_635_p2">+, 0, 0, 33, 26, 26</column>
-<column name="dvy_dt_fu_435_p2">-, 0, 0, 33, 26, 26</column>
-<column name="ey_denom_2_fu_287_p2">-, 0, 0, 33, 18, 26</column>
-<column name="sub_ln210_fu_710_p2">-, 0, 0, 26, 26, 26</column>
-<column name="sub_ln408_fu_301_p2">-, 0, 0, 33, 1, 26</column>
-<column name="value_194_fu_408_p2">-, 0, 0, 33, 26, 26</column>
-<column name="value_fu_414_p2">-, 0, 0, 33, 26, 26</column>
-<column name="icmp_ln173_fu_315_p2">icmp, 0, 0, 33, 26, 8</column>
-<column name="icmp_ln213_fu_654_p2">icmp, 0, 0, 17, 10, 1</column>
-<column name="a_125_fu_307_p3">select, 0, 0, 26, 1, 26</column>
-<column name="ey_denom_fu_329_p3">select, 0, 0, 26, 1, 26</column>
-<column name="next_vx_local_1_fu_660_p3">select, 0, 0, 25, 1, 17</column>
-<column name="select_ln173_fu_321_p3">select, 0, 0, 9, 1, 9</column>
+<column name="add_ln209_1_fu_572_p2">+, 0, 0, 21, 21, 21</column>
+<column name="add_ln209_fu_567_p2">+, 0, 0, 21, 21, 21</column>
+<column name="add_ln210_fu_698_p2">+, 0, 0, 21, 21, 21</column>
+<column name="add_ln216_fu_657_p2">+, 0, 0, 28, 21, 21</column>
+<column name="add_ln217_fu_676_p2">+, 0, 0, 28, 21, 21</column>
+<column name="dvx_dt_fu_479_p2">+, 0, 0, 28, 21, 21</column>
+<column name="next_vx_local_fu_601_p2">+, 0, 0, 28, 21, 21</column>
+<column name="dvy_dt_fu_450_p2">-, 0, 0, 28, 21, 21</column>
+<column name="ey_denom_2_fu_283_p2">-, 0, 0, 28, 13, 21</column>
+<column name="sub_ln210_fu_704_p2">-, 0, 0, 21, 21, 21</column>
+<column name="sub_ln380_fu_297_p2">-, 0, 0, 28, 1, 21</column>
+<column name="value_fu_407_p2">-, 0, 0, 28, 21, 21</column>
+<column name="icmp_ln173_fu_331_p2">icmp, 0, 0, 26, 19, 1</column>
+<column name="icmp_ln213_fu_620_p2">icmp, 0, 0, 17, 10, 1</column>
+<column name="grp_fp_recip_fn_fu_214_x">select, 0, 0, 20, 1, 21</column>
+<column name="next_vx_local_1_fu_626_p3">select, 0, 0, 19, 1, 12</column>
+<column name="select_ln173_fu_347_p3">select, 0, 0, 4, 1, 4</column>
+<column name="select_ln380_fu_323_p3">select, 0, 0, 18, 1, 19</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">125, 25, 1, 25</column>
-<column name="grp_fu_225_p0">54, 10, 26, 260</column>
-<column name="grp_fu_225_p1">49, 9, 26, 234</column>
+<column name="ap_NS_fsm">101, 20, 1, 20</column>
+<column name="grp_fu_225_p0">54, 10, 21, 210</column>
+<column name="grp_fu_225_p1">49, 9, 21, 189</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="F_yr_read_reg_799">26, 0, 26, 0</column>
-<column name="add_ln209_1_reg_950">26, 0, 26, 0</column>
-<column name="add_ln216_reg_960">26, 0, 26, 0</column>
-<column name="add_ln217_reg_970">26, 0, 26, 0</column>
-<column name="ap_CS_fsm">24, 0, 24, 0</column>
-<column name="ap_port_reg_F_yf">26, 0, 26, 0</column>
-<column name="ap_port_reg_F_yr">26, 0, 26, 0</column>
-<column name="ap_port_reg_Fx">26, 0, 26, 0</column>
-<column name="ap_port_reg_cos_delta">26, 0, 26, 0</column>
-<column name="ap_port_reg_cos_epsi">26, 0, 26, 0</column>
-<column name="ap_port_reg_epsi">26, 0, 26, 0</column>
-<column name="ap_port_reg_omega">26, 0, 26, 0</column>
-<column name="ap_port_reg_sin_delta">26, 0, 26, 0</column>
-<column name="ap_port_reg_sin_epsi">26, 0, 26, 0</column>
-<column name="ap_port_reg_vx_safe">26, 0, 26, 0</column>
-<column name="ap_port_reg_vy">26, 0, 26, 0</column>
-<column name="dvx_dt_reg_880">26, 0, 26, 0</column>
-<column name="dvy_dt_reg_870">26, 0, 26, 0</column>
-<column name="ey_denom_reg_804">26, 0, 26, 0</column>
-<column name="ey_read_reg_754">26, 0, 26, 0</column>
-<column name="inv_ey_denom_reg_875">23, 0, 23, 0</column>
-<column name="next_vx_local_1_reg_965">25, 0, 25, 0</column>
-<column name="omega_read_reg_824">26, 0, 26, 0</column>
-<column name="product_q_30_reg_915">26, 0, 26, 0</column>
-<column name="product_q_36_reg_835">25, 0, 25, 0</column>
-<column name="product_q_38_reg_850">26, 0, 26, 0</column>
-<column name="product_q_39_reg_905">26, 0, 26, 0</column>
-<column name="product_q_40_reg_935">22, 0, 22, 0</column>
-<column name="product_q_42_reg_925">22, 0, 22, 0</column>
-<column name="reg_244">26, 0, 26, 0</column>
-<column name="reg_248">26, 0, 26, 0</column>
-<column name="sext_ln671_12_reg_769">43, 0, 43, 0</column>
-<column name="sext_ln671_16_reg_830">43, 0, 43, 0</column>
-<column name="sext_ln671_5_reg_784">43, 0, 43, 0</column>
-<column name="sext_ln671_7_reg_845">43, 0, 43, 0</column>
-<column name="sext_ln671_8_reg_789">43, 0, 43, 0</column>
-<column name="sext_ln671_reg_759">43, 0, 43, 0</column>
-<column name="value_194_reg_855">26, 0, 26, 0</column>
-<column name="vx_safe_read_reg_779">26, 0, 26, 0</column>
-<column name="vy_read_reg_840">26, 0, 26, 0</column>
+<column name="F_yr_read_reg_757">21, 0, 21, 0</column>
+<column name="add_ln209_1_reg_958">21, 0, 21, 0</column>
+<column name="add_ln216_reg_978">21, 0, 21, 0</column>
+<column name="add_ln217_reg_983">21, 0, 21, 0</column>
+<column name="ap_CS_fsm">19, 0, 19, 0</column>
+<column name="ap_port_reg_F_yf">21, 0, 21, 0</column>
+<column name="ap_port_reg_Fx">21, 0, 21, 0</column>
+<column name="ap_port_reg_cos_delta">21, 0, 21, 0</column>
+<column name="ap_port_reg_cos_epsi">21, 0, 21, 0</column>
+<column name="ap_port_reg_epsi">21, 0, 21, 0</column>
+<column name="ap_port_reg_omega">21, 0, 21, 0</column>
+<column name="ap_port_reg_sin_delta">21, 0, 21, 0</column>
+<column name="ap_port_reg_sin_epsi">21, 0, 21, 0</column>
+<column name="ap_port_reg_vx_safe">21, 0, 21, 0</column>
+<column name="ap_port_reg_vy">21, 0, 21, 0</column>
+<column name="dvx_dt_reg_918">21, 0, 21, 0</column>
+<column name="dvy_dt_reg_898">21, 0, 21, 0</column>
+<column name="ey_denom_2_reg_797">21, 0, 21, 0</column>
+<column name="ey_read_reg_762">21, 0, 21, 0</column>
+<column name="icmp_ln173_reg_807">1, 0, 1, 0</column>
+<column name="inv_ey_denom_reg_888">20, 0, 20, 0</column>
+<column name="next_vx_local_1_reg_968">20, 0, 20, 0</column>
+<column name="omega_read_reg_862">21, 0, 21, 0</column>
+<column name="product_q_24_reg_868">21, 0, 21, 0</column>
+<column name="product_q_25_reg_878">21, 0, 21, 0</column>
+<column name="product_q_28_reg_933">21, 0, 21, 0</column>
+<column name="product_q_33_reg_837">20, 0, 20, 0</column>
+<column name="product_q_34_reg_777">20, 0, 20, 0</column>
+<column name="product_q_35_reg_857">21, 0, 21, 0</column>
+<column name="product_q_36_reg_883">21, 0, 21, 0</column>
+<column name="product_q_37_reg_903">21, 0, 21, 0</column>
+<column name="product_q_38_reg_943">17, 0, 17, 0</column>
+<column name="product_q_40_reg_928">17, 0, 17, 0</column>
+<column name="reg_239">21, 0, 21, 0</column>
+<column name="sext_ln574_11_reg_812">42, 0, 42, 0</column>
+<column name="sext_ln574_15_reg_873">42, 0, 42, 0</column>
+<column name="sext_ln574_4_reg_787">42, 0, 42, 0</column>
+<column name="sext_ln574_6_reg_852">42, 0, 42, 0</column>
+<column name="sext_ln574_7_reg_792">42, 0, 42, 0</column>
+<column name="sext_ln574_reg_767">42, 0, 42, 0</column>
+<column name="tmp_reg_802">1, 0, 1, 0</column>
+<column name="vx_safe_read_reg_782">21, 0, 21, 0</column>
+<column name="vy_read_reg_847">21, 0, 21, 0</column>
 </table>
 </item>
 </section>
@@ -178,24 +180,24 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ap_return_2">out, 26, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ap_return_3">out, 26, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ap_return_4">out, 26, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
-<column name="ey">in, 26, ap_none, ey, scalar</column>
-<column name="epsi">in, 26, ap_none, epsi, scalar</column>
-<column name="sin_epsi">in, 26, ap_none, sin_epsi, scalar</column>
-<column name="cos_epsi">in, 26, ap_none, cos_epsi, scalar</column>
-<column name="vx_safe">in, 26, ap_none, vx_safe, scalar</column>
-<column name="vy">in, 26, ap_none, vy, scalar</column>
-<column name="omega">in, 26, ap_none, omega, scalar</column>
-<column name="kappa">in, 26, ap_none, kappa, scalar</column>
-<column name="Fx">in, 26, ap_none, Fx, scalar</column>
-<column name="F_yf">in, 26, ap_none, F_yf, scalar</column>
-<column name="F_yr">in, 26, ap_none, F_yr, scalar</column>
-<column name="sin_delta">in, 26, ap_none, sin_delta, scalar</column>
-<column name="cos_delta">in, 26, ap_none, cos_delta, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
+<column name="ap_return_2">out, 21, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
+<column name="ap_return_3">out, 21, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
+<column name="ap_return_4">out, 21, ap_ctrl_hs, fp_rollout_from_forces_fn, return value</column>
+<column name="ey">in, 21, ap_none, ey, scalar</column>
+<column name="epsi">in, 21, ap_none, epsi, scalar</column>
+<column name="sin_epsi">in, 21, ap_none, sin_epsi, scalar</column>
+<column name="cos_epsi">in, 21, ap_none, cos_epsi, scalar</column>
+<column name="vx_safe">in, 21, ap_none, vx_safe, scalar</column>
+<column name="vy">in, 21, ap_none, vy, scalar</column>
+<column name="omega">in, 21, ap_none, omega, scalar</column>
+<column name="kappa">in, 21, ap_none, kappa, scalar</column>
+<column name="Fx">in, 21, ap_none, Fx, scalar</column>
+<column name="F_yf">in, 21, ap_none, F_yf, scalar</column>
+<column name="F_yr">in, 21, ap_none, F_yr, scalar</column>
+<column name="sin_delta">in, 21, ap_none, sin_delta, scalar</column>
+<column name="cos_delta">in, 21, ap_none, cos_delta, scalar</column>
 </table>
 </item>
 </section>

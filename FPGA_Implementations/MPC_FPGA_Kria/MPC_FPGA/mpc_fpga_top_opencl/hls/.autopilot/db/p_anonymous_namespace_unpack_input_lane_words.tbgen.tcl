@@ -15,45 +15,45 @@ set hasInterrupt 0
 set DLRegFirstOffset 0
 set DLRegItemOffset 0
 set svuvm_can_support 1
-set cdfgNum 76
+set cdfgNum 74
 set C_modelName {(anonymous namespace)unpack_input_lane_words}
 set C_modelType { void 0 }
 set ap_memory_interface_dict [dict create]
 dict set ap_memory_interface_dict lane_words_0 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
 dict set ap_memory_interface_dict lane_words_1 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
 dict set ap_memory_interface_dict lane_words_2 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_3 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_4 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_5 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_6 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_3 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_4 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_5 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_6 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
 dict set ap_memory_interface_dict lane_words_7 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_8 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_9 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_10 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_11 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_12 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_13 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_14 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
-dict set ap_memory_interface_dict lane_words_15 { MEM_WIDTH 32 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_8 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_9 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_10 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_11 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_12 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_13 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_14 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
+dict set ap_memory_interface_dict lane_words_15 { MEM_WIDTH 26 MEM_SIZE 44 MASTER_TYPE BRAM_CTRL MEM_ADDRESS_MODE WORD_ADDRESS PACKAGE_IO bus READ_LATENCY 1 }
 set C_modelArgList {
 	{ gmem0 int 512 regular {axi_master 0}  }
 	{ input_words512 int 64 regular  }
 	{ lane_words_0 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
 	{ lane_words_1 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
 	{ lane_words_2 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_3 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_4 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_5 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_6 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_3 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_4 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_5 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_6 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
 	{ lane_words_7 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_8 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_9 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_10 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_11 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_12 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_13 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_14 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
-	{ lane_words_15 int 32 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_8 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_9 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_10 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_11 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_12 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_13 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_14 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
+	{ lane_words_15 int 26 regular {array 11 { 0 3 } 0 1 bus  }  }
 }
 set hasAXIMCache 0
 set l_AXIML2Cache [list]
@@ -64,19 +64,19 @@ set C_modelArgMapList {[
  	{ "Name" : "lane_words_0", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
  	{ "Name" : "lane_words_1", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
  	{ "Name" : "lane_words_2", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_3", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_4", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_5", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_6", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_3", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_4", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_5", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_6", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
  	{ "Name" : "lane_words_7", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_8", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_9", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_10", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_11", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_12", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_13", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_14", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} , 
- 	{ "Name" : "lane_words_15", "interface" : "memory", "bitwidth" : 32, "direction" : "WRITEONLY"} ]}
+ 	{ "Name" : "lane_words_8", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_9", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_10", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_11", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_12", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_13", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_14", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} , 
+ 	{ "Name" : "lane_words_15", "interface" : "memory", "bitwidth" : 26, "direction" : "WRITEONLY"} ]}
 # RTL Port declarations: 
 set portNum 117
 set portList { 
@@ -148,19 +148,19 @@ set portList {
 	{ lane_words_3_address0 sc_out sc_lv 4 signal 5 } 
 	{ lane_words_3_ce0 sc_out sc_logic 1 signal 5 } 
 	{ lane_words_3_we0 sc_out sc_logic 1 signal 5 } 
-	{ lane_words_3_d0 sc_out sc_lv 32 signal 5 } 
+	{ lane_words_3_d0 sc_out sc_lv 26 signal 5 } 
 	{ lane_words_4_address0 sc_out sc_lv 4 signal 6 } 
 	{ lane_words_4_ce0 sc_out sc_logic 1 signal 6 } 
 	{ lane_words_4_we0 sc_out sc_logic 1 signal 6 } 
-	{ lane_words_4_d0 sc_out sc_lv 32 signal 6 } 
+	{ lane_words_4_d0 sc_out sc_lv 26 signal 6 } 
 	{ lane_words_5_address0 sc_out sc_lv 4 signal 7 } 
 	{ lane_words_5_ce0 sc_out sc_logic 1 signal 7 } 
 	{ lane_words_5_we0 sc_out sc_logic 1 signal 7 } 
-	{ lane_words_5_d0 sc_out sc_lv 32 signal 7 } 
+	{ lane_words_5_d0 sc_out sc_lv 26 signal 7 } 
 	{ lane_words_6_address0 sc_out sc_lv 4 signal 8 } 
 	{ lane_words_6_ce0 sc_out sc_logic 1 signal 8 } 
 	{ lane_words_6_we0 sc_out sc_logic 1 signal 8 } 
-	{ lane_words_6_d0 sc_out sc_lv 32 signal 8 } 
+	{ lane_words_6_d0 sc_out sc_lv 26 signal 8 } 
 	{ lane_words_7_address0 sc_out sc_lv 4 signal 9 } 
 	{ lane_words_7_ce0 sc_out sc_logic 1 signal 9 } 
 	{ lane_words_7_we0 sc_out sc_logic 1 signal 9 } 
@@ -168,35 +168,35 @@ set portList {
 	{ lane_words_8_address0 sc_out sc_lv 4 signal 10 } 
 	{ lane_words_8_ce0 sc_out sc_logic 1 signal 10 } 
 	{ lane_words_8_we0 sc_out sc_logic 1 signal 10 } 
-	{ lane_words_8_d0 sc_out sc_lv 32 signal 10 } 
+	{ lane_words_8_d0 sc_out sc_lv 26 signal 10 } 
 	{ lane_words_9_address0 sc_out sc_lv 4 signal 11 } 
 	{ lane_words_9_ce0 sc_out sc_logic 1 signal 11 } 
 	{ lane_words_9_we0 sc_out sc_logic 1 signal 11 } 
-	{ lane_words_9_d0 sc_out sc_lv 32 signal 11 } 
+	{ lane_words_9_d0 sc_out sc_lv 26 signal 11 } 
 	{ lane_words_10_address0 sc_out sc_lv 4 signal 12 } 
 	{ lane_words_10_ce0 sc_out sc_logic 1 signal 12 } 
 	{ lane_words_10_we0 sc_out sc_logic 1 signal 12 } 
-	{ lane_words_10_d0 sc_out sc_lv 32 signal 12 } 
+	{ lane_words_10_d0 sc_out sc_lv 26 signal 12 } 
 	{ lane_words_11_address0 sc_out sc_lv 4 signal 13 } 
 	{ lane_words_11_ce0 sc_out sc_logic 1 signal 13 } 
 	{ lane_words_11_we0 sc_out sc_logic 1 signal 13 } 
-	{ lane_words_11_d0 sc_out sc_lv 32 signal 13 } 
+	{ lane_words_11_d0 sc_out sc_lv 26 signal 13 } 
 	{ lane_words_12_address0 sc_out sc_lv 4 signal 14 } 
 	{ lane_words_12_ce0 sc_out sc_logic 1 signal 14 } 
 	{ lane_words_12_we0 sc_out sc_logic 1 signal 14 } 
-	{ lane_words_12_d0 sc_out sc_lv 32 signal 14 } 
+	{ lane_words_12_d0 sc_out sc_lv 26 signal 14 } 
 	{ lane_words_13_address0 sc_out sc_lv 4 signal 15 } 
 	{ lane_words_13_ce0 sc_out sc_logic 1 signal 15 } 
 	{ lane_words_13_we0 sc_out sc_logic 1 signal 15 } 
-	{ lane_words_13_d0 sc_out sc_lv 32 signal 15 } 
+	{ lane_words_13_d0 sc_out sc_lv 26 signal 15 } 
 	{ lane_words_14_address0 sc_out sc_lv 4 signal 16 } 
 	{ lane_words_14_ce0 sc_out sc_logic 1 signal 16 } 
 	{ lane_words_14_we0 sc_out sc_logic 1 signal 16 } 
-	{ lane_words_14_d0 sc_out sc_lv 32 signal 16 } 
+	{ lane_words_14_d0 sc_out sc_lv 26 signal 16 } 
 	{ lane_words_15_address0 sc_out sc_lv 4 signal 17 } 
 	{ lane_words_15_ce0 sc_out sc_logic 1 signal 17 } 
 	{ lane_words_15_we0 sc_out sc_logic 1 signal 17 } 
-	{ lane_words_15_d0 sc_out sc_lv 32 signal 17 } 
+	{ lane_words_15_d0 sc_out sc_lv 26 signal 17 } 
 }
 set NewPortList {[ 
 	{ "name": "ap_clk", "direction": "in", "datatype": "sc_logic", "bitwidth":1, "type": "clock", "bundle":{"name": "ap_clk", "role": "default" }} , 
@@ -267,19 +267,19 @@ set NewPortList {[
  	{ "name": "lane_words_3_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_3", "role": "address0" }} , 
  	{ "name": "lane_words_3_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_3", "role": "ce0" }} , 
  	{ "name": "lane_words_3_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_3", "role": "we0" }} , 
- 	{ "name": "lane_words_3_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_3", "role": "d0" }} , 
+ 	{ "name": "lane_words_3_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_3", "role": "d0" }} , 
  	{ "name": "lane_words_4_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_4", "role": "address0" }} , 
  	{ "name": "lane_words_4_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_4", "role": "ce0" }} , 
  	{ "name": "lane_words_4_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_4", "role": "we0" }} , 
- 	{ "name": "lane_words_4_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_4", "role": "d0" }} , 
+ 	{ "name": "lane_words_4_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_4", "role": "d0" }} , 
  	{ "name": "lane_words_5_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_5", "role": "address0" }} , 
  	{ "name": "lane_words_5_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_5", "role": "ce0" }} , 
  	{ "name": "lane_words_5_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_5", "role": "we0" }} , 
- 	{ "name": "lane_words_5_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_5", "role": "d0" }} , 
+ 	{ "name": "lane_words_5_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_5", "role": "d0" }} , 
  	{ "name": "lane_words_6_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_6", "role": "address0" }} , 
  	{ "name": "lane_words_6_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_6", "role": "ce0" }} , 
  	{ "name": "lane_words_6_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_6", "role": "we0" }} , 
- 	{ "name": "lane_words_6_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_6", "role": "d0" }} , 
+ 	{ "name": "lane_words_6_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_6", "role": "d0" }} , 
  	{ "name": "lane_words_7_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_7", "role": "address0" }} , 
  	{ "name": "lane_words_7_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_7", "role": "ce0" }} , 
  	{ "name": "lane_words_7_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_7", "role": "we0" }} , 
@@ -287,35 +287,35 @@ set NewPortList {[
  	{ "name": "lane_words_8_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_8", "role": "address0" }} , 
  	{ "name": "lane_words_8_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_8", "role": "ce0" }} , 
  	{ "name": "lane_words_8_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_8", "role": "we0" }} , 
- 	{ "name": "lane_words_8_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_8", "role": "d0" }} , 
+ 	{ "name": "lane_words_8_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_8", "role": "d0" }} , 
  	{ "name": "lane_words_9_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_9", "role": "address0" }} , 
  	{ "name": "lane_words_9_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_9", "role": "ce0" }} , 
  	{ "name": "lane_words_9_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_9", "role": "we0" }} , 
- 	{ "name": "lane_words_9_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_9", "role": "d0" }} , 
+ 	{ "name": "lane_words_9_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_9", "role": "d0" }} , 
  	{ "name": "lane_words_10_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_10", "role": "address0" }} , 
  	{ "name": "lane_words_10_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_10", "role": "ce0" }} , 
  	{ "name": "lane_words_10_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_10", "role": "we0" }} , 
- 	{ "name": "lane_words_10_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_10", "role": "d0" }} , 
+ 	{ "name": "lane_words_10_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_10", "role": "d0" }} , 
  	{ "name": "lane_words_11_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_11", "role": "address0" }} , 
  	{ "name": "lane_words_11_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_11", "role": "ce0" }} , 
  	{ "name": "lane_words_11_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_11", "role": "we0" }} , 
- 	{ "name": "lane_words_11_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_11", "role": "d0" }} , 
+ 	{ "name": "lane_words_11_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_11", "role": "d0" }} , 
  	{ "name": "lane_words_12_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_12", "role": "address0" }} , 
  	{ "name": "lane_words_12_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_12", "role": "ce0" }} , 
  	{ "name": "lane_words_12_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_12", "role": "we0" }} , 
- 	{ "name": "lane_words_12_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_12", "role": "d0" }} , 
+ 	{ "name": "lane_words_12_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_12", "role": "d0" }} , 
  	{ "name": "lane_words_13_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_13", "role": "address0" }} , 
  	{ "name": "lane_words_13_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_13", "role": "ce0" }} , 
  	{ "name": "lane_words_13_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_13", "role": "we0" }} , 
- 	{ "name": "lane_words_13_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_13", "role": "d0" }} , 
+ 	{ "name": "lane_words_13_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_13", "role": "d0" }} , 
  	{ "name": "lane_words_14_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_14", "role": "address0" }} , 
  	{ "name": "lane_words_14_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_14", "role": "ce0" }} , 
  	{ "name": "lane_words_14_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_14", "role": "we0" }} , 
- 	{ "name": "lane_words_14_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_14", "role": "d0" }} , 
+ 	{ "name": "lane_words_14_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_14", "role": "d0" }} , 
  	{ "name": "lane_words_15_address0", "direction": "out", "datatype": "sc_lv", "bitwidth":4, "type": "signal", "bundle":{"name": "lane_words_15", "role": "address0" }} , 
  	{ "name": "lane_words_15_ce0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_15", "role": "ce0" }} , 
  	{ "name": "lane_words_15_we0", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "signal", "bundle":{"name": "lane_words_15", "role": "we0" }} , 
- 	{ "name": "lane_words_15_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":32, "type": "signal", "bundle":{"name": "lane_words_15", "role": "d0" }}  ]}
+ 	{ "name": "lane_words_15_d0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "lane_words_15", "role": "d0" }}  ]}
 
 set ArgLastReadFirstWriteLatency {
 	p_anonymous_namespace_unpack_input_lane_words {
@@ -337,9 +337,9 @@ set ArgLastReadFirstWriteLatency {
 		lane_words_13 {Type O LastRead -1 FirstWrite 2}
 		lane_words_14 {Type O LastRead -1 FirstWrite 2}
 		lane_words_15 {Type O LastRead -1 FirstWrite 2}}
-	p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1 {
+	p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1 {
 		gmem0 {Type I LastRead 1 FirstWrite -1}
-		sext_ln216 {Type I LastRead 0 FirstWrite -1}
+		sext_ln213 {Type I LastRead 0 FirstWrite -1}
 		lane_words_15 {Type O LastRead -1 FirstWrite 2}
 		lane_words_14 {Type O LastRead -1 FirstWrite 2}
 		lane_words_13 {Type O LastRead -1 FirstWrite 2}
@@ -373,17 +373,17 @@ set Spec2ImplPortList {
 	lane_words_0 { ap_memory {  { lane_words_0_address0 mem_address 1 4 }  { lane_words_0_ce0 mem_ce 1 1 }  { lane_words_0_we0 mem_we 1 1 }  { lane_words_0_d0 mem_din 1 32 } } }
 	lane_words_1 { ap_memory {  { lane_words_1_address0 mem_address 1 4 }  { lane_words_1_ce0 mem_ce 1 1 }  { lane_words_1_we0 mem_we 1 1 }  { lane_words_1_d0 mem_din 1 32 } } }
 	lane_words_2 { ap_memory {  { lane_words_2_address0 mem_address 1 4 }  { lane_words_2_ce0 mem_ce 1 1 }  { lane_words_2_we0 mem_we 1 1 }  { lane_words_2_d0 mem_din 1 32 } } }
-	lane_words_3 { ap_memory {  { lane_words_3_address0 mem_address 1 4 }  { lane_words_3_ce0 mem_ce 1 1 }  { lane_words_3_we0 mem_we 1 1 }  { lane_words_3_d0 mem_din 1 32 } } }
-	lane_words_4 { ap_memory {  { lane_words_4_address0 mem_address 1 4 }  { lane_words_4_ce0 mem_ce 1 1 }  { lane_words_4_we0 mem_we 1 1 }  { lane_words_4_d0 mem_din 1 32 } } }
-	lane_words_5 { ap_memory {  { lane_words_5_address0 mem_address 1 4 }  { lane_words_5_ce0 mem_ce 1 1 }  { lane_words_5_we0 mem_we 1 1 }  { lane_words_5_d0 mem_din 1 32 } } }
-	lane_words_6 { ap_memory {  { lane_words_6_address0 mem_address 1 4 }  { lane_words_6_ce0 mem_ce 1 1 }  { lane_words_6_we0 mem_we 1 1 }  { lane_words_6_d0 mem_din 1 32 } } }
+	lane_words_3 { ap_memory {  { lane_words_3_address0 mem_address 1 4 }  { lane_words_3_ce0 mem_ce 1 1 }  { lane_words_3_we0 mem_we 1 1 }  { lane_words_3_d0 mem_din 1 26 } } }
+	lane_words_4 { ap_memory {  { lane_words_4_address0 mem_address 1 4 }  { lane_words_4_ce0 mem_ce 1 1 }  { lane_words_4_we0 mem_we 1 1 }  { lane_words_4_d0 mem_din 1 26 } } }
+	lane_words_5 { ap_memory {  { lane_words_5_address0 mem_address 1 4 }  { lane_words_5_ce0 mem_ce 1 1 }  { lane_words_5_we0 mem_we 1 1 }  { lane_words_5_d0 mem_din 1 26 } } }
+	lane_words_6 { ap_memory {  { lane_words_6_address0 mem_address 1 4 }  { lane_words_6_ce0 mem_ce 1 1 }  { lane_words_6_we0 mem_we 1 1 }  { lane_words_6_d0 mem_din 1 26 } } }
 	lane_words_7 { ap_memory {  { lane_words_7_address0 mem_address 1 4 }  { lane_words_7_ce0 mem_ce 1 1 }  { lane_words_7_we0 mem_we 1 1 }  { lane_words_7_d0 mem_din 1 32 } } }
-	lane_words_8 { ap_memory {  { lane_words_8_address0 mem_address 1 4 }  { lane_words_8_ce0 mem_ce 1 1 }  { lane_words_8_we0 mem_we 1 1 }  { lane_words_8_d0 mem_din 1 32 } } }
-	lane_words_9 { ap_memory {  { lane_words_9_address0 mem_address 1 4 }  { lane_words_9_ce0 mem_ce 1 1 }  { lane_words_9_we0 mem_we 1 1 }  { lane_words_9_d0 mem_din 1 32 } } }
-	lane_words_10 { ap_memory {  { lane_words_10_address0 mem_address 1 4 }  { lane_words_10_ce0 mem_ce 1 1 }  { lane_words_10_we0 mem_we 1 1 }  { lane_words_10_d0 mem_din 1 32 } } }
-	lane_words_11 { ap_memory {  { lane_words_11_address0 mem_address 1 4 }  { lane_words_11_ce0 mem_ce 1 1 }  { lane_words_11_we0 mem_we 1 1 }  { lane_words_11_d0 mem_din 1 32 } } }
-	lane_words_12 { ap_memory {  { lane_words_12_address0 mem_address 1 4 }  { lane_words_12_ce0 mem_ce 1 1 }  { lane_words_12_we0 mem_we 1 1 }  { lane_words_12_d0 mem_din 1 32 } } }
-	lane_words_13 { ap_memory {  { lane_words_13_address0 mem_address 1 4 }  { lane_words_13_ce0 mem_ce 1 1 }  { lane_words_13_we0 mem_we 1 1 }  { lane_words_13_d0 mem_din 1 32 } } }
-	lane_words_14 { ap_memory {  { lane_words_14_address0 mem_address 1 4 }  { lane_words_14_ce0 mem_ce 1 1 }  { lane_words_14_we0 mem_we 1 1 }  { lane_words_14_d0 mem_din 1 32 } } }
-	lane_words_15 { ap_memory {  { lane_words_15_address0 mem_address 1 4 }  { lane_words_15_ce0 mem_ce 1 1 }  { lane_words_15_we0 mem_we 1 1 }  { lane_words_15_d0 mem_din 1 32 } } }
+	lane_words_8 { ap_memory {  { lane_words_8_address0 mem_address 1 4 }  { lane_words_8_ce0 mem_ce 1 1 }  { lane_words_8_we0 mem_we 1 1 }  { lane_words_8_d0 mem_din 1 26 } } }
+	lane_words_9 { ap_memory {  { lane_words_9_address0 mem_address 1 4 }  { lane_words_9_ce0 mem_ce 1 1 }  { lane_words_9_we0 mem_we 1 1 }  { lane_words_9_d0 mem_din 1 26 } } }
+	lane_words_10 { ap_memory {  { lane_words_10_address0 mem_address 1 4 }  { lane_words_10_ce0 mem_ce 1 1 }  { lane_words_10_we0 mem_we 1 1 }  { lane_words_10_d0 mem_din 1 26 } } }
+	lane_words_11 { ap_memory {  { lane_words_11_address0 mem_address 1 4 }  { lane_words_11_ce0 mem_ce 1 1 }  { lane_words_11_we0 mem_we 1 1 }  { lane_words_11_d0 mem_din 1 26 } } }
+	lane_words_12 { ap_memory {  { lane_words_12_address0 mem_address 1 4 }  { lane_words_12_ce0 mem_ce 1 1 }  { lane_words_12_we0 mem_we 1 1 }  { lane_words_12_d0 mem_din 1 26 } } }
+	lane_words_13 { ap_memory {  { lane_words_13_address0 mem_address 1 4 }  { lane_words_13_ce0 mem_ce 1 1 }  { lane_words_13_we0 mem_we 1 1 }  { lane_words_13_d0 mem_din 1 26 } } }
+	lane_words_14 { ap_memory {  { lane_words_14_address0 mem_address 1 4 }  { lane_words_14_ce0 mem_ce 1 1 }  { lane_words_14_we0 mem_we 1 1 }  { lane_words_14_d0 mem_din 1 26 } } }
+	lane_words_15 { ap_memory {  { lane_words_15_address0 mem_address 1 4 }  { lane_words_15_ce0 mem_ce 1 1 }  { lane_words_15_we0 mem_we 1 1 }  { lane_words_15_d0 mem_din 1 26 } } }
 }

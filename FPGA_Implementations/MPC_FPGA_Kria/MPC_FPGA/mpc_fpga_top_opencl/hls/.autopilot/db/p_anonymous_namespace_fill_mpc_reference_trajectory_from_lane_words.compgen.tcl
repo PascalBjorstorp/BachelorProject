@@ -75,7 +75,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_3 \
     op interface \
-    ports { lane_words_3_address0 { O 4 vector } lane_words_3_ce0 { O 1 bit } lane_words_3_q0 { I 32 vector } } \
+    ports { lane_words_3_address0 { O 4 vector } lane_words_3_ce0 { O 1 bit } lane_words_3_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_3'"
@@ -94,7 +94,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_4 \
     op interface \
-    ports { lane_words_4_address0 { O 4 vector } lane_words_4_ce0 { O 1 bit } lane_words_4_q0 { I 32 vector } } \
+    ports { lane_words_4_address0 { O 4 vector } lane_words_4_ce0 { O 1 bit } lane_words_4_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_4'"
@@ -113,7 +113,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_5 \
     op interface \
-    ports { lane_words_5_address0 { O 4 vector } lane_words_5_ce0 { O 1 bit } lane_words_5_q0 { I 32 vector } } \
+    ports { lane_words_5_address0 { O 4 vector } lane_words_5_ce0 { O 1 bit } lane_words_5_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_5'"
@@ -132,7 +132,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_6 \
     op interface \
-    ports { lane_words_6_address0 { O 4 vector } lane_words_6_ce0 { O 1 bit } lane_words_6_q0 { I 32 vector } } \
+    ports { lane_words_6_address0 { O 4 vector } lane_words_6_ce0 { O 1 bit } lane_words_6_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_6'"
@@ -170,7 +170,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_8 \
     op interface \
-    ports { lane_words_8_address0 { O 4 vector } lane_words_8_ce0 { O 1 bit } lane_words_8_q0 { I 32 vector } } \
+    ports { lane_words_8_address0 { O 4 vector } lane_words_8_ce0 { O 1 bit } lane_words_8_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_8'"
@@ -189,7 +189,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_9 \
     op interface \
-    ports { lane_words_9_address0 { O 4 vector } lane_words_9_ce0 { O 1 bit } lane_words_9_q0 { I 32 vector } } \
+    ports { lane_words_9_address0 { O 4 vector } lane_words_9_ce0 { O 1 bit } lane_words_9_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_9'"
@@ -208,7 +208,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_10 \
     op interface \
-    ports { lane_words_10_address0 { O 4 vector } lane_words_10_ce0 { O 1 bit } lane_words_10_q0 { I 32 vector } } \
+    ports { lane_words_10_address0 { O 4 vector } lane_words_10_ce0 { O 1 bit } lane_words_10_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_10'"
@@ -227,7 +227,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_11 \
     op interface \
-    ports { lane_words_11_address0 { O 4 vector } lane_words_11_ce0 { O 1 bit } lane_words_11_q0 { I 32 vector } } \
+    ports { lane_words_11_address0 { O 4 vector } lane_words_11_ce0 { O 1 bit } lane_words_11_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_11'"
@@ -246,7 +246,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_12 \
     op interface \
-    ports { lane_words_12_address0 { O 4 vector } lane_words_12_ce0 { O 1 bit } lane_words_12_q0 { I 32 vector } } \
+    ports { lane_words_12_address0 { O 4 vector } lane_words_12_ce0 { O 1 bit } lane_words_12_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_12'"
@@ -265,7 +265,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_13 \
     op interface \
-    ports { lane_words_13_address0 { O 4 vector } lane_words_13_ce0 { O 1 bit } lane_words_13_q0 { I 32 vector } } \
+    ports { lane_words_13_address0 { O 4 vector } lane_words_13_ce0 { O 1 bit } lane_words_13_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_13'"
@@ -284,7 +284,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_14 \
     op interface \
-    ports { lane_words_14_address0 { O 4 vector } lane_words_14_ce0 { O 1 bit } lane_words_14_q0 { I 32 vector } } \
+    ports { lane_words_14_address0 { O 4 vector } lane_words_14_ce0 { O 1 bit } lane_words_14_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_14'"
@@ -303,7 +303,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir I \
     corename lane_words_15 \
     op interface \
-    ports { lane_words_15_address0 { O 4 vector } lane_words_15_ce0 { O 1 bit } lane_words_15_q0 { I 32 vector } } \
+    ports { lane_words_15_address0 { O 4 vector } lane_words_15_ce0 { O 1 bit } lane_words_15_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'lane_words_15'"
@@ -322,7 +322,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_reference_heading_error \
     op interface \
-    ports { out_ref_reference_heading_error_address0 { O 5 vector } out_ref_reference_heading_error_ce0 { O 1 bit } out_ref_reference_heading_error_we0 { O 1 bit } out_ref_reference_heading_error_d0 { O 32 vector } } \
+    ports { out_ref_reference_heading_error_address0 { O 5 vector } out_ref_reference_heading_error_ce0 { O 1 bit } out_ref_reference_heading_error_we0 { O 1 bit } out_ref_reference_heading_error_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_reference_heading_error'"
@@ -341,7 +341,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_reference_lateral_error \
     op interface \
-    ports { out_ref_reference_lateral_error_address0 { O 5 vector } out_ref_reference_lateral_error_ce0 { O 1 bit } out_ref_reference_lateral_error_we0 { O 1 bit } out_ref_reference_lateral_error_d0 { O 32 vector } } \
+    ports { out_ref_reference_lateral_error_address0 { O 5 vector } out_ref_reference_lateral_error_ce0 { O 1 bit } out_ref_reference_lateral_error_we0 { O 1 bit } out_ref_reference_lateral_error_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_reference_lateral_error'"
@@ -360,7 +360,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_reference_velocity \
     op interface \
-    ports { out_ref_reference_velocity_address0 { O 5 vector } out_ref_reference_velocity_ce0 { O 1 bit } out_ref_reference_velocity_we0 { O 1 bit } out_ref_reference_velocity_d0 { O 32 vector } } \
+    ports { out_ref_reference_velocity_address0 { O 5 vector } out_ref_reference_velocity_ce0 { O 1 bit } out_ref_reference_velocity_we0 { O 1 bit } out_ref_reference_velocity_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_reference_velocity'"
@@ -379,7 +379,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_reference_lateral_velocity \
     op interface \
-    ports { out_ref_reference_lateral_velocity_address0 { O 5 vector } out_ref_reference_lateral_velocity_ce0 { O 1 bit } out_ref_reference_lateral_velocity_we0 { O 1 bit } out_ref_reference_lateral_velocity_d0 { O 32 vector } } \
+    ports { out_ref_reference_lateral_velocity_address0 { O 5 vector } out_ref_reference_lateral_velocity_ce0 { O 1 bit } out_ref_reference_lateral_velocity_we0 { O 1 bit } out_ref_reference_lateral_velocity_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_reference_lateral_velocity'"
@@ -398,7 +398,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_reference_yaw_rate \
     op interface \
-    ports { out_ref_reference_yaw_rate_address0 { O 5 vector } out_ref_reference_yaw_rate_ce0 { O 1 bit } out_ref_reference_yaw_rate_we0 { O 1 bit } out_ref_reference_yaw_rate_d0 { O 32 vector } } \
+    ports { out_ref_reference_yaw_rate_address0 { O 5 vector } out_ref_reference_yaw_rate_ce0 { O 1 bit } out_ref_reference_yaw_rate_we0 { O 1 bit } out_ref_reference_yaw_rate_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_reference_yaw_rate'"
@@ -417,7 +417,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_path_curvature \
     op interface \
-    ports { out_ref_path_curvature_address0 { O 5 vector } out_ref_path_curvature_ce0 { O 1 bit } out_ref_path_curvature_we0 { O 1 bit } out_ref_path_curvature_d0 { O 32 vector } } \
+    ports { out_ref_path_curvature_address0 { O 5 vector } out_ref_path_curvature_ce0 { O 1 bit } out_ref_path_curvature_we0 { O 1 bit } out_ref_path_curvature_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_path_curvature'"
@@ -436,7 +436,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_left_wall_bound \
     op interface \
-    ports { out_ref_left_wall_bound_address0 { O 5 vector } out_ref_left_wall_bound_ce0 { O 1 bit } out_ref_left_wall_bound_we0 { O 1 bit } out_ref_left_wall_bound_d0 { O 32 vector } } \
+    ports { out_ref_left_wall_bound_address0 { O 5 vector } out_ref_left_wall_bound_ce0 { O 1 bit } out_ref_left_wall_bound_we0 { O 1 bit } out_ref_left_wall_bound_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_left_wall_bound'"
@@ -455,7 +455,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename out_ref_right_wall_bound \
     op interface \
-    ports { out_ref_right_wall_bound_address0 { O 5 vector } out_ref_right_wall_bound_ce0 { O 1 bit } out_ref_right_wall_bound_we0 { O 1 bit } out_ref_right_wall_bound_d0 { O 32 vector } } \
+    ports { out_ref_right_wall_bound_address0 { O 5 vector } out_ref_right_wall_bound_ce0 { O 1 bit } out_ref_right_wall_bound_we0 { O 1 bit } out_ref_right_wall_bound_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'out_ref_right_wall_bound'"

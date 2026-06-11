@@ -9,10 +9,10 @@
 <ENTRY>
 {
  "type": "ET_CmdStep",
- "dateTimestamp": "Thu May 21 15:21:37 2026",
- "timestampMillis": "1779369697255",
+ "dateTimestamp": "Thu Jun 11 16:03:54 2026",
+ "timestampMillis": "1781186634993",
  "buildStep": {
-  "cmdId": "bbce3e30-9f76-49a1-bbf2-bfb930c2cee3",
+  "cmdId": "53eb5645-34d1-4f88-81d1-f959b886e959",
   "name": "v++",
   "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/logs/mpc_fpga_top_opencl.steps.log",
   "commandLine": "/home/akselmo/Vivado_program/2025.2/Vitis/bin/unwrapped/lnx64.o/v++  -c --mode hls --config /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg --work_dir mpc_fpga_top_opencl ",
@@ -28,7 +28,7 @@
   "iniFiles": [
    {
     "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg",
-    "content": "part=xck26-sfvc784-2LV-c\n\n[hls]\nclock=5ns\nflow_target=vitis\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp\nsyn.file=../src/mpc_runtime_tune.cpp\nsyn.top=mpc_fpga_top_opencl\npackage.ip.library=mpc\npackage.ip.vendor=f1tenth\npackage.ip.version=1.0\nsyn.compile.pipeline_loops=64\nsyn.compile.clang_version=16\nsyn.rtl.module_auto_prefix=1\nsyn.rtl.register_reset_num=1\nsyn.rtl.reset=control\npackage.output.syn=1\npackage.output.format=xo\ncsim.clean=1\ncsim.code_analyzer=1\nvivado.clock=5\nvivado.impl_strategy=Flow_RunPostRoutePhysOpt\nvivado.phys_opt=all\nvivado.optimization_level=2\nvivado.synth_strategy=Flow_AlternateRoutability\nsim.O=1\nsyn.cflags=-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include -DMPC_HLS_TARGET -DMPC_HLS_BUILD\ncsim.profile_tripcount=0\nvivado.synth_design_args=-directive AlternateRoutability -retiming -flatten_hierarchy rebuilt\nsyn.compile.pipeline_style=auto\nsyn.interface.ap_memory_io=bus\nvivado.max_timing_paths=100\nvivado.report_level=2\nsyn.schedule.enable_dsp_full_reg=1\nclock_uncertainty=0.5ns\nsyn.compile.ignore_long_run_time=1\nsyn.rtl.fsm_encoding=none\nsyn.rtl.fsm_safe_state=none\nsyn.interface.m_axi_buffer_impl=auto\ncsim.setup=0\nsyn.directive.loop_tripcount=mpc_admm_reset_all_hls/VITIS_LOOP_373_1 avg=2 max=2 min=2\ncosim.enable_dataflow_profiling=0\ncosim.trace_level=all\ntb.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp\ncosim.argv=/home/akselmo/Documents/GitHub/BachelorProject/tools/output/mpc_deep_diag_20260519_073002/frenet_parity/state_replay.csv 10000\ncsim.argv=/home/akselmo/Documents/GitHub/BachelorProject/tools/output/mpc_deep_diag_20260519_073002/frenet_parity/state_replay.csv 5\ntb.file_cflags=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp,-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include -DMPC_HLS_BUILD"
+    "content": "part=xck26-sfvc784-2LV-c\n\n[hls]\nclock=5ns\nflow_target=vitis\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp\nsyn.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp\nsyn.top=mpc_fpga_top_opencl\npackage.ip.library=mpc\npackage.ip.vendor=f1tenth\npackage.ip.version=1.0\nsyn.compile.pipeline_loops=64\nsyn.compile.clang_version=16\nsyn.rtl.module_auto_prefix=1\nsyn.rtl.register_reset_num=1\nsyn.rtl.reset=control\npackage.output.syn=1\npackage.output.format=xo\ncsim.clean=1\ncsim.code_analyzer=1\nvivado.clock=5\nvivado.impl_strategy=Flow_RunPostRoutePhysOpt\nvivado.phys_opt=all\nvivado.optimization_level=2\nvivado.synth_strategy=Flow_AlternateRoutability\nsim.O=1\nsyn.cflags=-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include -DMPC_HLS_TARGET -DMPC_HLS_BUILD\ncsim.profile_tripcount=0\nvivado.synth_design_args=-directive AlternateRoutability -retiming -flatten_hierarchy rebuilt\nsyn.compile.pipeline_style=auto\nsyn.interface.ap_memory_io=bus\nvivado.max_timing_paths=100\nvivado.report_level=2\nsyn.schedule.enable_dsp_full_reg=1\nclock_uncertainty=0.5ns\nsyn.compile.ignore_long_run_time=1\nsyn.rtl.fsm_encoding=none\nsyn.rtl.fsm_safe_state=none\nsyn.interface.m_axi_buffer_impl=auto\ncsim.setup=0\nsyn.directive.loop_tripcount=mpc_admm_reset_all_hls/VITIS_LOOP_373_1 avg=2 max=2 min=2\ncosim.enable_dataflow_profiling=0\ncosim.trace_level=all\ntb.file=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp\ncosim.argv=/home/akselmo/Documents/GitHub/BachelorProject/tools/output/deep_diag_run1/frenet_parity/state_replay.csv 10\ncsim.argv=/home/akselmo/Documents/GitHub/BachelorProject/tools/output/deep_diag_run1/frenet_parity/state_replay.csv 5\ntb.file_cflags=/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/testbench/tb_top_min.cpp,-I/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include -DMPC_HLS_BUILD\n"
    }
   ],
   "cwd": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA"
@@ -38,10 +38,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 15:21:37 2026",
- "timestampMillis": "1779369697255",
+ "dateTimestamp": "Thu Jun 11 16:03:54 2026",
+ "timestampMillis": "1781186634994",
  "status": {
-  "cmdId": "bbce3e30-9f76-49a1-bbf2-bfb930c2cee3",
+  "cmdId": "53eb5645-34d1-4f88-81d1-f959b886e959",
   "state": "CS_RUNNING"
  }
 }
@@ -49,8 +49,8 @@
 <ENTRY>
 {
  "type": "ET_FlowMetaData",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699119",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638309",
  "buildSummary": {
   "hardwarePlatform": "",
   "hardwareDsa": "",
@@ -73,8 +73,7 @@
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp",
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp",
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp",
-     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp",
-     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_runtime_tune.cpp"
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp"
     ],
     "psSources": [],
     "cuNames": [],
@@ -90,10 +89,10 @@
 <ENTRY>
 {
  "type": "ET_SubCmdStep",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699120",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638311",
  "buildStep": {
-  "cmdId": "5fd34b49-828a-49a2-8030-cfefc14a2115",
+  "cmdId": "7b9e132a-299a-4239-87f9-4c98e88da652",
   "name": "",
   "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/hls.log",
   "commandLine": "",
@@ -106,10 +105,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699120",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638311",
  "status": {
-  "cmdId": "5fd34b49-828a-49a2-8030-cfefc14a2115",
+  "cmdId": "7b9e132a-299a-4239-87f9-4c98e88da652",
   "state": "CS_RUNNING"
  }
 }
@@ -117,8 +116,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699120",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638311",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/hls_data.json",
   "name": "",
@@ -131,8 +130,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699120",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638311",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/syn/report/csynth.rpt",
   "name": "",
@@ -145,8 +144,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:21:39 2026",
- "timestampMillis": "1779369699121",
+ "dateTimestamp": "Thu Jun 11 16:03:58 2026",
+ "timestampMillis": "1781186638311",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/syn/report/csynth.xml",
   "name": "",
@@ -159,8 +158,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:23:16 2026",
- "timestampMillis": "1779369796250",
+ "dateTimestamp": "Thu Jun 11 16:07:14 2026",
+ "timestampMillis": "1781186834072",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls",
   "name": "",
@@ -173,8 +172,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:23:16 2026",
- "timestampMillis": "1779369796250",
+ "dateTimestamp": "Thu Jun 11 16:07:14 2026",
+ "timestampMillis": "1781186834072",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls",
   "name": "",
@@ -187,8 +186,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:23:16 2026",
- "timestampMillis": "1779369796251",
+ "dateTimestamp": "Thu Jun 11 16:07:14 2026",
+ "timestampMillis": "1781186834073",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls",
   "name": "",
@@ -201,10 +200,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 15:23:16 2026",
- "timestampMillis": "1779369796251",
+ "dateTimestamp": "Thu Jun 11 16:07:14 2026",
+ "timestampMillis": "1781186834073",
  "status": {
-  "cmdId": "5fd34b49-828a-49a2-8030-cfefc14a2115",
+  "cmdId": "7b9e132a-299a-4239-87f9-4c98e88da652",
   "state": "CS_PASSED"
  }
 }
@@ -212,10 +211,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 15:23:23 2026",
- "timestampMillis": "1779369803344",
+ "dateTimestamp": "Thu Jun 11 16:07:33 2026",
+ "timestampMillis": "1781186853291",
  "status": {
-  "cmdId": "bbce3e30-9f76-49a1-bbf2-bfb930c2cee3",
+  "cmdId": "53eb5645-34d1-4f88-81d1-f959b886e959",
   "state": "CS_PASSED"
  }
 }
@@ -223,8 +222,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:23:23 2026",
- "timestampMillis": "1779369803361",
+ "dateTimestamp": "Thu Jun 11 16:07:33 2026",
+ "timestampMillis": "1781186853333",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/reports/v++_compile_mpc_fpga_top_opencl_guidance.html",
   "name": "",
@@ -237,8 +236,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 15:23:23 2026",
- "timestampMillis": "1779369803362",
+ "dateTimestamp": "Thu Jun 11 16:07:33 2026",
+ "timestampMillis": "1781186853334",
  "report": {
   "path": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/reports/.db/v++_compile_mpc_fpga_top_opencl_guidance.pb3",
   "name": "",

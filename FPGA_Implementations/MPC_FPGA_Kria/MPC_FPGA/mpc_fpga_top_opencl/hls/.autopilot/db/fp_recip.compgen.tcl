@@ -1,18 +1,23 @@
 # This script segment is generated automatically by AutoPilot
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_ctlz_32_32_1_1 BINDTYPE {op} TYPE {ctlz} IMPL {auto}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_ctlz_26_26_1_1 BINDTYPE {op} TYPE {ctlz} IMPL {auto}
 }
 
 
-set name mpc_fpga_top_opencl_mul_20s_9ns_29_1_1
+set name mpc_fpga_top_opencl_mul_8s_5ns_13_2_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 1 ALLOW_PRAGMA 1
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
 	::AP::rtl_comp_handler mpc_fpga_top_opencl_fp_recip_recip_lut_ROM_2P_BRAM_1R BINDTYPE {storage} TYPE {rom_2p} IMPL {bram} LATENCY 2 ALLOW_PRAGMA 1
+}
+
+
+if {${::AESL::PGuard_rtl_comp_handler}} {
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_fp_recip_slope_lut_ROM_AUTO_1R BINDTYPE {storage} TYPE {rom} IMPL {auto} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -26,7 +31,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 611 \
+    id 608 \
     name x \
     type other \
     dir I \
@@ -34,7 +39,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_x \
     op interface \
-    ports { x { I 32 vector } } \
+    ports { x { I 26 vector } } \
 } "
 }
 
@@ -48,7 +53,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 27 vector } } \
+    ports { ap_return { O 17 vector } } \
 } "
 }
 

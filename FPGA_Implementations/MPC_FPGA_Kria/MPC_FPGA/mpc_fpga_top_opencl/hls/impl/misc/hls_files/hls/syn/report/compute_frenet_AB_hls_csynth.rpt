@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'compute_frenet_AB_hls'
 ================================================================
-* Date:           Thu May 21 15:23:09 2026
+* Date:           Thu Jun 11 16:07:00 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  4.433 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  4.376 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -29,7 +29,7 @@
     |  Latency (cycles) |  Latency (absolute) |  Interval | Pipeline|
     |   min   |   max   |    min   |    max   | min | max |   Type  |
     +---------+---------+----------+----------+-----+-----+---------+
-    |       99|       99|  0.495 us|  0.495 us|  100|  100|      yes|
+    |       72|       72|  0.360 us|  0.360 us|   73|   73|      yes|
     +---------+---------+----------+----------+-----+-----+---------+
 
     + Detail: 
@@ -38,14 +38,14 @@
         |                                          |                               |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
         |                 Instance                 |             Module            |   min   |   max   |    min    |    max    | min | max |   Type  |
         +------------------------------------------+-------------------------------+---------+---------+-----------+-----------+-----+-----+---------+
-        |grp_compute_frenet_tire_hls_fu_178        |compute_frenet_tire_hls        |       71|       71|   0.355 us|   0.355 us|   72|   72|      yes|
-        |grp_fp_trig_pair_fused_fn_fu_200          |fp_trig_pair_fused_fn          |       10|       10|  50.000 ns|  50.000 ns|   11|   11|      yes|
-        |grp_fp_frenet_recip_fu_209                |fp_frenet_recip                |       12|       12|  60.000 ns|  60.000 ns|   13|   13|      yes|
-        |grp_compute_stage_shared_products_fu_217  |compute_stage_shared_products  |       19|       19|  95.000 ns|  95.000 ns|   20|   20|      yes|
-        |grp_compute_B_accel_load_transfer_fu_231  |compute_B_accel_load_transfer  |       25|       25|   0.125 us|   0.125 us|   26|   26|      yes|
-        |grp_fp_rollout_from_forces_fn_fu_244      |fp_rollout_from_forces_fn      |       23|       23|   0.115 us|   0.115 us|   24|   24|      yes|
-        |grp_compute_B_steering_fu_263             |compute_B_steering             |       13|       13|  65.000 ns|  65.000 ns|   14|   14|      yes|
-        |grp_fp_frenet_rows01_fn_fu_272            |fp_frenet_rows01_fn            |       18|       18|  90.000 ns|  90.000 ns|   19|   19|      yes|
+        |grp_compute_frenet_tire_hls_fu_140        |compute_frenet_tire_hls        |       49|       49|   0.245 us|   0.245 us|   50|   50|      yes|
+        |grp_fp_trig_pair_fused_fn_fu_162          |fp_trig_pair_fused_fn          |        8|        8|  40.000 ns|  40.000 ns|    9|    9|      yes|
+        |grp_fp_frenet_recip_fu_171                |fp_frenet_recip                |        9|        9|  45.000 ns|  45.000 ns|   10|   10|      yes|
+        |grp_compute_stage_shared_products_fu_179  |compute_stage_shared_products  |       10|       10|  50.000 ns|  50.000 ns|   11|   11|      yes|
+        |grp_compute_B_accel_load_transfer_fu_193  |compute_B_accel_load_transfer  |       22|       22|   0.110 us|   0.110 us|   23|   23|      yes|
+        |grp_fp_rollout_from_forces_fn_fu_206      |fp_rollout_from_forces_fn      |       18|       18|  90.000 ns|  90.000 ns|   19|   19|      yes|
+        |grp_compute_B_steering_fu_225             |compute_B_steering             |        9|        9|  45.000 ns|  45.000 ns|   10|   10|      yes|
+        |grp_fp_frenet_rows01_fn_fu_234            |fp_frenet_rows01_fn            |       13|       13|  65.000 ns|  65.000 ns|   14|   14|      yes|
         +------------------------------------------+-------------------------------+---------+---------+-----------+-----------+-----+-----+---------+
 
         * Loop: 
@@ -61,45 +61,45 @@
 |       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
 +-----------------+---------+------+--------+--------+-----+
 |DSP              |        -|     -|       -|       -|    -|
-|Expression       |        -|     -|       0|     397|    -|
+|Expression       |        -|     -|       0|     332|    -|
 |FIFO             |        -|     -|       -|       -|    -|
-|Instance         |       30|   168|   26117|   27783|    -|
+|Instance         |       26|   144|   16206|   20932|    -|
 |Memory           |        -|     -|       -|       -|    -|
-|Multiplexer      |        -|     -|       0|     503|    -|
-|Register         |        -|     -|    1418|       -|    -|
+|Multiplexer      |        -|     -|       0|     389|    -|
+|Register         |        -|     -|    1136|       -|    -|
 +-----------------+---------+------+--------+--------+-----+
-|Total            |       30|   168|   27535|   28683|    0|
+|Total            |       26|   144|   17342|   21653|    0|
 +-----------------+---------+------+--------+--------+-----+
 |Available        |      288|  1248|  234240|  117120|   64|
 +-----------------+---------+------+--------+--------+-----+
-|Utilization (%)  |       10|    13|      11|      24|    0|
+|Utilization (%)  |        9|    11|       7|      18|    0|
 +-----------------+---------+------+--------+--------+-----+
 
 + Detail: 
     * Instance: 
-    +------------------------------------------+-------------------------------+---------+----+-------+-------+-----+
-    |                 Instance                 |             Module            | BRAM_18K| DSP|   FF  |  LUT  | URAM|
-    +------------------------------------------+-------------------------------+---------+----+-------+-------+-----+
-    |grp_compute_B_accel_load_transfer_fu_231  |compute_B_accel_load_transfer  |        1|  15|   3156|   3384|    0|
-    |grp_compute_B_steering_fu_263             |compute_B_steering             |        0|   9|    946|    491|    0|
-    |grp_compute_frenet_tire_hls_fu_178        |compute_frenet_tire_hls        |       22|  75|  12055|  14525|    0|
-    |grp_compute_stage_shared_products_fu_217  |compute_stage_shared_products  |        0|  13|   1510|    753|    0|
-    |grp_fp_frenet_recip_fu_209                |fp_frenet_recip                |        1|   3|   2159|   2964|    0|
-    |grp_fp_frenet_rows01_fn_fu_272            |fp_frenet_rows01_fn            |        0|  20|   1444|    707|    0|
-    |grp_fp_rollout_from_forces_fn_fu_244      |fp_rollout_from_forces_fn      |        1|  18|   3953|   3852|    0|
-    |grp_fp_trig_pair_fused_fn_fu_200          |fp_trig_pair_fused_fn          |        5|   5|    345|    846|    0|
-    |mul_26s_12ns_38_4_1_U524                  |mul_26s_12ns_38_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_12ns_38_4_1_U525                  |mul_26s_12ns_38_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_12ns_38_4_1_U526                  |mul_26s_12ns_38_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_13ns_39_4_1_U522                  |mul_26s_13ns_39_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_13ns_39_4_1_U523                  |mul_26s_13ns_39_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_18ns_44_4_1_U527                  |mul_26s_18ns_44_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_18ns_44_4_1_U528                  |mul_26s_18ns_44_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_18ns_44_4_1_U529                  |mul_26s_18ns_44_4_1            |        0|   1|     61|     29|    0|
-    |mul_26s_20ns_46_4_1_U521                  |mul_26s_20ns_46_4_1            |        0|   2|     61|     29|    0|
-    +------------------------------------------+-------------------------------+---------+----+-------+-------+-----+
-    |Total                                     |                               |       30| 168|  26117|  27783|    0|
-    +------------------------------------------+-------------------------------+---------+----+-------+-------+-----+
+    +------------------------------------------+-------------------------------+---------+----+------+-------+-----+
+    |                 Instance                 |             Module            | BRAM_18K| DSP|  FF  |  LUT  | URAM|
+    +------------------------------------------+-------------------------------+---------+----+------+-------+-----+
+    |grp_compute_B_accel_load_transfer_fu_193  |compute_B_accel_load_transfer  |        1|  13|  2227|   2604|    0|
+    |grp_compute_B_steering_fu_225             |compute_B_steering             |        0|   7|   613|    408|    0|
+    |grp_compute_frenet_tire_hls_fu_140        |compute_frenet_tire_hls        |       19|  63|  7668|  10997|    0|
+    |grp_compute_stage_shared_products_fu_179  |compute_stage_shared_products  |        0|  13|   631|    518|    0|
+    |grp_fp_frenet_recip_fu_171                |fp_frenet_recip                |        1|   2|  1616|   2258|    0|
+    |grp_fp_frenet_rows01_fn_fu_234            |fp_frenet_rows01_fn            |        0|  17|   657|    470|    0|
+    |grp_fp_rollout_from_forces_fn_fu_206      |fp_rollout_from_forces_fn      |        1|  16|  2638|   2848|    0|
+    |grp_fp_trig_pair_fused_fn_fu_162          |fp_trig_pair_fused_fn          |        4|   4|   156|    694|    0|
+    |mul_21s_13ns_33_1_1_U523                  |mul_21s_13ns_33_1_1            |        0|   1|     0|     15|    0|
+    |mul_21s_13ns_33_1_1_U524                  |mul_21s_13ns_33_1_1            |        0|   1|     0|     15|    0|
+    |mul_21s_13ns_33_1_1_U525                  |mul_21s_13ns_33_1_1            |        0|   1|     0|     15|    0|
+    |mul_21s_15ns_33_1_1_U517                  |mul_21s_15ns_33_1_1            |        0|   1|     0|     15|    0|
+    |mul_21s_7ns_28_1_1_U520                   |mul_21s_7ns_28_1_1             |        0|   1|     0|     15|    0|
+    |mul_21s_7ns_28_1_1_U521                   |mul_21s_7ns_28_1_1             |        0|   1|     0|     15|    0|
+    |mul_21s_7ns_28_1_1_U522                   |mul_21s_7ns_28_1_1             |        0|   1|     0|     15|    0|
+    |mul_21s_8ns_29_1_1_U518                   |mul_21s_8ns_29_1_1             |        0|   1|     0|     15|    0|
+    |mul_21s_8ns_29_1_1_U519                   |mul_21s_8ns_29_1_1             |        0|   1|     0|     15|    0|
+    +------------------------------------------+-------------------------------+---------+----+------+-------+-----+
+    |Total                                     |                               |       26| 144| 16206|  20932|    0|
+    +------------------------------------------+-------------------------------+---------+----+------+-------+-----+
 
     * DSP: 
     N/A
@@ -114,97 +114,97 @@
     +---------------------+----------+----+---+----+------------+------------+
     |    Variable Name    | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
     +---------------------+----------+----+---+----+------------+------------+
-    |A22_fu_537_p2        |         +|   0|  0|  33|          26|          18|
-    |A23_fu_556_p2        |         +|   0|  0|  33|          26|          26|
-    |A24_fu_575_p2        |         +|   0|  0|  33|          26|          26|
-    |A33_fu_786_p2        |         +|   0|  0|  29|          22|          18|
-    |A44_fu_802_p2        |         +|   0|  0|  33|          26|          18|
-    |add_ln657_fu_581_p2  |         +|   0|  0|  26|          26|          26|
-    |add_ln663_fu_607_p2  |         +|   0|  0|  26|          26|          26|
-    |value_210_fu_602_p2  |         +|   0|  0|  33|          26|          26|
-    |value_211_fu_612_p2  |         +|   0|  0|  26|          26|          26|
-    |value_212_fu_618_p2  |         +|   0|  0|  33|          26|          26|
-    |value_213_fu_624_p2  |         +|   0|  0|  33|          26|          26|
-    |value_214_fu_630_p2  |         +|   0|  0|  33|          26|          26|
-    |value_fu_586_p2      |         +|   0|  0|  26|          26|          26|
+    |A22_fu_487_p2        |         +|   0|  0|  28|          21|          13|
+    |A23_fu_506_p2        |         +|   0|  0|  28|          21|          21|
+    |A24_fu_525_p2        |         +|   0|  0|  28|          21|          21|
+    |A33_fu_749_p2        |         +|   0|  0|  24|          17|          13|
+    |A44_fu_755_p2        |         +|   0|  0|  28|          21|          13|
+    |add_ln657_fu_531_p2  |         +|   0|  0|  21|          21|          21|
+    |add_ln663_fu_547_p2  |         +|   0|  0|  21|          21|          21|
+    |value_178_fu_542_p2  |         +|   0|  0|  28|          21|          21|
+    |value_179_fu_552_p2  |         +|   0|  0|  21|          21|          21|
+    |value_180_fu_558_p2  |         +|   0|  0|  28|          21|          21|
+    |value_181_fu_564_p2  |         +|   0|  0|  28|          21|          21|
+    |value_182_fu_570_p2  |         +|   0|  0|  28|          21|          21|
+    |value_fu_536_p2      |         +|   0|  0|  21|          21|          21|
     +---------------------+----------+----+---+----+------------+------------+
-    |Total                |          |   0|  0| 397|         334|         314|
+    |Total                |          |   0|  0| 332|         269|         249|
     +---------------------+----------+----+---+----+------------+------------+
 
     * Multiplexer: 
     +-----------+-----+-----------+-----+-----------+
     |    Name   | LUT | Input Size| Bits| Total Bits|
     +-----------+-----+-----------+-----+-----------+
-    |ap_NS_fsm  |  503|        101|    1|        101|
+    |ap_NS_fsm  |  389|         74|    1|         74|
     +-----------+-----+-----------+-----+-----------+
-    |Total      |  503|        101|    1|        101|
+    |Total      |  389|         74|    1|         74|
     +-----------+-----+-----------+-----+-----------+
 
     * Register: 
-    +-------------------------------------------------------+-----+----+-----+-----------+
-    |                          Name                         |  FF | LUT| Bits| Const Bits|
-    +-------------------------------------------------------+-----+----+-----+-----------+
-    |A22_reg_1548                                           |   26|   0|   26|          0|
-    |A23_reg_1553                                           |   26|   0|   26|          0|
-    |A24_reg_1558                                           |   26|   0|   26|          0|
-    |B20_reg_1533                                           |   26|   0|   26|          0|
-    |B30_reg_1538                                           |   26|   0|   26|          0|
-    |B31_reg_1633                                           |   26|   0|   26|          0|
-    |B40_reg_1543                                           |   26|   0|   26|          0|
-    |B41_reg_1638                                           |   26|   0|   26|          0|
-    |ap_CS_fsm                                              |  100|   0|  100|          0|
-    |ap_port_reg_epsi                                       |   27|   0|   27|          0|
-    |ap_port_reg_ey                                         |   27|   0|   27|          0|
-    |ap_port_reg_kappa                                      |   27|   0|   27|          0|
-    |cos_epsi_fn_reg_1522                                   |   26|   0|   26|          0|
-    |epsi_fn_reg_1401                                       |   26|   0|   26|          0|
-    |ey_fn_reg_1407                                         |   26|   0|   26|          0|
-    |grp_compute_B_accel_load_transfer_fu_231_ap_start_reg  |    1|   0|    1|          0|
-    |grp_compute_B_steering_fu_263_ap_start_reg             |    1|   0|    1|          0|
-    |grp_compute_stage_shared_products_fu_217_ap_start_reg  |    1|   0|    1|          0|
-    |grp_fp_frenet_recip_fu_209_ap_start_reg                |    1|   0|    1|          0|
-    |grp_fp_frenet_rows01_fn_fu_272_ap_start_reg            |    1|   0|    1|          0|
-    |grp_fp_rollout_from_forces_fn_fu_244_ap_start_reg      |    1|   0|    1|          0|
-    |grp_fp_trig_pair_fused_fn_fu_200_ap_start_reg          |    1|   0|    1|          0|
-    |inv_denom_reg_1528                                     |   23|   0|   23|          0|
-    |kappa_fn_reg_1413                                      |   26|   0|   26|          0|
-    |omega_fn_reg_1364                                      |   26|   0|   26|          0|
-    |product_285_reg_1396                                   |   39|   0|   39|          0|
-    |product_q_104_reg_1623                                 |   21|   0|   21|          0|
-    |product_q_reg_1386                                     |   26|   0|   26|          0|
-    |product_reg_1391                                       |   39|   0|   39|          0|
-    |sin_epsi_fn_reg_1516                                   |   26|   0|   26|          0|
-    |tmp_10_reg_1648                                        |   26|   0|   26|          0|
-    |tmp_7_reg_1618                                         |   21|   0|   21|          0|
-    |tmp_9_reg_1643                                         |   26|   0|   26|          0|
-    |tmp_reg_1608                                           |   21|   0|   21|          0|
-    |tr_C_eff_f_raw_reg_1420                                |   26|   0|   26|          0|
-    |tr_C_eff_r_reg_1426                                    |   26|   0|   26|          0|
-    |tr_C_min_f_reg_1431                                    |   26|   0|   26|          0|
-    |tr_F_yf_reg_1437                                       |   26|   0|   26|          0|
-    |tr_F_yr_reg_1443                                       |   26|   0|   26|          0|
-    |tr_Fz_transfer_reg_1491                                |   26|   0|   26|          0|
-    |tr_alpha_f_op_reg_1481                                 |   26|   0|   26|          0|
-    |tr_alpha_r_op_reg_1486                                 |   26|   0|   26|          0|
-    |tr_cos_delta_reg_1508                                  |   26|   0|   26|          0|
-    |tr_dFyf_dom_reg_1458                                   |   26|   0|   26|          0|
-    |tr_dFyf_dvx_reg_1448                                   |   26|   0|   26|          0|
-    |tr_dFyf_dvy_reg_1453                                   |   26|   0|   26|          0|
-    |tr_dFyr_dom_reg_1475                                   |   26|   0|   26|          0|
-    |tr_dFyr_dvx_reg_1463                                   |   26|   0|   26|          0|
-    |tr_dFyr_dvy_reg_1469                                   |   26|   0|   26|          0|
-    |tr_sin_delta_reg_1501                                  |   26|   0|   26|          0|
-    |tr_vx_safe_reg_1496                                    |   26|   0|   26|          0|
-    |value_210_reg_1568                                     |   26|   0|   26|          0|
-    |value_211_reg_1573                                     |   26|   0|   26|          0|
-    |value_212_reg_1578                                     |   26|   0|   26|          0|
-    |value_213_reg_1583                                     |   26|   0|   26|          0|
-    |value_214_reg_1588                                     |   26|   0|   26|          0|
-    |vx_fn_reg_1351                                         |   26|   0|   26|          0|
-    |vy_fn_reg_1357                                         |   26|   0|   26|          0|
-    +-------------------------------------------------------+-----+----+-----+-----------+
-    |Total                                                  | 1418|   0| 1418|          0|
-    +-------------------------------------------------------+-----+----+-----+-----------+
+    +-------------------------------------------------------+----+----+-----+-----------+
+    |                          Name                         | FF | LUT| Bits| Const Bits|
+    +-------------------------------------------------------+----+----+-----+-----------+
+    |A22_reg_1480                                           |  21|   0|   21|          0|
+    |A23_reg_1485                                           |  21|   0|   21|          0|
+    |A24_reg_1490                                           |  21|   0|   21|          0|
+    |B20_reg_1535                                           |  21|   0|   21|          0|
+    |B30_reg_1540                                           |  21|   0|   21|          0|
+    |B40_reg_1545                                           |  21|   0|   21|          0|
+    |ap_CS_fsm                                              |  73|   0|   73|          0|
+    |ap_port_reg_epsi                                       |  23|   0|   23|          0|
+    |ap_port_reg_ey                                         |  23|   0|   23|          0|
+    |ap_port_reg_kappa                                      |  23|   0|   23|          0|
+    |cos_epsi_fn_reg_1469                                   |  21|   0|   21|          0|
+    |epsi_fn_reg_1348                                       |  21|   0|   21|          0|
+    |ey_fn_reg_1354                                         |  21|   0|   21|          0|
+    |grp_compute_B_accel_load_transfer_fu_193_ap_start_reg  |   1|   0|    1|          0|
+    |grp_compute_B_steering_fu_225_ap_start_reg             |   1|   0|    1|          0|
+    |grp_compute_stage_shared_products_fu_179_ap_start_reg  |   1|   0|    1|          0|
+    |grp_fp_frenet_recip_fu_171_ap_start_reg                |   1|   0|    1|          0|
+    |grp_fp_frenet_rows01_fn_fu_234_ap_start_reg            |   1|   0|    1|          0|
+    |grp_fp_rollout_from_forces_fn_fu_206_ap_start_reg      |   1|   0|    1|          0|
+    |grp_fp_trig_pair_fused_fn_fu_162_ap_start_reg          |   1|   0|    1|          0|
+    |inv_denom_reg_1475                                     |  20|   0|   20|          0|
+    |kappa_fn_reg_1360                                      |  21|   0|   21|          0|
+    |omega_fn_reg_1326                                      |  21|   0|   21|          0|
+    |product_364_reg_1343                                   |  29|   0|   29|          0|
+    |product_q_102_reg_1530                                 |  16|   0|   16|          0|
+    |product_q_103_reg_1565                                 |  21|   0|   21|          0|
+    |product_q_reg_1333                                     |  21|   0|   21|          0|
+    |product_reg_1338                                       |  29|   0|   29|          0|
+    |sin_epsi_fn_reg_1463                                   |  21|   0|   21|          0|
+    |tmp_11_reg_1550                                        |  16|   0|   16|          0|
+    |tmp_13_reg_1555                                        |  21|   0|   21|          0|
+    |tmp_14_reg_1560                                        |  21|   0|   21|          0|
+    |tmp_reg_1525                                           |  16|   0|   16|          0|
+    |tr_C_eff_f_raw_reg_1367                                |  21|   0|   21|          0|
+    |tr_C_eff_r_reg_1373                                    |  21|   0|   21|          0|
+    |tr_C_min_f_reg_1378                                    |  21|   0|   21|          0|
+    |tr_F_yf_reg_1384                                       |  21|   0|   21|          0|
+    |tr_F_yr_reg_1390                                       |  21|   0|   21|          0|
+    |tr_Fz_transfer_reg_1438                                |  21|   0|   21|          0|
+    |tr_alpha_f_op_reg_1428                                 |  21|   0|   21|          0|
+    |tr_alpha_r_op_reg_1433                                 |  21|   0|   21|          0|
+    |tr_cos_delta_reg_1455                                  |  21|   0|   21|          0|
+    |tr_dFyf_dom_reg_1405                                   |  21|   0|   21|          0|
+    |tr_dFyf_dvx_reg_1395                                   |  21|   0|   21|          0|
+    |tr_dFyf_dvy_reg_1400                                   |  21|   0|   21|          0|
+    |tr_dFyr_dom_reg_1422                                   |  21|   0|   21|          0|
+    |tr_dFyr_dvx_reg_1410                                   |  21|   0|   21|          0|
+    |tr_dFyr_dvy_reg_1416                                   |  21|   0|   21|          0|
+    |tr_sin_delta_reg_1448                                  |  21|   0|   21|          0|
+    |tr_vx_safe_reg_1443                                    |  21|   0|   21|          0|
+    |value_178_reg_1500                                     |  21|   0|   21|          0|
+    |value_179_reg_1505                                     |  21|   0|   21|          0|
+    |value_180_reg_1510                                     |  21|   0|   21|          0|
+    |value_181_reg_1515                                     |  21|   0|   21|          0|
+    |value_182_reg_1520                                     |  21|   0|   21|          0|
+    |value_reg_1495                                         |  21|   0|   21|          0|
+    |vx_fn_reg_1313                                         |  21|   0|   21|          0|
+    |vy_fn_reg_1319                                         |  21|   0|   21|          0|
+    +-------------------------------------------------------+----+----+-----+-----------+
+    |Total                                                  |1136|   0| 1136|          0|
+    +-------------------------------------------------------+----+----+-----+-----------+
 
 
 
@@ -221,53 +221,53 @@
 |ap_done       |  out|    1|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
 |ap_idle       |  out|    1|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
 |ap_ready      |  out|    1|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_0   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_1   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_2   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_3   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_4   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_5   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_6   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_7   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_8   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_9   |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_10  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_11  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_12  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_13  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_14  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_15  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_16  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_17  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_18  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_19  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_20  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_21  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_22  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_23  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_24  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_25  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_26  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_27  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_28  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_29  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_30  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_31  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_32  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_33  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_34  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_35  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_36  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_37  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_38  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ap_return_39  |  out|   32|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
-|ey            |   in|   27|     ap_none|                     ey|        scalar|
-|epsi          |   in|   27|     ap_none|                   epsi|        scalar|
-|vx            |   in|   27|     ap_none|                     vx|        scalar|
-|vy            |   in|   27|     ap_none|                     vy|        scalar|
-|omega         |   in|   27|     ap_none|                  omega|        scalar|
-|delta         |   in|   18|     ap_none|                  delta|        scalar|
-|a_cmd         |   in|   27|     ap_none|                  a_cmd|        scalar|
-|kappa         |   in|   27|     ap_none|                  kappa|        scalar|
+|ap_return_0   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_1   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_2   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_3   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_4   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_5   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_6   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_7   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_8   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_9   |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_10  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_11  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_12  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_13  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_14  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_15  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_16  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_17  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_18  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_19  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_20  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_21  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_22  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_23  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_24  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_25  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_26  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_27  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_28  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_29  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_30  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_31  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_32  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_33  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_34  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_35  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_36  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_37  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_38  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ap_return_39  |  out|   26|  ap_ctrl_hs|  compute_frenet_AB_hls|  return value|
+|ey            |   in|   23|     ap_none|                     ey|        scalar|
+|epsi          |   in|   23|     ap_none|                   epsi|        scalar|
+|vx            |   in|   23|     ap_none|                     vx|        scalar|
+|vy            |   in|   23|     ap_none|                     vy|        scalar|
+|omega         |   in|   23|     ap_none|                  omega|        scalar|
+|delta         |   in|   14|     ap_none|                  delta|        scalar|
+|a_cmd         |   in|   23|     ap_none|                  a_cmd|        scalar|
+|kappa         |   in|   23|     ap_none|                  kappa|        scalar|
 +--------------+-----+-----+------------+-----------------------+--------------+
 

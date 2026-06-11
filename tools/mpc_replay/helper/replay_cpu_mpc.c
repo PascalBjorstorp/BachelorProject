@@ -13,7 +13,13 @@
 
 #define HORIZON 20
 #include "mpc_fpga_constants.h"
-#define SCALE_QP MPC_FPGA_QP_SCALE_F32  /* Q18, single-sourced from mpc_fpga_constants.h */
+/* Bag/comparison recording scale is FIXED at Q14.18 (262144): the recorded
+ * bags and make_comparison_csv.py both use it. This is intentionally decoupled
+ * from MPC_FPGA_QP_SCALE_F32, which now describes the kernel's INTERNAL Q12.14
+ * format. The harness drives the solver in physical float units, so bag raw is
+ * decoded / re-encoded here at the recording scale, while the kernel runs
+ * Q12.14 internally. */
+#define SCALE_QP 262144.0f  /* Q14.18 bag/comparison recording scale */
 
 typedef struct {
     uint64_t idx;

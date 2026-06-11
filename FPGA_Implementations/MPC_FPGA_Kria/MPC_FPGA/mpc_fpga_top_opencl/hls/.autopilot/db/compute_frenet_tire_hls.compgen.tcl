@@ -1,20 +1,14 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_25ns_25ns_50_4_1
+set name mpc_fpga_top_opencl_mul_20ns_20ns_40_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_26s_42_4_1
+set name mpc_fpga_top_opencl_mul_21s_13ns_33_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
-}
-
-
-set name mpc_fpga_top_opencl_mul_26s_18ns_44_4_1
-if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
@@ -28,7 +22,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 400 \
+    id 397 \
     name vx \
     type other \
     dir I \
@@ -36,14 +30,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx \
     op interface \
-    ports { vx { I 27 vector } } \
+    ports { vx { I 23 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 401 \
+    id 398 \
     name vy \
     type other \
     dir I \
@@ -51,14 +45,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vy \
     op interface \
-    ports { vy { I 27 vector } } \
+    ports { vy { I 23 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 402 \
+    id 399 \
     name omega \
     type other \
     dir I \
@@ -66,14 +60,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_omega \
     op interface \
-    ports { omega { I 27 vector } } \
+    ports { omega { I 23 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 403 \
+    id 400 \
     name delta \
     type other \
     dir I \
@@ -81,14 +75,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_delta \
     op interface \
-    ports { delta { I 18 vector } } \
+    ports { delta { I 14 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 404 \
+    id 401 \
     name a_cmd \
     type other \
     dir I \
@@ -96,7 +90,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_a_cmd \
     op interface \
-    ports { a_cmd { I 27 vector } } \
+    ports { a_cmd { I 23 vector } } \
 } "
 }
 

@@ -15,27 +15,27 @@ set hasInterrupt 0
 set DLRegFirstOffset 0
 set DLRegItemOffset 0
 set svuvm_can_support 1
-set cdfgNum 76
+set cdfgNum 74
 set C_modelName {compute_B_steering}
-set C_modelType { int 78 }
+set C_modelType { int 63 }
 set ap_memory_interface_dict [dict create]
 set C_modelArgList {
-	{ tr_C_eff_f_raw_val int 26 regular  }
-	{ tr_C_min_f_val int 26 regular  }
-	{ tr_F_yf_val int 26 regular  }
-	{ tr_sin_delta_val int 26 regular  }
-	{ tr_cos_delta_val int 26 regular  }
+	{ tr_C_eff_f_raw_val int 21 regular  }
+	{ tr_C_min_f_val int 21 regular  }
+	{ tr_F_yf_val int 21 regular  }
+	{ tr_sin_delta_val int 21 regular  }
+	{ tr_cos_delta_val int 21 regular  }
 }
 set hasAXIMCache 0
 set l_AXIML2Cache [list]
 set AXIMCacheInstDict [dict create]
 set C_modelArgMapList {[ 
-	{ "Name" : "tr_C_eff_f_raw_val", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "tr_C_min_f_val", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "tr_F_yf_val", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "tr_sin_delta_val", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "tr_cos_delta_val", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 78} ]}
+	{ "Name" : "tr_C_eff_f_raw_val", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "tr_C_min_f_val", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "tr_F_yf_val", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "tr_sin_delta_val", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "tr_cos_delta_val", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 63} ]}
 # RTL Port declarations: 
 set portNum 14
 set portList { 
@@ -45,14 +45,14 @@ set portList {
 	{ ap_done sc_out sc_logic 1 predone -1 } 
 	{ ap_idle sc_out sc_logic 1 done -1 } 
 	{ ap_ready sc_out sc_logic 1 ready -1 } 
-	{ tr_C_eff_f_raw_val sc_in sc_lv 26 signal 0 } 
-	{ tr_C_min_f_val sc_in sc_lv 26 signal 1 } 
-	{ tr_F_yf_val sc_in sc_lv 26 signal 2 } 
-	{ tr_sin_delta_val sc_in sc_lv 26 signal 3 } 
-	{ tr_cos_delta_val sc_in sc_lv 26 signal 4 } 
-	{ ap_return_0 sc_out sc_lv 26 signal -1 } 
-	{ ap_return_1 sc_out sc_lv 26 signal -1 } 
-	{ ap_return_2 sc_out sc_lv 26 signal -1 } 
+	{ tr_C_eff_f_raw_val sc_in sc_lv 21 signal 0 } 
+	{ tr_C_min_f_val sc_in sc_lv 21 signal 1 } 
+	{ tr_F_yf_val sc_in sc_lv 21 signal 2 } 
+	{ tr_sin_delta_val sc_in sc_lv 21 signal 3 } 
+	{ tr_cos_delta_val sc_in sc_lv 21 signal 4 } 
+	{ ap_return_0 sc_out sc_lv 21 signal -1 } 
+	{ ap_return_1 sc_out sc_lv 21 signal -1 } 
+	{ ap_return_2 sc_out sc_lv 21 signal -1 } 
 }
 set NewPortList {[ 
 	{ "name": "ap_clk", "direction": "in", "datatype": "sc_logic", "bitwidth":1, "type": "clock", "bundle":{"name": "ap_clk", "role": "default" }} , 
@@ -61,37 +61,37 @@ set NewPortList {[
  	{ "name": "ap_done", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "predone", "bundle":{"name": "ap_done", "role": "default" }} , 
  	{ "name": "ap_idle", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "done", "bundle":{"name": "ap_idle", "role": "default" }} , 
  	{ "name": "ap_ready", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "ready", "bundle":{"name": "ap_ready", "role": "default" }} , 
- 	{ "name": "tr_C_eff_f_raw_val", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "tr_C_eff_f_raw_val", "role": "default" }} , 
- 	{ "name": "tr_C_min_f_val", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "tr_C_min_f_val", "role": "default" }} , 
- 	{ "name": "tr_F_yf_val", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "tr_F_yf_val", "role": "default" }} , 
- 	{ "name": "tr_sin_delta_val", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "tr_sin_delta_val", "role": "default" }} , 
- 	{ "name": "tr_cos_delta_val", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "tr_cos_delta_val", "role": "default" }} , 
- 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
- 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }} , 
- 	{ "name": "ap_return_2", "direction": "out", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ap_return_2", "role": "default" }}  ]}
+ 	{ "name": "tr_C_eff_f_raw_val", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "tr_C_eff_f_raw_val", "role": "default" }} , 
+ 	{ "name": "tr_C_min_f_val", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "tr_C_min_f_val", "role": "default" }} , 
+ 	{ "name": "tr_F_yf_val", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "tr_F_yf_val", "role": "default" }} , 
+ 	{ "name": "tr_sin_delta_val", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "tr_sin_delta_val", "role": "default" }} , 
+ 	{ "name": "tr_cos_delta_val", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "tr_cos_delta_val", "role": "default" }} , 
+ 	{ "name": "ap_return_0", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_0", "role": "default" }} , 
+ 	{ "name": "ap_return_1", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_1", "role": "default" }} , 
+ 	{ "name": "ap_return_2", "direction": "out", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ap_return_2", "role": "default" }}  ]}
 
 set ArgLastReadFirstWriteLatency {
 	compute_B_steering {
 		tr_C_eff_f_raw_val {Type I LastRead 0 FirstWrite -1}
-		tr_C_min_f_val {Type I LastRead 0 FirstWrite -1}
+		tr_C_min_f_val {Type I LastRead 1 FirstWrite -1}
 		tr_F_yf_val {Type I LastRead 2 FirstWrite -1}
-		tr_sin_delta_val {Type I LastRead 0 FirstWrite -1}
-		tr_cos_delta_val {Type I LastRead 2 FirstWrite -1}}}
+		tr_sin_delta_val {Type I LastRead 2 FirstWrite -1}
+		tr_cos_delta_val {Type I LastRead 0 FirstWrite -1}}}
 
 set hasDtUnsupportedChannel 0
 
 set PerformanceInfo {[
-	{"Name" : "Latency", "Min" : "13", "Max" : "13"}
-	, {"Name" : "Interval", "Min" : "14", "Max" : "14"}
+	{"Name" : "Latency", "Min" : "9", "Max" : "9"}
+	, {"Name" : "Interval", "Min" : "10", "Max" : "10"}
 ]}
 
 set PipelineEnableSignalInfo {[
 ]}
 
 set Spec2ImplPortList { 
-	tr_C_eff_f_raw_val { ap_none {  { tr_C_eff_f_raw_val in_data 0 26 } } }
-	tr_C_min_f_val { ap_none {  { tr_C_min_f_val in_data 0 26 } } }
-	tr_F_yf_val { ap_none {  { tr_F_yf_val in_data 0 26 } } }
-	tr_sin_delta_val { ap_none {  { tr_sin_delta_val in_data 0 26 } } }
-	tr_cos_delta_val { ap_none {  { tr_cos_delta_val in_data 0 26 } } }
+	tr_C_eff_f_raw_val { ap_none {  { tr_C_eff_f_raw_val in_data 0 21 } } }
+	tr_C_min_f_val { ap_none {  { tr_C_min_f_val in_data 0 21 } } }
+	tr_F_yf_val { ap_none {  { tr_F_yf_val in_data 0 21 } } }
+	tr_sin_delta_val { ap_none {  { tr_sin_delta_val in_data 0 21 } } }
+	tr_cos_delta_val { ap_none {  { tr_cos_delta_val in_data 0 21 } } }
 }

@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_stage_shared_products'" level="0">
-<item name = "Date">Thu May 21 15:23:09 2026
+<item name = "Date">Thu Jun 11 16:07:00 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 2.155 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 2.560 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">19, 19, 95.000 ns, 95.000 ns, 20, 20, yes</column>
+<column name="">10, 10, 50.000 ns, 50.000 ns, 11, 11, yes</column>
 </table>
 </item>
 <item name = "Detail">
@@ -47,12 +47,12 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 252, -</column>
+<column name="Expression">-, -, 0, 212, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">-, 13, 671, 319, -</column>
+<column name="Instance">-, 13, 10, 179, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 182, -</column>
-<column name="Register">-, -, 839, -, -</column>
+<column name="Multiplexer">-, -, 0, 127, -</column>
+<column name="Register">-, -, 621, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
 <specialColumn name="Utilization (%)">0, 1, ~0, ~0, 0</specialColumn>
 </table>
@@ -61,17 +61,18 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="mul_26s_12ns_38_4_1_U468">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_12ns_38_4_1_U469">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_12ns_38_4_1_U470">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U465">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U466">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U467">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U471">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U472">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U473">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_20ns_46_4_1_U464">mul_26s_20ns_46_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_26s_43_4_1_x_U463">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+<column name="mul_21s_11ns_32_1_1_U464">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U465">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U466">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U470">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U471">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U472">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_15ns_33_1_1_U462">mul_21s_15ns_33_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_15ns_33_1_1_U463">mul_21s_15ns_33_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_21s_42_3_1_x_U461">mul_21s_21s_42_3_1_x, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_7ns_28_1_1_U467">mul_21s_7ns_28_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_7ns_28_1_1_U468">mul_21s_7ns_28_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_7ns_28_1_1_U469">mul_21s_7ns_28_1_1, 0, 1, 0, 15, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -88,56 +89,51 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="sub_ln466_fu_395_p2">-, 0, 0, 29, 1, 22</column>
-<column name="sub_ln467_fu_405_p2">-, 0, 0, 29, 1, 22</column>
-<column name="sub_ln468_fu_415_p2">-, 0, 0, 29, 1, 22</column>
-<column name="sub_ln477_fu_425_p2">-, 0, 0, 33, 1, 26</column>
-<column name="sub_ln478_fu_430_p2">-, 0, 0, 33, 1, 26</column>
-<column name="sub_ln486_fu_464_p2">-, 0, 0, 33, 1, 26</column>
-<column name="sub_ln487_fu_470_p2">-, 0, 0, 33, 1, 26</column>
-<column name="sub_ln488_fu_476_p2">-, 0, 0, 33, 1, 26</column>
+<column name="sub_ln466_fu_398_p2">-, 0, 0, 24, 1, 17</column>
+<column name="sub_ln467_fu_408_p2">-, 0, 0, 24, 1, 17</column>
+<column name="sub_ln468_fu_418_p2">-, 0, 0, 24, 1, 17</column>
+<column name="sub_ln477_fu_428_p2">-, 0, 0, 28, 1, 21</column>
+<column name="sub_ln478_fu_433_p2">-, 0, 0, 28, 1, 21</column>
+<column name="sub_ln486_fu_477_p2">-, 0, 0, 28, 1, 21</column>
+<column name="sub_ln487_fu_483_p2">-, 0, 0, 28, 1, 21</column>
+<column name="sub_ln488_fu_489_p2">-, 0, 0, 28, 1, 21</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">106, 21, 1, 21</column>
-<column name="grp_fu_158_p0">31, 6, 26, 156</column>
-<column name="grp_fu_158_p1">31, 6, 26, 156</column>
-<column name="grp_fu_162_p0">14, 3, 26, 78</column>
+<column name="ap_NS_fsm">65, 12, 1, 12</column>
+<column name="grp_fu_138_p0">31, 6, 21, 126</column>
+<column name="grp_fu_138_p1">31, 6, 21, 126</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="ap_CS_fsm">20, 0, 20, 0</column>
-<column name="ap_port_reg_conv_i_i_i_i425">26, 0, 26, 0</column>
-<column name="ap_port_reg_conv_i_i_i_i574">26, 0, 26, 0</column>
-<column name="ap_port_reg_p_0_0_04261">26, 0, 26, 0</column>
-<column name="ap_port_reg_tr_dFyf_dom_val">26, 0, 26, 0</column>
-<column name="ap_port_reg_tr_dFyf_dvy_val">26, 0, 26, 0</column>
-<column name="ap_port_reg_tr_dFyr_dom_val">26, 0, 26, 0</column>
-<column name="ap_port_reg_tr_dFyr_dvx_val">26, 0, 26, 0</column>
-<column name="ap_port_reg_tr_dFyr_dvy_val">26, 0, 26, 0</column>
-<column name="product_q_71_reg_596">26, 0, 26, 0</column>
-<column name="product_q_72_reg_601">26, 0, 26, 0</column>
-<column name="product_q_73_reg_689">21, 0, 21, 0</column>
-<column name="product_q_74_reg_699">21, 0, 21, 0</column>
-<column name="product_q_75_reg_709">21, 0, 21, 0</column>
-<column name="product_q_76_reg_606">26, 0, 26, 0</column>
-<column name="product_q_77_reg_617">26, 0, 26, 0</column>
-<column name="product_q_78_reg_628">26, 0, 26, 0</column>
-<column name="product_q_79_reg_639">26, 0, 26, 0</column>
-<column name="product_q_80_reg_649">26, 0, 26, 0</column>
-<column name="product_q_81_reg_719">25, 0, 25, 0</column>
-<column name="product_q_82_reg_724">25, 0, 25, 0</column>
-<column name="product_q_84_reg_664">25, 0, 25, 0</column>
-<column name="product_q_85_reg_674">25, 0, 25, 0</column>
-<column name="product_q_86_reg_684">25, 0, 25, 0</column>
-<column name="product_q_reg_586">26, 0, 26, 0</column>
-<column name="sext_ln671_66_reg_568">43, 0, 43, 0</column>
-<column name="sext_ln671_67_reg_574">43, 0, 43, 0</column>
-<column name="sext_ln671_68_reg_580">43, 0, 43, 0</column>
-<column name="sext_ln671_72_reg_591">43, 0, 43, 0</column>
-<column name="sext_ln671_reg_563">43, 0, 43, 0</column>
+<column name="ap_CS_fsm">11, 0, 11, 0</column>
+<column name="ap_port_reg_conv5_i_i_i_i465">21, 0, 21, 0</column>
+<column name="ap_port_reg_p_0_0_05038">21, 0, 21, 0</column>
+<column name="ap_port_reg_tr_dFyf_dom_val">21, 0, 21, 0</column>
+<column name="ap_port_reg_tr_dFyf_dvy_val">21, 0, 21, 0</column>
+<column name="ap_port_reg_tr_dFyr_dom_val">21, 0, 21, 0</column>
+<column name="ap_port_reg_tr_dFyr_dvx_val">21, 0, 21, 0</column>
+<column name="ap_port_reg_tr_dFyr_dvy_val">21, 0, 21, 0</column>
+<column name="product_q_71_reg_632">16, 0, 16, 0</column>
+<column name="product_q_72_reg_637">16, 0, 16, 0</column>
+<column name="product_q_73_reg_642">16, 0, 16, 0</column>
+<column name="product_q_77_reg_590">21, 0, 21, 0</column>
+<column name="product_q_78_reg_601">21, 0, 21, 0</column>
+<column name="product_q_79_reg_647">20, 0, 20, 0</column>
+<column name="product_q_80_reg_652">20, 0, 20, 0</column>
+<column name="product_q_82_reg_612">20, 0, 20, 0</column>
+<column name="product_q_83_reg_622">20, 0, 20, 0</column>
+<column name="product_q_84_reg_627">20, 0, 20, 0</column>
+<column name="reg_152">21, 0, 21, 0</column>
+<column name="reg_156">21, 0, 21, 0</column>
+<column name="reg_160">21, 0, 21, 0</column>
+<column name="sext_ln574_56_reg_584">42, 0, 42, 0</column>
+<column name="sext_ln574_57_reg_595">42, 0, 42, 0</column>
+<column name="sext_ln574_58_reg_606">42, 0, 42, 0</column>
+<column name="sext_ln574_59_reg_617">42, 0, 42, 0</column>
+<column name="sext_ln574_reg_579">42, 0, 42, 0</column>
 </table>
 </item>
 </section>
@@ -153,30 +149,30 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, compute_stage_shared_products, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, compute_stage_shared_products, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_2">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_3">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_4">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_5">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_6">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_7">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_8">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_9">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_10">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_11">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_12">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="ap_return_13">out, 26, ap_ctrl_hs, compute_stage_shared_products, return value</column>
-<column name="tr_dFyf_dvx_val">in, 26, ap_none, tr_dFyf_dvx_val, scalar</column>
-<column name="tr_dFyf_dvy_val">in, 26, ap_none, tr_dFyf_dvy_val, scalar</column>
-<column name="tr_dFyf_dom_val">in, 26, ap_none, tr_dFyf_dom_val, scalar</column>
-<column name="tr_dFyr_dvx_val">in, 26, ap_none, tr_dFyr_dvx_val, scalar</column>
-<column name="tr_dFyr_dvy_val">in, 26, ap_none, tr_dFyr_dvy_val, scalar</column>
-<column name="tr_dFyr_dom_val">in, 26, ap_none, tr_dFyr_dom_val, scalar</column>
-<column name="p_0_0_04262">in, 26, ap_none, p_0_0_04262, scalar</column>
-<column name="p_0_0_04261">in, 26, ap_none, p_0_0_04261, scalar</column>
-<column name="conv_i_i_i_i425">in, 26, ap_none, conv_i_i_i_i425, scalar</column>
-<column name="conv_i_i_i_i574">in, 26, ap_none, conv_i_i_i_i574, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_2">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_3">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_4">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_5">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_6">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_7">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_8">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_9">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_10">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_11">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_12">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="ap_return_13">out, 21, ap_ctrl_hs, compute_stage_shared_products, return value</column>
+<column name="tr_dFyf_dvx_val">in, 21, ap_none, tr_dFyf_dvx_val, scalar</column>
+<column name="tr_dFyf_dvy_val">in, 21, ap_none, tr_dFyf_dvy_val, scalar</column>
+<column name="tr_dFyf_dom_val">in, 21, ap_none, tr_dFyf_dom_val, scalar</column>
+<column name="tr_dFyr_dvx_val">in, 21, ap_none, tr_dFyr_dvx_val, scalar</column>
+<column name="tr_dFyr_dvy_val">in, 21, ap_none, tr_dFyr_dvy_val, scalar</column>
+<column name="tr_dFyr_dom_val">in, 21, ap_none, tr_dFyr_dom_val, scalar</column>
+<column name="p_0_0_05039">in, 21, ap_none, p_0_0_05039, scalar</column>
+<column name="p_0_0_05038">in, 21, ap_none, p_0_0_05038, scalar</column>
+<column name="conv5_i_i_i_i465">in, 21, ap_none, conv5_i_i_i_i465, scalar</column>
+<column name="conv5_i_i_i_i629">in, 21, ap_none, conv5_i_i_i_i629, scalar</column>
 </table>
 </item>
 </section>

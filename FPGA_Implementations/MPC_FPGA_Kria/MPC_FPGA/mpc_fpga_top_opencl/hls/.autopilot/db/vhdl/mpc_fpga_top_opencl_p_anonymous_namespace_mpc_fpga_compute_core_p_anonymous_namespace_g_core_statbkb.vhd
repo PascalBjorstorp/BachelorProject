@@ -11,7 +11,7 @@ use ieee.std_logic_unsigned.all;
 entity mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statbkb is
     generic(
         MEM_TYPE        : string    := "auto";
-        DataWidth       : integer   := 32;
+        DataWidth       : integer   := 26;
         AddressWidth    : integer   := 5;
         AddressRange    : integer   := 21
     );

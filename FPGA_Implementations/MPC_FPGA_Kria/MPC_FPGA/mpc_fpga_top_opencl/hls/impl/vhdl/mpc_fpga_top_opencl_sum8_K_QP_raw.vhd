@@ -11,15 +11,15 @@ use IEEE.numeric_std.all;
 entity mpc_fpga_top_opencl_sum8_K_QP_raw is
 port (
     ap_ready : OUT STD_LOGIC;
-    a0 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a1 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a2 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a3 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a4 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a5 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a6 : IN STD_LOGIC_VECTOR (43 downto 0);
-    a7 : IN STD_LOGIC_VECTOR (43 downto 0);
-    ap_return : OUT STD_LOGIC_VECTOR (43 downto 0);
+    a0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a1 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a2 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a3 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a4 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a5 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a6 : IN STD_LOGIC_VECTOR (31 downto 0);
+    a7 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ap_return : OUT STD_LOGIC_VECTOR (31 downto 0);
     ap_rst : IN STD_LOGIC );
 end;
 
@@ -32,24 +32,24 @@ architecture behav of mpc_fpga_top_opencl_sum8_K_QP_raw is
     constant ap_const_logic_0 : STD_LOGIC := '0';
 
 attribute shreg_extract : string;
-    signal add_ln328_1_fu_90_p2 : STD_LOGIC_VECTOR (43 downto 0);
-    signal add_ln328_fu_84_p2 : STD_LOGIC_VECTOR (43 downto 0);
-    signal add_ln328_4_fu_108_p2 : STD_LOGIC_VECTOR (43 downto 0);
-    signal add_ln328_3_fu_102_p2 : STD_LOGIC_VECTOR (43 downto 0);
-    signal add_ln328_5_fu_114_p2 : STD_LOGIC_VECTOR (43 downto 0);
-    signal add_ln328_2_fu_96_p2 : STD_LOGIC_VECTOR (43 downto 0);
+    signal add_ln343_1_fu_82_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal add_ln343_fu_76_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal add_ln343_5_fu_100_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal add_ln343_4_fu_94_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal add_ln343_6_fu_106_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal add_ln343_3_fu_88_p2 : STD_LOGIC_VECTOR (31 downto 0);
 
 
 begin
 
 
 
-    add_ln328_1_fu_90_p2 <= std_logic_vector(unsigned(a2) + unsigned(a3));
-    add_ln328_2_fu_96_p2 <= std_logic_vector(unsigned(add_ln328_1_fu_90_p2) + unsigned(add_ln328_fu_84_p2));
-    add_ln328_3_fu_102_p2 <= std_logic_vector(unsigned(a4) + unsigned(a5));
-    add_ln328_4_fu_108_p2 <= std_logic_vector(unsigned(a6) + unsigned(a7));
-    add_ln328_5_fu_114_p2 <= std_logic_vector(unsigned(add_ln328_4_fu_108_p2) + unsigned(add_ln328_3_fu_102_p2));
-    add_ln328_fu_84_p2 <= std_logic_vector(unsigned(a1) + unsigned(a0));
+    add_ln343_1_fu_82_p2 <= std_logic_vector(unsigned(a6) + unsigned(a7));
+    add_ln343_3_fu_88_p2 <= std_logic_vector(unsigned(add_ln343_1_fu_82_p2) + unsigned(add_ln343_fu_76_p2));
+    add_ln343_4_fu_94_p2 <= std_logic_vector(unsigned(a3) + unsigned(a2));
+    add_ln343_5_fu_100_p2 <= std_logic_vector(unsigned(a0) + unsigned(a1));
+    add_ln343_6_fu_106_p2 <= std_logic_vector(unsigned(add_ln343_5_fu_100_p2) + unsigned(add_ln343_4_fu_94_p2));
+    add_ln343_fu_76_p2 <= std_logic_vector(unsigned(a5) + unsigned(a4));
     ap_ready <= ap_const_logic_1;
-    ap_return <= std_logic_vector(unsigned(add_ln328_5_fu_114_p2) + unsigned(add_ln328_2_fu_96_p2));
+    ap_return <= std_logic_vector(unsigned(add_ln343_6_fu_106_p2) + unsigned(add_ln343_3_fu_88_p2));
 end behav;

@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'fp_trig_pair_fused_fn'" level="0">
-<item name = "Date">Thu May 21 15:23:08 2026
+<item name = "Date">Thu Jun 11 16:06:59 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.411 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.221 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">10, 10, 50.000 ns, 50.000 ns, 11, 11, yes</column>
+<column name="">8, 8, 40.000 ns, 40.000 ns, 9, 9, yes</column>
 </table>
 </item>
 <item name = "Detail">
@@ -47,12 +47,12 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 691, -</column>
+<column name="Expression">-, -, 0, 567, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">-, 5, 189, 90, -</column>
-<column name="Memory">5, -, 0, 0, -</column>
-<column name="Multiplexer">-, -, 0, 65, -</column>
-<column name="Register">-, -, 156, -, -</column>
+<column name="Instance">-, 4, 32, 45, -</column>
+<column name="Memory">4, -, 0, 0, -</column>
+<column name="Multiplexer">-, -, 0, 82, -</column>
+<column name="Register">-, -, 124, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
 <specialColumn name="Utilization (%)">1, ~0, ~0, ~0, 0</specialColumn>
 </table>
@@ -61,9 +61,9 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="mul_20s_26s_46_4_1_U310">mul_20s_26s_46_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_25ns_27ns_51_4_1_U311">mul_25ns_27ns_51_4_1, 0, 2, 67, 32, 0</column>
-<column name="mul_26s_19s_45_4_1_U312">mul_26s_19s_45_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_15s_21s_36_3_1_U312">mul_15s_21s_36_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_20ns_22ns_41_3_1_U310">mul_20ns_22ns_41_3_1, 0, 2, 12, 17, 0</column>
+<column name="mul_21s_14s_35_3_1_U311">mul_21s_14s_35_3_1, 0, 1, 10, 14, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -72,8 +72,8 @@
 </item>
 <item name = "Memory"><table name="" hasTotal="1">
 <keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
-<column name="cos_lut_fn_U">fp_trig_pair_fused_fn_cos_lut_fn_ROM_2P_BRAM_1R, 3, 0, 0, 0, 1025, 19, 1, 19475</column>
-<column name="sin_lut_fn_U">fp_trig_pair_fused_fn_sin_lut_fn_ROM_2P_BRAM_1R, 2, 0, 0, 0, 1025, 18, 1, 18450</column>
+<column name="cos_lut_fn_U">fp_trig_pair_fused_fn_cos_lut_fn_ROM_2P_BRAM_1R, 2, 0, 0, 0, 1025, 14, 1, 14350</column>
+<column name="sin_lut_fn_U">fp_trig_pair_fused_fn_sin_lut_fn_ROM_2P_BRAM_1R, 2, 0, 0, 0, 1025, 13, 1, 13325</column>
 </table>
 </item>
 <item name = "FIFO"><table name="" hasTotal="1">
@@ -82,49 +82,50 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="angle_11_fu_183_p2">+, 0, 0, 33, 26, 20</column>
-<column name="angle_13_fu_203_p2">+, 0, 0, 33, 26, 21</column>
-<column name="angle_15_fu_222_p2">+, 0, 0, 33, 26, 20</column>
-<column name="angle_9_fu_163_p2">+, 0, 0, 33, 26, 21</column>
-<column name="idx_next_fu_350_p2">+, 0, 0, 18, 11, 1</column>
-<column name="out_fu_428_p2">+, 0, 0, 33, 26, 26</column>
-<column name="raw_3_fu_460_p2">+, 0, 0, 33, 26, 26</column>
-<column name="angle_u_fu_246_p2">-, 0, 0, 32, 1, 25</column>
-<column name="dv_raw_1_fu_404_p2">-, 0, 0, 27, 20, 20</column>
-<column name="dv_raw_fu_375_p2">-, 0, 0, 26, 19, 19</column>
-<column name="frac_raw_fu_341_p2">-, 0, 0, 33, 26, 26</column>
-<column name="raw_fu_434_p2">-, 0, 0, 33, 1, 26</column>
-<column name="icmp_ln448_1_fu_197_p2">icmp, 0, 0, 33, 26, 19</column>
-<column name="icmp_ln448_fu_157_p2">icmp, 0, 0, 33, 26, 19</column>
-<column name="icmp_ln450_1_fu_217_p2">icmp, 0, 0, 33, 26, 20</column>
-<column name="icmp_ln450_fu_177_p2">icmp, 0, 0, 33, 26, 20</column>
-<column name="icmp_ln744_fu_285_p2">icmp, 0, 0, 12, 5, 1</column>
-<column name="angle_10_fu_169_p3">select, 0, 0, 26, 1, 26</column>
-<column name="angle_12_fu_189_p3">select, 0, 0, 26, 1, 26</column>
-<column name="angle_14_fu_209_p3">select, 0, 0, 26, 1, 26</column>
-<column name="angle_16_fu_227_p3">select, 0, 0, 26, 1, 26</column>
-<column name="angle_u_2_fu_252_p3">select, 0, 0, 25, 1, 25</column>
-<column name="idx_1_fu_291_p3">select, 0, 0, 15, 1, 10</column>
-<column name="idx_2_fu_311_p3">select, 0, 0, 10, 1, 1</column>
-<column name="out_142_fu_440_p3">select, 0, 0, 26, 1, 26</column>
+<column name="angle_11_fu_169_p2">+, 0, 0, 28, 21, 15</column>
+<column name="angle_13_fu_189_p2">+, 0, 0, 28, 21, 16</column>
+<column name="angle_15_fu_208_p2">+, 0, 0, 28, 21, 15</column>
+<column name="angle_9_fu_149_p2">+, 0, 0, 28, 21, 16</column>
+<column name="idx_next_fu_322_p2">+, 0, 0, 18, 11, 1</column>
+<column name="out_fu_398_p2">+, 0, 0, 28, 21, 21</column>
+<column name="raw_7_fu_430_p2">+, 0, 0, 28, 21, 21</column>
+<column name="angle_u_fu_232_p2">-, 0, 0, 27, 1, 20</column>
+<column name="dv_raw_1_fu_369_p2">-, 0, 0, 22, 15, 15</column>
+<column name="dv_raw_fu_341_p2">-, 0, 0, 21, 14, 14</column>
+<column name="frac_raw_fu_307_p2">-, 0, 0, 28, 21, 21</column>
+<column name="raw_fu_404_p2">-, 0, 0, 28, 1, 21</column>
+<column name="icmp_ln428_1_fu_183_p2">icmp, 0, 0, 28, 21, 14</column>
+<column name="icmp_ln428_fu_143_p2">icmp, 0, 0, 28, 21, 14</column>
+<column name="icmp_ln430_1_fu_203_p2">icmp, 0, 0, 28, 21, 15</column>
+<column name="icmp_ln430_fu_163_p2">icmp, 0, 0, 28, 21, 15</column>
+<column name="icmp_ln607_fu_271_p2">icmp, 0, 0, 14, 7, 1</column>
+<column name="angle_10_fu_155_p3">select, 0, 0, 20, 1, 21</column>
+<column name="angle_12_fu_175_p3">select, 0, 0, 20, 1, 21</column>
+<column name="angle_14_fu_195_p3">select, 0, 0, 20, 1, 21</column>
+<column name="angle_16_fu_213_p3">select, 0, 0, 20, 1, 21</column>
+<column name="angle_u_2_fu_238_p3">select, 0, 0, 19, 1, 20</column>
+<column name="idx_fu_277_p3">select, 0, 0, 10, 1, 2</column>
+<column name="out_119_fu_410_p3">select, 0, 0, 20, 1, 21</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">65, 12, 1, 12</column>
+<column name="ap_NS_fsm">54, 10, 1, 10</column>
+<column name="cos_lut_fn_address0_local">14, 3, 11, 33</column>
+<column name="sin_lut_fn_address0_local">14, 3, 11, 33</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="angle_14_reg_477">26, 0, 26, 0</column>
-<column name="ap_CS_fsm">11, 0, 11, 0</column>
-<column name="frac_raw_reg_500">26, 0, 26, 0</column>
-<column name="idx_2_reg_494">10, 0, 10, 0</column>
-<column name="neg_reg_484">1, 0, 1, 0</column>
-<column name="out_142_reg_562">26, 0, 26, 0</column>
-<column name="value_190_reg_541">19, 0, 19, 0</column>
-<column name="value_191_reg_547">19, 0, 19, 0</column>
-<column name="value_reg_526">18, 0, 18, 0</column>
+<column name="angle_14_reg_447">21, 0, 21, 0</column>
+<column name="ap_CS_fsm">9, 0, 9, 0</column>
+<column name="frac_raw_reg_469">21, 0, 21, 0</column>
+<column name="idx_reg_464">10, 0, 10, 0</column>
+<column name="neg_reg_454">1, 0, 1, 0</column>
+<column name="out_119_reg_532">21, 0, 21, 0</column>
+<column name="value_158_reg_496">14, 0, 14, 0</column>
+<column name="value_159_reg_517">14, 0, 14, 0</column>
+<column name="value_reg_485">13, 0, 13, 0</column>
 </table>
 </item>
 </section>
@@ -140,9 +141,9 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
-<column name="angle">in, 26, ap_none, angle, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, fp_trig_pair_fused_fn, return value</column>
+<column name="angle">in, 21, ap_none, angle, scalar</column>
 </table>
 </item>
 </section>

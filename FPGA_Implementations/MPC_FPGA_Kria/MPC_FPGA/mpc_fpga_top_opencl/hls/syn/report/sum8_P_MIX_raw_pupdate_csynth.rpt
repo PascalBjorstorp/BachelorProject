@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'sum8_P_MIX_raw_pupdate'
 ================================================================
-* Date:           Thu May 21 15:23:11 2026
+* Date:           Thu Jun 11 16:07:04 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  2.694 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  2.551 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -49,14 +49,14 @@
 |       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
 +-----------------+---------+------+--------+--------+-----+
 |DSP              |        -|     -|       -|       -|    -|
-|Expression       |        -|     -|       0|     429|    -|
+|Expression       |        -|     -|       0|     310|    -|
 |FIFO             |        -|     -|       -|       -|    -|
 |Instance         |        -|     -|       -|       -|    -|
 |Memory           |        -|     -|       -|       -|    -|
 |Multiplexer      |        -|     -|       -|       -|    -|
-|Register         |        -|     -|      60|       -|    -|
+|Register         |        -|     -|      43|       -|    -|
 +-----------------+---------+------+--------+--------+-----+
-|Total            |        0|     0|      60|     429|    0|
+|Total            |        0|     0|      43|     310|    0|
 +-----------------+---------+------+--------+--------+-----+
 |Available        |      288|  1248|  234240|  117120|   64|
 +-----------------+---------+------+--------+--------+-----+
@@ -80,16 +80,16 @@
     +-----------------------+----------+----+---+----+------------+------------+
     |     Variable Name     | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
     +-----------------------+----------+----+---+----+------------+------------+
-    |add_ln257_1_fu_94_p2   |         +|   0|  0|  65|          58|          58|
-    |add_ln257_2_fu_124_p2  |         +|   0|  0|  58|          58|          58|
-    |add_ln257_3_fu_100_p2  |         +|   0|  0|  58|          58|          58|
-    |add_ln257_4_fu_106_p2  |         +|   0|  0|  58|          58|          58|
-    |add_ln257_5_fu_112_p2  |         +|   0|  0|  65|          58|          58|
-    |add_ln257_6_fu_118_p2  |         +|   0|  0|  58|          58|          58|
-    |add_ln257_fu_88_p2     |         +|   0|  0|  65|          58|          58|
+    |add_ln272_1_fu_96_p2   |         +|   0|  0|  48|          41|          41|
+    |add_ln272_2_fu_102_p2  |         +|   0|  0|  41|          41|          41|
+    |add_ln272_3_fu_108_p2  |         +|   0|  0|  41|          41|          41|
+    |add_ln272_4_fu_114_p2  |         +|   0|  0|  48|          41|          41|
+    |add_ln272_5_fu_120_p2  |         +|   0|  0|  41|          41|          41|
+    |add_ln272_fu_90_p2     |         +|   0|  0|  48|          41|          41|
+    |add_ln273_fu_126_p2    |         +|   0|  0|  41|          41|          41|
     |ap_enable_pp0          |       xor|   0|  0|   2|           1|           2|
     +-----------------------+----------+----+---+----+------------+------------+
-    |Total                  |          |   0|  0| 429|         407|         408|
+    |Total                  |          |   0|  0| 310|         288|         289|
     +-----------------------+----------+----+---+----+------------+------------+
 
     * Multiplexer: 
@@ -99,11 +99,11 @@
     +-------------------------+----+----+-----+-----------+
     |           Name          | FF | LUT| Bits| Const Bits|
     +-------------------------+----+----+-----+-----------+
-    |add_ln257_2_reg_130      |  58|   0|   58|          0|
+    |add_ln273_reg_132        |  41|   0|   41|          0|
     |ap_CS_fsm                |   1|   0|    1|          0|
     |ap_enable_reg_pp0_iter1  |   1|   0|    1|          0|
     +-------------------------+----+----+-----+-----------+
-    |Total                    |  60|   0|   60|          0|
+    |Total                    |  43|   0|   43|          0|
     +-------------------------+----+----+-----+-----------+
 
 
@@ -121,14 +121,15 @@
 |ap_done    |  out|    1|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
 |ap_idle    |  out|    1|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
 |ap_ready   |  out|    1|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
-|ap_return  |  out|   58|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
-|a0         |   in|   58|     ap_none|                      a0|        scalar|
-|a1         |   in|   58|     ap_none|                      a1|        scalar|
-|a2         |   in|   58|     ap_none|                      a2|        scalar|
-|a3         |   in|   58|     ap_none|                      a3|        scalar|
-|a4         |   in|   58|     ap_none|                      a4|        scalar|
-|a5         |   in|   58|     ap_none|                      a5|        scalar|
-|a6         |   in|   58|     ap_none|                      a6|        scalar|
-|a7         |   in|   58|     ap_none|                      a7|        scalar|
+|ap_ce      |   in|    1|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
+|ap_return  |  out|   41|  ap_ctrl_hs|  sum8_P_MIX_raw_pupdate|  return value|
+|a0         |   in|   41|     ap_none|                      a0|        scalar|
+|a1         |   in|   41|     ap_none|                      a1|        scalar|
+|a2         |   in|   41|     ap_none|                      a2|        scalar|
+|a3         |   in|   41|     ap_none|                      a3|        scalar|
+|a4         |   in|   41|     ap_none|                      a4|        scalar|
+|a5         |   in|   41|     ap_none|                      a5|        scalar|
+|a6         |   in|   44|     ap_none|                      a6|        scalar|
+|a7         |   in|   44|     ap_none|                      a7|        scalar|
 +-----------+-----+-----+------------+------------------------+--------------+
 

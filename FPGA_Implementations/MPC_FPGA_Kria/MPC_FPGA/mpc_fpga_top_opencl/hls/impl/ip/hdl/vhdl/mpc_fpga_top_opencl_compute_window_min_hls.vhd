@@ -16,28 +16,28 @@ port (
     ap_done : OUT STD_LOGIC;
     ap_idle : OUT STD_LOGIC;
     ap_ready : OUT STD_LOGIC;
-    ref_wall_0_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_1_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_2_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_3_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_4_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_5_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_6_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_7_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_8_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_9_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_10_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_11_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_12_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_13_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_14_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_15_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_16_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_17_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_18_val : IN STD_LOGIC_VECTOR (31 downto 0);
-    ref_wall_19_val : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_wall_0_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_1_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_2_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_3_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_4_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_5_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_6_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_7_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_8_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_9_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_10_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_11_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_12_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_13_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_14_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_15_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_16_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_17_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_18_val : IN STD_LOGIC_VECTOR (25 downto 0);
+    ref_wall_19_val : IN STD_LOGIC_VECTOR (25 downto 0);
     center_idx : IN STD_LOGIC_VECTOR (4 downto 0);
-    ap_return : OUT STD_LOGIC_VECTOR (31 downto 0) );
+    ap_return : OUT STD_LOGIC_VECTOR (25 downto 0) );
 end;
 
 
@@ -53,7 +53,7 @@ architecture behav of mpc_fpga_top_opencl_compute_window_min_hls is
     constant ap_const_lv6_3D : STD_LOGIC_VECTOR (5 downto 0) := "111101";
     constant ap_const_lv6_14 : STD_LOGIC_VECTOR (5 downto 0) := "010100";
     constant ap_const_lv5_3 : STD_LOGIC_VECTOR (4 downto 0) := "00011";
-    constant ap_const_lv32_C80000 : STD_LOGIC_VECTOR (31 downto 0) := "00000000110010000000000000000000";
+    constant ap_const_lv26_C8000 : STD_LOGIC_VECTOR (25 downto 0) := "00000011001000000000000000";
     constant ap_const_lv6_3E : STD_LOGIC_VECTOR (5 downto 0) := "111110";
     constant ap_const_lv5_2 : STD_LOGIC_VECTOR (4 downto 0) := "00010";
     constant ap_const_lv6_3F : STD_LOGIC_VECTOR (5 downto 0) := "111111";
@@ -71,59 +71,57 @@ attribute shreg_extract : string;
     signal ap_enable_reg_pp0_iter1 : STD_LOGIC := '0';
     signal ap_idle_pp0 : STD_LOGIC;
     signal ap_block_pp0_stage0_subdone : BOOLEAN;
-    signal cand_7_fu_920_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_7_reg_1022 : STD_LOGIC_VECTOR (31 downto 0);
+    signal l3_0_fu_994_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal l3_0_reg_1026 : STD_LOGIC_VECTOR (25 downto 0);
     signal ap_block_pp0_stage0_11001 : BOOLEAN;
-    signal l2_0_fu_940_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l2_0_reg_1028 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l2_1_fu_960_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l2_1_reg_1034 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l2_2_fu_980_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l2_2_reg_1040 : STD_LOGIC_VECTOR (31 downto 0);
+    signal l3_1_fu_1008_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal l3_1_reg_1032 : STD_LOGIC_VECTOR (25 downto 0);
     signal ap_block_pp0_stage0 : BOOLEAN;
-    signal zext_ln89_fu_236_p1 : STD_LOGIC_VECTOR (5 downto 0);
+    signal zext_ln87_fu_236_p1 : STD_LOGIC_VECTOR (5 downto 0);
     signal jj_fu_240_p2 : STD_LOGIC_VECTOR (5 downto 0);
-    signal tmp_fu_252_p35 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_fu_246_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_fu_252_p37 : STD_LOGIC_VECTOR (31 downto 0);
+    signal tmp_fu_252_p35 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_fu_246_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_fu_252_p37 : STD_LOGIC_VECTOR (25 downto 0);
     signal jj_1_fu_336_p2 : STD_LOGIC_VECTOR (5 downto 0);
-    signal tmp_s_fu_348_p37 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_1_fu_342_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_s_fu_348_p39 : STD_LOGIC_VECTOR (31 downto 0);
+    signal tmp_s_fu_348_p37 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_1_fu_342_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_s_fu_348_p39 : STD_LOGIC_VECTOR (25 downto 0);
     signal jj_2_fu_436_p2 : STD_LOGIC_VECTOR (5 downto 0);
-    signal tmp_1_fu_448_p39 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_2_fu_442_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_1_fu_448_p41 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_3_fu_540_p41 : STD_LOGIC_VECTOR (31 downto 0);
+    signal tmp_1_fu_448_p39 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_2_fu_442_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_1_fu_448_p41 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_3_fu_540_p41 : STD_LOGIC_VECTOR (25 downto 0);
     signal jj_3_fu_628_p2 : STD_LOGIC_VECTOR (4 downto 0);
-    signal tmp_3_fu_640_p39 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_3_fu_634_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_3_fu_640_p41 : STD_LOGIC_VECTOR (31 downto 0);
+    signal tmp_3_fu_640_p39 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_3_fu_634_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_3_fu_640_p41 : STD_LOGIC_VECTOR (25 downto 0);
     signal jj_4_fu_732_p2 : STD_LOGIC_VECTOR (4 downto 0);
-    signal tmp_4_fu_744_p37 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_4_fu_738_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_4_fu_744_p39 : STD_LOGIC_VECTOR (31 downto 0);
+    signal tmp_4_fu_744_p37 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_4_fu_738_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_4_fu_744_p39 : STD_LOGIC_VECTOR (25 downto 0);
     signal jj_5_fu_832_p2 : STD_LOGIC_VECTOR (4 downto 0);
-    signal tmp_5_fu_844_p35 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln97_5_fu_838_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_5_fu_844_p37 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_fu_328_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_1_fu_428_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln100_fu_928_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal xor_ln100_fu_934_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal cand_2_fu_532_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_3_fu_540_p43 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln101_fu_948_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal xor_ln101_fu_954_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal cand_4_fu_724_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal cand_5_fu_824_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln102_fu_968_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal xor_ln102_fu_974_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln105_fu_988_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln106_fu_998_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal l3_0_fu_992_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal l3_1_fu_1002_p3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln107_fu_1008_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_5_fu_844_p35 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln95_5_fu_838_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_5_fu_844_p37 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_fu_328_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_1_fu_428_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln98_fu_928_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal xor_ln98_fu_934_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal cand_2_fu_532_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_3_fu_540_p43 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln99_fu_948_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal xor_ln99_fu_954_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal cand_4_fu_724_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_5_fu_824_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln100_fu_968_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal xor_ln100_fu_974_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal l2_0_fu_940_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal l2_1_fu_960_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln103_fu_988_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal l2_2_fu_980_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal cand_7_fu_920_p3 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln104_fu_1002_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln105_fu_1016_p2 : STD_LOGIC_VECTOR (0 downto 0);
     signal ap_NS_fsm : STD_LOGIC_VECTOR (0 downto 0);
     signal ap_idle_pp0_0to0 : STD_LOGIC;
     signal ap_reset_init_pp0 : STD_LOGIC;
@@ -258,7 +256,7 @@ attribute shreg_extract : string;
     signal tmp_5_fu_844_p33 : STD_LOGIC_VECTOR (4 downto 0);
     signal ap_ce_reg : STD_LOGIC;
 
-    component mpc_fpga_top_opencl_sparsemux_35_5_32_1_1 IS
+    component mpc_fpga_top_opencl_sparsemux_35_5_26_1_1 IS
     generic (
         ID : INTEGER;
         NUM_STAGE : INTEGER;
@@ -300,30 +298,30 @@ attribute shreg_extract : string;
         sel_WIDTH : INTEGER;
         dout_WIDTH : INTEGER );
     port (
-        din0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din1 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din2 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din3 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din4 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din5 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din6 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din7 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din8 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din9 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din10 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din11 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din12 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din13 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din14 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din15 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din16 : IN STD_LOGIC_VECTOR (31 downto 0);
-        def : IN STD_LOGIC_VECTOR (31 downto 0);
+        din0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din1 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din2 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din3 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din4 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din5 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din6 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din7 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din8 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din9 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din10 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din11 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din12 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din13 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din14 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din15 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din16 : IN STD_LOGIC_VECTOR (25 downto 0);
+        def : IN STD_LOGIC_VECTOR (25 downto 0);
         sel : IN STD_LOGIC_VECTOR (4 downto 0);
-        dout : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        dout : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_sparsemux_37_5_32_1_1 IS
+    component mpc_fpga_top_opencl_sparsemux_37_5_26_1_1 IS
     generic (
         ID : INTEGER;
         NUM_STAGE : INTEGER;
@@ -367,31 +365,31 @@ attribute shreg_extract : string;
         sel_WIDTH : INTEGER;
         dout_WIDTH : INTEGER );
     port (
-        din0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din1 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din2 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din3 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din4 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din5 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din6 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din7 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din8 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din9 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din10 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din11 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din12 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din13 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din14 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din15 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din16 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din17 : IN STD_LOGIC_VECTOR (31 downto 0);
-        def : IN STD_LOGIC_VECTOR (31 downto 0);
+        din0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din1 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din2 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din3 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din4 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din5 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din6 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din7 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din8 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din9 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din10 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din11 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din12 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din13 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din14 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din15 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din16 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din17 : IN STD_LOGIC_VECTOR (25 downto 0);
+        def : IN STD_LOGIC_VECTOR (25 downto 0);
         sel : IN STD_LOGIC_VECTOR (4 downto 0);
-        dout : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        dout : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_sparsemux_39_5_32_1_1 IS
+    component mpc_fpga_top_opencl_sparsemux_39_5_26_1_1 IS
     generic (
         ID : INTEGER;
         NUM_STAGE : INTEGER;
@@ -437,32 +435,32 @@ attribute shreg_extract : string;
         sel_WIDTH : INTEGER;
         dout_WIDTH : INTEGER );
     port (
-        din0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din1 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din2 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din3 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din4 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din5 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din6 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din7 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din8 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din9 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din10 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din11 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din12 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din13 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din14 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din15 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din16 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din17 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din18 : IN STD_LOGIC_VECTOR (31 downto 0);
-        def : IN STD_LOGIC_VECTOR (31 downto 0);
+        din0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din1 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din2 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din3 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din4 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din5 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din6 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din7 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din8 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din9 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din10 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din11 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din12 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din13 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din14 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din15 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din16 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din17 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din18 : IN STD_LOGIC_VECTOR (25 downto 0);
+        def : IN STD_LOGIC_VECTOR (25 downto 0);
         sel : IN STD_LOGIC_VECTOR (4 downto 0);
-        dout : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        dout : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_sparsemux_41_5_32_1_1 IS
+    component mpc_fpga_top_opencl_sparsemux_41_5_26_1_1 IS
     generic (
         ID : INTEGER;
         NUM_STAGE : INTEGER;
@@ -510,75 +508,75 @@ attribute shreg_extract : string;
         sel_WIDTH : INTEGER;
         dout_WIDTH : INTEGER );
     port (
-        din0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din1 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din2 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din3 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din4 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din5 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din6 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din7 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din8 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din9 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din10 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din11 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din12 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din13 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din14 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din15 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din16 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din17 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din18 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din19 : IN STD_LOGIC_VECTOR (31 downto 0);
-        def : IN STD_LOGIC_VECTOR (31 downto 0);
+        din0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din1 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din2 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din3 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din4 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din5 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din6 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din7 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din8 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din9 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din10 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din11 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din12 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din13 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din14 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din15 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din16 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din17 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din18 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din19 : IN STD_LOGIC_VECTOR (25 downto 0);
+        def : IN STD_LOGIC_VECTOR (25 downto 0);
         sel : IN STD_LOGIC_VECTOR (4 downto 0);
-        dout : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        dout : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
 
 begin
-    sparsemux_35_5_32_1_1_U183 : component mpc_fpga_top_opencl_sparsemux_35_5_32_1_1
+    sparsemux_35_5_26_1_1_U183 : component mpc_fpga_top_opencl_sparsemux_35_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00011",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00100",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00101",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00110",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00111",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "01000",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "01001",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "01010",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01011",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01100",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01101",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01110",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01111",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "10000",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "10001",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "10010",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10011",
-        din16_WIDTH => 32,
-        def_WIDTH => 32,
+        din16_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_0_val,
         din1 => ref_wall_1_val,
@@ -601,49 +599,49 @@ begin
         sel => center_idx,
         dout => tmp_fu_252_p37);
 
-    sparsemux_37_5_32_1_1_U184 : component mpc_fpga_top_opencl_sparsemux_37_5_32_1_1
+    sparsemux_37_5_26_1_1_U184 : component mpc_fpga_top_opencl_sparsemux_37_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00010",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00011",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00100",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00101",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00110",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00111",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "01000",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "01001",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01010",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01011",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01100",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01101",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01110",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01111",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "10000",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "10001",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10010",
-        din16_WIDTH => 32,
+        din16_WIDTH => 26,
         CASE17 => "10011",
-        din17_WIDTH => 32,
-        def_WIDTH => 32,
+        din17_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_0_val,
         din1 => ref_wall_1_val,
@@ -667,51 +665,51 @@ begin
         sel => center_idx,
         dout => tmp_s_fu_348_p39);
 
-    sparsemux_39_5_32_1_1_U185 : component mpc_fpga_top_opencl_sparsemux_39_5_32_1_1
+    sparsemux_39_5_26_1_1_U185 : component mpc_fpga_top_opencl_sparsemux_39_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00001",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00010",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00011",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00100",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00101",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00110",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "00111",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "01000",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01001",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01010",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01011",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01100",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01101",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01110",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "01111",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "10000",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10001",
-        din16_WIDTH => 32,
+        din16_WIDTH => 26,
         CASE17 => "10010",
-        din17_WIDTH => 32,
+        din17_WIDTH => 26,
         CASE18 => "10011",
-        din18_WIDTH => 32,
-        def_WIDTH => 32,
+        din18_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_0_val,
         din1 => ref_wall_1_val,
@@ -736,53 +734,53 @@ begin
         sel => center_idx,
         dout => tmp_1_fu_448_p41);
 
-    sparsemux_41_5_32_1_1_U186 : component mpc_fpga_top_opencl_sparsemux_41_5_32_1_1
+    sparsemux_41_5_26_1_1_U186 : component mpc_fpga_top_opencl_sparsemux_41_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00000",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00001",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00010",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00011",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00100",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00101",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "00110",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "00111",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01000",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01001",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01010",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01011",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01100",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01101",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "01110",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "01111",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10000",
-        din16_WIDTH => 32,
+        din16_WIDTH => 26,
         CASE17 => "10001",
-        din17_WIDTH => 32,
+        din17_WIDTH => 26,
         CASE18 => "10010",
-        din18_WIDTH => 32,
+        din18_WIDTH => 26,
         CASE19 => "10011",
-        din19_WIDTH => 32,
-        def_WIDTH => 32,
+        din19_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_0_val,
         din1 => ref_wall_1_val,
@@ -808,51 +806,51 @@ begin
         sel => center_idx,
         dout => cand_3_fu_540_p43);
 
-    sparsemux_39_5_32_1_1_U187 : component mpc_fpga_top_opencl_sparsemux_39_5_32_1_1
+    sparsemux_39_5_26_1_1_U187 : component mpc_fpga_top_opencl_sparsemux_39_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00000",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00001",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00010",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00011",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00100",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00101",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "00110",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "00111",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01000",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01001",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01010",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01011",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01100",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01101",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "01110",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "01111",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10000",
-        din16_WIDTH => 32,
+        din16_WIDTH => 26,
         CASE17 => "10001",
-        din17_WIDTH => 32,
+        din17_WIDTH => 26,
         CASE18 => "10010",
-        din18_WIDTH => 32,
-        def_WIDTH => 32,
+        din18_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_1_val,
         din1 => ref_wall_2_val,
@@ -877,49 +875,49 @@ begin
         sel => center_idx,
         dout => tmp_3_fu_640_p41);
 
-    sparsemux_37_5_32_1_1_U188 : component mpc_fpga_top_opencl_sparsemux_37_5_32_1_1
+    sparsemux_37_5_26_1_1_U188 : component mpc_fpga_top_opencl_sparsemux_37_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00000",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00001",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00010",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00011",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00100",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00101",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "00110",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "00111",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01000",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01001",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01010",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01011",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01100",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01101",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "01110",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "01111",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10000",
-        din16_WIDTH => 32,
+        din16_WIDTH => 26,
         CASE17 => "10001",
-        din17_WIDTH => 32,
-        def_WIDTH => 32,
+        din17_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_2_val,
         din1 => ref_wall_3_val,
@@ -943,47 +941,47 @@ begin
         sel => center_idx,
         dout => tmp_4_fu_744_p39);
 
-    sparsemux_35_5_32_1_1_U189 : component mpc_fpga_top_opencl_sparsemux_35_5_32_1_1
+    sparsemux_35_5_26_1_1_U189 : component mpc_fpga_top_opencl_sparsemux_35_5_26_1_1
     generic map (
         ID => 1,
         NUM_STAGE => 1,
         CASE0 => "00000",
-        din0_WIDTH => 32,
+        din0_WIDTH => 26,
         CASE1 => "00001",
-        din1_WIDTH => 32,
+        din1_WIDTH => 26,
         CASE2 => "00010",
-        din2_WIDTH => 32,
+        din2_WIDTH => 26,
         CASE3 => "00011",
-        din3_WIDTH => 32,
+        din3_WIDTH => 26,
         CASE4 => "00100",
-        din4_WIDTH => 32,
+        din4_WIDTH => 26,
         CASE5 => "00101",
-        din5_WIDTH => 32,
+        din5_WIDTH => 26,
         CASE6 => "00110",
-        din6_WIDTH => 32,
+        din6_WIDTH => 26,
         CASE7 => "00111",
-        din7_WIDTH => 32,
+        din7_WIDTH => 26,
         CASE8 => "01000",
-        din8_WIDTH => 32,
+        din8_WIDTH => 26,
         CASE9 => "01001",
-        din9_WIDTH => 32,
+        din9_WIDTH => 26,
         CASE10 => "01010",
-        din10_WIDTH => 32,
+        din10_WIDTH => 26,
         CASE11 => "01011",
-        din11_WIDTH => 32,
+        din11_WIDTH => 26,
         CASE12 => "01100",
-        din12_WIDTH => 32,
+        din12_WIDTH => 26,
         CASE13 => "01101",
-        din13_WIDTH => 32,
+        din13_WIDTH => 26,
         CASE14 => "01110",
-        din14_WIDTH => 32,
+        din14_WIDTH => 26,
         CASE15 => "01111",
-        din15_WIDTH => 32,
+        din15_WIDTH => 26,
         CASE16 => "10000",
-        din16_WIDTH => 32,
-        def_WIDTH => 32,
+        din16_WIDTH => 26,
+        def_WIDTH => 26,
         sel_WIDTH => 5,
-        dout_WIDTH => 32)
+        dout_WIDTH => 26)
     port map (
         din0 => ref_wall_3_val,
         din1 => ref_wall_4_val,
@@ -1039,10 +1037,8 @@ begin
     begin
         if (ap_clk'event and ap_clk = '1') then
             if (((ap_const_boolean_0 = ap_block_pp0_stage0_11001) and (ap_const_logic_1 = ap_CS_fsm_pp0_stage0))) then
-                cand_7_reg_1022 <= cand_7_fu_920_p3;
-                l2_0_reg_1028 <= l2_0_fu_940_p3;
-                l2_1_reg_1034 <= l2_1_fu_960_p3;
-                l2_2_reg_1040 <= l2_2_fu_980_p3;
+                l3_0_reg_1026 <= l3_0_fu_994_p3;
+                l3_1_reg_1032 <= l3_1_fu_1008_p3;
             end if;
         end if;
     end process;
@@ -1123,68 +1119,68 @@ begin
     end process;
 
     ap_return <= 
-        l3_0_fu_992_p3 when (icmp_ln107_fu_1008_p2(0) = '1') else 
-        l3_1_fu_1002_p3;
+        l3_0_reg_1026 when (icmp_ln105_fu_1016_p2(0) = '1') else 
+        l3_1_reg_1032;
     cand_1_fu_428_p3 <= 
-        tmp_s_fu_348_p39 when (icmp_ln97_1_fu_342_p2(0) = '1') else 
-        ap_const_lv32_C80000;
+        tmp_s_fu_348_p39 when (icmp_ln95_1_fu_342_p2(0) = '1') else 
+        ap_const_lv26_C8000;
     cand_2_fu_532_p3 <= 
-        tmp_1_fu_448_p41 when (icmp_ln97_2_fu_442_p2(0) = '1') else 
-        ap_const_lv32_C80000;
-    cand_3_fu_540_p41 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+        tmp_1_fu_448_p41 when (icmp_ln95_2_fu_442_p2(0) = '1') else 
+        ap_const_lv26_C8000;
+    cand_3_fu_540_p41 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
     cand_4_fu_724_p3 <= 
-        tmp_3_fu_640_p41 when (icmp_ln97_3_fu_634_p2(0) = '1') else 
-        ap_const_lv32_C80000;
+        tmp_3_fu_640_p41 when (icmp_ln95_3_fu_634_p2(0) = '1') else 
+        ap_const_lv26_C8000;
     cand_5_fu_824_p3 <= 
-        tmp_4_fu_744_p39 when (icmp_ln97_4_fu_738_p2(0) = '1') else 
-        ap_const_lv32_C80000;
+        tmp_4_fu_744_p39 when (icmp_ln95_4_fu_738_p2(0) = '1') else 
+        ap_const_lv26_C8000;
     cand_7_fu_920_p3 <= 
-        tmp_5_fu_844_p37 when (icmp_ln97_5_fu_838_p2(0) = '1') else 
-        ap_const_lv32_C80000;
+        tmp_5_fu_844_p37 when (icmp_ln95_5_fu_838_p2(0) = '1') else 
+        ap_const_lv26_C8000;
     cand_fu_328_p3 <= 
-        tmp_fu_252_p37 when (icmp_ln97_fu_246_p2(0) = '1') else 
-        ap_const_lv32_C80000;
-    icmp_ln100_fu_928_p2 <= "1" when (signed(cand_fu_328_p3) < signed(cand_1_fu_428_p3)) else "0";
-    icmp_ln101_fu_948_p2 <= "1" when (signed(cand_2_fu_532_p3) < signed(cand_3_fu_540_p43)) else "0";
-    icmp_ln102_fu_968_p2 <= "1" when (signed(cand_4_fu_724_p3) < signed(cand_5_fu_824_p3)) else "0";
-    icmp_ln105_fu_988_p2 <= "1" when (signed(l2_0_reg_1028) < signed(l2_1_reg_1034)) else "0";
-    icmp_ln106_fu_998_p2 <= "1" when (signed(l2_2_reg_1040) < signed(cand_7_reg_1022)) else "0";
-    icmp_ln107_fu_1008_p2 <= "1" when (signed(l3_0_fu_992_p3) < signed(l3_1_fu_1002_p3)) else "0";
-    icmp_ln97_1_fu_342_p2 <= "1" when (unsigned(jj_1_fu_336_p2) < unsigned(ap_const_lv6_14)) else "0";
-    icmp_ln97_2_fu_442_p2 <= "1" when (unsigned(jj_2_fu_436_p2) < unsigned(ap_const_lv6_14)) else "0";
-    icmp_ln97_3_fu_634_p2 <= "1" when (unsigned(jj_3_fu_628_p2) < unsigned(ap_const_lv5_14)) else "0";
-    icmp_ln97_4_fu_738_p2 <= "1" when (unsigned(jj_4_fu_732_p2) < unsigned(ap_const_lv5_14)) else "0";
-    icmp_ln97_5_fu_838_p2 <= "1" when (unsigned(jj_5_fu_832_p2) < unsigned(ap_const_lv5_14)) else "0";
-    icmp_ln97_fu_246_p2 <= "1" when (unsigned(jj_fu_240_p2) < unsigned(ap_const_lv6_14)) else "0";
-    jj_1_fu_336_p2 <= std_logic_vector(unsigned(zext_ln89_fu_236_p1) + unsigned(ap_const_lv6_3E));
-    jj_2_fu_436_p2 <= std_logic_vector(unsigned(zext_ln89_fu_236_p1) + unsigned(ap_const_lv6_3F));
+        tmp_fu_252_p37 when (icmp_ln95_fu_246_p2(0) = '1') else 
+        ap_const_lv26_C8000;
+    icmp_ln100_fu_968_p2 <= "1" when (signed(cand_4_fu_724_p3) < signed(cand_5_fu_824_p3)) else "0";
+    icmp_ln103_fu_988_p2 <= "1" when (signed(l2_0_fu_940_p3) < signed(l2_1_fu_960_p3)) else "0";
+    icmp_ln104_fu_1002_p2 <= "1" when (signed(l2_2_fu_980_p3) < signed(cand_7_fu_920_p3)) else "0";
+    icmp_ln105_fu_1016_p2 <= "1" when (signed(l3_0_reg_1026) < signed(l3_1_reg_1032)) else "0";
+    icmp_ln95_1_fu_342_p2 <= "1" when (unsigned(jj_1_fu_336_p2) < unsigned(ap_const_lv6_14)) else "0";
+    icmp_ln95_2_fu_442_p2 <= "1" when (unsigned(jj_2_fu_436_p2) < unsigned(ap_const_lv6_14)) else "0";
+    icmp_ln95_3_fu_634_p2 <= "1" when (unsigned(jj_3_fu_628_p2) < unsigned(ap_const_lv5_14)) else "0";
+    icmp_ln95_4_fu_738_p2 <= "1" when (unsigned(jj_4_fu_732_p2) < unsigned(ap_const_lv5_14)) else "0";
+    icmp_ln95_5_fu_838_p2 <= "1" when (unsigned(jj_5_fu_832_p2) < unsigned(ap_const_lv5_14)) else "0";
+    icmp_ln95_fu_246_p2 <= "1" when (unsigned(jj_fu_240_p2) < unsigned(ap_const_lv6_14)) else "0";
+    icmp_ln98_fu_928_p2 <= "1" when (signed(cand_fu_328_p3) < signed(cand_1_fu_428_p3)) else "0";
+    icmp_ln99_fu_948_p2 <= "1" when (signed(cand_2_fu_532_p3) < signed(cand_3_fu_540_p43)) else "0";
+    jj_1_fu_336_p2 <= std_logic_vector(unsigned(zext_ln87_fu_236_p1) + unsigned(ap_const_lv6_3E));
+    jj_2_fu_436_p2 <= std_logic_vector(unsigned(zext_ln87_fu_236_p1) + unsigned(ap_const_lv6_3F));
     jj_3_fu_628_p2 <= std_logic_vector(unsigned(center_idx) + unsigned(ap_const_lv5_1));
     jj_4_fu_732_p2 <= std_logic_vector(unsigned(center_idx) + unsigned(ap_const_lv5_2));
     jj_5_fu_832_p2 <= std_logic_vector(unsigned(center_idx) + unsigned(ap_const_lv5_3));
-    jj_fu_240_p2 <= std_logic_vector(unsigned(zext_ln89_fu_236_p1) + unsigned(ap_const_lv6_3D));
+    jj_fu_240_p2 <= std_logic_vector(unsigned(zext_ln87_fu_236_p1) + unsigned(ap_const_lv6_3D));
     l2_0_fu_940_p3 <= 
-        cand_1_fu_428_p3 when (xor_ln100_fu_934_p2(0) = '1') else 
+        cand_1_fu_428_p3 when (xor_ln98_fu_934_p2(0) = '1') else 
         cand_fu_328_p3;
     l2_1_fu_960_p3 <= 
-        cand_3_fu_540_p43 when (xor_ln101_fu_954_p2(0) = '1') else 
+        cand_3_fu_540_p43 when (xor_ln99_fu_954_p2(0) = '1') else 
         cand_2_fu_532_p3;
     l2_2_fu_980_p3 <= 
-        cand_5_fu_824_p3 when (xor_ln102_fu_974_p2(0) = '1') else 
+        cand_5_fu_824_p3 when (xor_ln100_fu_974_p2(0) = '1') else 
         cand_4_fu_724_p3;
-    l3_0_fu_992_p3 <= 
-        l2_0_reg_1028 when (icmp_ln105_fu_988_p2(0) = '1') else 
-        l2_1_reg_1034;
-    l3_1_fu_1002_p3 <= 
-        l2_2_reg_1040 when (icmp_ln106_fu_998_p2(0) = '1') else 
-        cand_7_reg_1022;
-    tmp_1_fu_448_p39 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    tmp_3_fu_640_p39 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    tmp_4_fu_744_p37 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    tmp_5_fu_844_p35 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    tmp_fu_252_p35 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    tmp_s_fu_348_p37 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-    xor_ln100_fu_934_p2 <= (icmp_ln100_fu_928_p2 xor ap_const_lv1_1);
-    xor_ln101_fu_954_p2 <= (icmp_ln101_fu_948_p2 xor ap_const_lv1_1);
-    xor_ln102_fu_974_p2 <= (icmp_ln102_fu_968_p2 xor ap_const_lv1_1);
-    zext_ln89_fu_236_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(center_idx),6));
+    l3_0_fu_994_p3 <= 
+        l2_0_fu_940_p3 when (icmp_ln103_fu_988_p2(0) = '1') else 
+        l2_1_fu_960_p3;
+    l3_1_fu_1008_p3 <= 
+        l2_2_fu_980_p3 when (icmp_ln104_fu_1002_p2(0) = '1') else 
+        cand_7_fu_920_p3;
+    tmp_1_fu_448_p39 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tmp_3_fu_640_p39 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tmp_4_fu_744_p37 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tmp_5_fu_844_p35 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tmp_fu_252_p35 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tmp_s_fu_348_p37 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+    xor_ln100_fu_974_p2 <= (icmp_ln100_fu_968_p2 xor ap_const_lv1_1);
+    xor_ln98_fu_934_p2 <= (icmp_ln98_fu_928_p2 xor ap_const_lv1_1);
+    xor_ln99_fu_954_p2 <= (icmp_ln99_fu_948_p2 xor ap_const_lv1_1);
+    zext_ln87_fu_236_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(center_idx),6));
 end behav;

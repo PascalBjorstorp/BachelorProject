@@ -23,7 +23,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_x \
     op interface \
-    ports { x { I 26 vector } } \
+    ports { x { I 21 vector } } \
 } "
 }
 
@@ -51,7 +51,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 26 vector } } \
+    ports { ap_return { O 21 vector } } \
 } "
 }
 

@@ -17,9 +17,9 @@
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="8" bw="32" op_0_bw="32" op_1_bw="32">
+<Node id="8" bw="26" op_0_bw="26" op_1_bw="26">
 <![CDATA[
-entry:0 %prev_curvature_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_curvature
+entry:0 %prev_curvature_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_curvature
 
 ]]></Node>
 <StgValue><ssdm name="prev_curvature_read"/></StgValue>
@@ -32,9 +32,9 @@ entry:0 %prev_curvature_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_cu
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="9" bw="22" op_0_bw="22" op_1_bw="22">
+<Node id="9" bw="19" op_0_bw="19" op_1_bw="19">
 <![CDATA[
-entry:1 %prev_accel_read = read i22 @_ssdm_op_Read.ap_auto.i22, i22 %prev_accel
+entry:1 %prev_accel_read = read i19 @_ssdm_op_Read.ap_auto.i19, i19 %prev_accel
 
 ]]></Node>
 <StgValue><ssdm name="prev_accel_read"/></StgValue>
@@ -47,9 +47,9 @@ entry:1 %prev_accel_read = read i22 @_ssdm_op_Read.ap_auto.i22, i22 %prev_accel
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="10" bw="32" op_0_bw="32" op_1_bw="32">
+<Node id="10" bw="26" op_0_bw="26" op_1_bw="26">
 <![CDATA[
-entry:2 %prev_steer_rate_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_steer_rate
+entry:2 %prev_steer_rate_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_steer_rate
 
 ]]></Node>
 <StgValue><ssdm name="prev_steer_rate_read"/></StgValue>
@@ -62,12 +62,12 @@ entry:2 %prev_steer_rate_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_s
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="11" bw="32" op_0_bw="22">
+<Node id="11" bw="26" op_0_bw="19">
 <![CDATA[
-entry:3 %sext_ln259 = sext i22 %prev_accel_read
+entry:3 %sext_ln257 = sext i19 %prev_accel_read
 
 ]]></Node>
-<StgValue><ssdm name="sext_ln259"/></StgValue>
+<StgValue><ssdm name="sext_ln257"/></StgValue>
 </operation>
 
 <operation id="6" st_id="1" stage="1" lat="1">
@@ -77,12 +77,12 @@ entry:3 %sext_ln259 = sext i22 %prev_accel_read
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="12" bw="0" op_0_bw="32" op_1_bw="32">
+<Node id="12" bw="0" op_0_bw="26" op_1_bw="26">
 <![CDATA[
-entry:4 %store_ln261 = store i32 %prev_steer_rate_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate
+entry:4 %store_ln259 = store i26 %prev_steer_rate_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate
 
 ]]></Node>
-<StgValue><ssdm name="store_ln261"/></StgValue>
+<StgValue><ssdm name="store_ln259"/></StgValue>
 </operation>
 
 <operation id="7" st_id="1" stage="1" lat="1">
@@ -92,12 +92,12 @@ entry:4 %store_ln261 = store i32 %prev_steer_rate_read, i32 %p_anonymous_namespa
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="13" bw="0" op_0_bw="32" op_1_bw="32">
+<Node id="13" bw="0" op_0_bw="26" op_1_bw="26">
 <![CDATA[
-entry:5 %store_ln262 = store i32 %sext_ln259, i32 %p_anonymous_namespace_g_core_state_persist_prev_accel
+entry:5 %store_ln260 = store i26 %sext_ln257, i26 %p_anonymous_namespace_g_core_state_persist_prev_accel
 
 ]]></Node>
-<StgValue><ssdm name="store_ln262"/></StgValue>
+<StgValue><ssdm name="store_ln260"/></StgValue>
 </operation>
 
 <operation id="8" st_id="1" stage="1" lat="1">
@@ -107,12 +107,12 @@ entry:5 %store_ln262 = store i32 %sext_ln259, i32 %p_anonymous_namespace_g_core_
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="14" bw="0" op_0_bw="32" op_1_bw="32">
+<Node id="14" bw="0" op_0_bw="26" op_1_bw="26">
 <![CDATA[
-entry:6 %store_ln263 = store i32 %prev_curvature_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_curvature
+entry:6 %store_ln261 = store i26 %prev_curvature_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_curvature
 
 ]]></Node>
-<StgValue><ssdm name="store_ln263"/></StgValue>
+<StgValue><ssdm name="store_ln261"/></StgValue>
 </operation>
 
 <operation id="9" st_id="1" stage="1" lat="1">
@@ -124,10 +124,10 @@ entry:6 %store_ln263 = store i32 %prev_curvature_read, i32 %p_anonymous_namespac
 
 <Node id="15" bw="0" op_0_bw="1" op_1_bw="1">
 <![CDATA[
-entry:7 %store_ln264 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature
+entry:7 %store_ln262 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature
 
 ]]></Node>
-<StgValue><ssdm name="store_ln264"/></StgValue>
+<StgValue><ssdm name="store_ln262"/></StgValue>
 </operation>
 
 <operation id="10" st_id="1" stage="1" lat="1">
@@ -139,10 +139,10 @@ entry:7 %store_ln264 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persis
 
 <Node id="16" bw="0">
 <![CDATA[
-entry:8 %ret_ln265 = ret
+entry:8 %ret_ln263 = ret
 
 ]]></Node>
-<StgValue><ssdm name="ret_ln265"/></StgValue>
+<StgValue><ssdm name="ret_ln263"/></StgValue>
 </operation>
 </state>
 </state_list>
@@ -174,35 +174,35 @@ entry:8 %ret_ln265 = ret
 
 
 <dataflows>
-<dataflow id="19" from="_ssdm_op_Read.ap_auto.i32" to="prev_curvature_read" fromId="18" toId="2">
+<dataflow id="19" from="_ssdm_op_Read.ap_auto.i26" to="prev_curvature_read" fromId="18" toId="2">
 </dataflow>
 <dataflow id="20" from="prev_curvature" to="prev_curvature_read" fromId="13" toId="2">
 </dataflow>
-<dataflow id="22" from="_ssdm_op_Read.ap_auto.i22" to="prev_accel_read" fromId="21" toId="3">
+<dataflow id="22" from="_ssdm_op_Read.ap_auto.i19" to="prev_accel_read" fromId="21" toId="3">
 </dataflow>
 <dataflow id="23" from="prev_accel" to="prev_accel_read" fromId="12" toId="3">
 </dataflow>
-<dataflow id="24" from="_ssdm_op_Read.ap_auto.i32" to="prev_steer_rate_read" fromId="18" toId="4">
+<dataflow id="24" from="_ssdm_op_Read.ap_auto.i26" to="prev_steer_rate_read" fromId="18" toId="4">
 </dataflow>
 <dataflow id="25" from="prev_steer_rate" to="prev_steer_rate_read" fromId="11" toId="4">
 </dataflow>
-<dataflow id="26" from="prev_accel_read" to="sext_ln259" fromId="3" toId="5">
+<dataflow id="26" from="prev_accel_read" to="sext_ln257" fromId="3" toId="5">
 </dataflow>
-<dataflow id="27" from="prev_steer_rate_read" to="store_ln261" fromId="4" toId="6">
+<dataflow id="27" from="prev_steer_rate_read" to="store_ln259" fromId="4" toId="6">
 </dataflow>
-<dataflow id="28" from="p_anonymous_namespace_g_core_state_persist_prev_steer_rate" to="store_ln261" fromId="14" toId="6">
+<dataflow id="28" from="p_anonymous_namespace_g_core_state_persist_prev_steer_rate" to="store_ln259" fromId="14" toId="6">
 </dataflow>
-<dataflow id="29" from="sext_ln259" to="store_ln262" fromId="5" toId="7">
+<dataflow id="29" from="sext_ln257" to="store_ln260" fromId="5" toId="7">
 </dataflow>
-<dataflow id="30" from="p_anonymous_namespace_g_core_state_persist_prev_accel" to="store_ln262" fromId="15" toId="7">
+<dataflow id="30" from="p_anonymous_namespace_g_core_state_persist_prev_accel" to="store_ln260" fromId="15" toId="7">
 </dataflow>
-<dataflow id="31" from="prev_curvature_read" to="store_ln263" fromId="2" toId="8">
+<dataflow id="31" from="prev_curvature_read" to="store_ln261" fromId="2" toId="8">
 </dataflow>
-<dataflow id="32" from="p_anonymous_namespace_g_core_state_persist_prev_curvature" to="store_ln263" fromId="16" toId="8">
+<dataflow id="32" from="p_anonymous_namespace_g_core_state_persist_prev_curvature" to="store_ln261" fromId="16" toId="8">
 </dataflow>
-<dataflow id="34" from="StgValue_33" to="store_ln264" fromId="33" toId="9">
+<dataflow id="34" from="StgValue_33" to="store_ln262" fromId="33" toId="9">
 </dataflow>
-<dataflow id="35" from="p_anonymous_namespace_g_core_state_persist_prev_model_signature" to="store_ln264" fromId="17" toId="9">
+<dataflow id="35" from="p_anonymous_namespace_g_core_state_persist_prev_model_signature" to="store_ln262" fromId="17" toId="9">
 </dataflow>
 </dataflows>
 

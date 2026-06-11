@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'p_anonymous_namespace_mpc_fpga_compute_core'" level="0">
-<item name = "Date">Thu May 21 15:23:14 2026
+<item name = "Date">Thu Jun 11 16:07:09 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.482 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.491 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,19 +24,19 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">1, 151086, 5.000 ns, 0.755 ms, 1, 151086, no</column>
+<column name="">1, 101419, 5.000 ns, 0.507 ms, 1, 101419, no</column>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_264">p_anonymous_namespace_reset_core_state_hls, 24, 24, 0.120 us, 0.120 us, 24, 24, no</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
-<column name="grp_mpc_compute_hls_fu_404">mpc_compute_hls, 4777, 151028, 23.885 us, 0.755 ms, 4777, 151028, no</column>
+<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_272">p_anonymous_namespace_reset_core_state_hls, 24, 24, 0.120 us, 0.120 us, 24, 24, no</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
+<column name="grp_mpc_compute_hls_fu_412">mpc_compute_hls, 3282, 101361, 16.410 us, 0.507 ms, 3282, 101361, no</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -53,27 +53,27 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 399, -</column>
+<column name="Expression">-, -, 0, 371, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">78, 1128, 99757, 105005, 0</column>
-<column name="Memory">0, -, 672, 216, 0</column>
+<column name="Instance">51, 770, 59747, 87061, 0</column>
+<column name="Memory">0, -, 546, 180, 0</column>
 <column name="Multiplexer">-, -, 0, 2059, -</column>
-<column name="Register">-, -, 249, -, -</column>
+<column name="Register">-, -, 329, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
-<specialColumn name="Utilization (%)">27, 90, 42, 91, 0</specialColumn>
+<specialColumn name="Utilization (%)">17, 61, 25, 76, 0</specialColumn>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="grp_mpc_compute_hls_fu_404">mpc_compute_hls, 78, 1126, 99613, 104636, 0</column>
-<column name="mul_32s_27ns_50_4_1_U2233">mul_32s_27ns_50_4_1, 0, 2, 98, 47, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1, 0, 0, 7, 51, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3, 0, 0, 7, 51, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1, 0, 0, 7, 51, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3, 0, 0, 7, 51, 0</column>
-<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_264">p_anonymous_namespace_reset_core_state_hls, 0, 0, 18, 118, 0</column>
+<column name="grp_mpc_compute_hls_fu_412">mpc_compute_hls, 51, 768, 59680, 86710, 0</column>
+<column name="mul_26s_23ns_49_3_1_U2127">mul_26s_23ns_49_3_1, 0, 2, 21, 29, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1, 0, 0, 7, 51, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3, 0, 0, 7, 51, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1, 0, 0, 7, 51, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356">p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3, 0, 0, 7, 51, 0</column>
+<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_272">p_anonymous_namespace_reset_core_state_hls, 0, 0, 18, 118, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -82,26 +82,26 @@
 </item>
 <item name = "Memory"><table name="" hasTotal="1">
 <keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statbkb, 0, 64, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_2_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_3_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_4_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_5_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_6_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_7_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_2_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_3_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_4_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_5_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_6_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_7_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 32, 11, 0, 21, 32, 1, 672</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_u_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_u_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_u_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_u_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 32, 10, 0, 20, 32, 1, 640</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statbkb, 0, 52, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_2_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_3_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_4_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_5_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_6_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_7_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_2_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_3_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_4_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_5_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_6_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_7_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud, 0, 26, 9, 0, 21, 26, 1, 546</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_u_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_u_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_u_0_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_u_1_U">p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU, 0, 26, 9, 0, 20, 26, 1, 520</column>
 </table>
 </item>
 <item name = "FIFO"><table name="" hasTotal="1">
@@ -110,148 +110,151 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="add_ln330_fu_770_p2">+, 0, 0, 39, 32, 1</column>
-<column name="value_254_fu_645_p2">-, 0, 0, 39, 32, 32</column>
-<column name="and_ln279_1_fu_552_p2">and, 0, 0, 2, 1, 1</column>
-<column name="and_ln279_2_fu_558_p2">and, 0, 0, 2, 1, 1</column>
-<column name="and_ln279_fu_546_p2">and, 0, 0, 2, 1, 1</column>
-<column name="ap_block_state12_on_subcall_done">and, 0, 0, 2, 1, 1</column>
+<column name="add_ln323_fu_776_p2">+, 0, 0, 39, 32, 1</column>
+<column name="value_fu_655_p2">-, 0, 0, 33, 26, 26</column>
+<column name="and_ln272_1_fu_562_p2">and, 0, 0, 2, 1, 1</column>
+<column name="and_ln272_2_fu_568_p2">and, 0, 0, 2, 1, 1</column>
+<column name="and_ln272_fu_556_p2">and, 0, 0, 2, 1, 1</column>
 <column name="ap_predicate_op67_call_state7">and, 0, 0, 2, 1, 1</column>
-<column name="icmp_ln128_fu_685_p2">icmp, 0, 0, 39, 32, 21</column>
-<column name="icmp_ln130_fu_691_p2">icmp, 0, 0, 39, 32, 20</column>
-<column name="icmp_ln279_1_fu_520_p2">icmp, 0, 0, 18, 11, 1</column>
-<column name="icmp_ln279_2_fu_530_p2">icmp, 0, 0, 18, 11, 1</column>
-<column name="icmp_ln279_3_fu_540_p2">icmp, 0, 0, 18, 11, 1</column>
-<column name="icmp_ln279_fu_510_p2">icmp, 0, 0, 18, 11, 1</column>
-<column name="icmp_ln328_fu_748_p2">icmp, 0, 0, 39, 32, 1</column>
-<column name="icmp_ln329_fu_764_p2">icmp, 0, 0, 39, 32, 31</column>
+<column name="icmp_ln143_fu_695_p2">icmp, 0, 0, 33, 26, 17</column>
+<column name="icmp_ln145_fu_701_p2">icmp, 0, 0, 33, 26, 16</column>
+<column name="icmp_ln272_1_fu_530_p2">icmp, 0, 0, 18, 11, 1</column>
+<column name="icmp_ln272_2_fu_540_p2">icmp, 0, 0, 18, 11, 1</column>
+<column name="icmp_ln272_3_fu_550_p2">icmp, 0, 0, 18, 11, 1</column>
+<column name="icmp_ln272_fu_520_p2">icmp, 0, 0, 18, 11, 1</column>
+<column name="icmp_ln321_fu_755_p2">icmp, 0, 0, 39, 32, 1</column>
+<column name="icmp_ln322_fu_770_p2">icmp, 0, 0, 39, 32, 31</column>
 <column name="out_status">icmp, 0, 0, 39, 32, 1</column>
 <column name="ap_block_state7_on_subcall_done">or, 0, 0, 2, 1, 1</column>
-<column name="empty_fu_705_p2">or, 0, 0, 2, 1, 1</column>
-<column name="measured_steer_rate_fu_711_p3">select, 0, 0, 20, 1, 21</column>
-<column name="select_ln130_fu_697_p3">select, 0, 0, 20, 1, 21</column>
+<column name="empty_fu_715_p2">or, 0, 0, 2, 1, 1</column>
+<column name="measured_steer_rate_fu_721_p3">select, 0, 0, 16, 1, 17</column>
+<column name="select_ln145_fu_707_p3">select, 0, 0, 16, 1, 17</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
 <column name="ap_NS_fsm">65, 13, 1, 13</column>
-<column name="ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load">9, 2, 32, 64</column>
+<column name="ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load">9, 2, 26, 52</column>
 <column name="p_anonymous_namespace_g_core_state_admm_initialized">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_rho">14, 3, 32, 96</column>
-<column name="p_anonymous_namespace_g_core_state_admm_rho_u">14, 3, 32, 96</column>
+<column name="p_anonymous_namespace_g_core_state_admm_rho">14, 3, 26, 78</column>
+<column name="p_anonymous_namespace_g_core_state_admm_rho_u">14, 3, 26, 78</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_0_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_0_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_u_0_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_u_0_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_0_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_1_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_1_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_u_1_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_u_1_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_u_1_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_0_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_0_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_0_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_0_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_0_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_1_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_1_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_1_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_1_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_1_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_2_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_2_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_2_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_2_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_2_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_3_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_3_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_3_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_3_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_3_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_4_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_4_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_4_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_4_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_4_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_5_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_5_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_5_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_5_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_5_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_6_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_6_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_6_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_6_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_6_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_7_address0">26, 5, 5, 25</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_7_ce0">26, 5, 1, 5</column>
-<column name="p_anonymous_namespace_g_core_state_admm_y_x_7_d0">26, 5, 32, 160</column>
+<column name="p_anonymous_namespace_g_core_state_admm_y_x_7_d0">26, 5, 26, 130</column>
 <column name="p_anonymous_namespace_g_core_state_admm_y_x_7_we0">26, 5, 1, 5</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_0_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_0_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_u_0_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_u_0_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_0_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_1_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_1_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_u_1_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_u_1_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_u_1_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_0_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_0_ce0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_0_ce1">9, 2, 1, 2</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_0_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_0_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_0_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_1_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_1_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_1_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_1_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_1_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_2_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_2_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_2_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_2_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_2_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_3_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_3_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_3_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_3_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_3_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_4_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_4_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_4_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_4_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_4_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_5_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_5_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_5_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_5_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_5_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_6_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_6_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_6_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_6_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_6_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_7_address0">20, 4, 5, 20</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_7_ce0">20, 4, 1, 4</column>
-<column name="p_anonymous_namespace_g_core_state_admm_z_x_7_d0">20, 4, 32, 128</column>
+<column name="p_anonymous_namespace_g_core_state_admm_z_x_7_d0">20, 4, 26, 104</column>
 <column name="p_anonymous_namespace_g_core_state_admm_z_x_7_we0">20, 4, 1, 4</column>
 <column name="p_anonymous_namespace_g_core_state_initialized">9, 2, 1, 2</column>
-<column name="p_anonymous_namespace_g_core_state_persist_actual_steering">9, 2, 32, 64</column>
+<column name="p_anonymous_namespace_g_core_state_persist_actual_steering">9, 2, 26, 52</column>
 <column name="p_anonymous_namespace_g_core_state_persist_max_iter_streak">14, 3, 32, 96</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_accel">14, 3, 32, 96</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_curvature">14, 3, 32, 96</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_accel">14, 3, 26, 78</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_curvature">14, 3, 26, 78</column>
 <column name="p_anonymous_namespace_g_core_state_persist_prev_model_signature">14, 3, 1, 3</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_steer_rate">14, 3, 32, 96</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_steer_rate">14, 3, 26, 78</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="and_ln279_2_reg_835">1, 0, 1, 0</column>
+<column name="accel_out_reg_866">26, 0, 26, 0</column>
+<column name="and_ln272_2_reg_840">1, 0, 1, 0</column>
 <column name="ap_CS_fsm">12, 0, 12, 0</column>
-<column name="grp_mpc_compute_hls_fu_404_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_mpc_compute_hls_fu_412_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg">1, 0, 1, 0</column>
+<column name="iters_reg_877">32, 0, 32, 0</column>
 <column name="p_anonymous_namespace_g_core_state_admm_initialized">1, 0, 1, 0</column>
-<column name="p_anonymous_namespace_g_core_state_admm_rho">32, 0, 32, 0</column>
-<column name="p_anonymous_namespace_g_core_state_admm_rho_u">32, 0, 32, 0</column>
+<column name="p_anonymous_namespace_g_core_state_admm_rho">26, 0, 26, 0</column>
+<column name="p_anonymous_namespace_g_core_state_admm_rho_u">26, 0, 26, 0</column>
 <column name="p_anonymous_namespace_g_core_state_initialized">1, 0, 1, 0</column>
-<column name="p_anonymous_namespace_g_core_state_initialized_load_reg_839">1, 0, 1, 0</column>
-<column name="p_anonymous_namespace_g_core_state_persist_actual_steering">32, 0, 32, 0</column>
+<column name="p_anonymous_namespace_g_core_state_initialized_load_reg_844">1, 0, 1, 0</column>
+<column name="p_anonymous_namespace_g_core_state_persist_actual_steering">26, 0, 26, 0</column>
 <column name="p_anonymous_namespace_g_core_state_persist_max_iter_streak">32, 0, 32, 0</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_accel">32, 0, 32, 0</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_curvature">32, 0, 32, 0</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_accel">26, 0, 26, 0</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_curvature">26, 0, 26, 0</column>
 <column name="p_anonymous_namespace_g_core_state_persist_prev_model_signature">1, 0, 1, 0</column>
-<column name="p_anonymous_namespace_g_core_state_persist_prev_steer_rate">32, 0, 32, 0</column>
-<column name="tmp_109_reg_847">1, 0, 1, 0</column>
-<column name="tmp_reg_843">1, 0, 1, 0</column>
+<column name="p_anonymous_namespace_g_core_state_persist_prev_steer_rate">26, 0, 26, 0</column>
+<column name="solver_status_reg_871">32, 0, 32, 0</column>
+<column name="steer_out_reg_861">26, 0, 26, 0</column>
+<column name="tmp_109_reg_852">1, 0, 1, 0</column>
+<column name="tmp_reg_848">1, 0, 1, 0</column>
 </table>
 </item>
 </section>
@@ -267,41 +270,41 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, (anonymous namespace)mpc_fpga_compute_core, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, (anonymous namespace)mpc_fpga_compute_core, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, (anonymous namespace)mpc_fpga_compute_core, return value</column>
-<column name="ey">in, 32, ap_none, ey, scalar</column>
-<column name="epsi">in, 32, ap_none, epsi, scalar</column>
-<column name="vx">in, 32, ap_none, vx, scalar</column>
-<column name="vy">in, 32, ap_none, vy, scalar</column>
-<column name="omega">in, 32, ap_none, omega, scalar</column>
-<column name="steering">in, 32, ap_none, steering, scalar</column>
-<column name="prev_accel">in, 32, ap_none, prev_accel, scalar</column>
+<column name="ey">in, 26, ap_none, ey, scalar</column>
+<column name="epsi">in, 26, ap_none, epsi, scalar</column>
+<column name="vx">in, 26, ap_none, vx, scalar</column>
+<column name="vy">in, 26, ap_none, vy, scalar</column>
+<column name="omega">in, 26, ap_none, omega, scalar</column>
+<column name="steering">in, 26, ap_none, steering, scalar</column>
+<column name="prev_accel">in, 26, ap_none, prev_accel, scalar</column>
 <column name="control_flags">in, 3, ap_none, control_flags, scalar</column>
 <column name="ref_reference_heading_error_address0">out, 5, ap_memory, ref_reference_heading_error, array</column>
 <column name="ref_reference_heading_error_ce0">out, 1, ap_memory, ref_reference_heading_error, array</column>
-<column name="ref_reference_heading_error_q0">in, 32, ap_memory, ref_reference_heading_error, array</column>
+<column name="ref_reference_heading_error_q0">in, 26, ap_memory, ref_reference_heading_error, array</column>
 <column name="ref_reference_lateral_error_address0">out, 5, ap_memory, ref_reference_lateral_error, array</column>
 <column name="ref_reference_lateral_error_ce0">out, 1, ap_memory, ref_reference_lateral_error, array</column>
-<column name="ref_reference_lateral_error_q0">in, 32, ap_memory, ref_reference_lateral_error, array</column>
+<column name="ref_reference_lateral_error_q0">in, 26, ap_memory, ref_reference_lateral_error, array</column>
 <column name="ref_reference_velocity_address0">out, 5, ap_memory, ref_reference_velocity, array</column>
 <column name="ref_reference_velocity_ce0">out, 1, ap_memory, ref_reference_velocity, array</column>
-<column name="ref_reference_velocity_q0">in, 32, ap_memory, ref_reference_velocity, array</column>
+<column name="ref_reference_velocity_q0">in, 26, ap_memory, ref_reference_velocity, array</column>
 <column name="ref_reference_lateral_velocity_address0">out, 5, ap_memory, ref_reference_lateral_velocity, array</column>
 <column name="ref_reference_lateral_velocity_ce0">out, 1, ap_memory, ref_reference_lateral_velocity, array</column>
-<column name="ref_reference_lateral_velocity_q0">in, 32, ap_memory, ref_reference_lateral_velocity, array</column>
+<column name="ref_reference_lateral_velocity_q0">in, 26, ap_memory, ref_reference_lateral_velocity, array</column>
 <column name="ref_reference_yaw_rate_address0">out, 5, ap_memory, ref_reference_yaw_rate, array</column>
 <column name="ref_reference_yaw_rate_ce0">out, 1, ap_memory, ref_reference_yaw_rate, array</column>
-<column name="ref_reference_yaw_rate_q0">in, 32, ap_memory, ref_reference_yaw_rate, array</column>
+<column name="ref_reference_yaw_rate_q0">in, 26, ap_memory, ref_reference_yaw_rate, array</column>
 <column name="ref_path_curvature_address0">out, 5, ap_memory, ref_path_curvature, array</column>
 <column name="ref_path_curvature_ce0">out, 1, ap_memory, ref_path_curvature, array</column>
-<column name="ref_path_curvature_q0">in, 32, ap_memory, ref_path_curvature, array</column>
+<column name="ref_path_curvature_q0">in, 26, ap_memory, ref_path_curvature, array</column>
 <column name="ref_left_wall_bound_address0">out, 5, ap_memory, ref_left_wall_bound, array</column>
 <column name="ref_left_wall_bound_ce0">out, 1, ap_memory, ref_left_wall_bound, array</column>
-<column name="ref_left_wall_bound_q0">in, 32, ap_memory, ref_left_wall_bound, array</column>
+<column name="ref_left_wall_bound_q0">in, 26, ap_memory, ref_left_wall_bound, array</column>
 <column name="ref_right_wall_bound_address0">out, 5, ap_memory, ref_right_wall_bound, array</column>
 <column name="ref_right_wall_bound_ce0">out, 1, ap_memory, ref_right_wall_bound, array</column>
-<column name="ref_right_wall_bound_q0">in, 32, ap_memory, ref_right_wall_bound, array</column>
-<column name="out_steering">out, 32, ap_vld, out_steering, pointer</column>
+<column name="ref_right_wall_bound_q0">in, 26, ap_memory, ref_right_wall_bound, array</column>
+<column name="out_steering">out, 26, ap_vld, out_steering, pointer</column>
 <column name="out_steering_ap_vld">out, 1, ap_vld, out_steering, pointer</column>
-<column name="out_accel">out, 32, ap_vld, out_accel, pointer</column>
+<column name="out_accel">out, 26, ap_vld, out_accel, pointer</column>
 <column name="out_accel_ap_vld">out, 1, ap_vld, out_accel, pointer</column>
 <column name="out_status">out, 1, ap_vld, out_status, pointer</column>
 <column name="out_status_ap_vld">out, 1, ap_vld, out_status, pointer</column>

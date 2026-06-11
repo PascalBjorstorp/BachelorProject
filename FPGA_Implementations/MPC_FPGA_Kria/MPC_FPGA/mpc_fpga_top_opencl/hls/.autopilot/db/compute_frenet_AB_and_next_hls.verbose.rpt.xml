@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_frenet_AB_and_next_hls'" level="0">
-<item name = "Date">Thu May 21 15:23:09 2026
+<item name = "Date">Thu Jun 11 16:07:00 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.433 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.376 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,14 +24,14 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">99, 99, 0.495 us, 0.495 us, 100, 100, yes</column>
+<column name="">72, 72, 0.360 us, 0.360 us, 73, 73, yes</column>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_compute_frenet_AB_hls_fu_78">compute_frenet_AB_hls, 99, 99, 0.495 us, 0.495 us, 100, 100, yes</column>
+<column name="grp_compute_frenet_AB_hls_fu_78">compute_frenet_AB_hls, 72, 72, 0.360 us, 0.360 us, 73, 73, yes</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -50,19 +50,19 @@
 <column name="DSP">-, -, -, -, -</column>
 <column name="Expression">-, -, -, -, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">30, 168, 27535, 28683, -</column>
+<column name="Instance">26, 144, 17342, 21653, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 503, -</column>
-<column name="Register">-, -, 100, -, -</column>
+<column name="Multiplexer">-, -, 0, 389, -</column>
+<column name="Register">-, -, 73, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
-<specialColumn name="Utilization (%)">10, 13, 11, 24, 0</specialColumn>
+<specialColumn name="Utilization (%)">9, 11, 7, 18, 0</specialColumn>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="grp_compute_frenet_AB_hls_fu_78">compute_frenet_AB_hls, 30, 168, 27535, 28683, 0</column>
+<column name="grp_compute_frenet_AB_hls_fu_78">compute_frenet_AB_hls, 26, 144, 17342, 21653, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -83,12 +83,12 @@
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">503, 101, 1, 101</column>
+<column name="ap_NS_fsm">389, 74, 1, 74</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="ap_CS_fsm">100, 0, 100, 0</column>
+<column name="ap_CS_fsm">73, 0, 73, 0</column>
 </table>
 </item>
 </section>
@@ -104,54 +104,54 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_0">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_1">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_2">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_3">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_4">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_5">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_6">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_7">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_8">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_9">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_10">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_11">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_12">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_13">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_14">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_15">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_16">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_17">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_18">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_19">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_20">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_21">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_22">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_23">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_24">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_25">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_26">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_27">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_28">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_29">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_30">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_31">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_32">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_33">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_34">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_35">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_36">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_37">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_38">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ap_return_39">out, 32, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
-<column name="ey">in, 27, ap_none, ey, scalar</column>
-<column name="epsi">in, 27, ap_none, epsi, scalar</column>
-<column name="vx">in, 27, ap_none, vx, scalar</column>
-<column name="vy">in, 27, ap_none, vy, scalar</column>
-<column name="omega">in, 27, ap_none, omega, scalar</column>
-<column name="delta">in, 18, ap_none, delta, scalar</column>
-<column name="a_cmd">in, 27, ap_none, a_cmd, scalar</column>
-<column name="kappa">in, 27, ap_none, kappa, scalar</column>
+<column name="ap_return_0">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_1">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_2">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_3">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_4">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_5">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_6">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_7">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_8">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_9">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_10">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_11">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_12">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_13">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_14">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_15">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_16">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_17">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_18">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_19">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_20">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_21">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_22">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_23">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_24">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_25">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_26">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_27">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_28">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_29">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_30">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_31">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_32">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_33">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_34">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_35">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_36">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_37">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_38">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ap_return_39">out, 26, ap_ctrl_hs, compute_frenet_AB_and_next_hls, return value</column>
+<column name="ey">in, 23, ap_none, ey, scalar</column>
+<column name="epsi">in, 23, ap_none, epsi, scalar</column>
+<column name="vx">in, 23, ap_none, vx, scalar</column>
+<column name="vy">in, 23, ap_none, vy, scalar</column>
+<column name="omega">in, 23, ap_none, omega, scalar</column>
+<column name="delta">in, 14, ap_none, delta, scalar</column>
+<column name="a_cmd">in, 23, ap_none, a_cmd, scalar</column>
+<column name="kappa">in, 23, ap_none, kappa, scalar</column>
 </table>
 </item>
 </section>

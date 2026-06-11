@@ -23,28 +23,28 @@
 <SummaryOfOverallLatency>
 <unit>clock cycles</unit>
 <Best-caseLatency>161</Best-caseLatency>
-<Average-caseLatency>4147</Average-caseLatency>
-<Worst-caseLatency>151272</Worst-caseLatency>
+<Average-caseLatency>2832</Average-caseLatency>
+<Worst-caseLatency>101605</Worst-caseLatency>
 <Best-caseRealTimeLatency>0.805 us</Best-caseRealTimeLatency>
-<Average-caseRealTimeLatency>20.735 us</Average-caseRealTimeLatency>
-<Worst-caseRealTimeLatency>0.756 ms</Worst-caseRealTimeLatency>
+<Average-caseRealTimeLatency>14.160 us</Average-caseRealTimeLatency>
+<Worst-caseRealTimeLatency>0.508 ms</Worst-caseRealTimeLatency>
 <Interval-min>162</Interval-min>
-<Interval-max>151273</Interval-max>
+<Interval-max>101606</Interval-max>
 <PerformancePragma>-</PerformancePragma>
 </SummaryOfOverallLatency>
 <SummaryOfViolations>
 <IssueType>-</IssueType>
 <ViolationType>-</ViolationType>
-<SourceLocation>../src/mpc_fpga_top.cpp:351</SourceLocation>
+<SourceLocation>../src/mpc_fpga_top.cpp:344</SourceLocation>
 </SummaryOfViolations>
 </PerformanceEstimates>
 
 <AreaEstimates>
 <Resources>
-<BRAM_18K>107</BRAM_18K>
-<DSP>1128</DSP>
-<FF>105329</FF>
-<LUT>113563</LUT>
+<BRAM_18K>80</BRAM_18K>
+<DSP>770</DSP>
+<FF>65117</FF>
+<LUT>95800</LUT>
 <URAM>0</URAM>
 </Resources>
 <AvailableResources>

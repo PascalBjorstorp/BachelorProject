@@ -15,21 +15,21 @@ set hasInterrupt 0
 set DLRegFirstOffset 0
 set DLRegItemOffset 0
 set svuvm_can_support 1
-set cdfgNum 76
+set cdfgNum 74
 set C_modelName {fp_frenet_recip}
-set C_modelType { int 23 }
+set C_modelType { int 20 }
 set ap_memory_interface_dict [dict create]
 set C_modelArgList {
-	{ kappa int 26 regular  }
-	{ ey int 26 regular  }
+	{ kappa int 21 regular  }
+	{ ey int 21 regular  }
 }
 set hasAXIMCache 0
 set l_AXIML2Cache [list]
 set AXIMCacheInstDict [dict create]
 set C_modelArgMapList {[ 
-	{ "Name" : "kappa", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "ey", "interface" : "wire", "bitwidth" : 26, "direction" : "READONLY"} , 
- 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 23} ]}
+	{ "Name" : "kappa", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "ey", "interface" : "wire", "bitwidth" : 21, "direction" : "READONLY"} , 
+ 	{ "Name" : "ap_return", "interface" : "wire", "bitwidth" : 20} ]}
 # RTL Port declarations: 
 set portNum 9
 set portList { 
@@ -39,9 +39,9 @@ set portList {
 	{ ap_done sc_out sc_logic 1 predone -1 } 
 	{ ap_idle sc_out sc_logic 1 done -1 } 
 	{ ap_ready sc_out sc_logic 1 ready -1 } 
-	{ kappa sc_in sc_lv 26 signal 0 } 
-	{ ey sc_in sc_lv 26 signal 1 } 
-	{ ap_return sc_out sc_lv 23 signal -1 } 
+	{ kappa sc_in sc_lv 21 signal 0 } 
+	{ ey sc_in sc_lv 21 signal 1 } 
+	{ ap_return sc_out sc_lv 20 signal -1 } 
 }
 set NewPortList {[ 
 	{ "name": "ap_clk", "direction": "in", "datatype": "sc_logic", "bitwidth":1, "type": "clock", "bundle":{"name": "ap_clk", "role": "default" }} , 
@@ -50,9 +50,9 @@ set NewPortList {[
  	{ "name": "ap_done", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "predone", "bundle":{"name": "ap_done", "role": "default" }} , 
  	{ "name": "ap_idle", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "done", "bundle":{"name": "ap_idle", "role": "default" }} , 
  	{ "name": "ap_ready", "direction": "out", "datatype": "sc_logic", "bitwidth":1, "type": "ready", "bundle":{"name": "ap_ready", "role": "default" }} , 
- 	{ "name": "kappa", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "kappa", "role": "default" }} , 
- 	{ "name": "ey", "direction": "in", "datatype": "sc_lv", "bitwidth":26, "type": "signal", "bundle":{"name": "ey", "role": "default" }} , 
- 	{ "name": "ap_return", "direction": "out", "datatype": "sc_lv", "bitwidth":23, "type": "signal", "bundle":{"name": "ap_return", "role": "default" }}  ]}
+ 	{ "name": "kappa", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "kappa", "role": "default" }} , 
+ 	{ "name": "ey", "direction": "in", "datatype": "sc_lv", "bitwidth":21, "type": "signal", "bundle":{"name": "ey", "role": "default" }} , 
+ 	{ "name": "ap_return", "direction": "out", "datatype": "sc_lv", "bitwidth":20, "type": "signal", "bundle":{"name": "ap_return", "role": "default" }}  ]}
 
 set ArgLastReadFirstWriteLatency {
 	fp_frenet_recip {
@@ -66,14 +66,14 @@ set ArgLastReadFirstWriteLatency {
 set hasDtUnsupportedChannel 0
 
 set PerformanceInfo {[
-	{"Name" : "Latency", "Min" : "12", "Max" : "12"}
-	, {"Name" : "Interval", "Min" : "13", "Max" : "13"}
+	{"Name" : "Latency", "Min" : "9", "Max" : "9"}
+	, {"Name" : "Interval", "Min" : "10", "Max" : "10"}
 ]}
 
 set PipelineEnableSignalInfo {[
 ]}
 
 set Spec2ImplPortList { 
-	kappa { ap_none {  { kappa in_data 0 26 } } }
-	ey { ap_none {  { ey in_data 0 26 } } }
+	kappa { ap_none {  { kappa in_data 0 21 } } }
+	ey { ap_none {  { ey in_data 0 21 } } }
 }

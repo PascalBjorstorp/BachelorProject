@@ -163,13 +163,13 @@ extern "C" {
 
 
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_pragma_ablation.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 10 "../src/../include/fp_math_hls.h" 2
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 1
 # 21 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_constants.h" 1
 # 22 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_profile_config.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 23 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/ap_fixed.h" 1
 
@@ -54701,99 +54701,161 @@ static inline void fp_cast_audit_bump_mulqp_site(int site_id) {
 #pragma HLS INLINE
   (void)site_id;
 }
-# 168 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(32 == 32,
+# 192 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert(26 == 26,
               "External payload width must match QP width for raw QP transport");
-static_assert(14 == 14,
+static_assert(12 == 12,
               "External payload format must match QP format for raw QP transport");
-# 410 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(((40) + 0) > (32 - 14), "P width too small");
-static_assert(((34) + 0) > (32 - 14), "MG width too small");
-static_assert(((26) + 0) > (32 - 14), "K width too small");
-
-static_assert((((59) + 1) - ((40) + 0)) > 0, "P/QP guard must be positive");
-static_assert((((52) + 1) - ((34) + 0)) > 0, "MG/QP guard must be positive");
-static_assert((((58) + 1) - ((34) + 0)) > 0, "MG/K guard must be positive");
-static_assert((((45) + 1) - ((26) + 0)) > 0, "K/QP guard must be positive");
 
 
 
+static_assert(26 == 26, "Expected Q12.14 QP width");
+static_assert(12 == 12, "Expected Q12.14 QP integer bits");
+static_assert((26 - 12) == 14, "Expected Q12.14 QP fractional bits");
+static_assert((1 << (26 - 12)) == 16384, "Expected Q12.14 raw scale");
+# 471 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert((21 + 6) == 21 + 6, "P width must be int+frac");
+static_assert((15 + 3) == 15 + 3, "MG width must be int+frac");
+static_assert((9 + 8) == 9 + 8, "K width must be int+frac");
 
 
 
-typedef ap_fixed<32, 14, AP_TRN, AP_WRAP> fp_QP_t;
-typedef ap_int<32> fp_QP_raw_t;
+static_assert(21 >= 12 && 21 <= 24, "P int bits out of sane range");
+static_assert(15 >= 8 && 15 <= 20, "MG int bits out of sane range");
+static_assert(9 >= 5 && 9 <= 16, "K int bits out of sane range");
+static_assert(6 > 0 && 3 > 0 &&
+              8 > 0, "family fractional bits must be positive");
+
+static_assert((((43) + 1) - (21 + 6)) > 0, "P/QP guard must be positive");
+static_assert((((34) + 1) - (15 + 3)) > 0, "MG/QP guard must be positive");
+static_assert((((35) + 1) - (15 + 3)) > 0, "MG/K guard must be positive");
+static_assert((((33) + 1) - (9 + 8)) > 0, "K/QP guard must be positive");
+
+
+
+
+
+
+typedef ap_fixed<26, 12, AP_TRN, AP_WRAP> fp_QP_t;
+typedef ap_int<26> fp_QP_raw_t;
 
 
 typedef fp_QP_raw_t fp_stream_raw_t;
 
 
-typedef ap_int<(32 + (((51) + 1) - 32))> fp_QP_mul_t;
+typedef ap_int<(26 + (((43) + 1) - 26))> fp_QP_mul_t;
 
 
-typedef ap_int<((44) + 1)> fp_sum6_QP_mul_t;
+typedef ap_int<((38) + 1)> fp_sum6_QP_mul_t;
 
 
-typedef ap_fixed<((26) + 0), 9, AP_TRN, AP_WRAP> fp_FN_t;
-typedef ap_int<((26) + 0)> fp_fn_raw_t;
-typedef ap_int<(((26) + 0) + (((44) + 1) - ((26) + 0)))> fp_fn_accum_t;
-
-
-
+typedef ap_fixed<((21) + 0), (((21) + 0) - 12), AP_TRN, AP_WRAP> fp_FN_t;
+typedef ap_int<((21) + 0)> fp_fn_raw_t;
+typedef ap_int<(((21) + 0) + (((35) + 1) - ((21) + 0)))> fp_fn_accum_t;
 
 
 
-typedef ap_fixed<((40) + 0), (((40) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_P_t;
-typedef ap_int<((40) + 0)> fp_P_raw_t;
 
 
-typedef ap_fixed<((34) + 0), (((34) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_MG_t;
-typedef ap_int<((34) + 0)> fp_MG_raw_t;
+
+typedef ap_fixed<(21 + 6), 21, AP_TRN, AP_WRAP> fp_P_t;
+typedef ap_int<(21 + 6)> fp_P_raw_t;
 
 
-typedef ap_fixed<((26) + 0), (((26) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_K_t;
-typedef ap_int<((26) + 0)> fp_K_raw_t;
-# 465 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-typedef ap_int<(((40) + 0) + (((59) + 1) - ((40) + 0)))> fp_P_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((52) + 1) - ((34) + 0)))> fp_MG_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((58) + 1) - ((34) + 0)))> fp_MG_K_mul_t;
-typedef ap_int<(((26) + 0) + (((45) + 1) - ((26) + 0)))> fp_K_QP_mul_t;
+typedef ap_fixed<(15 + 3), 15, AP_TRN, AP_WRAP> fp_MG_t;
+typedef ap_int<(15 + 3)> fp_MG_raw_t;
 
-typedef ap_int<((31) + 1)> fp_sum2_QP_raw_t;
-typedef ap_int<((25) + 1)> fp_sum4_QP_raw_t;
-typedef ap_int<((24) + 1)> fp_sum8_QP_raw_t;
-typedef ap_int<((39) + 1)> fp_sum2_P_raw_t;
-typedef ap_int<((33) + 1)> fp_sum2_MG_raw_t;
-typedef ap_int<((58) + 1)> fp_sum6_P_QP_t;
-typedef ap_int<((52) + 1)> fp_sum6_MG_QP_t;
-typedef ap_int<((51) + 1)> fp_sum2_P_QP_t;
-typedef ap_int<((50) + 1)> fp_sum4_P_QP_t;
-typedef ap_int<((45) + 1)> fp_sum2_MG_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_MG_QP_t;
-typedef ap_int<((48) + 1)> fp_sum2_MG_K_t;
+
+typedef ap_fixed<(9 + 8), 9, AP_TRN, AP_WRAP> fp_K_t;
+typedef ap_int<(9 + 8)> fp_K_raw_t;
+# 534 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+typedef ap_int<((21 + 6) + (((43) + 1) - (21 + 6)))> fp_P_QP_mul_t;
+typedef ap_int<((15 + 3) + (((34) + 1) - (15 + 3)))> fp_MG_QP_mul_t;
+typedef ap_int<((15 + 3) + (((35) + 1) - (15 + 3)))> fp_MG_K_mul_t;
+typedef ap_int<((9 + 8) + (((33) + 1) - (9 + 8)))> fp_K_QP_mul_t;
+
+typedef ap_int<((27) + 1)> fp_sum2_QP_raw_t;
+typedef ap_int<((23) + 1)> fp_sum4_QP_raw_t;
+typedef ap_int<((22) + 1)> fp_sum8_QP_raw_t;
+typedef ap_int<((27) + 1)> fp_sum2_P_raw_t;
+typedef ap_int<((19) + 1)> fp_sum2_MG_raw_t;
+typedef ap_int<((42) + 1)> fp_sum6_P_QP_t;
+typedef ap_int<((34) + 1)> fp_sum6_MG_QP_t;
+typedef ap_int<((35) + 1)> fp_sum2_P_QP_t;
+typedef ap_int<((35) + 1)> fp_sum4_P_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_MG_QP_t;
+typedef ap_int<((27) + 1)> fp_sum4_MG_QP_t;
+typedef ap_int<((24) + 1)> fp_sum2_MG_K_t;
 enum {
   MPC_HLS_P_MIX_MUL_WIDTH =
-      ((((40) + 0) + (((59) + 1) - ((40) + 0))) >
-       (((34) + 0) + (((58) + 1) - ((34) + 0))))
-          ? (((40) + 0) + (((59) + 1) - ((40) + 0)))
-          : (((34) + 0) + (((58) + 1) - ((34) + 0)))
+      (((21 + 6) + (((43) + 1) - (21 + 6))) >
+       ((15 + 3) + (((35) + 1) - (15 + 3))))
+          ? ((21 + 6) + (((43) + 1) - (21 + 6)))
+          : ((15 + 3) + (((35) + 1) - (15 + 3)))
 };
-typedef ap_int<((59) + 1)> fp_P_mix_item_t;
-typedef ap_int<((59) + 1)> fp_sum2_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum4_P_MIX_t;
-typedef ap_int<((56) + 1)> fp_sum8_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum8_P_MIX_pup_t;
-typedef ap_int<((45) + 1)> fp_K_qp_item_t;
-typedef ap_int<((44) + 1)> fp_sum2_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_K_QP_t;
-typedef ap_int<((43) + 1)> fp_sum8_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum2_QP_MG_t;
-typedef ap_int<((25) + 1)> fp_QP_recip_shift_t;
-typedef ap_int<((21) + 1)> fp_FN_recip_shift_t;
-typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
+typedef ap_int<((43) + 1)> fp_P_mix_item_t;
+typedef ap_int<((43) + 1)> fp_sum2_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum4_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_pup_t;
+typedef ap_int<((33) + 1)> fp_K_qp_item_t;
+typedef ap_int<((33) + 1)> fp_sum2_K_QP_t;
+typedef ap_int<((33) + 1)> fp_sum4_K_QP_t;
+typedef ap_int<((31) + 1)> fp_sum8_K_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_QP_MG_t;
+typedef ap_int<((15) + 1)> fp_QP_recip_shift_t;
+typedef ap_int<((18) + 1)> fp_FN_recip_shift_t;
+typedef ap_int<((42) + 1)> fp_QP_det_mul_t;
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_probe.hpp" 1
-# 504 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
+# 80 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp"
+enum FpWidthProbeId {
+  FP_WP_QP_MUL = 0,
+  FP_WP_P_QP_MUL,
+  FP_WP_MG_QP_MUL,
+  FP_WP_MG_K_MUL,
+  FP_WP_K_QP_MUL,
+  FP_WP_FN_MUL,
+  FP_WP_SUM2_QP_RAW,
+  FP_WP_SUM4_QP_RAW,
+  FP_WP_SUM8_QP_RAW,
+  FP_WP_SUM6_QP,
+  FP_WP_SUM6_QP_ACC,
+  FP_WP_SUM2_P_RAW,
+  FP_WP_SUM6_P_QP,
+  FP_WP_SUM2_P_QP,
+  FP_WP_SUM4_P_QP,
+  FP_WP_SUM2_P_MIX,
+  FP_WP_SUM4_P_MIX,
+  FP_WP_SUM8_P_MIX,
+  FP_WP_SUM8_P_MIX_PUP,
+  FP_WP_SUM2_MG_RAW,
+  FP_WP_SUM6_MG_QP,
+  FP_WP_SUM2_MG_QP,
+  FP_WP_SUM4_MG_QP,
+  FP_WP_SUM2_QP_MG,
+  FP_WP_SUM2_MG_K,
+  FP_WP_SUM2_K_QP,
+  FP_WP_SUM4_K_QP,
+  FP_WP_SUM8_K_QP,
+  FP_WP_QP_RECIP_SHIFT,
+  FP_WP_FN_RECIP_SHIFT,
+  FP_WP_QP_DET_MUL,
+  FP_WP_QP_ITEM,
+  FP_WP_P_QP_ITEM,
+  FP_WP_P_MIX_ITEM,
+  FP_WP_MG_QP_ITEM,
+  FP_WP_K_QP_ITEM,
+  FP_WP_QP_STORE,
+  FP_WP_FN_STORE,
+  FP_WP_P_STORE,
+  FP_WP_MG_STORE,
+  FP_WP_K_STORE,
+  FP_WP_COUNT
+};
+# 574 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
 
 
 
@@ -54802,126 +54864,143 @@ typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
 static inline fp_QP_t fp_QP_from_raw(fp_stream_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_stream_raw_t fp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_stream_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_QP_raw_t fp_qp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_QP_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
-  ((void)0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
+  VITIS_LOOP_598_1: do { (void)(FP_WP_QP_STORE); (void)(out.to_int64()); (void)((26 - 12)); } while (0);
   return out;
 }
 
 static inline fp_QP_t fp_QP_from_qp_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
+}
+# 623 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+template <typename OutT, int SH, bool RIGHT>
+struct fp_frac_shifter_ {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(v >> SH);
+  }
+};
+template <typename OutT, int SH>
+struct fp_frac_shifter_<OutT, SH, false> {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(((OutT)v) << SH);
+  }
+};
+
+template <typename OutT, int IN_FRAC, int OUT_FRAC, typename InT>
+static inline OutT fp_rescale_raw_frac(InT value) {
+#pragma HLS INLINE
+  return fp_frac_shifter_<OutT,
+      (IN_FRAC >= OUT_FRAC ? IN_FRAC - OUT_FRAC : OUT_FRAC - IN_FRAC),
+      (IN_FRAC >= OUT_FRAC)>::go(value);
+}
+
+template <typename OutT, int A_FRAC, int B_FRAC, int OUT_FRAC, typename ProdT>
+static inline OutT fp_product_shift_to_raw(ProdT product) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<OutT, A_FRAC + B_FRAC, OUT_FRAC>(product);
 }
 
 
 
 
 
-static inline fp_P_raw_t fp_P_raw_from_P(fp_P_t value) {
-#pragma HLS INLINE
-  fp_P_raw_t out = 0;
-  out.range(((40) + 0) - 1, 0) = value.range(((40) + 0) - 1, 0);
-  return out;
-}
 
-static inline fp_P_t fp_P_from_raw(fp_P_raw_t raw) {
+static inline fp_P_raw_t fp_QP_raw_to_P_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
-  fp_P_t out = 0;
-  out.range(((40) + 0) - 1, 0) = raw.range(((40) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_P_raw_t, (26 - 12), 6>(raw);
+}
+static inline fp_MG_raw_t fp_QP_raw_to_MG_raw(fp_QP_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t, (26 - 12), 3>(raw);
+}
+static inline fp_QP_raw_t fp_K_raw_to_QP_raw(fp_K_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t, 8, (26 - 12)>(raw);
 }
 
 static inline fp_P_raw_t fp_P_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_P_raw_t)fp_qp_raw_from_QP(value);
-}
-
-static inline fp_P_t fp_P_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_P_from_raw(fp_P_raw_from_QP(value));
-}
-
-static inline fp_MG_raw_t fp_MG_raw_from_MG(fp_MG_t value) {
-#pragma HLS INLINE
-  fp_MG_raw_t out = 0;
-  out.range(((34) + 0) - 1, 0) = value.range(((34) + 0) - 1, 0);
-  return out;
-}
-
-static inline fp_MG_t fp_MG_from_raw(fp_MG_raw_t raw) {
-#pragma HLS INLINE
-  fp_MG_t out = 0;
-  out.range(((34) + 0) - 1, 0) = raw.range(((34) + 0) - 1, 0);
-  return out;
+  return fp_QP_raw_to_P_raw(fp_qp_raw_from_QP(value));
 }
 
 static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_MG_raw_t)fp_qp_raw_from_QP(value);
+  return fp_QP_raw_to_MG_raw(fp_qp_raw_from_QP(value));
 }
 
-static inline fp_MG_t fp_MG_from_QP(fp_QP_t value) {
+
+static inline fp_MG_raw_t fp_P_QP_sum_to_MG_raw(fp_sum2_P_QP_t v) {
 #pragma HLS INLINE
-  return fp_MG_from_raw(fp_MG_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_K(fp_K_t value) {
+static inline fp_MG_raw_t fp_P_QP_sum4_to_MG_raw(fp_sum4_P_QP_t v) {
 #pragma HLS INLINE
-  fp_K_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_t fp_K_from_raw(fp_K_raw_t raw) {
+static inline fp_QP_raw_t fp_MG_QP_sum_to_QP_raw(fp_sum2_MG_QP_t v) {
 #pragma HLS INLINE
-  fp_K_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_QP(fp_QP_t value) {
+static inline fp_QP_raw_t fp_MG_QP_sum4_to_QP_raw(fp_sum4_MG_QP_t v) {
 #pragma HLS INLINE
-  return (fp_K_raw_t)fp_qp_raw_from_QP(value);
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_t fp_K_from_QP(fp_QP_t value) {
+static inline fp_K_raw_t fp_QP_MG_sum_to_K_raw(fp_sum2_QP_MG_t v) {
 #pragma HLS INLINE
-  return fp_K_from_raw(fp_K_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_K_raw_t,
+      (26 - 12) + 3, 8>(v);
 }
-
-
-
-
-
-static inline fp_QP_raw_t fp_cast_K_raw_to_qp(fp_K_raw_t value) {
+static inline fp_QP_raw_t fp_K_QP_sum_to_QP_raw(fp_sum8_K_QP_t v) {
 #pragma HLS INLINE
-
-
-
-
-  return (fp_QP_raw_t)value;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      8 + (26 - 12), (26 - 12)>(v);
 }
+static inline fp_P_raw_t fp_MG_K_sum_to_P_raw(fp_sum2_MG_K_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_raw_t,
+      3 + 8, 6>(v);
+}
+
+static inline fp_P_mix_item_t fp_MG_K_mul_to_PQP_mix_item(fp_MG_K_mul_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_mix_item_t,
+      3 + 8,
+      6 + (26 - 12)>(v);
+}
+
+
+
+
+
 
 static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp_site(fp_sum2_QP_raw_t value,
                                                        int site_id) {
 #pragma HLS INLINE
   (void)site_id;
-  ((void)0);
+  VITIS_LOOP_733_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(value.to_int64()); } while (0);
   return (fp_QP_raw_t)value;
 }
 
@@ -54943,12 +55022,6 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp_site(fp_QP_mul_t value,
   return (fp_QP_raw_t)(value >> shift);
 }
 
-static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return fp_shift_right_cast_to_qp_site(value, shift, FP_CAST_SITE_UNKNOWN);
-}
-
 
 
 
@@ -54956,15 +55029,15 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
 static inline fp_fn_raw_t fp_fn_raw_from_FN(fp_FN_t value) {
 #pragma HLS INLINE
   fp_fn_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  ((void)0);
+  out.range(((21) + 0) - 1, 0) = value.range(((21) + 0) - 1, 0);
+  VITIS_LOOP_763_1: do { (void)(FP_WP_FN_STORE); (void)(out.to_int64()); (void)((((21) + 0) - (((21) + 0) - 12))); } while (0);
   return out;
 }
 
 static inline fp_FN_t fp_FN_from_fn_raw(fp_fn_raw_t raw) {
 #pragma HLS INLINE
   fp_FN_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
+  out.range(((21) + 0) - 1, 0) = raw.range(((21) + 0) - 1, 0);
   return out;
 }
 
@@ -54978,7 +55051,6 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
   return (fp_QP_t)fn_value;
 }
 # 11 "../src/../include/fp_math_hls.h" 2
-
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 1 3
 # 40 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 3
 
@@ -55016,20 +55088,18 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
 # 204 "/usr/include/limits.h" 2 3 4
 # 22 "/home/akselmo/Vivado_program/2025.2/lnx64/tools/clang-16/lib/clang/16/include/limits.h" 2 3
 # 43 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 2 3
-# 13 "../src/../include/fp_math_hls.h" 2
-# 38 "../src/../include/fp_math_hls.h"
+# 12 "../src/../include/fp_math_hls.h" 2
+# 62 "../src/../include/fp_math_hls.h"
 static_assert((1 << 3) == 8,
               "FP_ATAN_LUT_DOMAIN_LOG2 must be log2(FP_ATAN_LUT_DOMAIN)");
-# 83 "../src/../include/fp_math_hls.h"
+# 107 "../src/../include/fp_math_hls.h"
 fp_QP_t fp_recip(fp_QP_t x);
 
 
 fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id);
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
-fp_QP_t fp_sq(fp_QP_t x);
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b);
-# 99 "../src/../include/fp_math_hls.h"
+# 121 "../src/../include/fp_math_hls.h"
 fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b);
 fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b);
 
@@ -55039,13 +55109,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b);
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b);
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b);
-
-static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  if (a == 0 || b == 0)
-    return 0;
-  return fp_mul(a, fp_recip(b));
-}
 
 static inline fp_QP_t fp_abs(fp_QP_t a) {
 #pragma HLS INLINE
@@ -55068,7 +55131,7 @@ static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi) {
 
 static inline fp_QP_raw_t fp_qp_raw_from_neg_pow2(int exp) {
 #pragma HLS INLINE
-  const int shift = ((32 - 14)) - exp;
+  const int shift = ((26 - 12)) - exp;
   if (shift <= 0)
     return (fp_QP_raw_t)1;
   return ((fp_QP_raw_t)1) << shift;
@@ -55090,7 +55153,7 @@ static inline fp_QP_raw_t fp_add3_cast_qp_raw(fp_QP_raw_t a, fp_QP_raw_t b,
                                                fp_QP_raw_t c, int site_id) {
 #pragma HLS INLINE
   fp_sum2_QP_raw_t sum_ab = (fp_sum2_QP_raw_t)a + (fp_sum2_QP_raw_t)b;
-  ((void)0);
+  VITIS_LOOP_174_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(sum_ab.to_int64()); } while (0);
   fp_sum2_QP_raw_t sum_abc = sum_ab + (fp_sum2_QP_raw_t)c;
   return cast_sum2_qp_raw_to_qp_site(sum_abc, site_id);
 }
@@ -55109,11 +55172,11 @@ static fp_sum6_P_QP_t sum6_P_QP_raw(fp_sum6_P_QP_t a0,
                                     fp_sum6_P_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_193_1: do { (void)(FP_WP_SUM6_P_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_197_2: do { (void)(FP_WP_P_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_P_QP_t s01 = a0 + a1;
   fp_sum6_P_QP_t s23 = a2 + a3;
   fp_sum6_P_QP_t s45 = a4 + a5;
@@ -55131,24 +55194,24 @@ static fp_sum8_P_MIX_t sum8_P_MIX_raw(fp_P_mix_item_t a0,
                                       fp_P_mix_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_215_1: do { (void)(FP_WP_SUM8_P_MIX); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_220_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_225_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_226_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_227_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_228_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_231_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_232_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_t)(s0123 + s4567);
 }
 
@@ -55170,24 +55233,24 @@ static fp_sum8_P_MIX_pup_t sum8_P_MIX_raw_pupdate(fp_P_mix_item_t a0,
 
 
 #pragma HLS LATENCY min = 1 max = 1
-  ((void)0);
+  VITIS_LOOP_254_1: do { (void)(FP_WP_SUM8_P_MIX_PUP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_259_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_264_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_265_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_266_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_267_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_270_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_271_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_pup_t)(s0123 + s4567);
 }
 
@@ -55199,11 +55262,11 @@ static fp_sum6_QP_mul_t sum6_QP_raw(fp_sum6_QP_mul_t a0,
                                     fp_sum6_QP_mul_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_283_1: do { (void)(FP_WP_SUM6_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_287_2: do { (void)(FP_WP_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_QP_mul_t s01 = a0 + a1;
   fp_sum6_QP_mul_t s23 = a2 + a3;
   fp_sum6_QP_mul_t s45 = a4 + a5;
@@ -55219,11 +55282,11 @@ static fp_sum6_MG_QP_t sum6_MG_QP_raw(fp_sum6_MG_QP_t a0,
                                       fp_sum6_MG_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_303_1: do { (void)(FP_WP_SUM6_MG_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_307_2: do { (void)(FP_WP_MG_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_MG_QP_t s01 = a0 + a1;
   fp_sum6_MG_QP_t s23 = a2 + a3;
   fp_sum6_MG_QP_t s45 = a4 + a5;
@@ -55241,24 +55304,24 @@ static fp_sum8_K_QP_t sum8_K_QP_raw(fp_K_qp_item_t a0,
                                     fp_K_qp_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_325_1: do { (void)(FP_WP_SUM8_K_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_330_2: do { (void)(FP_WP_K_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_K_QP_t s01 = a0 + a1;
   fp_sum2_K_QP_t s23 = a2 + a3;
   fp_sum2_K_QP_t s45 = a4 + a5;
   fp_sum2_K_QP_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_335_3: do { (void)(FP_WP_SUM2_K_QP); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_336_4: do { (void)(FP_WP_SUM2_K_QP); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_337_5: do { (void)(FP_WP_SUM2_K_QP); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_338_6: do { (void)(FP_WP_SUM2_K_QP); (void)(s67.to_int64()); } while (0);
   fp_sum4_K_QP_t s0123 = s01 + s23;
   fp_sum4_K_QP_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_341_7: do { (void)(FP_WP_SUM4_K_QP); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_342_8: do { (void)(FP_WP_SUM4_K_QP); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_K_QP_t)(s0123 + s4567);
 }
 
@@ -55285,65 +55348,20 @@ static inline fp_QP_t fp_max3_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2) {
   return fp_max2(fp_max2(x0, x1), x2);
 }
 
-static inline fp_QP_t fp_max4_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2,
-                                 fp_QP_t x3) {
-#pragma HLS INLINE
-  const fp_QP_t m01 = fp_max2(x0, x1);
-  const fp_QP_t m23 = fp_max2(x2, x3);
-  return fp_max2(m01, m23);
-}
-
-
-
-
-
-static inline fp_P_raw_t fp_shift_right_cast_to_P(fp_P_QP_mul_t value,
-                                                  int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_PQ_to_MG(fp_P_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_KQ_to_qp(fp_K_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)(value >> shift);
-}
-
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
-fp_QP_t fp_sin(fp_QP_t angle);
-fp_QP_t fp_cos(fp_QP_t angle);
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out);
 fp_QP_t fp_atan_lut(fp_QP_t x);
 
 
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b);
+
+
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE
   return (a < 0) ? fp_FN_t(-a) : a;
 }
 
-fp_FN_t fp_sin_fn(fp_FN_t angle);
-fp_FN_t fp_cos_fn(fp_FN_t angle);
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out);
 fp_FN_t fp_atan_lut_fn(fp_FN_t x);
 fp_FN_t fp_recip_fn(fp_FN_t x);
@@ -55353,7 +55371,7 @@ int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]);
 # 1 "../src/../include/mpc_fpga_interface.h" 1
 # 39 "../src/mpc_fpga_top.cpp" 2
 # 1 "../src/../include/mpc_fpga_types.h" 1
-# 279 "../src/../include/mpc_fpga_types.h"
+# 237 "../src/../include/mpc_fpga_types.h"
 typedef struct {
   fp_QP_t x;
   fp_QP_t y;
@@ -55379,7 +55397,7 @@ typedef struct alignas(32) {
   fp_QP_t left_wall_bound;
   fp_QP_t right_wall_bound;
 } MpcRefPoint_t;
-# 327 "../src/../include/mpc_fpga_types.h"
+# 285 "../src/../include/mpc_fpga_types.h"
 typedef struct alignas(32) {
   fp_QP_raw_t A[6][6];
 
@@ -55417,17 +55435,17 @@ static inline void mpc_admm_reset_all_hls(AdmmState_t *admm_state) {
   if (!admm_state)
     return;
 
-  VITIS_LOOP_364_1: for (int k = 0; k <= 20; ++k) {
+  VITIS_LOOP_322_1: for (int k = 0; k <= 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_366_2: for (int s = 0; s < 8; ++s) {
+    VITIS_LOOP_324_2: for (int s = 0; s < 8; ++s) {
       admm_state->z_x[k][s] = ((fp_QP_t)(0.0));
       admm_state->y_x[k][s] = ((fp_QP_t)(0.0));
     }
   }
 
-  VITIS_LOOP_372_3: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_330_3: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_374_4: for (int a = 0; a < 2; ++a) {
+    VITIS_LOOP_332_4: for (int a = 0; a < 2; ++a) {
       admm_state->z_u[k][a] = ((fp_QP_t)(0.0));
       admm_state->y_u[k][a] = ((fp_QP_t)(0.0));
     }
@@ -55443,16 +55461,16 @@ static inline void mpc_admm_zero_duals_hls(AdmmState_t *admm_state) {
   if (!admm_state)
     return;
 
-  VITIS_LOOP_390_1: for (int k = 0; k <= 20; ++k) {
+  VITIS_LOOP_348_1: for (int k = 0; k <= 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_392_2: for (int s = 0; s < 8; ++s) {
+    VITIS_LOOP_350_2: for (int s = 0; s < 8; ++s) {
       admm_state->y_x[k][s] = ((fp_QP_t)(0.0));
     }
   }
 
-  VITIS_LOOP_397_3: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_355_3: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
-    VITIS_LOOP_399_4: for (int a = 0; a < 2; ++a) {
+    VITIS_LOOP_357_4: for (int a = 0; a < 2; ++a) {
       admm_state->y_u[k][a] = ((fp_QP_t)(0.0));
     }
   }
@@ -55531,12 +55549,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 # 41 "../src/mpc_fpga_top.cpp" 2
 
 
-
-
-
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/ap_int.h" 1
-# 47 "../src/mpc_fpga_top.cpp" 2
-# 64 "../src/mpc_fpga_top.cpp"
+# 44 "../src/mpc_fpga_top.cpp" 2
+# 61 "../src/mpc_fpga_top.cpp"
 namespace {
 
 constexpr int kInputHeaderWords = 8;
@@ -55626,7 +55641,7 @@ static void fill_mpc_reference_trajectory_from_arrays(
     MpcRefPoint_t out_ref[20]) {
 #pragma HLS INLINE off
 
-  VITIS_LOOP_153_1: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_150_1: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
     const int src_k = (k < ref_count) ? k : (ref_count - 1);
 
@@ -55660,7 +55675,7 @@ static void fill_mpc_reference_trajectory_from_lane_words(
     MpcRefPoint_t out_ref[20]) {
 #pragma HLS INLINE off
 
-  VITIS_LOOP_187_1: for (int k = 0; k < 20; ++k) {
+  VITIS_LOOP_184_1: for (int k = 0; k < 20; ++k) {
 #pragma HLS PIPELINE II = 1
     const int base = kInputHeaderWords + (k * kRefWordsPerStep);
 
@@ -55689,7 +55704,7 @@ static void unpack_input_lane_words(
     uint32_t lane_words[((((8 + (20 * 8)) + 15) / 16) * 16)]) {
 #pragma HLS INLINE off
 
-  VITIS_LOOP_216_1: for (int packet_idx = 0; packet_idx < (((8 + (20 * 8)) + 15) / 16); ++packet_idx) {
+  VITIS_LOOP_213_1: for (int packet_idx = 0; packet_idx < (((8 + (20 * 8)) + 15) / 16); ++packet_idx) {
 #pragma HLS PIPELINE II = 1
     const ap_uint<512> packet = input_words512[packet_idx];
     const int base_word = packet_idx * kPackedWordsPer512;
@@ -55748,10 +55763,6 @@ static void mpc_fpga_compute_core(fp_QP_t ey,
                                   int32_t *out_accel,
                                   int32_t *out_status,
                                   int32_t *out_iters) {
-
-
-
-
   if (!out_steering || !out_accel || !out_status || !out_iters)
     return;
 
@@ -55816,12 +55827,12 @@ static void mpc_fpga_compute_core(fp_QP_t ey,
 }
 
 }
-# 351 "../src/mpc_fpga_top.cpp"
+# 344 "../src/mpc_fpga_top.cpp"
 extern "C" __attribute__((sdx_kernel("mpc_fpga_top_opencl", 0))) void mpc_fpga_top_opencl(const ap_uint<512> *input_words512,
                                     ap_uint<128> *output_words128) {
 #line 1 "directive"
 #pragma HLSDIRECTIVE TOP name=mpc_fpga_top_opencl
-# 352 "../src/mpc_fpga_top.cpp"
+# 345 "../src/mpc_fpga_top.cpp"
 
 #pragma HLS INTERFACE m_axi port = input_words512 offset = slave bundle = gmem0 depth = (((8 + (20 * 8)) + 15) / 16) max_widen_bitwidth = 512
 #pragma HLS INTERFACE m_axi port = output_words128 offset = slave bundle = gmem1 depth = 1 max_widen_bitwidth = 128
@@ -55855,7 +55866,7 @@ extern "C" __attribute__((sdx_kernel("mpc_fpga_top_opencl", 0))) void mpc_fpga_t
   const uint32_t control_flags =
       (uint32_t)lane_words[kHeaderWordControlFlags];
   const int32_t prev_accel_word = (int32_t)lane_words[kHeaderWordPrevAccel];
-# 395 "../src/mpc_fpga_top.cpp"
+# 388 "../src/mpc_fpga_top.cpp"
   if (control_flags & (1u << 3)) {
     output_words128[0] =
         pack_output_words(ey_word, epsi_word, vx_word, prev_accel_word);

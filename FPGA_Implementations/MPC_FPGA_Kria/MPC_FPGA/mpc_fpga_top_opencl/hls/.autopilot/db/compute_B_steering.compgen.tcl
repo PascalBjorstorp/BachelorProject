@@ -1,13 +1,14 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_26s_12s_38_4_1
+set name mpc_fpga_top_opencl_mul_21s_11ns_32_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
+set name mpc_fpga_top_opencl_mul_21s_7s_28_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_am_submul_26s_26s_15ns_42_4_1 BINDTYPE {op} TYPE {all} IMPL {dsp_slice} LATENCY 3
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
@@ -21,7 +22,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 495 \
+    id 492 \
     name tr_C_eff_f_raw_val \
     type other \
     dir I \
@@ -29,14 +30,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_C_eff_f_raw_val \
     op interface \
-    ports { tr_C_eff_f_raw_val { I 26 vector } } \
+    ports { tr_C_eff_f_raw_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 496 \
+    id 493 \
     name tr_C_min_f_val \
     type other \
     dir I \
@@ -44,14 +45,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_C_min_f_val \
     op interface \
-    ports { tr_C_min_f_val { I 26 vector } } \
+    ports { tr_C_min_f_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 497 \
+    id 494 \
     name tr_F_yf_val \
     type other \
     dir I \
@@ -59,14 +60,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_F_yf_val \
     op interface \
-    ports { tr_F_yf_val { I 26 vector } } \
+    ports { tr_F_yf_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 498 \
+    id 495 \
     name tr_sin_delta_val \
     type other \
     dir I \
@@ -74,14 +75,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_sin_delta_val \
     op interface \
-    ports { tr_sin_delta_val { I 26 vector } } \
+    ports { tr_sin_delta_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 499 \
+    id 496 \
     name tr_cos_delta_val \
     type other \
     dir I \
@@ -89,7 +90,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_cos_delta_val \
     op interface \
-    ports { tr_cos_delta_val { I 26 vector } } \
+    ports { tr_cos_delta_val { I 21 vector } } \
 } "
 }
 

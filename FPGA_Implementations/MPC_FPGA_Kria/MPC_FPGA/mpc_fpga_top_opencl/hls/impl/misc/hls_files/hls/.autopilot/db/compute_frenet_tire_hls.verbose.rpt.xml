@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_frenet_tire_hls'" level="0">
-<item name = "Date">Thu May 21 15:23:09 2026
+<item name = "Date">Thu Jun 11 16:06:59 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.433 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.376 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,18 +24,18 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">71, 71, 0.355 us, 0.355 us, 72, 72, yes</column>
+<column name="">49, 49, 0.245 us, 0.245 us, 50, 50, yes</column>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_fp_trig_pair_fused_fn_fu_154">fp_trig_pair_fused_fn, 10, 10, 50.000 ns, 50.000 ns, 11, 11, yes</column>
-<column name="grp_fp_recip_fn_fu_184">fp_recip_fn, 6, 6, 30.000 ns, 30.000 ns, 1, 1, yes</column>
-<column name="grp_fp_slip_terms_fu_191">fp_slip_terms, 8, 8, 40.000 ns, 40.000 ns, 9, 9, yes</column>
-<column name="grp_compute_front_tire_path_fn_fu_198">compute_front_tire_path_fn, 47, 47, 0.235 us, 0.235 us, 48, 48, yes</column>
-<column name="grp_compute_rear_tire_path_fn_fu_219">compute_rear_tire_path_fn, 47, 47, 0.235 us, 0.235 us, 48, 48, yes</column>
+<column name="grp_fp_recip_fn_fu_144">fp_recip_fn, 5, 5, 25.000 ns, 25.000 ns, 1, 1, yes</column>
+<column name="grp_fp_slip_terms_fu_151">fp_slip_terms, 4, 4, 20.000 ns, 20.000 ns, 5, 5, yes</column>
+<column name="grp_compute_front_tire_path_fn_fu_158">compute_front_tire_path_fn, 32, 32, 0.160 us, 0.160 us, 33, 33, yes</column>
+<column name="grp_compute_rear_tire_path_fn_fu_179">compute_rear_tire_path_fn, 31, 31, 0.155 us, 0.155 us, 32, 32, yes</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_199">fp_trig_pair_fused_fn, 8, 8, 40.000 ns, 40.000 ns, 9, 9, yes</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -52,32 +52,31 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 359, -</column>
+<column name="Expression">-, -, 0, 298, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">22, 75, 11118, 13721, -</column>
+<column name="Instance">19, 63, 6872, 10413, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 445, -</column>
-<column name="Register">-, -, 937, -, -</column>
+<column name="Multiplexer">-, -, 0, 286, -</column>
+<column name="Register">-, -, 796, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
-<specialColumn name="Utilization (%)">7, 6, 5, 12, 0</specialColumn>
+<specialColumn name="Utilization (%)">6, 5, 3, 9, 0</specialColumn>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="grp_compute_front_tire_path_fn_fu_198">compute_front_tire_path_fn, 8, 27, 3854, 4878, 0</column>
-<column name="grp_compute_rear_tire_path_fn_fu_219">compute_rear_tire_path_fn, 8, 26, 3866, 4851, 0</column>
-<column name="grp_fp_recip_fn_fu_184">fp_recip_fn, 1, 1, 2033, 2710, 0</column>
-<column name="grp_fp_slip_terms_fu_191">fp_slip_terms, 0, 6, 599, 236, 0</column>
-<column name="grp_fp_trig_pair_fused_fn_fu_154">fp_trig_pair_fused_fn, 5, 5, 345, 846, 0</column>
-<column name="mul_25ns_25ns_50_4_1_U390">mul_25ns_25ns_50_4_1, 0, 2, 55, 26, 0</column>
-<column name="mul_26s_16ns_42_4_1_U394">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U395">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_18ns_44_4_1_U393">mul_26s_18ns_44_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_18ns_44_4_1_U396">mul_26s_18ns_44_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_26s_42_4_1_U391">mul_26s_26s_42_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_26s_43_4_1_x_U392">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+<column name="grp_compute_front_tire_path_fn_fu_158">compute_front_tire_path_fn, 7, 22, 2415, 3732, 0</column>
+<column name="grp_compute_rear_tire_path_fn_fu_179">compute_rear_tire_path_fn, 7, 23, 2405, 3696, 0</column>
+<column name="grp_fp_recip_fn_fu_144">fp_recip_fn, 1, 0, 1573, 2061, 0</column>
+<column name="grp_fp_slip_terms_fu_151">fp_slip_terms, 0, 6, 305, 145, 0</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_199">fp_trig_pair_fused_fn, 4, 4, 156, 694, 0</column>
+<column name="mul_20ns_20ns_40_3_1_U389">mul_20ns_20ns_40_3_1, 0, 2, 8, 11, 0</column>
+<column name="mul_21s_11ns_32_1_1_U392">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U393">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_13ns_33_1_1_U391">mul_21s_13ns_33_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_13ns_33_1_1_U394">mul_21s_13ns_33_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_21s_42_3_1_x_U390">mul_21s_21s_42_3_1_x, 0, 2, 10, 14, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -94,69 +93,67 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="D_f_fn_fu_495_p2">+, 0, 0, 26, 26, 26</column>
-<column name="D_pac_r_fu_523_p2">+, 0, 0, 33, 26, 21</column>
-<column name="add_ln363_fu_512_p2">+, 0, 0, 33, 26, 20</column>
-<column name="add_ln380_fu_409_p2">+, 0, 0, 33, 26, 26</column>
-<column name="add_ln382_fu_490_p2">+, 0, 0, 26, 26, 26</column>
-<column name="rear_num2_fu_536_p2">+, 0, 0, 26, 26, 26</column>
-<column name="D_pac_f_fu_518_p2">-, 0, 0, 33, 21, 26</column>
-<column name="D_r_fn_fu_540_p2">-, 0, 0, 26, 26, 26</column>
-<column name="sub_ln361_fu_503_p2">-, 0, 0, 33, 20, 26</column>
-<column name="icmp_ln351_fu_301_p2">icmp, 0, 0, 33, 26, 17</column>
-<column name="low_speed_fu_546_p2">icmp, 0, 0, 32, 25, 17</column>
-<column name="out_fu_307_p3">select, 0, 0, 25, 1, 25</column>
+<column name="D_f_fn_fu_453_p2">+, 0, 0, 21, 21, 21</column>
+<column name="D_pac_r_fu_498_p2">+, 0, 0, 28, 21, 16</column>
+<column name="add_ln363_fu_492_p2">+, 0, 0, 28, 21, 15</column>
+<column name="add_ln380_fu_389_p2">+, 0, 0, 28, 21, 21</column>
+<column name="add_ln382_fu_448_p2">+, 0, 0, 21, 21, 21</column>
+<column name="rear_num2_fu_511_p2">+, 0, 0, 21, 21, 21</column>
+<column name="D_pac_f_fu_468_p2">-, 0, 0, 28, 16, 21</column>
+<column name="D_r_fn_fu_516_p2">-, 0, 0, 21, 21, 21</column>
+<column name="sub_ln361_fu_462_p2">-, 0, 0, 28, 15, 21</column>
+<column name="icmp_ln351_fu_270_p2">icmp, 0, 0, 28, 21, 12</column>
+<column name="low_speed_fu_473_p2">icmp, 0, 0, 27, 20, 12</column>
+<column name="out_fu_276_p3">select, 0, 0, 19, 1, 20</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">377, 73, 1, 73</column>
-<column name="grp_fu_243_p0">14, 3, 26, 78</column>
-<column name="grp_fu_243_p1">14, 3, 26, 78</column>
-<column name="grp_fu_247_p0">20, 4, 26, 104</column>
-<column name="grp_fu_247_p1">20, 4, 26, 104</column>
+<column name="ap_NS_fsm">229, 51, 1, 51</column>
+<column name="grp_fu_212_p0">31, 6, 21, 126</column>
+<column name="grp_fu_212_p1">26, 5, 21, 105</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="D_f_fn_reg_878">26, 0, 26, 0</column>
-<column name="D_pac_f_reg_894">26, 0, 26, 0</column>
-<column name="D_pac_r_reg_899">26, 0, 26, 0</column>
-<column name="D_r_fn_reg_904">26, 0, 26, 0</column>
-<column name="a_cmd_fn_reg_721">26, 0, 26, 0</column>
-<column name="add_ln363_reg_889">26, 0, 26, 0</column>
-<column name="add_ln380_reg_794">26, 0, 26, 0</column>
-<column name="ap_CS_fsm">72, 0, 72, 0</column>
-<column name="ap_port_reg_delta">18, 0, 18, 0</column>
-<column name="ap_port_reg_omega">27, 0, 27, 0</column>
-<column name="ap_port_reg_vy">27, 0, 27, 0</column>
-<column name="delta_fn_reg_915">17, 0, 17, 0</column>
-<column name="front_num_reg_821">26, 0, 26, 0</column>
-<column name="front_ratio_reg_831">26, 0, 26, 0</column>
-<column name="grp_compute_front_tire_path_fn_fu_198_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_compute_rear_tire_path_fn_fu_219_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_fp_slip_terms_fu_191_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_fp_trig_pair_fused_fn_fu_154_ap_start_reg">1, 0, 1, 0</column>
-<column name="lf_omega_reg_810">26, 0, 26, 0</column>
-<column name="low_speed_reg_909">1, 0, 1, 0</column>
-<column name="lr_omega_reg_815">26, 0, 26, 0</column>
-<column name="out_reg_726">25, 0, 25, 0</column>
-<column name="product_q_100_reg_863">26, 0, 26, 0</column>
-<column name="product_q_101_reg_873">26, 0, 26, 0</column>
-<column name="product_q_95_reg_753">26, 0, 26, 0</column>
-<column name="product_q_96_reg_773">25, 0, 25, 0</column>
-<column name="product_q_97_reg_784">25, 0, 25, 0</column>
-<column name="product_q_98_reg_789">26, 0, 26, 0</column>
-<column name="product_q_reg_805">26, 0, 26, 0</column>
-<column name="rear_num_reg_826">26, 0, 26, 0</column>
-<column name="rear_ratio_reg_836">26, 0, 26, 0</column>
-<column name="ref_tmp_i_reg_800">23, 0, 23, 0</column>
-<column name="sext_ln671_91_reg_735">44, 0, 44, 0</column>
-<column name="sext_ln671_92_reg_853">42, 0, 42, 0</column>
-<column name="sext_ln671_reg_747">42, 0, 42, 0</column>
-<column name="sub_ln361_reg_883">26, 0, 26, 0</column>
-<column name="vy_fn_reg_767">26, 0, 26, 0</column>
-<column name="zext_ln352_reg_741">25, 0, 26, 1</column>
+<column name="D_f_fn_reg_803">21, 0, 21, 0</column>
+<column name="D_pac_f_reg_814">21, 0, 21, 0</column>
+<column name="D_pac_r_reg_836">21, 0, 21, 0</column>
+<column name="D_r_fn_reg_841">21, 0, 21, 0</column>
+<column name="a_cmd_fn_reg_681">21, 0, 21, 0</column>
+<column name="add_ln363_reg_831">21, 0, 21, 0</column>
+<column name="add_ln380_reg_755">21, 0, 21, 0</column>
+<column name="ap_CS_fsm">50, 0, 50, 0</column>
+<column name="ap_port_reg_delta">14, 0, 14, 0</column>
+<column name="ap_port_reg_omega">23, 0, 23, 0</column>
+<column name="ap_port_reg_vy">23, 0, 23, 0</column>
+<column name="delta_fn_reg_825">12, 0, 12, 0</column>
+<column name="front_num_reg_771">21, 0, 21, 0</column>
+<column name="front_ratio_reg_781">21, 0, 21, 0</column>
+<column name="grp_compute_front_tire_path_fn_fu_158_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_compute_rear_tire_path_fn_fu_179_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_fp_slip_terms_fu_151_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_199_ap_start_reg">1, 0, 1, 0</column>
+<column name="low_speed_reg_819">1, 0, 1, 0</column>
+<column name="lr_omega_reg_766">21, 0, 21, 0</column>
+<column name="out_reg_686">20, 0, 20, 0</column>
+<column name="product_q_93_reg_699">21, 0, 21, 0</column>
+<column name="product_q_94_reg_729">20, 0, 20, 0</column>
+<column name="product_q_95_reg_740">20, 0, 20, 0</column>
+<column name="product_q_96_reg_745">21, 0, 21, 0</column>
+<column name="product_q_reg_750">21, 0, 21, 0</column>
+<column name="rear_num_reg_776">21, 0, 21, 0</column>
+<column name="rear_ratio_reg_786">21, 0, 21, 0</column>
+<column name="ref_tmp_i_reg_761">20, 0, 20, 0</column>
+<column name="reg_236">21, 0, 21, 0</column>
+<column name="sext_ln574_64_reg_791">42, 0, 42, 0</column>
+<column name="sext_ln574_65_reg_797">42, 0, 42, 0</column>
+<column name="sext_ln574_reg_734">42, 0, 42, 0</column>
+<column name="sext_ln591_21_reg_694">33, 0, 33, 0</column>
+<column name="sext_ln591_reg_724">32, 0, 32, 0</column>
+<column name="sub_ln361_reg_808">21, 0, 21, 0</column>
+<column name="vy_fn_reg_713">21, 0, 21, 0</column>
+<column name="zext_ln352_reg_718">20, 0, 21, 1</column>
 </table>
 </item>
 </section>
@@ -172,28 +169,28 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_2">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_3">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_4">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_5">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_6">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_7">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_8">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_9">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_10">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_11">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_12">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_13">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_14">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_15">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="ap_return_16">out, 26, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
-<column name="vx">in, 27, ap_none, vx, scalar</column>
-<column name="vy">in, 27, ap_none, vy, scalar</column>
-<column name="omega">in, 27, ap_none, omega, scalar</column>
-<column name="delta">in, 18, ap_none, delta, scalar</column>
-<column name="a_cmd">in, 27, ap_none, a_cmd, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_2">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_3">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_4">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_5">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_6">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_7">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_8">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_9">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_10">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_11">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_12">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_13">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_14">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_15">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="ap_return_16">out, 21, ap_ctrl_hs, compute_frenet_tire_hls, return value</column>
+<column name="vx">in, 23, ap_none, vx, scalar</column>
+<column name="vy">in, 23, ap_none, vy, scalar</column>
+<column name="omega">in, 23, ap_none, omega, scalar</column>
+<column name="delta">in, 14, ap_none, delta, scalar</column>
+<column name="a_cmd">in, 23, ap_none, a_cmd, scalar</column>
 </table>
 </item>
 </section>

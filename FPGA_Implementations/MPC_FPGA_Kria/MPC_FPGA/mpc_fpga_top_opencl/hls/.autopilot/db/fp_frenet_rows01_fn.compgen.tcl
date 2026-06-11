@@ -1,44 +1,44 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_22s_25ns_47_4_1
+set name mpc_fpga_top_opencl_mul_20ns_21s_41_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_22s_26s_43_4_1
+set name mpc_fpga_top_opencl_mul_20s_20s_40_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_23s_23s_46_4_1
+set name mpc_fpga_top_opencl_mul_21s_20ns_41_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_25ns_26s_51_4_1
+set name mpc_fpga_top_opencl_mul_21s_8ns_29_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_22s_43_4_1
+set name mpc_fpga_top_opencl_mul_17s_20ns_37_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_25ns_51_4_1
+set name mpc_fpga_top_opencl_mul_17s_21s_38_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_13ns_39_4_1
+set name mpc_fpga_top_opencl_mul_21s_17s_38_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -52,7 +52,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 427 \
+    id 424 \
     name sin_epsi \
     type other \
     dir I \
@@ -60,14 +60,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_sin_epsi \
     op interface \
-    ports { sin_epsi { I 26 vector } } \
+    ports { sin_epsi { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 428 \
+    id 425 \
     name cos_epsi \
     type other \
     dir I \
@@ -75,14 +75,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_cos_epsi \
     op interface \
-    ports { cos_epsi { I 26 vector } } \
+    ports { cos_epsi { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 429 \
+    id 426 \
     name vx \
     type other \
     dir I \
@@ -90,14 +90,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx \
     op interface \
-    ports { vx { I 26 vector } } \
+    ports { vx { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 430 \
+    id 427 \
     name vy \
     type other \
     dir I \
@@ -105,14 +105,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vy \
     op interface \
-    ports { vy { I 26 vector } } \
+    ports { vy { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 431 \
+    id 428 \
     name kappa \
     type other \
     dir I \
@@ -120,14 +120,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_kappa \
     op interface \
-    ports { kappa { I 26 vector } } \
+    ports { kappa { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 432 \
+    id 429 \
     name inv_denom \
     type other \
     dir I \
@@ -135,7 +135,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_inv_denom \
     op interface \
-    ports { inv_denom { I 23 vector } } \
+    ports { inv_denom { I 20 vector } } \
 } "
 }
 

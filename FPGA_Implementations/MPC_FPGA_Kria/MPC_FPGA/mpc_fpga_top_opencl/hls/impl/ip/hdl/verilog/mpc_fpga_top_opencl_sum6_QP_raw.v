@@ -21,30 +21,30 @@ module mpc_fpga_top_opencl_sum6_QP_raw (
 
 
 output   ap_ready;
-input  [44:0] a0;
-input  [44:0] a1;
-input  [44:0] a2;
-input  [44:0] a3;
-input  [44:0] a4;
-input  [44:0] a5;
-output  [44:0] ap_return;
+input  [38:0] a0;
+input  [38:0] a1;
+input  [38:0] a2;
+input  [38:0] a3;
+input  [38:0] a4;
+input  [38:0] a5;
+output  [38:0] ap_return;
 input   ap_rst;
 
-wire   [44:0] add_ln277_fu_68_p2;
-wire   [44:0] add_ln277_2_fu_80_p2;
-wire   [44:0] add_ln277_3_fu_86_p2;
-wire   [44:0] add_ln277_1_fu_74_p2;
+wire   [38:0] add_ln292_fu_70_p2;
+wire   [38:0] add_ln292_2_fu_82_p2;
+wire   [38:0] add_ln292_3_fu_88_p2;
+wire   [38:0] add_ln292_1_fu_76_p2;
 
-assign add_ln277_1_fu_74_p2 = (add_ln277_fu_68_p2 + a1);
+assign add_ln292_1_fu_76_p2 = (add_ln292_fu_70_p2 + a1);
 
-assign add_ln277_2_fu_80_p2 = (a4 + a5);
+assign add_ln292_2_fu_82_p2 = (a4 + a5);
 
-assign add_ln277_3_fu_86_p2 = (add_ln277_2_fu_80_p2 + a3);
+assign add_ln292_3_fu_88_p2 = (add_ln292_2_fu_82_p2 + a3);
 
-assign add_ln277_fu_68_p2 = (a0 + a2);
+assign add_ln292_fu_70_p2 = (a0 + a2);
 
 assign ap_ready = 1'b1;
 
-assign ap_return = (add_ln277_3_fu_86_p2 + add_ln277_1_fu_74_p2);
+assign ap_return = (add_ln292_3_fu_88_p2 + add_ln292_1_fu_76_p2);
 
 endmodule //mpc_fpga_top_opencl_sum6_QP_raw

@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'mpc_fpga_top_opencl'" level="0">
-<item name = "Date">Thu May 21 15:23:14 2026
+<item name = "Date">Thu Jun 11 16:07:09 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -24,16 +24,16 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">161, 151272, 0.805 us, 0.756 ms, 162, 151273, no</column>
+<column name="">161, 101605, 0.805 us, 0.508 ms, 162, 101606, no</column>
 </table>
 </item>
 <item name = "Detail">
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_440">p_anonymous_namespace_unpack_input_lane_words, 86, 86, 0.430 us, 0.430 us, 86, 86, no</column>
-<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463">p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491">p_anonymous_namespace_mpc_fpga_compute_core, 1, 151086, 5.000 ns, 0.755 ms, 1, 151086, no</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_434">p_anonymous_namespace_unpack_input_lane_words, 86, 86, 0.430 us, 0.430 us, 86, 86, no</column>
+<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457">p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485">p_anonymous_namespace_mpc_fpga_compute_core, 1, 101419, 5.000 ns, 0.507 ms, 1, 101419, no</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -50,14 +50,14 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 442, -</column>
+<column name="Expression">-, -, 0, 372, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">107, 1128, 103815, 111531, 0</column>
-<column name="Memory">0, -, 768, 176, 0</column>
-<column name="Multiplexer">-, -, 0, 1414, -</column>
-<column name="Register">-, -, 746, -, -</column>
+<column name="Instance">80, 770, 63687, 93475, 0</column>
+<column name="Memory">0, -, 648, 156, 0</column>
+<column name="Multiplexer">-, -, 0, 1797, -</column>
+<column name="Register">-, -, 782, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
-<specialColumn name="Utilization (%)">37, 90, 44, 96, 0</specialColumn>
+<specialColumn name="Utilization (%)">27, 61, 27, 81, 0</specialColumn>
 </table>
 </item>
 <item name = "Detail">
@@ -67,9 +67,9 @@
 <column name="control_s_axi_U">control_s_axi, 0, 0, 176, 296, 0</column>
 <column name="gmem0_m_axi_U">gmem0_m_axi, 29, 0, 1574, 1642, 0</column>
 <column name="gmem1_m_axi_U">gmem1_m_axi, 0, 0, 712, 873, 0</column>
-<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463">p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words, 0, 0, 13, 438, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491">p_anonymous_namespace_mpc_fpga_compute_core, 78, 1128, 100678, 107679, 0</column>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_440">p_anonymous_namespace_unpack_input_lane_words, 0, 0, 662, 603, 0</column>
+<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457">p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words, 0, 0, 13, 390, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485">p_anonymous_namespace_mpc_fpga_compute_core, 51, 770, 60622, 89671, 0</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_434">p_anonymous_namespace_unpack_input_lane_words, 0, 0, 590, 603, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -78,30 +78,30 @@
 </item>
 <item name = "Memory"><table name="" hasTotal="1">
 <keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+<column name="lane_words_3_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_4_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_5_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_6_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_8_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_9_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_10_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_11_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_12_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_13_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_14_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
+<column name="lane_words_15_U">lane_words_3_RAM_AUTO_1R1W, 0, 26, 5, 0, 11, 26, 1, 286</column>
 <column name="lane_words_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
 <column name="lane_words_1_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
 <column name="lane_words_2_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_3_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_4_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_5_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_6_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
 <column name="lane_words_7_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_8_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_9_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_10_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_11_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_12_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_13_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_14_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="lane_words_15_U">lane_words_RAM_AUTO_1R1W, 0, 32, 6, 0, 11, 32, 1, 352</column>
-<column name="ref_reference_heading_error_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_reference_lateral_error_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_reference_velocity_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_reference_lateral_velocity_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_reference_yaw_rate_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_path_curvature_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_left_wall_bound_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
-<column name="ref_right_wall_bound_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 32, 10, 0, 20, 32, 1, 640</column>
+<column name="ref_reference_heading_error_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_reference_lateral_error_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_reference_velocity_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_reference_lateral_velocity_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_reference_yaw_rate_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_path_curvature_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_left_wall_bound_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
+<column name="ref_right_wall_bound_U">ref_reference_heading_error_RAM_AUTO_1R1W, 0, 26, 9, 0, 20, 26, 1, 520</column>
 </table>
 </item>
 <item name = "FIFO"><table name="" hasTotal="1">
@@ -110,27 +110,30 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="angle_1_fu_656_p2">+, 0, 0, 39, 32, 22</column>
-<column name="angle_3_fu_673_p2">+, 0, 0, 39, 32, 21</column>
-<column name="angle_5_fu_691_p2">+, 0, 0, 39, 32, 22</column>
-<column name="angle_7_fu_711_p2">+, 0, 0, 39, 32, 21</column>
-<column name="icmp_ln435_1_fu_685_p2">icmp, 0, 0, 39, 32, 20</column>
-<column name="icmp_ln435_fu_651_p2">icmp, 0, 0, 39, 32, 20</column>
-<column name="icmp_ln437_1_fu_705_p2">icmp, 0, 0, 39, 32, 21</column>
-<column name="icmp_ln437_fu_668_p2">icmp, 0, 0, 39, 32, 21</column>
+<column name="angle_1_fu_668_p2">+, 0, 0, 33, 26, 18</column>
+<column name="angle_3_fu_693_p2">+, 0, 0, 33, 26, 17</column>
+<column name="angle_5_fu_711_p2">+, 0, 0, 33, 26, 18</column>
+<column name="angle_7_fu_731_p2">+, 0, 0, 33, 26, 17</column>
+<column name="ap_block_state79">and, 0, 0, 2, 1, 1</column>
+<column name="icmp_ln415_1_fu_705_p2">icmp, 0, 0, 33, 26, 16</column>
+<column name="icmp_ln415_fu_662_p2">icmp, 0, 0, 33, 26, 16</column>
+<column name="icmp_ln417_1_fu_725_p2">icmp, 0, 0, 33, 26, 17</column>
+<column name="icmp_ln417_fu_688_p2">icmp, 0, 0, 33, 26, 17</column>
 <column name="ap_block_state1">or, 0, 0, 2, 1, 1</column>
-<column name="angle_2_fu_661_p3">select, 0, 0, 32, 1, 32</column>
-<column name="angle_4_fu_678_p3">select, 0, 0, 32, 1, 32</column>
-<column name="angle_6_fu_697_p3">select, 0, 0, 32, 1, 32</column>
-<column name="angle_8_fu_717_p3">select, 0, 0, 32, 1, 32</column>
+<column name="angle_2_fu_674_p3">select, 0, 0, 26, 1, 26</column>
+<column name="angle_4_fu_698_p3">select, 0, 0, 26, 1, 26</column>
+<column name="angle_6_fu_717_p3">select, 0, 0, 26, 1, 26</column>
+<column name="angle_8_fu_737_p3">select, 0, 0, 26, 1, 26</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">427, 81, 1, 81</column>
+<column name="ap_NS_fsm">791, 150, 1, 150</column>
 <column name="ap_done">9, 2, 1, 2</column>
 <column name="gmem0_0_ARVALID">9, 2, 1, 2</column>
 <column name="gmem0_0_RREADY">9, 2, 1, 2</column>
+<column name="gmem1_0_AWADDR">14, 3, 64, 192</column>
+<column name="gmem1_0_WDATA">14, 3, 128, 384</column>
 <column name="gmem1_blk_n_AW">9, 2, 1, 2</column>
 <column name="gmem1_blk_n_B">9, 2, 1, 2</column>
 <column name="gmem1_blk_n_W">9, 2, 1, 2</column>
@@ -182,10 +185,10 @@
 <column name="lane_words_address0">14, 3, 4, 12</column>
 <column name="lane_words_ce0">14, 3, 1, 3</column>
 <column name="lane_words_we0">9, 2, 1, 2</column>
-<column name="out_accel_fu_282">9, 2, 32, 64</column>
-<column name="out_iters_fu_290">9, 2, 32, 64</column>
-<column name="out_status_fu_286">9, 2, 1, 2</column>
-<column name="out_steering_fu_278">9, 2, 32, 64</column>
+<column name="out_accel_fu_286">9, 2, 26, 52</column>
+<column name="out_iters_fu_294">9, 2, 32, 64</column>
+<column name="out_status_fu_290">9, 2, 1, 2</column>
+<column name="out_steering_fu_282">9, 2, 26, 52</column>
 <column name="ref_left_wall_bound_address0">14, 3, 5, 15</column>
 <column name="ref_left_wall_bound_ce0">14, 3, 1, 3</column>
 <column name="ref_left_wall_bound_we0">9, 2, 1, 2</column>
@@ -210,39 +213,41 @@
 <column name="ref_right_wall_bound_address0">14, 3, 5, 15</column>
 <column name="ref_right_wall_bound_ce0">14, 3, 1, 3</column>
 <column name="ref_right_wall_bound_we0">9, 2, 1, 2</column>
-<column name="storereflowmerge_reg_430">9, 2, 128, 256</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="angle_2_reg_910">32, 0, 32, 0</column>
-<column name="angle_8_reg_917">32, 0, 32, 0</column>
-<column name="ap_CS_fsm">80, 0, 80, 0</column>
+<column name="angle_2_reg_949">26, 0, 26, 0</column>
+<column name="angle_8_reg_966">26, 0, 26, 0</column>
+<column name="ap_CS_fsm">149, 0, 149, 0</column>
 <column name="ap_done_reg">1, 0, 1, 0</column>
 <column name="ap_rst_n_inv">1, 0, 1, 0</column>
-<column name="epsi_word_reg_866">32, 0, 32, 0</column>
-<column name="ey_word_reg_860">32, 0, 32, 0</column>
-<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg">1, 0, 1, 0</column>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg">1, 0, 1, 0</column>
-<column name="input_words512_read_reg_787">64, 0, 64, 0</column>
-<column name="omega_word_reg_885">32, 0, 32, 0</column>
+<column name="epsi_word_reg_897">32, 0, 32, 0</column>
+<column name="ey_word_reg_891">32, 0, 32, 0</column>
+<column name="grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg">1, 0, 1, 0</column>
+<column name="input_words512_read_reg_818">64, 0, 64, 0</column>
+<column name="omega_word_reg_914">26, 0, 26, 0</column>
 <column name="out_accel_arg_index">4, 0, 11, 7</column>
-<column name="out_accel_fu_282">32, 0, 32, 0</column>
-<column name="out_iters_arg_index">5, 0, 11, 6</column>
-<column name="out_iters_fu_290">32, 0, 32, 0</column>
-<column name="out_status_arg_index">4, 0, 11, 7</column>
-<column name="out_status_fu_286">1, 0, 1, 0</column>
-<column name="out_steering_arg_index">3, 0, 11, 8</column>
-<column name="out_steering_fu_278">32, 0, 32, 0</column>
-<column name="output_words128_read_reg_782">64, 0, 64, 0</column>
-<column name="prev_accel_word_reg_900">32, 0, 32, 0</column>
-<column name="steering_word_reg_890">32, 0, 32, 0</column>
-<column name="storereflowmerge_reg_430">128, 0, 128, 0</column>
-<column name="tmp_reg_906">1, 0, 1, 0</column>
-<column name="trunc_ln382_reg_895">3, 0, 3, 0</column>
-<column name="vx_word_reg_874">32, 0, 32, 0</column>
-<column name="vy_word_reg_880">32, 0, 32, 0</column>
+<column name="out_accel_fu_286">26, 0, 26, 0</column>
+<column name="out_iters_arg_index">2, 0, 11, 9</column>
+<column name="out_iters_fu_294">32, 0, 32, 0</column>
+<column name="out_status_arg_index">5, 0, 11, 6</column>
+<column name="out_status_fu_290">1, 0, 1, 0</column>
+<column name="out_steering_arg_index">4, 0, 11, 7</column>
+<column name="out_steering_fu_282">26, 0, 26, 0</column>
+<column name="output_words128_read_reg_813">64, 0, 64, 0</column>
+<column name="prev_accel_word_reg_929">32, 0, 32, 0</column>
+<column name="raw_3_reg_956">26, 0, 26, 0</column>
+<column name="raw_4_reg_961">26, 0, 26, 0</column>
+<column name="raw_reg_944">26, 0, 26, 0</column>
+<column name="steering_word_reg_919">26, 0, 26, 0</column>
+<column name="tmp_reg_935">1, 0, 1, 0</column>
+<column name="trunc_ln1_reg_939">60, 0, 60, 0</column>
+<column name="trunc_ln375_reg_924">3, 0, 3, 0</column>
+<column name="vx_word_reg_903">32, 0, 32, 0</column>
+<column name="vy_word_reg_909">26, 0, 26, 0</column>
 </table>
 </item>
 </section>

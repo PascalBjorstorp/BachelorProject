@@ -20,13 +20,11 @@ module mpc_fpga_top_opencl_fp_pacejka_ceff (
         ap_return
 );
 
-parameter    ap_ST_fsm_state1 = 7'd1;
-parameter    ap_ST_fsm_state2 = 7'd2;
-parameter    ap_ST_fsm_state3 = 7'd4;
-parameter    ap_ST_fsm_state4 = 7'd8;
-parameter    ap_ST_fsm_state5 = 7'd16;
-parameter    ap_ST_fsm_state6 = 7'd32;
-parameter    ap_ST_fsm_state7 = 7'd64;
+parameter    ap_ST_fsm_state1 = 5'd1;
+parameter    ap_ST_fsm_state2 = 5'd2;
+parameter    ap_ST_fsm_state3 = 5'd4;
+parameter    ap_ST_fsm_state4 = 5'd8;
+parameter    ap_ST_fsm_state5 = 5'd16;
 
 input   ap_clk;
 input   ap_rst;
@@ -34,66 +32,64 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-input  [25:0] cos_inner;
-input  [22:0] inv_denom;
-input  [25:0] D_cb;
-output  [25:0] ap_return;
+input  [20:0] cos_inner;
+input  [19:0] inv_denom;
+input  [20:0] D_cb;
+output  [20:0] ap_return;
 
 reg ap_done;
 reg ap_idle;
 reg ap_ready;
 
-(* fsm_encoding = "none" *) reg   [6:0] ap_CS_fsm;
+(* fsm_encoding = "none" *) reg   [4:0] ap_CS_fsm;
 wire    ap_CS_fsm_state1;
-wire    ap_CS_fsm_state4;
-reg  signed [25:0] ap_port_reg_D_cb;
-wire   [48:0] grp_fu_52_p2;
-wire  signed [25:0] product_q_fu_70_p4;
-wire   [42:0] grp_fu_56_p2;
-wire    ap_CS_fsm_state7;
-reg   [6:0] ap_NS_fsm;
+wire    ap_CS_fsm_state3;
+reg  signed [20:0] ap_port_reg_D_cb;
+wire   [40:0] grp_fu_54_p2;
+wire  signed [20:0] product_q_fu_72_p4;
+wire   [41:0] grp_fu_58_p2;
+wire    ap_CS_fsm_state5;
+reg   [4:0] ap_NS_fsm;
 reg    ap_ST_fsm_state1_blk;
 wire    ap_ST_fsm_state2_blk;
 wire    ap_ST_fsm_state3_blk;
 wire    ap_ST_fsm_state4_blk;
 wire    ap_ST_fsm_state5_blk;
-wire    ap_ST_fsm_state6_blk;
-wire    ap_ST_fsm_state7_blk;
 wire    ap_ce_reg;
 
 // power-on initialization
 initial begin
-#0 ap_CS_fsm = 7'd1;
+#0 ap_CS_fsm = 5'd1;
 end
 
-mpc_fpga_top_opencl_mul_23s_26s_49_4_1_x #(
+mpc_fpga_top_opencl_mul_20s_21s_41_3_1_x #(
     .ID( 1 ),
-    .NUM_STAGE( 4 ),
-    .din0_WIDTH( 23 ),
-    .din1_WIDTH( 26 ),
-    .dout_WIDTH( 49 ))
-mul_23s_26s_49_4_1_x_U332(
+    .NUM_STAGE( 3 ),
+    .din0_WIDTH( 20 ),
+    .din1_WIDTH( 21 ),
+    .dout_WIDTH( 41 ))
+mul_20s_21s_41_3_1_x_U332(
     .clk(ap_clk),
     .reset(ap_rst),
     .din0(inv_denom),
     .din1(cos_inner),
     .ce(1'b1),
-    .dout(grp_fu_52_p2)
+    .dout(grp_fu_54_p2)
 );
 
-mpc_fpga_top_opencl_mul_26s_26s_43_4_1 #(
+mpc_fpga_top_opencl_mul_21s_21s_42_3_1 #(
     .ID( 1 ),
-    .NUM_STAGE( 4 ),
-    .din0_WIDTH( 26 ),
-    .din1_WIDTH( 26 ),
-    .dout_WIDTH( 43 ))
-mul_26s_26s_43_4_1_U333(
+    .NUM_STAGE( 3 ),
+    .din0_WIDTH( 21 ),
+    .din1_WIDTH( 21 ),
+    .dout_WIDTH( 42 ))
+mul_21s_21s_42_3_1_U333(
     .clk(ap_clk),
     .reset(ap_rst),
-    .din0(product_q_fu_70_p4),
+    .din0(product_q_fu_72_p4),
     .din1(ap_port_reg_D_cb),
     .ce(1'b1),
-    .dout(grp_fu_56_p2)
+    .dout(grp_fu_58_p2)
 );
 
 always @ (posedge ap_clk) begin
@@ -126,12 +122,8 @@ assign ap_ST_fsm_state4_blk = 1'b0;
 
 assign ap_ST_fsm_state5_blk = 1'b0;
 
-assign ap_ST_fsm_state6_blk = 1'b0;
-
-assign ap_ST_fsm_state7_blk = 1'b0;
-
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state7) | ((1'b1 == ap_CS_fsm_state1) & (ap_start == 1'b0)))) begin
+    if (((1'b1 == ap_CS_fsm_state5) | ((1'b1 == ap_CS_fsm_state1) & (ap_start == 1'b0)))) begin
         ap_done = 1'b1;
     end else begin
         ap_done = 1'b0;
@@ -147,7 +139,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state7)) begin
+    if ((1'b1 == ap_CS_fsm_state5)) begin
         ap_ready = 1'b1;
     end else begin
         ap_ready = 1'b0;
@@ -173,12 +165,6 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state5;
         end
         ap_ST_fsm_state5 : begin
-            ap_NS_fsm = ap_ST_fsm_state6;
-        end
-        ap_ST_fsm_state6 : begin
-            ap_NS_fsm = ap_ST_fsm_state7;
-        end
-        ap_ST_fsm_state7 : begin
             ap_NS_fsm = ap_ST_fsm_state1;
         end
         default : begin
@@ -189,12 +175,12 @@ end
 
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
-assign ap_CS_fsm_state4 = ap_CS_fsm[32'd3];
+assign ap_CS_fsm_state3 = ap_CS_fsm[32'd2];
 
-assign ap_CS_fsm_state7 = ap_CS_fsm[32'd6];
+assign ap_CS_fsm_state5 = ap_CS_fsm[32'd4];
 
-assign ap_return = {{grp_fu_56_p2[42:17]}};
+assign ap_return = {{grp_fu_58_p2[32:12]}};
 
-assign product_q_fu_70_p4 = {{grp_fu_52_p2[42:17]}};
+assign product_q_fu_72_p4 = {{grp_fu_54_p2[32:12]}};
 
 endmodule //mpc_fpga_top_opencl_fp_pacejka_ceff

@@ -14,6 +14,7 @@ module mpc_fpga_top_opencl_sum8_P_MIX_raw_pupdate (
         ap_done,
         ap_idle,
         ap_ready,
+        ap_ce,
         a0,
         a1,
         a2,
@@ -33,15 +34,16 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-input  [57:0] a0;
-input  [57:0] a1;
-input  [57:0] a2;
-input  [57:0] a3;
-input  [57:0] a4;
-input  [57:0] a5;
-input  [57:0] a6;
-input  [57:0] a7;
-output  [57:0] ap_return;
+input   ap_ce;
+input  [40:0] a0;
+input  [40:0] a1;
+input  [40:0] a2;
+input  [40:0] a3;
+input  [40:0] a4;
+input  [40:0] a5;
+input  [43:0] a6;
+input  [43:0] a7;
+output  [40:0] ap_return;
 
 reg ap_done;
 reg ap_idle;
@@ -52,17 +54,19 @@ wire    ap_CS_fsm_pp0_stage0;
 wire    ap_enable_reg_pp0_iter0;
 reg    ap_enable_reg_pp0_iter1;
 reg    ap_idle_pp0;
-wire    ap_block_pp0_stage0_subdone;
-wire   [57:0] add_ln257_2_fu_124_p2;
-reg   [57:0] add_ln257_2_reg_130;
+reg    ap_block_pp0_stage0_subdone;
+wire   [40:0] add_ln273_fu_126_p2;
+reg   [40:0] add_ln273_reg_132;
 wire    ap_block_pp0_stage0_11001;
 wire    ap_block_pp0_stage0;
-wire   [57:0] add_ln257_1_fu_94_p2;
-wire   [57:0] add_ln257_fu_88_p2;
-wire   [57:0] add_ln257_5_fu_112_p2;
-wire   [57:0] add_ln257_4_fu_106_p2;
-wire   [57:0] add_ln257_6_fu_118_p2;
-wire   [57:0] add_ln257_3_fu_100_p2;
+wire   [40:0] add_ln272_1_fu_96_p2;
+wire   [40:0] add_ln272_fu_90_p2;
+wire   [40:0] trunc_ln263_fu_82_p1;
+wire   [40:0] trunc_ln263_1_fu_86_p1;
+wire   [40:0] add_ln272_4_fu_114_p2;
+wire   [40:0] add_ln272_3_fu_108_p2;
+wire   [40:0] add_ln272_5_fu_120_p2;
+wire   [40:0] add_ln272_2_fu_102_p2;
 reg   [0:0] ap_NS_fsm;
 reg    ap_idle_pp0_0to0;
 reg    ap_reset_init_pp0;
@@ -94,8 +98,8 @@ always @ (posedge ap_clk) begin
 end
 
 always @ (posedge ap_clk) begin
-    if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-        add_ln257_2_reg_130 <= add_ln257_2_fu_124_p2;
+    if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_ce) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
+        add_ln273_reg_132 <= add_ln273_fu_126_p2;
     end
 end
 
@@ -158,19 +162,19 @@ always @ (*) begin
     endcase
 end
 
-assign add_ln257_1_fu_94_p2 = (a0 + a1);
+assign add_ln272_1_fu_96_p2 = (a0 + a1);
 
-assign add_ln257_2_fu_124_p2 = (add_ln257_6_fu_118_p2 + add_ln257_3_fu_100_p2);
+assign add_ln272_2_fu_102_p2 = (add_ln272_1_fu_96_p2 + add_ln272_fu_90_p2);
 
-assign add_ln257_3_fu_100_p2 = (add_ln257_1_fu_94_p2 + add_ln257_fu_88_p2);
+assign add_ln272_3_fu_108_p2 = (a4 + a5);
 
-assign add_ln257_4_fu_106_p2 = (a4 + a5);
+assign add_ln272_4_fu_114_p2 = (trunc_ln263_fu_82_p1 + trunc_ln263_1_fu_86_p1);
 
-assign add_ln257_5_fu_112_p2 = (a6 + a7);
+assign add_ln272_5_fu_120_p2 = (add_ln272_4_fu_114_p2 + add_ln272_3_fu_108_p2);
 
-assign add_ln257_6_fu_118_p2 = (add_ln257_5_fu_112_p2 + add_ln257_4_fu_106_p2);
+assign add_ln272_fu_90_p2 = (a3 + a2);
 
-assign add_ln257_fu_88_p2 = (a3 + a2);
+assign add_ln273_fu_126_p2 = (add_ln272_5_fu_120_p2 + add_ln272_2_fu_102_p2);
 
 assign ap_CS_fsm_pp0_stage0 = ap_CS_fsm[32'd0];
 
@@ -178,12 +182,18 @@ assign ap_block_pp0_stage0 = ~(1'b1 == 1'b1);
 
 assign ap_block_pp0_stage0_11001 = ~(1'b1 == 1'b1);
 
-assign ap_block_pp0_stage0_subdone = ~(1'b1 == 1'b1);
+always @ (*) begin
+    ap_block_pp0_stage0_subdone = (1'b0 == ap_ce);
+end
 
 assign ap_enable_pp0 = (ap_idle_pp0 ^ 1'b1);
 
 assign ap_enable_reg_pp0_iter0 = ap_start;
 
-assign ap_return = add_ln257_2_reg_130;
+assign ap_return = add_ln273_reg_132;
+
+assign trunc_ln263_1_fu_86_p1 = a7[40:0];
+
+assign trunc_ln263_fu_82_p1 = a6[40:0];
 
 endmodule //mpc_fpga_top_opencl_sum8_P_MIX_raw_pupdate

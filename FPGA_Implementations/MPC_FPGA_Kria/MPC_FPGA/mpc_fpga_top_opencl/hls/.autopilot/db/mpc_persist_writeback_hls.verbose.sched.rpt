@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_persist_writeback_hls'
 ================================================================
-* Date:           Thu May 21 15:23:07 2026
+* Date:           Thu Jun 11 16:06:55 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -75,15 +75,15 @@ IsGatedGlobalClock: 0
 * FSM state operations: 
 
 State 1 <SV = 0> <Delay = 0.00>
-ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%prev_curvature_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_curvature" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 2 'read' 'prev_curvature_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%prev_accel_read = read i22 @_ssdm_op_Read.ap_auto.i22, i22 %prev_accel" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 3 'read' 'prev_accel_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%prev_steer_rate_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_steer_rate" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 4 'read' 'prev_steer_rate_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%sext_ln259 = sext i22 %prev_accel_read" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 5 'sext' 'sext_ln259' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%store_ln261 = store i32 %prev_steer_rate_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_riccati_hls.cpp:261]   --->   Operation 6 'store' 'store_ln261' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln262 = store i32 %sext_ln259, i32 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_riccati_hls.cpp:262]   --->   Operation 7 'store' 'store_ln262' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln263 = store i32 %prev_curvature_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_riccati_hls.cpp:263]   --->   Operation 8 'store' 'store_ln263' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln264 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_riccati_hls.cpp:264]   --->   Operation 9 'store' 'store_ln264' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln265 = ret" [../src/mpc_riccati_hls.cpp:265]   --->   Operation 10 'ret' 'ret_ln265' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%prev_curvature_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_curvature" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 2 'read' 'prev_curvature_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%prev_accel_read = read i19 @_ssdm_op_Read.ap_auto.i19, i19 %prev_accel" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 3 'read' 'prev_accel_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%prev_steer_rate_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_steer_rate" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 4 'read' 'prev_steer_rate_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%sext_ln257 = sext i19 %prev_accel_read" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 5 'sext' 'sext_ln257' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%store_ln259 = store i26 %prev_steer_rate_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 6 'store' 'store_ln259' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln260 = store i26 %sext_ln257, i26 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_riccati_hls.cpp:260]   --->   Operation 7 'store' 'store_ln260' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln261 = store i26 %prev_curvature_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_riccati_hls.cpp:261]   --->   Operation 8 'store' 'store_ln261' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln262 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_riccati_hls.cpp:262]   --->   Operation 9 'store' 'store_ln262' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln263 = ret" [../src/mpc_riccati_hls.cpp:263]   --->   Operation 10 'ret' 'ret_ln263' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================

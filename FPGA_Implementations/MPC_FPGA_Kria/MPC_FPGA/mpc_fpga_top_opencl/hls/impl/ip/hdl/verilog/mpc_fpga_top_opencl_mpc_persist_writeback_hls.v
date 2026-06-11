@@ -25,14 +25,14 @@ module mpc_fpga_top_opencl_mpc_persist_writeback_hls (
 
 
 output   ap_ready;
-input  [31:0] prev_steer_rate;
-input  [21:0] prev_accel;
-input  [31:0] prev_curvature;
-output  [31:0] p_anonymous_namespace_g_core_state_persist_prev_steer_rate;
+input  [25:0] prev_steer_rate;
+input  [18:0] prev_accel;
+input  [25:0] prev_curvature;
+output  [25:0] p_anonymous_namespace_g_core_state_persist_prev_steer_rate;
 output   p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld;
-output  [31:0] p_anonymous_namespace_g_core_state_persist_prev_accel;
+output  [25:0] p_anonymous_namespace_g_core_state_persist_prev_accel;
 output   p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld;
-output  [31:0] p_anonymous_namespace_g_core_state_persist_prev_curvature;
+output  [25:0] p_anonymous_namespace_g_core_state_persist_prev_curvature;
 output   p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld;
 output  [0:0] p_anonymous_namespace_g_core_state_persist_prev_model_signature;
 output   p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld;

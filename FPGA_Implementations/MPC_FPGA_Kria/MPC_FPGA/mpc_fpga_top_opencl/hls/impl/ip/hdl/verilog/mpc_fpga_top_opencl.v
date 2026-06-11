@@ -6,7 +6,7 @@
 
 `timescale 1 ns / 1 ps 
 
-(* CORE_GENERATION_INFO="mpc_fpga_top_opencl_mpc_fpga_top_opencl,hls_ip_2025_2,{HLS_INPUT_TYPE=cxx,HLS_INPUT_FLOAT=0,HLS_INPUT_FIXED=0,HLS_INPUT_PART=xck26-sfvc784-2LV-c,HLS_INPUT_CLOCK=5.000000,HLS_INPUT_ARCH=others,HLS_SYN_CLOCK=4.500000,HLS_SYN_LAT=4147,HLS_SYN_TPT=none,HLS_SYN_MEM=107,HLS_SYN_DSP=0,HLS_SYN_FF=105329,HLS_SYN_LUT=113563,HLS_VERSION=2025_2}" *)
+(* CORE_GENERATION_INFO="mpc_fpga_top_opencl_mpc_fpga_top_opencl,hls_ip_2025_2,{HLS_INPUT_TYPE=cxx,HLS_INPUT_FLOAT=0,HLS_INPUT_FIXED=0,HLS_INPUT_PART=xck26-sfvc784-2LV-c,HLS_INPUT_CLOCK=5.000000,HLS_INPUT_ARCH=others,HLS_SYN_CLOCK=4.500000,HLS_SYN_LAT=2832,HLS_SYN_TPT=none,HLS_SYN_MEM=80,HLS_SYN_DSP=0,HLS_SYN_FF=65117,HLS_SYN_LUT=95800,HLS_VERSION=2025_2}" *)
 
 (* DowngradeIPIdentifiedWarnings="yes" *)
 module mpc_fpga_top_opencl (
@@ -122,86 +122,155 @@ module mpc_fpga_top_opencl (
         interrupt
 );
 
-parameter    ap_ST_fsm_state1 = 80'd1;
-parameter    ap_ST_fsm_state2 = 80'd2;
-parameter    ap_ST_fsm_state3 = 80'd4;
-parameter    ap_ST_fsm_state4 = 80'd8;
-parameter    ap_ST_fsm_state5 = 80'd16;
-parameter    ap_ST_fsm_state6 = 80'd32;
-parameter    ap_ST_fsm_state7 = 80'd64;
-parameter    ap_ST_fsm_state8 = 80'd128;
-parameter    ap_ST_fsm_state9 = 80'd256;
-parameter    ap_ST_fsm_state10 = 80'd512;
-parameter    ap_ST_fsm_state11 = 80'd1024;
-parameter    ap_ST_fsm_state12 = 80'd2048;
-parameter    ap_ST_fsm_state13 = 80'd4096;
-parameter    ap_ST_fsm_state14 = 80'd8192;
-parameter    ap_ST_fsm_state15 = 80'd16384;
-parameter    ap_ST_fsm_state16 = 80'd32768;
-parameter    ap_ST_fsm_state17 = 80'd65536;
-parameter    ap_ST_fsm_state18 = 80'd131072;
-parameter    ap_ST_fsm_state19 = 80'd262144;
-parameter    ap_ST_fsm_state20 = 80'd524288;
-parameter    ap_ST_fsm_state21 = 80'd1048576;
-parameter    ap_ST_fsm_state22 = 80'd2097152;
-parameter    ap_ST_fsm_state23 = 80'd4194304;
-parameter    ap_ST_fsm_state24 = 80'd8388608;
-parameter    ap_ST_fsm_state25 = 80'd16777216;
-parameter    ap_ST_fsm_state26 = 80'd33554432;
-parameter    ap_ST_fsm_state27 = 80'd67108864;
-parameter    ap_ST_fsm_state28 = 80'd134217728;
-parameter    ap_ST_fsm_state29 = 80'd268435456;
-parameter    ap_ST_fsm_state30 = 80'd536870912;
-parameter    ap_ST_fsm_state31 = 80'd1073741824;
-parameter    ap_ST_fsm_state32 = 80'd2147483648;
-parameter    ap_ST_fsm_state33 = 80'd4294967296;
-parameter    ap_ST_fsm_state34 = 80'd8589934592;
-parameter    ap_ST_fsm_state35 = 80'd17179869184;
-parameter    ap_ST_fsm_state36 = 80'd34359738368;
-parameter    ap_ST_fsm_state37 = 80'd68719476736;
-parameter    ap_ST_fsm_state38 = 80'd137438953472;
-parameter    ap_ST_fsm_state39 = 80'd274877906944;
-parameter    ap_ST_fsm_state40 = 80'd549755813888;
-parameter    ap_ST_fsm_state41 = 80'd1099511627776;
-parameter    ap_ST_fsm_state42 = 80'd2199023255552;
-parameter    ap_ST_fsm_state43 = 80'd4398046511104;
-parameter    ap_ST_fsm_state44 = 80'd8796093022208;
-parameter    ap_ST_fsm_state45 = 80'd17592186044416;
-parameter    ap_ST_fsm_state46 = 80'd35184372088832;
-parameter    ap_ST_fsm_state47 = 80'd70368744177664;
-parameter    ap_ST_fsm_state48 = 80'd140737488355328;
-parameter    ap_ST_fsm_state49 = 80'd281474976710656;
-parameter    ap_ST_fsm_state50 = 80'd562949953421312;
-parameter    ap_ST_fsm_state51 = 80'd1125899906842624;
-parameter    ap_ST_fsm_state52 = 80'd2251799813685248;
-parameter    ap_ST_fsm_state53 = 80'd4503599627370496;
-parameter    ap_ST_fsm_state54 = 80'd9007199254740992;
-parameter    ap_ST_fsm_state55 = 80'd18014398509481984;
-parameter    ap_ST_fsm_state56 = 80'd36028797018963968;
-parameter    ap_ST_fsm_state57 = 80'd72057594037927936;
-parameter    ap_ST_fsm_state58 = 80'd144115188075855872;
-parameter    ap_ST_fsm_state59 = 80'd288230376151711744;
-parameter    ap_ST_fsm_state60 = 80'd576460752303423488;
-parameter    ap_ST_fsm_state61 = 80'd1152921504606846976;
-parameter    ap_ST_fsm_state62 = 80'd2305843009213693952;
-parameter    ap_ST_fsm_state63 = 80'd4611686018427387904;
-parameter    ap_ST_fsm_state64 = 80'd9223372036854775808;
-parameter    ap_ST_fsm_state65 = 80'd18446744073709551616;
-parameter    ap_ST_fsm_state66 = 80'd36893488147419103232;
-parameter    ap_ST_fsm_state67 = 80'd73786976294838206464;
-parameter    ap_ST_fsm_state68 = 80'd147573952589676412928;
-parameter    ap_ST_fsm_state69 = 80'd295147905179352825856;
-parameter    ap_ST_fsm_state70 = 80'd590295810358705651712;
-parameter    ap_ST_fsm_state71 = 80'd1180591620717411303424;
-parameter    ap_ST_fsm_state72 = 80'd2361183241434822606848;
-parameter    ap_ST_fsm_state73 = 80'd4722366482869645213696;
-parameter    ap_ST_fsm_state74 = 80'd9444732965739290427392;
-parameter    ap_ST_fsm_state75 = 80'd18889465931478580854784;
-parameter    ap_ST_fsm_state76 = 80'd37778931862957161709568;
-parameter    ap_ST_fsm_state77 = 80'd75557863725914323419136;
-parameter    ap_ST_fsm_state78 = 80'd151115727451828646838272;
-parameter    ap_ST_fsm_state79 = 80'd302231454903657293676544;
-parameter    ap_ST_fsm_state80 = 80'd604462909807314587353088;
+parameter    ap_ST_fsm_state1 = 149'd1;
+parameter    ap_ST_fsm_state2 = 149'd2;
+parameter    ap_ST_fsm_state3 = 149'd4;
+parameter    ap_ST_fsm_state4 = 149'd8;
+parameter    ap_ST_fsm_state5 = 149'd16;
+parameter    ap_ST_fsm_state6 = 149'd32;
+parameter    ap_ST_fsm_state7 = 149'd64;
+parameter    ap_ST_fsm_state8 = 149'd128;
+parameter    ap_ST_fsm_state9 = 149'd256;
+parameter    ap_ST_fsm_state10 = 149'd512;
+parameter    ap_ST_fsm_state11 = 149'd1024;
+parameter    ap_ST_fsm_state12 = 149'd2048;
+parameter    ap_ST_fsm_state13 = 149'd4096;
+parameter    ap_ST_fsm_state14 = 149'd8192;
+parameter    ap_ST_fsm_state15 = 149'd16384;
+parameter    ap_ST_fsm_state16 = 149'd32768;
+parameter    ap_ST_fsm_state17 = 149'd65536;
+parameter    ap_ST_fsm_state18 = 149'd131072;
+parameter    ap_ST_fsm_state19 = 149'd262144;
+parameter    ap_ST_fsm_state20 = 149'd524288;
+parameter    ap_ST_fsm_state21 = 149'd1048576;
+parameter    ap_ST_fsm_state22 = 149'd2097152;
+parameter    ap_ST_fsm_state23 = 149'd4194304;
+parameter    ap_ST_fsm_state24 = 149'd8388608;
+parameter    ap_ST_fsm_state25 = 149'd16777216;
+parameter    ap_ST_fsm_state26 = 149'd33554432;
+parameter    ap_ST_fsm_state27 = 149'd67108864;
+parameter    ap_ST_fsm_state28 = 149'd134217728;
+parameter    ap_ST_fsm_state29 = 149'd268435456;
+parameter    ap_ST_fsm_state30 = 149'd536870912;
+parameter    ap_ST_fsm_state31 = 149'd1073741824;
+parameter    ap_ST_fsm_state32 = 149'd2147483648;
+parameter    ap_ST_fsm_state33 = 149'd4294967296;
+parameter    ap_ST_fsm_state34 = 149'd8589934592;
+parameter    ap_ST_fsm_state35 = 149'd17179869184;
+parameter    ap_ST_fsm_state36 = 149'd34359738368;
+parameter    ap_ST_fsm_state37 = 149'd68719476736;
+parameter    ap_ST_fsm_state38 = 149'd137438953472;
+parameter    ap_ST_fsm_state39 = 149'd274877906944;
+parameter    ap_ST_fsm_state40 = 149'd549755813888;
+parameter    ap_ST_fsm_state41 = 149'd1099511627776;
+parameter    ap_ST_fsm_state42 = 149'd2199023255552;
+parameter    ap_ST_fsm_state43 = 149'd4398046511104;
+parameter    ap_ST_fsm_state44 = 149'd8796093022208;
+parameter    ap_ST_fsm_state45 = 149'd17592186044416;
+parameter    ap_ST_fsm_state46 = 149'd35184372088832;
+parameter    ap_ST_fsm_state47 = 149'd70368744177664;
+parameter    ap_ST_fsm_state48 = 149'd140737488355328;
+parameter    ap_ST_fsm_state49 = 149'd281474976710656;
+parameter    ap_ST_fsm_state50 = 149'd562949953421312;
+parameter    ap_ST_fsm_state51 = 149'd1125899906842624;
+parameter    ap_ST_fsm_state52 = 149'd2251799813685248;
+parameter    ap_ST_fsm_state53 = 149'd4503599627370496;
+parameter    ap_ST_fsm_state54 = 149'd9007199254740992;
+parameter    ap_ST_fsm_state55 = 149'd18014398509481984;
+parameter    ap_ST_fsm_state56 = 149'd36028797018963968;
+parameter    ap_ST_fsm_state57 = 149'd72057594037927936;
+parameter    ap_ST_fsm_state58 = 149'd144115188075855872;
+parameter    ap_ST_fsm_state59 = 149'd288230376151711744;
+parameter    ap_ST_fsm_state60 = 149'd576460752303423488;
+parameter    ap_ST_fsm_state61 = 149'd1152921504606846976;
+parameter    ap_ST_fsm_state62 = 149'd2305843009213693952;
+parameter    ap_ST_fsm_state63 = 149'd4611686018427387904;
+parameter    ap_ST_fsm_state64 = 149'd9223372036854775808;
+parameter    ap_ST_fsm_state65 = 149'd18446744073709551616;
+parameter    ap_ST_fsm_state66 = 149'd36893488147419103232;
+parameter    ap_ST_fsm_state67 = 149'd73786976294838206464;
+parameter    ap_ST_fsm_state68 = 149'd147573952589676412928;
+parameter    ap_ST_fsm_state69 = 149'd295147905179352825856;
+parameter    ap_ST_fsm_state70 = 149'd590295810358705651712;
+parameter    ap_ST_fsm_state71 = 149'd1180591620717411303424;
+parameter    ap_ST_fsm_state72 = 149'd2361183241434822606848;
+parameter    ap_ST_fsm_state73 = 149'd4722366482869645213696;
+parameter    ap_ST_fsm_state74 = 149'd9444732965739290427392;
+parameter    ap_ST_fsm_state75 = 149'd18889465931478580854784;
+parameter    ap_ST_fsm_state76 = 149'd37778931862957161709568;
+parameter    ap_ST_fsm_state77 = 149'd75557863725914323419136;
+parameter    ap_ST_fsm_state78 = 149'd151115727451828646838272;
+parameter    ap_ST_fsm_state79 = 149'd302231454903657293676544;
+parameter    ap_ST_fsm_state80 = 149'd604462909807314587353088;
+parameter    ap_ST_fsm_state81 = 149'd1208925819614629174706176;
+parameter    ap_ST_fsm_state82 = 149'd2417851639229258349412352;
+parameter    ap_ST_fsm_state83 = 149'd4835703278458516698824704;
+parameter    ap_ST_fsm_state84 = 149'd9671406556917033397649408;
+parameter    ap_ST_fsm_state85 = 149'd19342813113834066795298816;
+parameter    ap_ST_fsm_state86 = 149'd38685626227668133590597632;
+parameter    ap_ST_fsm_state87 = 149'd77371252455336267181195264;
+parameter    ap_ST_fsm_state88 = 149'd154742504910672534362390528;
+parameter    ap_ST_fsm_state89 = 149'd309485009821345068724781056;
+parameter    ap_ST_fsm_state90 = 149'd618970019642690137449562112;
+parameter    ap_ST_fsm_state91 = 149'd1237940039285380274899124224;
+parameter    ap_ST_fsm_state92 = 149'd2475880078570760549798248448;
+parameter    ap_ST_fsm_state93 = 149'd4951760157141521099596496896;
+parameter    ap_ST_fsm_state94 = 149'd9903520314283042199192993792;
+parameter    ap_ST_fsm_state95 = 149'd19807040628566084398385987584;
+parameter    ap_ST_fsm_state96 = 149'd39614081257132168796771975168;
+parameter    ap_ST_fsm_state97 = 149'd79228162514264337593543950336;
+parameter    ap_ST_fsm_state98 = 149'd158456325028528675187087900672;
+parameter    ap_ST_fsm_state99 = 149'd316912650057057350374175801344;
+parameter    ap_ST_fsm_state100 = 149'd633825300114114700748351602688;
+parameter    ap_ST_fsm_state101 = 149'd1267650600228229401496703205376;
+parameter    ap_ST_fsm_state102 = 149'd2535301200456458802993406410752;
+parameter    ap_ST_fsm_state103 = 149'd5070602400912917605986812821504;
+parameter    ap_ST_fsm_state104 = 149'd10141204801825835211973625643008;
+parameter    ap_ST_fsm_state105 = 149'd20282409603651670423947251286016;
+parameter    ap_ST_fsm_state106 = 149'd40564819207303340847894502572032;
+parameter    ap_ST_fsm_state107 = 149'd81129638414606681695789005144064;
+parameter    ap_ST_fsm_state108 = 149'd162259276829213363391578010288128;
+parameter    ap_ST_fsm_state109 = 149'd324518553658426726783156020576256;
+parameter    ap_ST_fsm_state110 = 149'd649037107316853453566312041152512;
+parameter    ap_ST_fsm_state111 = 149'd1298074214633706907132624082305024;
+parameter    ap_ST_fsm_state112 = 149'd2596148429267413814265248164610048;
+parameter    ap_ST_fsm_state113 = 149'd5192296858534827628530496329220096;
+parameter    ap_ST_fsm_state114 = 149'd10384593717069655257060992658440192;
+parameter    ap_ST_fsm_state115 = 149'd20769187434139310514121985316880384;
+parameter    ap_ST_fsm_state116 = 149'd41538374868278621028243970633760768;
+parameter    ap_ST_fsm_state117 = 149'd83076749736557242056487941267521536;
+parameter    ap_ST_fsm_state118 = 149'd166153499473114484112975882535043072;
+parameter    ap_ST_fsm_state119 = 149'd332306998946228968225951765070086144;
+parameter    ap_ST_fsm_state120 = 149'd664613997892457936451903530140172288;
+parameter    ap_ST_fsm_state121 = 149'd1329227995784915872903807060280344576;
+parameter    ap_ST_fsm_state122 = 149'd2658455991569831745807614120560689152;
+parameter    ap_ST_fsm_state123 = 149'd5316911983139663491615228241121378304;
+parameter    ap_ST_fsm_state124 = 149'd10633823966279326983230456482242756608;
+parameter    ap_ST_fsm_state125 = 149'd21267647932558653966460912964485513216;
+parameter    ap_ST_fsm_state126 = 149'd42535295865117307932921825928971026432;
+parameter    ap_ST_fsm_state127 = 149'd85070591730234615865843651857942052864;
+parameter    ap_ST_fsm_state128 = 149'd170141183460469231731687303715884105728;
+parameter    ap_ST_fsm_state129 = 149'd340282366920938463463374607431768211456;
+parameter    ap_ST_fsm_state130 = 149'd680564733841876926926749214863536422912;
+parameter    ap_ST_fsm_state131 = 149'd1361129467683753853853498429727072845824;
+parameter    ap_ST_fsm_state132 = 149'd2722258935367507707706996859454145691648;
+parameter    ap_ST_fsm_state133 = 149'd5444517870735015415413993718908291383296;
+parameter    ap_ST_fsm_state134 = 149'd10889035741470030830827987437816582766592;
+parameter    ap_ST_fsm_state135 = 149'd21778071482940061661655974875633165533184;
+parameter    ap_ST_fsm_state136 = 149'd43556142965880123323311949751266331066368;
+parameter    ap_ST_fsm_state137 = 149'd87112285931760246646623899502532662132736;
+parameter    ap_ST_fsm_state138 = 149'd174224571863520493293247799005065324265472;
+parameter    ap_ST_fsm_state139 = 149'd348449143727040986586495598010130648530944;
+parameter    ap_ST_fsm_state140 = 149'd696898287454081973172991196020261297061888;
+parameter    ap_ST_fsm_state141 = 149'd1393796574908163946345982392040522594123776;
+parameter    ap_ST_fsm_state142 = 149'd2787593149816327892691964784081045188247552;
+parameter    ap_ST_fsm_state143 = 149'd5575186299632655785383929568162090376495104;
+parameter    ap_ST_fsm_state144 = 149'd11150372599265311570767859136324180752990208;
+parameter    ap_ST_fsm_state145 = 149'd22300745198530623141535718272648361505980416;
+parameter    ap_ST_fsm_state146 = 149'd44601490397061246283071436545296723011960832;
+parameter    ap_ST_fsm_state147 = 149'd89202980794122492566142873090593446023921664;
+parameter    ap_ST_fsm_state148 = 149'd178405961588244985132285746181186892047843328;
+parameter    ap_ST_fsm_state149 = 149'd356811923176489970264571492362373784095686656;
 parameter    C_S_AXI_CONTROL_DATA_WIDTH = 32;
 parameter    C_S_AXI_CONTROL_ADDR_WIDTH = 6;
 parameter    C_S_AXI_DATA_WIDTH = 32;
@@ -352,7 +421,7 @@ reg    ap_done;
 wire    ap_continue;
 reg    ap_done_reg;
 reg    ap_idle;
-(* fsm_encoding = "none" *) reg   [79:0] ap_CS_fsm;
+(* fsm_encoding = "none" *) reg   [148:0] ap_CS_fsm;
 wire    ap_CS_fsm_state1;
 reg    ap_ready;
 wire   [63:0] input_words512;
@@ -362,48 +431,59 @@ reg   [10:0] out_accel_arg_index;
 reg   [10:0] out_status_arg_index;
 reg   [10:0] out_iters_arg_index;
 reg    gmem1_blk_n_AW;
-wire    ap_CS_fsm_state10;
-reg    gmem1_blk_n_W;
-wire    ap_CS_fsm_state12;
-reg    gmem1_blk_n_B;
 wire    ap_CS_fsm_state80;
-reg   [63:0] output_words128_read_reg_782;
+reg    gmem1_blk_n_W;
+wire    ap_CS_fsm_state81;
+reg    gmem1_blk_n_B;
+wire    ap_CS_fsm_state149;
+wire    ap_CS_fsm_state10;
+wire    ap_CS_fsm_state11;
+wire    ap_CS_fsm_state79;
+reg   [0:0] tmp_reg_935;
+reg   [63:0] output_words128_read_reg_813;
 reg    ap_block_state1;
-reg   [63:0] input_words512_read_reg_787;
+reg   [63:0] input_words512_read_reg_818;
 wire    ap_CS_fsm_state4;
-reg   [31:0] ey_word_reg_860;
+reg   [31:0] ey_word_reg_891;
 wire    ap_CS_fsm_state5;
-reg   [31:0] epsi_word_reg_866;
-reg   [31:0] vx_word_reg_874;
-reg   [31:0] vy_word_reg_880;
-reg   [31:0] omega_word_reg_885;
-reg   [31:0] steering_word_reg_890;
-wire   [2:0] trunc_ln382_fu_595_p1;
-reg   [2:0] trunc_ln382_reg_895;
-reg   [31:0] prev_accel_word_reg_900;
-wire   [0:0] tmp_fu_599_p3;
-reg   [0:0] tmp_reg_906;
-wire   [31:0] angle_2_fu_661_p3;
-reg   [31:0] angle_2_reg_910;
+reg   [31:0] epsi_word_reg_897;
+reg   [31:0] vx_word_reg_903;
+reg   [25:0] vy_word_reg_909;
+reg   [25:0] omega_word_reg_914;
+reg   [25:0] steering_word_reg_919;
+wire   [2:0] trunc_ln375_fu_600_p1;
+reg   [2:0] trunc_ln375_reg_924;
+reg   [31:0] prev_accel_word_reg_929;
+wire   [0:0] tmp_fu_604_p3;
+wire   [59:0] grp_fu_591_p4;
+reg   [59:0] trunc_ln1_reg_939;
+wire    ap_CS_fsm_state6;
+wire   [25:0] raw_fu_656_p1;
+reg   [25:0] raw_reg_944;
 wire    ap_CS_fsm_state7;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_done;
-wire   [31:0] angle_8_fu_717_p3;
-reg   [31:0] angle_8_reg_917;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_done;
+wire   [25:0] angle_2_fu_674_p3;
+reg   [25:0] angle_2_reg_949;
+wire   [25:0] raw_3_fu_682_p1;
+reg   [25:0] raw_3_reg_956;
+wire   [25:0] raw_4_fu_685_p1;
+reg   [25:0] raw_4_reg_961;
+wire   [25:0] angle_8_fu_737_p3;
+reg   [25:0] angle_8_reg_966;
 wire    ap_CS_fsm_state8;
-wire   [127:0] packed_out_fu_742_p5;
 reg    gmem1_0_AWVALID;
 wire    gmem1_0_AWREADY;
+reg   [63:0] gmem1_0_AWADDR;
 wire   [31:0] gmem1_0_AWLEN;
 reg    gmem1_0_WVALID;
 wire    gmem1_0_WREADY;
+reg   [127:0] gmem1_0_WDATA;
 wire    gmem1_0_ARREADY;
 wire    gmem1_0_RVALID;
 wire   [127:0] gmem1_0_RDATA;
 wire   [8:0] gmem1_0_RFIFONUM;
 wire    gmem1_0_BVALID;
 reg    gmem1_0_BREADY;
-wire   [127:0] packed_out_1_fu_774_p5;
-wire    ap_CS_fsm_state11;
 reg   [3:0] lane_words_address0;
 reg    lane_words_ce0;
 reg    lane_words_we0;
@@ -419,19 +499,19 @@ wire   [31:0] lane_words_2_q0;
 reg   [3:0] lane_words_3_address0;
 reg    lane_words_3_ce0;
 reg    lane_words_3_we0;
-wire   [31:0] lane_words_3_q0;
+wire   [25:0] lane_words_3_q0;
 reg   [3:0] lane_words_4_address0;
 reg    lane_words_4_ce0;
 reg    lane_words_4_we0;
-wire   [31:0] lane_words_4_q0;
+wire   [25:0] lane_words_4_q0;
 reg   [3:0] lane_words_5_address0;
 reg    lane_words_5_ce0;
 reg    lane_words_5_we0;
-wire   [31:0] lane_words_5_q0;
+wire   [25:0] lane_words_5_q0;
 reg   [3:0] lane_words_6_address0;
 reg    lane_words_6_ce0;
 reg    lane_words_6_we0;
-wire   [31:0] lane_words_6_q0;
+wire   [25:0] lane_words_6_q0;
 reg   [3:0] lane_words_7_address0;
 reg    lane_words_7_ce0;
 reg    lane_words_7_we0;
@@ -439,262 +519,262 @@ wire   [31:0] lane_words_7_q0;
 reg   [3:0] lane_words_8_address0;
 reg    lane_words_8_ce0;
 reg    lane_words_8_we0;
-wire   [31:0] lane_words_8_q0;
+wire   [25:0] lane_words_8_q0;
 reg   [3:0] lane_words_9_address0;
 reg    lane_words_9_ce0;
 reg    lane_words_9_we0;
-wire   [31:0] lane_words_9_q0;
+wire   [25:0] lane_words_9_q0;
 reg   [3:0] lane_words_10_address0;
 reg    lane_words_10_ce0;
 reg    lane_words_10_we0;
-wire   [31:0] lane_words_10_q0;
+wire   [25:0] lane_words_10_q0;
 reg   [3:0] lane_words_11_address0;
 reg    lane_words_11_ce0;
 reg    lane_words_11_we0;
-wire   [31:0] lane_words_11_q0;
+wire   [25:0] lane_words_11_q0;
 reg   [3:0] lane_words_12_address0;
 reg    lane_words_12_ce0;
 reg    lane_words_12_we0;
-wire   [31:0] lane_words_12_q0;
+wire   [25:0] lane_words_12_q0;
 reg   [3:0] lane_words_13_address0;
 reg    lane_words_13_ce0;
 reg    lane_words_13_we0;
-wire   [31:0] lane_words_13_q0;
+wire   [25:0] lane_words_13_q0;
 reg   [3:0] lane_words_14_address0;
 reg    lane_words_14_ce0;
 reg    lane_words_14_we0;
-wire   [31:0] lane_words_14_q0;
+wire   [25:0] lane_words_14_q0;
 reg   [3:0] lane_words_15_address0;
 reg    lane_words_15_ce0;
 reg    lane_words_15_we0;
-wire   [31:0] lane_words_15_q0;
+wire   [25:0] lane_words_15_q0;
 reg   [4:0] ref_reference_heading_error_address0;
 reg    ref_reference_heading_error_ce0;
 reg    ref_reference_heading_error_we0;
-wire   [31:0] ref_reference_heading_error_q0;
+wire   [25:0] ref_reference_heading_error_q0;
 reg   [4:0] ref_reference_lateral_error_address0;
 reg    ref_reference_lateral_error_ce0;
 reg    ref_reference_lateral_error_we0;
-wire   [31:0] ref_reference_lateral_error_q0;
+wire   [25:0] ref_reference_lateral_error_q0;
 reg   [4:0] ref_reference_velocity_address0;
 reg    ref_reference_velocity_ce0;
 reg    ref_reference_velocity_we0;
-wire   [31:0] ref_reference_velocity_q0;
+wire   [25:0] ref_reference_velocity_q0;
 reg   [4:0] ref_reference_lateral_velocity_address0;
 reg    ref_reference_lateral_velocity_ce0;
 reg    ref_reference_lateral_velocity_we0;
-wire   [31:0] ref_reference_lateral_velocity_q0;
+wire   [25:0] ref_reference_lateral_velocity_q0;
 reg   [4:0] ref_reference_yaw_rate_address0;
 reg    ref_reference_yaw_rate_ce0;
 reg    ref_reference_yaw_rate_we0;
-wire   [31:0] ref_reference_yaw_rate_q0;
+wire   [25:0] ref_reference_yaw_rate_q0;
 reg   [4:0] ref_path_curvature_address0;
 reg    ref_path_curvature_ce0;
 reg    ref_path_curvature_we0;
-wire   [31:0] ref_path_curvature_q0;
+wire   [25:0] ref_path_curvature_q0;
 reg   [4:0] ref_left_wall_bound_address0;
 reg    ref_left_wall_bound_ce0;
 reg    ref_left_wall_bound_we0;
-wire   [31:0] ref_left_wall_bound_q0;
+wire   [25:0] ref_left_wall_bound_q0;
 reg   [4:0] ref_right_wall_bound_address0;
 reg    ref_right_wall_bound_ce0;
 reg    ref_right_wall_bound_we0;
-wire   [31:0] ref_right_wall_bound_q0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_done;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_idle;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_ready;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWVALID;
-wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWADDR;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWID;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWLEN;
-wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWSIZE;
-wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWBURST;
-wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWLOCK;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWCACHE;
-wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWPROT;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWQOS;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWREGION;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWUSER;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WVALID;
-wire   [511:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WDATA;
-wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WSTRB;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WLAST;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WID;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WUSER;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARVALID;
-wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARADDR;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARID;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARLEN;
-wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARSIZE;
-wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARBURST;
-wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARLOCK;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARCACHE;
-wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARPROT;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARQOS;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARREGION;
-wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARUSER;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_RREADY;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_BREADY;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_d0;
-wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_address0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_ce0;
-wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_we0;
-wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_d0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_idle;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_ready;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_ce0;
-wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_ce0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_d0;
-wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_address0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_ce0;
-wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_we0;
-wire   [31:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_d0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_done;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_idle;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_ready;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_ce0;
-wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_address0;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_ce0;
-wire   [31:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering_ap_vld;
-wire   [31:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel_ap_vld;
-wire   [0:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status_ap_vld;
-wire   [31:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters;
-wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters_ap_vld;
+wire   [25:0] ref_right_wall_bound_q0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_done;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_idle;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_ready;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWVALID;
+wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWADDR;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWID;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWLEN;
+wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWSIZE;
+wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWBURST;
+wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWLOCK;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWCACHE;
+wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWPROT;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWQOS;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWREGION;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWUSER;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WVALID;
+wire   [511:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WDATA;
+wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WSTRB;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WLAST;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WID;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WUSER;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARVALID;
+wire   [63:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARADDR;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARID;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARLEN;
+wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARSIZE;
+wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARBURST;
+wire   [1:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARLOCK;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARCACHE;
+wire   [2:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARPROT;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARQOS;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARREGION;
+wire   [0:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARUSER;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_RREADY;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_BREADY;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_we0;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_we0;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_we0;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_we0;
+wire   [31:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_d0;
+wire   [3:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_address0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_ce0;
+wire    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_we0;
+wire   [25:0] grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_d0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_idle;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_ready;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_ce0;
+wire   [3:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_ce0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_d0;
+wire   [4:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_address0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_ce0;
+wire    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_we0;
+wire   [25:0] grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_d0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_done;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_idle;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_ready;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_ce0;
+wire   [4:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_address0;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_ce0;
+wire   [25:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering_ap_vld;
+wire   [25:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel_ap_vld;
+wire   [0:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status_ap_vld;
+wire   [31:0] grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters;
+wire    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters_ap_vld;
 wire    gmem0_0_AWREADY;
 wire    gmem0_0_WREADY;
 reg    gmem0_0_ARVALID;
@@ -704,19 +784,21 @@ reg    gmem0_0_RREADY;
 wire   [511:0] gmem0_0_RDATA;
 wire   [8:0] gmem0_0_RFIFONUM;
 wire    gmem0_0_BVALID;
-reg   [127:0] storereflowmerge_reg_430;
-reg    grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg;
+reg    grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg;
 wire    ap_CS_fsm_state2;
 wire    ap_CS_fsm_state3;
-reg    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg;
-wire    ap_CS_fsm_state6;
-reg    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg;
+reg    grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg;
+reg    grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg;
 wire    ap_CS_fsm_state9;
-reg   [31:0] out_steering_fu_278;
-reg   [31:0] out_accel_fu_282;
-reg   [0:0] out_status_fu_286;
-reg   [31:0] out_iters_fu_290;
-wire   [63:0] sext_ln419_fu_763_p1;
+reg   [25:0] out_steering_fu_282;
+reg   [25:0] out_accel_fu_286;
+reg   [0:0] out_status_fu_290;
+reg   [31:0] out_iters_fu_294;
+wire  signed [63:0] sext_ln410_fu_746_p1;
+wire  signed [63:0] sext_ln389_fu_793_p1;
+wire   [127:0] packed_out_fu_780_p5;
+wire   [127:0] packed_out_1_fu_804_p5;
+reg    ap_block_state79;
 reg    lane_words_ce0_local;
 reg    lane_words_1_ce0_local;
 reg    lane_words_2_ce0_local;
@@ -725,19 +807,21 @@ reg    lane_words_4_ce0_local;
 reg    lane_words_5_ce0_local;
 reg    lane_words_6_ce0_local;
 reg    lane_words_7_ce0_local;
-wire   [0:0] icmp_ln435_fu_651_p2;
-wire   [31:0] angle_1_fu_656_p2;
-wire   [0:0] icmp_ln437_fu_668_p2;
-wire   [31:0] angle_3_fu_673_p2;
-wire   [31:0] angle_4_fu_678_p3;
-wire   [0:0] icmp_ln435_1_fu_685_p2;
-wire   [31:0] angle_5_fu_691_p2;
-wire   [31:0] angle_6_fu_697_p3;
-wire   [0:0] icmp_ln437_1_fu_705_p2;
-wire   [31:0] angle_7_fu_711_p2;
-wire   [31:0] zext_ln418_fu_735_p1;
-wire   [59:0] trunc_ln_fu_754_p4;
-reg   [79:0] ap_NS_fsm;
+wire   [25:0] raw_2_fu_659_p1;
+wire   [0:0] icmp_ln415_fu_662_p2;
+wire   [25:0] angle_1_fu_668_p2;
+wire   [0:0] icmp_ln417_fu_688_p2;
+wire   [25:0] angle_3_fu_693_p2;
+wire   [25:0] angle_4_fu_698_p3;
+wire   [0:0] icmp_ln415_1_fu_705_p2;
+wire   [25:0] angle_5_fu_711_p2;
+wire   [25:0] angle_6_fu_717_p3;
+wire   [0:0] icmp_ln417_1_fu_725_p2;
+wire   [25:0] angle_7_fu_731_p2;
+wire   [31:0] zext_ln411_fu_773_p1;
+wire  signed [31:0] sext_ln411_1_fu_766_p1;
+wire  signed [31:0] sext_ln411_fu_759_p1;
+reg   [148:0] ap_NS_fsm;
 reg    ap_ST_fsm_state1_blk;
 wire    ap_ST_fsm_state2_blk;
 reg    ap_ST_fsm_state3_blk;
@@ -748,8 +832,8 @@ reg    ap_ST_fsm_state7_blk;
 wire    ap_ST_fsm_state8_blk;
 reg    ap_ST_fsm_state9_blk;
 reg    ap_ST_fsm_state10_blk;
-wire    ap_ST_fsm_state11_blk;
-reg    ap_ST_fsm_state12_blk;
+reg    ap_ST_fsm_state11_blk;
+wire    ap_ST_fsm_state12_blk;
 wire    ap_ST_fsm_state13_blk;
 wire    ap_ST_fsm_state14_blk;
 wire    ap_ST_fsm_state15_blk;
@@ -816,26 +900,95 @@ wire    ap_ST_fsm_state75_blk;
 wire    ap_ST_fsm_state76_blk;
 wire    ap_ST_fsm_state77_blk;
 wire    ap_ST_fsm_state78_blk;
-wire    ap_ST_fsm_state79_blk;
+reg    ap_ST_fsm_state79_blk;
 reg    ap_ST_fsm_state80_blk;
+reg    ap_ST_fsm_state81_blk;
+wire    ap_ST_fsm_state82_blk;
+wire    ap_ST_fsm_state83_blk;
+wire    ap_ST_fsm_state84_blk;
+wire    ap_ST_fsm_state85_blk;
+wire    ap_ST_fsm_state86_blk;
+wire    ap_ST_fsm_state87_blk;
+wire    ap_ST_fsm_state88_blk;
+wire    ap_ST_fsm_state89_blk;
+wire    ap_ST_fsm_state90_blk;
+wire    ap_ST_fsm_state91_blk;
+wire    ap_ST_fsm_state92_blk;
+wire    ap_ST_fsm_state93_blk;
+wire    ap_ST_fsm_state94_blk;
+wire    ap_ST_fsm_state95_blk;
+wire    ap_ST_fsm_state96_blk;
+wire    ap_ST_fsm_state97_blk;
+wire    ap_ST_fsm_state98_blk;
+wire    ap_ST_fsm_state99_blk;
+wire    ap_ST_fsm_state100_blk;
+wire    ap_ST_fsm_state101_blk;
+wire    ap_ST_fsm_state102_blk;
+wire    ap_ST_fsm_state103_blk;
+wire    ap_ST_fsm_state104_blk;
+wire    ap_ST_fsm_state105_blk;
+wire    ap_ST_fsm_state106_blk;
+wire    ap_ST_fsm_state107_blk;
+wire    ap_ST_fsm_state108_blk;
+wire    ap_ST_fsm_state109_blk;
+wire    ap_ST_fsm_state110_blk;
+wire    ap_ST_fsm_state111_blk;
+wire    ap_ST_fsm_state112_blk;
+wire    ap_ST_fsm_state113_blk;
+wire    ap_ST_fsm_state114_blk;
+wire    ap_ST_fsm_state115_blk;
+wire    ap_ST_fsm_state116_blk;
+wire    ap_ST_fsm_state117_blk;
+wire    ap_ST_fsm_state118_blk;
+wire    ap_ST_fsm_state119_blk;
+wire    ap_ST_fsm_state120_blk;
+wire    ap_ST_fsm_state121_blk;
+wire    ap_ST_fsm_state122_blk;
+wire    ap_ST_fsm_state123_blk;
+wire    ap_ST_fsm_state124_blk;
+wire    ap_ST_fsm_state125_blk;
+wire    ap_ST_fsm_state126_blk;
+wire    ap_ST_fsm_state127_blk;
+wire    ap_ST_fsm_state128_blk;
+wire    ap_ST_fsm_state129_blk;
+wire    ap_ST_fsm_state130_blk;
+wire    ap_ST_fsm_state131_blk;
+wire    ap_ST_fsm_state132_blk;
+wire    ap_ST_fsm_state133_blk;
+wire    ap_ST_fsm_state134_blk;
+wire    ap_ST_fsm_state135_blk;
+wire    ap_ST_fsm_state136_blk;
+wire    ap_ST_fsm_state137_blk;
+wire    ap_ST_fsm_state138_blk;
+wire    ap_ST_fsm_state139_blk;
+wire    ap_ST_fsm_state140_blk;
+wire    ap_ST_fsm_state141_blk;
+wire    ap_ST_fsm_state142_blk;
+wire    ap_ST_fsm_state143_blk;
+wire    ap_ST_fsm_state144_blk;
+wire    ap_ST_fsm_state145_blk;
+wire    ap_ST_fsm_state146_blk;
+wire    ap_ST_fsm_state147_blk;
+wire    ap_ST_fsm_state148_blk;
+reg    ap_ST_fsm_state149_blk;
 wire    ap_ce_reg;
 
 // power-on initialization
 initial begin
 #0 ap_rst_n_inv = 1'b1;
 #0 ap_done_reg = 1'b0;
-#0 ap_CS_fsm = 80'd1;
+#0 ap_CS_fsm = 149'd1;
 #0 out_steering_arg_index = 11'd0;
 #0 out_accel_arg_index = 11'd0;
 #0 out_status_arg_index = 11'd0;
 #0 out_iters_arg_index = 11'd0;
-#0 grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg = 1'b0;
-#0 grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg = 1'b0;
-#0 grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg = 1'b0;
-#0 out_steering_fu_278 = 32'd0;
-#0 out_accel_fu_282 = 32'd0;
-#0 out_status_fu_286 = 1'd0;
-#0 out_iters_fu_290 = 32'd0;
+#0 grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg = 1'b0;
+#0 grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg = 1'b0;
+#0 grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg = 1'b0;
+#0 out_steering_fu_282 = 26'd0;
+#0 out_accel_fu_286 = 26'd0;
+#0 out_status_fu_290 = 1'd0;
+#0 out_iters_fu_294 = 32'd0;
 end
 
 mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
@@ -848,7 +1001,7 @@ lane_words_U(
     .address0(lane_words_address0),
     .ce0(lane_words_ce0),
     .we0(lane_words_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_d0),
     .q0(lane_words_q0)
 );
 
@@ -862,7 +1015,7 @@ lane_words_1_U(
     .address0(lane_words_1_address0),
     .ce0(lane_words_1_ce0),
     .we0(lane_words_1_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_d0),
     .q0(lane_words_1_q0)
 );
 
@@ -876,12 +1029,12 @@ lane_words_2_U(
     .address0(lane_words_2_address0),
     .ce0(lane_words_2_ce0),
     .we0(lane_words_2_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_d0),
     .q0(lane_words_2_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_3_U(
@@ -890,12 +1043,12 @@ lane_words_3_U(
     .address0(lane_words_3_address0),
     .ce0(lane_words_3_ce0),
     .we0(lane_words_3_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_d0),
     .q0(lane_words_3_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_4_U(
@@ -904,12 +1057,12 @@ lane_words_4_U(
     .address0(lane_words_4_address0),
     .ce0(lane_words_4_ce0),
     .we0(lane_words_4_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_d0),
     .q0(lane_words_4_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_5_U(
@@ -918,12 +1071,12 @@ lane_words_5_U(
     .address0(lane_words_5_address0),
     .ce0(lane_words_5_ce0),
     .we0(lane_words_5_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_d0),
     .q0(lane_words_5_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_6_U(
@@ -932,7 +1085,7 @@ lane_words_6_U(
     .address0(lane_words_6_address0),
     .ce0(lane_words_6_ce0),
     .we0(lane_words_6_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_d0),
     .q0(lane_words_6_q0)
 );
 
@@ -946,12 +1099,12 @@ lane_words_7_U(
     .address0(lane_words_7_address0),
     .ce0(lane_words_7_ce0),
     .we0(lane_words_7_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_d0),
     .q0(lane_words_7_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_8_U(
@@ -960,12 +1113,12 @@ lane_words_8_U(
     .address0(lane_words_8_address0),
     .ce0(lane_words_8_ce0),
     .we0(lane_words_8_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_d0),
     .q0(lane_words_8_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_9_U(
@@ -974,12 +1127,12 @@ lane_words_9_U(
     .address0(lane_words_9_address0),
     .ce0(lane_words_9_ce0),
     .we0(lane_words_9_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_d0),
     .q0(lane_words_9_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_10_U(
@@ -988,12 +1141,12 @@ lane_words_10_U(
     .address0(lane_words_10_address0),
     .ce0(lane_words_10_ce0),
     .we0(lane_words_10_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_d0),
     .q0(lane_words_10_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_11_U(
@@ -1002,12 +1155,12 @@ lane_words_11_U(
     .address0(lane_words_11_address0),
     .ce0(lane_words_11_ce0),
     .we0(lane_words_11_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_d0),
     .q0(lane_words_11_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_12_U(
@@ -1016,12 +1169,12 @@ lane_words_12_U(
     .address0(lane_words_12_address0),
     .ce0(lane_words_12_ce0),
     .we0(lane_words_12_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_d0),
     .q0(lane_words_12_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_13_U(
@@ -1030,12 +1183,12 @@ lane_words_13_U(
     .address0(lane_words_13_address0),
     .ce0(lane_words_13_ce0),
     .we0(lane_words_13_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_d0),
     .q0(lane_words_13_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_14_U(
@@ -1044,12 +1197,12 @@ lane_words_14_U(
     .address0(lane_words_14_address0),
     .ce0(lane_words_14_ce0),
     .we0(lane_words_14_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_d0),
     .q0(lane_words_14_q0)
 );
 
-mpc_fpga_top_opencl_lane_words_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+mpc_fpga_top_opencl_lane_words_3_RAM_AUTO_1R1W #(
+    .DataWidth( 26 ),
     .AddressRange( 11 ),
     .AddressWidth( 4 ))
 lane_words_15_U(
@@ -1058,12 +1211,12 @@ lane_words_15_U(
     .address0(lane_words_15_address0),
     .ce0(lane_words_15_ce0),
     .we0(lane_words_15_we0),
-    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_d0),
+    .d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_d0),
     .q0(lane_words_15_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_reference_heading_error_U(
@@ -1072,12 +1225,12 @@ ref_reference_heading_error_U(
     .address0(ref_reference_heading_error_address0),
     .ce0(ref_reference_heading_error_ce0),
     .we0(ref_reference_heading_error_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_d0),
     .q0(ref_reference_heading_error_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_reference_lateral_error_U(
@@ -1086,12 +1239,12 @@ ref_reference_lateral_error_U(
     .address0(ref_reference_lateral_error_address0),
     .ce0(ref_reference_lateral_error_ce0),
     .we0(ref_reference_lateral_error_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_d0),
     .q0(ref_reference_lateral_error_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_reference_velocity_U(
@@ -1100,12 +1253,12 @@ ref_reference_velocity_U(
     .address0(ref_reference_velocity_address0),
     .ce0(ref_reference_velocity_ce0),
     .we0(ref_reference_velocity_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_d0),
     .q0(ref_reference_velocity_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_reference_lateral_velocity_U(
@@ -1114,12 +1267,12 @@ ref_reference_lateral_velocity_U(
     .address0(ref_reference_lateral_velocity_address0),
     .ce0(ref_reference_lateral_velocity_ce0),
     .we0(ref_reference_lateral_velocity_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_d0),
     .q0(ref_reference_lateral_velocity_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_reference_yaw_rate_U(
@@ -1128,12 +1281,12 @@ ref_reference_yaw_rate_U(
     .address0(ref_reference_yaw_rate_address0),
     .ce0(ref_reference_yaw_rate_ce0),
     .we0(ref_reference_yaw_rate_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_d0),
     .q0(ref_reference_yaw_rate_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_path_curvature_U(
@@ -1142,12 +1295,12 @@ ref_path_curvature_U(
     .address0(ref_path_curvature_address0),
     .ce0(ref_path_curvature_ce0),
     .we0(ref_path_curvature_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_d0),
     .q0(ref_path_curvature_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_left_wall_bound_U(
@@ -1156,12 +1309,12 @@ ref_left_wall_bound_U(
     .address0(ref_left_wall_bound_address0),
     .ce0(ref_left_wall_bound_ce0),
     .we0(ref_left_wall_bound_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_d0),
     .q0(ref_left_wall_bound_q0)
 );
 
 mpc_fpga_top_opencl_ref_reference_heading_error_RAM_AUTO_1R1W #(
-    .DataWidth( 32 ),
+    .DataWidth( 26 ),
     .AddressRange( 20 ),
     .AddressWidth( 5 ))
 ref_right_wall_bound_U(
@@ -1170,52 +1323,52 @@ ref_right_wall_bound_U(
     .address0(ref_right_wall_bound_address0),
     .ce0(ref_right_wall_bound_ce0),
     .we0(ref_right_wall_bound_we0),
-    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_d0),
+    .d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_d0),
     .q0(ref_right_wall_bound_q0)
 );
 
-mpc_fpga_top_opencl_p_anonymous_namespace_unpack_input_lane_words grp_p_anonymous_namespace_unpack_input_lane_words_fu_440(
+mpc_fpga_top_opencl_p_anonymous_namespace_unpack_input_lane_words grp_p_anonymous_namespace_unpack_input_lane_words_fu_434(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start),
-    .ap_done(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_done),
-    .ap_idle(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_idle),
-    .ap_ready(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_ready),
-    .m_axi_gmem0_0_AWVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWVALID),
+    .ap_start(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start),
+    .ap_done(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_done),
+    .ap_idle(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_idle),
+    .ap_ready(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_ready),
+    .m_axi_gmem0_0_AWVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWVALID),
     .m_axi_gmem0_0_AWREADY(1'b0),
-    .m_axi_gmem0_0_AWADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWADDR),
-    .m_axi_gmem0_0_AWID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWID),
-    .m_axi_gmem0_0_AWLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWLEN),
-    .m_axi_gmem0_0_AWSIZE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWSIZE),
-    .m_axi_gmem0_0_AWBURST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWBURST),
-    .m_axi_gmem0_0_AWLOCK(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWLOCK),
-    .m_axi_gmem0_0_AWCACHE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWCACHE),
-    .m_axi_gmem0_0_AWPROT(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWPROT),
-    .m_axi_gmem0_0_AWQOS(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWQOS),
-    .m_axi_gmem0_0_AWREGION(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWREGION),
-    .m_axi_gmem0_0_AWUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_AWUSER),
-    .m_axi_gmem0_0_WVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WVALID),
+    .m_axi_gmem0_0_AWADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWADDR),
+    .m_axi_gmem0_0_AWID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWID),
+    .m_axi_gmem0_0_AWLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWLEN),
+    .m_axi_gmem0_0_AWSIZE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWSIZE),
+    .m_axi_gmem0_0_AWBURST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWBURST),
+    .m_axi_gmem0_0_AWLOCK(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWLOCK),
+    .m_axi_gmem0_0_AWCACHE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWCACHE),
+    .m_axi_gmem0_0_AWPROT(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWPROT),
+    .m_axi_gmem0_0_AWQOS(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWQOS),
+    .m_axi_gmem0_0_AWREGION(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWREGION),
+    .m_axi_gmem0_0_AWUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_AWUSER),
+    .m_axi_gmem0_0_WVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WVALID),
     .m_axi_gmem0_0_WREADY(1'b0),
-    .m_axi_gmem0_0_WDATA(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WDATA),
-    .m_axi_gmem0_0_WSTRB(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WSTRB),
-    .m_axi_gmem0_0_WLAST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WLAST),
-    .m_axi_gmem0_0_WID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WID),
-    .m_axi_gmem0_0_WUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_WUSER),
-    .m_axi_gmem0_0_ARVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARVALID),
+    .m_axi_gmem0_0_WDATA(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WDATA),
+    .m_axi_gmem0_0_WSTRB(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WSTRB),
+    .m_axi_gmem0_0_WLAST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WLAST),
+    .m_axi_gmem0_0_WID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WID),
+    .m_axi_gmem0_0_WUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_WUSER),
+    .m_axi_gmem0_0_ARVALID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARVALID),
     .m_axi_gmem0_0_ARREADY(gmem0_0_ARREADY),
-    .m_axi_gmem0_0_ARADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARADDR),
-    .m_axi_gmem0_0_ARID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARID),
-    .m_axi_gmem0_0_ARLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARLEN),
-    .m_axi_gmem0_0_ARSIZE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARSIZE),
-    .m_axi_gmem0_0_ARBURST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARBURST),
-    .m_axi_gmem0_0_ARLOCK(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARLOCK),
-    .m_axi_gmem0_0_ARCACHE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARCACHE),
-    .m_axi_gmem0_0_ARPROT(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARPROT),
-    .m_axi_gmem0_0_ARQOS(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARQOS),
-    .m_axi_gmem0_0_ARREGION(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARREGION),
-    .m_axi_gmem0_0_ARUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARUSER),
+    .m_axi_gmem0_0_ARADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARADDR),
+    .m_axi_gmem0_0_ARID(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARID),
+    .m_axi_gmem0_0_ARLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARLEN),
+    .m_axi_gmem0_0_ARSIZE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARSIZE),
+    .m_axi_gmem0_0_ARBURST(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARBURST),
+    .m_axi_gmem0_0_ARLOCK(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARLOCK),
+    .m_axi_gmem0_0_ARCACHE(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARCACHE),
+    .m_axi_gmem0_0_ARPROT(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARPROT),
+    .m_axi_gmem0_0_ARQOS(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARQOS),
+    .m_axi_gmem0_0_ARREGION(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARREGION),
+    .m_axi_gmem0_0_ARUSER(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARUSER),
     .m_axi_gmem0_0_RVALID(gmem0_0_RVALID),
-    .m_axi_gmem0_0_RREADY(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_RREADY),
+    .m_axi_gmem0_0_RREADY(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_RREADY),
     .m_axi_gmem0_0_RDATA(gmem0_0_RDATA),
     .m_axi_gmem0_0_RLAST(1'b0),
     .m_axi_gmem0_0_RID(1'd0),
@@ -1223,213 +1376,213 @@ mpc_fpga_top_opencl_p_anonymous_namespace_unpack_input_lane_words grp_p_anonymou
     .m_axi_gmem0_0_RUSER(1'd0),
     .m_axi_gmem0_0_RRESP(2'd0),
     .m_axi_gmem0_0_BVALID(1'b0),
-    .m_axi_gmem0_0_BREADY(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_BREADY),
+    .m_axi_gmem0_0_BREADY(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_BREADY),
     .m_axi_gmem0_0_BRESP(2'd0),
     .m_axi_gmem0_0_BID(1'd0),
     .m_axi_gmem0_0_BUSER(1'd0),
-    .input_words512(input_words512_read_reg_787),
-    .lane_words_0_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_address0),
-    .lane_words_0_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_ce0),
-    .lane_words_0_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_we0),
-    .lane_words_0_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_d0),
-    .lane_words_1_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_address0),
-    .lane_words_1_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_ce0),
-    .lane_words_1_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_we0),
-    .lane_words_1_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_d0),
-    .lane_words_2_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_address0),
-    .lane_words_2_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_ce0),
-    .lane_words_2_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_we0),
-    .lane_words_2_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_d0),
-    .lane_words_3_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_address0),
-    .lane_words_3_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_ce0),
-    .lane_words_3_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_we0),
-    .lane_words_3_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_d0),
-    .lane_words_4_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_address0),
-    .lane_words_4_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_ce0),
-    .lane_words_4_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_we0),
-    .lane_words_4_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_d0),
-    .lane_words_5_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_address0),
-    .lane_words_5_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_ce0),
-    .lane_words_5_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_we0),
-    .lane_words_5_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_d0),
-    .lane_words_6_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_address0),
-    .lane_words_6_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_ce0),
-    .lane_words_6_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_we0),
-    .lane_words_6_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_d0),
-    .lane_words_7_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_address0),
-    .lane_words_7_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_ce0),
-    .lane_words_7_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_we0),
-    .lane_words_7_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_d0),
-    .lane_words_8_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_address0),
-    .lane_words_8_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_ce0),
-    .lane_words_8_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_we0),
-    .lane_words_8_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_d0),
-    .lane_words_9_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_address0),
-    .lane_words_9_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_ce0),
-    .lane_words_9_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_we0),
-    .lane_words_9_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_d0),
-    .lane_words_10_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_address0),
-    .lane_words_10_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_ce0),
-    .lane_words_10_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_we0),
-    .lane_words_10_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_d0),
-    .lane_words_11_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_address0),
-    .lane_words_11_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_ce0),
-    .lane_words_11_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_we0),
-    .lane_words_11_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_d0),
-    .lane_words_12_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_address0),
-    .lane_words_12_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_ce0),
-    .lane_words_12_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_we0),
-    .lane_words_12_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_d0),
-    .lane_words_13_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_address0),
-    .lane_words_13_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_ce0),
-    .lane_words_13_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_we0),
-    .lane_words_13_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_d0),
-    .lane_words_14_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_address0),
-    .lane_words_14_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_ce0),
-    .lane_words_14_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_we0),
-    .lane_words_14_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_d0),
-    .lane_words_15_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_address0),
-    .lane_words_15_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_ce0),
-    .lane_words_15_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_we0),
-    .lane_words_15_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_d0)
+    .input_words512(input_words512_read_reg_818),
+    .lane_words_0_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_address0),
+    .lane_words_0_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_ce0),
+    .lane_words_0_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_we0),
+    .lane_words_0_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_d0),
+    .lane_words_1_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_address0),
+    .lane_words_1_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_ce0),
+    .lane_words_1_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_we0),
+    .lane_words_1_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_d0),
+    .lane_words_2_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_address0),
+    .lane_words_2_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_ce0),
+    .lane_words_2_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_we0),
+    .lane_words_2_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_d0),
+    .lane_words_3_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_address0),
+    .lane_words_3_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_ce0),
+    .lane_words_3_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_we0),
+    .lane_words_3_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_d0),
+    .lane_words_4_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_address0),
+    .lane_words_4_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_ce0),
+    .lane_words_4_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_we0),
+    .lane_words_4_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_d0),
+    .lane_words_5_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_address0),
+    .lane_words_5_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_ce0),
+    .lane_words_5_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_we0),
+    .lane_words_5_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_d0),
+    .lane_words_6_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_address0),
+    .lane_words_6_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_ce0),
+    .lane_words_6_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_we0),
+    .lane_words_6_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_d0),
+    .lane_words_7_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_address0),
+    .lane_words_7_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_ce0),
+    .lane_words_7_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_we0),
+    .lane_words_7_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_d0),
+    .lane_words_8_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_address0),
+    .lane_words_8_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_ce0),
+    .lane_words_8_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_we0),
+    .lane_words_8_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_d0),
+    .lane_words_9_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_address0),
+    .lane_words_9_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_ce0),
+    .lane_words_9_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_we0),
+    .lane_words_9_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_d0),
+    .lane_words_10_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_address0),
+    .lane_words_10_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_ce0),
+    .lane_words_10_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_we0),
+    .lane_words_10_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_d0),
+    .lane_words_11_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_address0),
+    .lane_words_11_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_ce0),
+    .lane_words_11_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_we0),
+    .lane_words_11_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_d0),
+    .lane_words_12_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_address0),
+    .lane_words_12_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_ce0),
+    .lane_words_12_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_we0),
+    .lane_words_12_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_d0),
+    .lane_words_13_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_address0),
+    .lane_words_13_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_ce0),
+    .lane_words_13_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_we0),
+    .lane_words_13_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_d0),
+    .lane_words_14_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_address0),
+    .lane_words_14_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_ce0),
+    .lane_words_14_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_we0),
+    .lane_words_14_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_d0),
+    .lane_words_15_address0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_address0),
+    .lane_words_15_ce0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_ce0),
+    .lane_words_15_we0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_we0),
+    .lane_words_15_d0(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_d0)
 );
 
-mpc_fpga_top_opencl_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463(
+mpc_fpga_top_opencl_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start),
-    .ap_done(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_done),
-    .ap_idle(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_idle),
-    .ap_ready(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_ready),
-    .lane_words_0_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_address0),
-    .lane_words_0_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_ce0),
+    .ap_start(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start),
+    .ap_done(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_done),
+    .ap_idle(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_idle),
+    .ap_ready(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_ready),
+    .lane_words_0_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_address0),
+    .lane_words_0_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_ce0),
     .lane_words_0_q0(lane_words_q0),
-    .lane_words_1_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_address0),
-    .lane_words_1_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_ce0),
+    .lane_words_1_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_address0),
+    .lane_words_1_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_ce0),
     .lane_words_1_q0(lane_words_1_q0),
-    .lane_words_2_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_address0),
-    .lane_words_2_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_ce0),
+    .lane_words_2_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_address0),
+    .lane_words_2_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_ce0),
     .lane_words_2_q0(lane_words_2_q0),
-    .lane_words_3_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_address0),
-    .lane_words_3_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_ce0),
+    .lane_words_3_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_address0),
+    .lane_words_3_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_ce0),
     .lane_words_3_q0(lane_words_3_q0),
-    .lane_words_4_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_address0),
-    .lane_words_4_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_ce0),
+    .lane_words_4_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_address0),
+    .lane_words_4_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_ce0),
     .lane_words_4_q0(lane_words_4_q0),
-    .lane_words_5_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_address0),
-    .lane_words_5_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_ce0),
+    .lane_words_5_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_address0),
+    .lane_words_5_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_ce0),
     .lane_words_5_q0(lane_words_5_q0),
-    .lane_words_6_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_address0),
-    .lane_words_6_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_ce0),
+    .lane_words_6_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_address0),
+    .lane_words_6_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_ce0),
     .lane_words_6_q0(lane_words_6_q0),
-    .lane_words_7_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_address0),
-    .lane_words_7_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_ce0),
+    .lane_words_7_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_address0),
+    .lane_words_7_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_ce0),
     .lane_words_7_q0(lane_words_7_q0),
-    .lane_words_8_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_address0),
-    .lane_words_8_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_ce0),
+    .lane_words_8_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_address0),
+    .lane_words_8_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_ce0),
     .lane_words_8_q0(lane_words_8_q0),
-    .lane_words_9_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_address0),
-    .lane_words_9_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_ce0),
+    .lane_words_9_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_address0),
+    .lane_words_9_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_ce0),
     .lane_words_9_q0(lane_words_9_q0),
-    .lane_words_10_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_address0),
-    .lane_words_10_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_ce0),
+    .lane_words_10_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_address0),
+    .lane_words_10_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_ce0),
     .lane_words_10_q0(lane_words_10_q0),
-    .lane_words_11_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_address0),
-    .lane_words_11_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_ce0),
+    .lane_words_11_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_address0),
+    .lane_words_11_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_ce0),
     .lane_words_11_q0(lane_words_11_q0),
-    .lane_words_12_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_address0),
-    .lane_words_12_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_ce0),
+    .lane_words_12_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_address0),
+    .lane_words_12_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_ce0),
     .lane_words_12_q0(lane_words_12_q0),
-    .lane_words_13_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_address0),
-    .lane_words_13_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_ce0),
+    .lane_words_13_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_address0),
+    .lane_words_13_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_ce0),
     .lane_words_13_q0(lane_words_13_q0),
-    .lane_words_14_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_address0),
-    .lane_words_14_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_ce0),
+    .lane_words_14_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_address0),
+    .lane_words_14_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_ce0),
     .lane_words_14_q0(lane_words_14_q0),
-    .lane_words_15_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_address0),
-    .lane_words_15_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_ce0),
+    .lane_words_15_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_address0),
+    .lane_words_15_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_ce0),
     .lane_words_15_q0(lane_words_15_q0),
-    .out_ref_reference_heading_error_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_address0),
-    .out_ref_reference_heading_error_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_ce0),
-    .out_ref_reference_heading_error_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_we0),
-    .out_ref_reference_heading_error_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_d0),
-    .out_ref_reference_lateral_error_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_address0),
-    .out_ref_reference_lateral_error_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_ce0),
-    .out_ref_reference_lateral_error_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_we0),
-    .out_ref_reference_lateral_error_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_d0),
-    .out_ref_reference_velocity_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_address0),
-    .out_ref_reference_velocity_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_ce0),
-    .out_ref_reference_velocity_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_we0),
-    .out_ref_reference_velocity_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_d0),
-    .out_ref_reference_lateral_velocity_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_address0),
-    .out_ref_reference_lateral_velocity_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_ce0),
-    .out_ref_reference_lateral_velocity_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_we0),
-    .out_ref_reference_lateral_velocity_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_d0),
-    .out_ref_reference_yaw_rate_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_address0),
-    .out_ref_reference_yaw_rate_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_ce0),
-    .out_ref_reference_yaw_rate_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_we0),
-    .out_ref_reference_yaw_rate_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_d0),
-    .out_ref_path_curvature_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_address0),
-    .out_ref_path_curvature_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_ce0),
-    .out_ref_path_curvature_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_we0),
-    .out_ref_path_curvature_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_d0),
-    .out_ref_left_wall_bound_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_address0),
-    .out_ref_left_wall_bound_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_ce0),
-    .out_ref_left_wall_bound_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_we0),
-    .out_ref_left_wall_bound_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_d0),
-    .out_ref_right_wall_bound_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_address0),
-    .out_ref_right_wall_bound_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_ce0),
-    .out_ref_right_wall_bound_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_we0),
-    .out_ref_right_wall_bound_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_d0)
+    .out_ref_reference_heading_error_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_address0),
+    .out_ref_reference_heading_error_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_ce0),
+    .out_ref_reference_heading_error_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_we0),
+    .out_ref_reference_heading_error_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_d0),
+    .out_ref_reference_lateral_error_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_address0),
+    .out_ref_reference_lateral_error_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_ce0),
+    .out_ref_reference_lateral_error_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_we0),
+    .out_ref_reference_lateral_error_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_d0),
+    .out_ref_reference_velocity_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_address0),
+    .out_ref_reference_velocity_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_ce0),
+    .out_ref_reference_velocity_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_we0),
+    .out_ref_reference_velocity_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_d0),
+    .out_ref_reference_lateral_velocity_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_address0),
+    .out_ref_reference_lateral_velocity_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_ce0),
+    .out_ref_reference_lateral_velocity_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_we0),
+    .out_ref_reference_lateral_velocity_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_d0),
+    .out_ref_reference_yaw_rate_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_address0),
+    .out_ref_reference_yaw_rate_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_ce0),
+    .out_ref_reference_yaw_rate_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_we0),
+    .out_ref_reference_yaw_rate_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_d0),
+    .out_ref_path_curvature_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_address0),
+    .out_ref_path_curvature_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_ce0),
+    .out_ref_path_curvature_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_we0),
+    .out_ref_path_curvature_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_d0),
+    .out_ref_left_wall_bound_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_address0),
+    .out_ref_left_wall_bound_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_ce0),
+    .out_ref_left_wall_bound_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_we0),
+    .out_ref_left_wall_bound_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_d0),
+    .out_ref_right_wall_bound_address0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_address0),
+    .out_ref_right_wall_bound_ce0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_ce0),
+    .out_ref_right_wall_bound_we0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_we0),
+    .out_ref_right_wall_bound_d0(grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_d0)
 );
 
-mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491(
+mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst_n_inv),
-    .ap_start(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start),
-    .ap_done(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_done),
-    .ap_idle(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_idle),
-    .ap_ready(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_ready),
-    .ey(ey_word_reg_860),
-    .epsi(angle_8_reg_917),
-    .vx(vx_word_reg_874),
-    .vy(vy_word_reg_880),
-    .omega(omega_word_reg_885),
-    .steering(steering_word_reg_890),
-    .prev_accel(prev_accel_word_reg_900),
-    .control_flags(trunc_ln382_reg_895),
-    .ref_reference_heading_error_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_address0),
-    .ref_reference_heading_error_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_ce0),
+    .ap_start(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start),
+    .ap_done(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_done),
+    .ap_idle(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_idle),
+    .ap_ready(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_ready),
+    .ey(raw_reg_944),
+    .epsi(angle_8_reg_966),
+    .vx(raw_3_reg_956),
+    .vy(vy_word_reg_909),
+    .omega(omega_word_reg_914),
+    .steering(steering_word_reg_919),
+    .prev_accel(raw_4_reg_961),
+    .control_flags(trunc_ln375_reg_924),
+    .ref_reference_heading_error_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_address0),
+    .ref_reference_heading_error_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_ce0),
     .ref_reference_heading_error_q0(ref_reference_heading_error_q0),
-    .ref_reference_lateral_error_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_address0),
-    .ref_reference_lateral_error_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_ce0),
+    .ref_reference_lateral_error_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_address0),
+    .ref_reference_lateral_error_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_ce0),
     .ref_reference_lateral_error_q0(ref_reference_lateral_error_q0),
-    .ref_reference_velocity_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_address0),
-    .ref_reference_velocity_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_ce0),
+    .ref_reference_velocity_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_address0),
+    .ref_reference_velocity_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_ce0),
     .ref_reference_velocity_q0(ref_reference_velocity_q0),
-    .ref_reference_lateral_velocity_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_address0),
-    .ref_reference_lateral_velocity_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_ce0),
+    .ref_reference_lateral_velocity_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_address0),
+    .ref_reference_lateral_velocity_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_ce0),
     .ref_reference_lateral_velocity_q0(ref_reference_lateral_velocity_q0),
-    .ref_reference_yaw_rate_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_address0),
-    .ref_reference_yaw_rate_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_ce0),
+    .ref_reference_yaw_rate_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_address0),
+    .ref_reference_yaw_rate_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_ce0),
     .ref_reference_yaw_rate_q0(ref_reference_yaw_rate_q0),
-    .ref_path_curvature_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_address0),
-    .ref_path_curvature_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_ce0),
+    .ref_path_curvature_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_address0),
+    .ref_path_curvature_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_ce0),
     .ref_path_curvature_q0(ref_path_curvature_q0),
-    .ref_left_wall_bound_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_address0),
-    .ref_left_wall_bound_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_ce0),
+    .ref_left_wall_bound_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_address0),
+    .ref_left_wall_bound_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_ce0),
     .ref_left_wall_bound_q0(ref_left_wall_bound_q0),
-    .ref_right_wall_bound_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_address0),
-    .ref_right_wall_bound_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_ce0),
+    .ref_right_wall_bound_address0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_address0),
+    .ref_right_wall_bound_ce0(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_ce0),
     .ref_right_wall_bound_q0(ref_right_wall_bound_q0),
-    .out_steering(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering),
-    .out_steering_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering_ap_vld),
-    .out_accel(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel),
-    .out_accel_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel_ap_vld),
-    .out_status(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status),
-    .out_status_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status_ap_vld),
-    .out_iters(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters),
-    .out_iters_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters_ap_vld),
+    .out_steering(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering),
+    .out_steering_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering_ap_vld),
+    .out_accel(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel),
+    .out_accel_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel_ap_vld),
+    .out_status(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status),
+    .out_status_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status_ap_vld),
+    .out_iters(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters),
+    .out_iters_ap_vld(grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters_ap_vld),
     .out_steering_arg_index(out_steering_arg_index),
     .out_accel_arg_index(out_accel_arg_index),
     .out_status_arg_index(out_status_arg_index),
@@ -1544,8 +1697,8 @@ gmem0_m_axi_U(
     .ACLK_EN(1'b1),
     .I_CH0_ARVALID(gmem0_0_ARVALID),
     .I_CH0_ARREADY(gmem0_0_ARREADY),
-    .I_CH0_ARADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARADDR),
-    .I_CH0_ARLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARLEN),
+    .I_CH0_ARADDR(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARADDR),
+    .I_CH0_ARLEN(grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARLEN),
     .I_CH0_RVALID(gmem0_0_RVALID),
     .I_CH0_RREADY(gmem0_0_RREADY),
     .I_CH0_RDATA(gmem0_0_RDATA),
@@ -1644,11 +1797,11 @@ gmem1_m_axi_U(
     .I_CH0_RFIFONUM(gmem1_0_RFIFONUM),
     .I_CH0_AWVALID(gmem1_0_AWVALID),
     .I_CH0_AWREADY(gmem1_0_AWREADY),
-    .I_CH0_AWADDR(sext_ln419_fu_763_p1),
+    .I_CH0_AWADDR(gmem1_0_AWADDR),
     .I_CH0_AWLEN(gmem1_0_AWLEN),
     .I_CH0_WVALID(gmem1_0_WVALID),
     .I_CH0_WREADY(gmem1_0_WREADY),
-    .I_CH0_WDATA(storereflowmerge_reg_430),
+    .I_CH0_WDATA(gmem1_0_WDATA),
     .I_CH0_WSTRB(16'd65535),
     .I_CH0_BVALID(gmem1_0_BVALID),
     .I_CH0_BREADY(gmem1_0_BREADY)
@@ -1668,7 +1821,7 @@ always @ (posedge ap_clk) begin
     end else begin
         if ((ap_continue == 1'b1)) begin
             ap_done_reg <= 1'b0;
-        end else if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+        end else if (((1'b0 == ap_block_state79) & (1'b1 == ap_CS_fsm_state79))) begin
             ap_done_reg <= 1'b1;
         end
     end
@@ -1676,36 +1829,36 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst_n_inv == 1'b1) begin
-        grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg <= 1'b0;
+        grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg <= 1'b0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state6)) begin
-            grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg <= 1'b1;
-        end else if ((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_ready == 1'b1)) begin
-            grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg <= 1'b0;
+            grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg <= 1'b1;
+        end else if ((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_ready == 1'b1)) begin
+            grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst_n_inv == 1'b1) begin
-        grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg <= 1'b0;
+        grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg <= 1'b0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state8)) begin
-            grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg <= 1'b1;
-        end else if ((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_ready == 1'b1)) begin
-            grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg <= 1'b0;
+            grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg <= 1'b1;
+        end else if ((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_ready == 1'b1)) begin
+            grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst_n_inv == 1'b1) begin
-        grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg <= 1'b0;
+        grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg <= 1'b0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state2)) begin
-            grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg <= 1'b1;
-        end else if ((grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_ready == 1'b1)) begin
-            grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg <= 1'b0;
+            grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg <= 1'b1;
+        end else if ((grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_ready == 1'b1)) begin
+            grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg <= 1'b0;
         end
     end
 end
@@ -1715,98 +1868,118 @@ always @ (posedge ap_clk) begin
 end
 
 always @ (posedge ap_clk) begin
-    if (((tmp_fu_599_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
-        out_accel_fu_282 <= 32'd0;
-    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
-        out_accel_fu_282 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_accel;
+    if (((tmp_fu_604_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
+        out_accel_fu_286 <= 26'd0;
+    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
+        out_accel_fu_286 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_accel;
     end
 end
 
 always @ (posedge ap_clk) begin
-    if (((tmp_fu_599_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
-        out_iters_fu_290 <= 32'd0;
-    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
-        out_iters_fu_290 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_iters;
+    if (((tmp_fu_604_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
+        out_iters_fu_294 <= 32'd0;
+    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
+        out_iters_fu_294 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_iters;
     end
 end
 
 always @ (posedge ap_clk) begin
-    if (((tmp_fu_599_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
-        out_status_fu_286 <= 1'd1;
-    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
-        out_status_fu_286 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_status;
+    if (((tmp_fu_604_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
+        out_status_fu_290 <= 1'd1;
+    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
+        out_status_fu_290 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_status;
     end
 end
 
 always @ (posedge ap_clk) begin
-    if (((tmp_fu_599_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
-        out_steering_fu_278 <= 32'd0;
-    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
-        out_steering_fu_278 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_out_steering;
+    if (((tmp_fu_604_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
+        out_steering_fu_282 <= 26'd0;
+    end else if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering_ap_vld == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
+        out_steering_fu_282 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_out_steering;
     end
 end
 
 always @ (posedge ap_clk) begin
-    if (((gmem1_0_AWREADY == 1'b1) & (tmp_reg_906 == 1'd0) & (1'b1 == ap_CS_fsm_state10))) begin
-        storereflowmerge_reg_430 <= packed_out_fu_742_p5;
-    end else if ((1'b1 == ap_CS_fsm_state11)) begin
-        storereflowmerge_reg_430 <= packed_out_1_fu_774_p5;
-    end
-end
-
-always @ (posedge ap_clk) begin
-    if (((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state7))) begin
-        angle_2_reg_910 <= angle_2_fu_661_p3;
+    if (((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state7))) begin
+        angle_2_reg_949 <= angle_2_fu_674_p3;
+        raw_3_reg_956 <= raw_3_fu_682_p1;
+        raw_4_reg_961 <= raw_4_fu_685_p1;
+        raw_reg_944 <= raw_fu_656_p1;
     end
 end
 
 always @ (posedge ap_clk) begin
     if ((1'b1 == ap_CS_fsm_state8)) begin
-        angle_8_reg_917 <= angle_8_fu_717_p3;
+        angle_8_reg_966 <= angle_8_fu_737_p3;
     end
 end
 
 always @ (posedge ap_clk) begin
     if ((1'b1 == ap_CS_fsm_state5)) begin
-        epsi_word_reg_866 <= lane_words_1_q0;
-        ey_word_reg_860 <= lane_words_q0;
-        omega_word_reg_885 <= lane_words_4_q0;
-        prev_accel_word_reg_900 <= lane_words_7_q0;
-        steering_word_reg_890 <= lane_words_5_q0;
-        tmp_reg_906 <= lane_words_6_q0[32'd3];
-        trunc_ln382_reg_895 <= trunc_ln382_fu_595_p1;
-        vx_word_reg_874 <= lane_words_2_q0;
-        vy_word_reg_880 <= lane_words_3_q0;
+        epsi_word_reg_897 <= lane_words_1_q0;
+        ey_word_reg_891 <= lane_words_q0;
+        omega_word_reg_914 <= lane_words_4_q0;
+        prev_accel_word_reg_929 <= lane_words_7_q0;
+        steering_word_reg_919 <= lane_words_5_q0;
+        tmp_reg_935 <= lane_words_6_q0[32'd3];
+        trunc_ln375_reg_924 <= trunc_ln375_fu_600_p1;
+        vx_word_reg_903 <= lane_words_2_q0;
+        vy_word_reg_909 <= lane_words_3_q0;
     end
 end
 
 always @ (posedge ap_clk) begin
     if (((1'b0 == ap_block_state1) & (1'b1 == ap_CS_fsm_state1))) begin
-        input_words512_read_reg_787 <= input_words512;
-        output_words128_read_reg_782 <= output_words128;
+        input_words512_read_reg_818 <= input_words512;
+        output_words128_read_reg_813 <= output_words128;
     end
 end
 
 always @ (posedge ap_clk) begin
-    if (((tmp_fu_599_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
-        out_accel_arg_index[3] <= 1'b1;
+    if (((tmp_fu_604_p3 == 1'd0) & (1'b1 == ap_CS_fsm_state5))) begin
+        out_accel_arg_index[4] <= 1'b1;
+out_accel_arg_index[5] <= 1'b1;
 out_accel_arg_index[6] <= 1'b1;
-out_accel_arg_index[8] <= 1'b1;
 out_accel_arg_index[10] <= 1'b1;
-        out_iters_arg_index[3] <= 1'b1;
-out_iters_arg_index[4] <= 1'b1;
-out_iters_arg_index[6] <= 1'b1;
-out_iters_arg_index[8] <= 1'b1;
+        out_iters_arg_index[7] <= 1'b1;
 out_iters_arg_index[10] <= 1'b1;
-        out_status_arg_index[4] <= 1'b1;
+        out_status_arg_index[3] <= 1'b1;
+out_status_arg_index[4] <= 1'b1;
+out_status_arg_index[5] <= 1'b1;
 out_status_arg_index[6] <= 1'b1;
-out_status_arg_index[8] <= 1'b1;
 out_status_arg_index[10] <= 1'b1;
-        out_steering_arg_index[6] <= 1'b1;
-out_steering_arg_index[8] <= 1'b1;
+        out_steering_arg_index[3] <= 1'b1;
+out_steering_arg_index[5] <= 1'b1;
+out_steering_arg_index[6] <= 1'b1;
 out_steering_arg_index[10] <= 1'b1;
     end
 end
+
+always @ (posedge ap_clk) begin
+    if ((1'b1 == ap_CS_fsm_state6)) begin
+        trunc_ln1_reg_939 <= {{output_words128_read_reg_813[63:4]}};
+    end
+end
+
+assign ap_ST_fsm_state100_blk = 1'b0;
+
+assign ap_ST_fsm_state101_blk = 1'b0;
+
+assign ap_ST_fsm_state102_blk = 1'b0;
+
+assign ap_ST_fsm_state103_blk = 1'b0;
+
+assign ap_ST_fsm_state104_blk = 1'b0;
+
+assign ap_ST_fsm_state105_blk = 1'b0;
+
+assign ap_ST_fsm_state106_blk = 1'b0;
+
+assign ap_ST_fsm_state107_blk = 1'b0;
+
+assign ap_ST_fsm_state108_blk = 1'b0;
+
+assign ap_ST_fsm_state109_blk = 1'b0;
 
 always @ (*) begin
     if ((gmem1_0_AWREADY == 1'b0)) begin
@@ -1816,17 +1989,103 @@ always @ (*) begin
     end
 end
 
-assign ap_ST_fsm_state11_blk = 1'b0;
+assign ap_ST_fsm_state110_blk = 1'b0;
+
+assign ap_ST_fsm_state111_blk = 1'b0;
+
+assign ap_ST_fsm_state112_blk = 1'b0;
+
+assign ap_ST_fsm_state113_blk = 1'b0;
+
+assign ap_ST_fsm_state114_blk = 1'b0;
+
+assign ap_ST_fsm_state115_blk = 1'b0;
+
+assign ap_ST_fsm_state116_blk = 1'b0;
+
+assign ap_ST_fsm_state117_blk = 1'b0;
+
+assign ap_ST_fsm_state118_blk = 1'b0;
+
+assign ap_ST_fsm_state119_blk = 1'b0;
 
 always @ (*) begin
     if ((gmem1_0_WREADY == 1'b0)) begin
-        ap_ST_fsm_state12_blk = 1'b1;
+        ap_ST_fsm_state11_blk = 1'b1;
     end else begin
-        ap_ST_fsm_state12_blk = 1'b0;
+        ap_ST_fsm_state11_blk = 1'b0;
     end
 end
 
+assign ap_ST_fsm_state120_blk = 1'b0;
+
+assign ap_ST_fsm_state121_blk = 1'b0;
+
+assign ap_ST_fsm_state122_blk = 1'b0;
+
+assign ap_ST_fsm_state123_blk = 1'b0;
+
+assign ap_ST_fsm_state124_blk = 1'b0;
+
+assign ap_ST_fsm_state125_blk = 1'b0;
+
+assign ap_ST_fsm_state126_blk = 1'b0;
+
+assign ap_ST_fsm_state127_blk = 1'b0;
+
+assign ap_ST_fsm_state128_blk = 1'b0;
+
+assign ap_ST_fsm_state129_blk = 1'b0;
+
+assign ap_ST_fsm_state12_blk = 1'b0;
+
+assign ap_ST_fsm_state130_blk = 1'b0;
+
+assign ap_ST_fsm_state131_blk = 1'b0;
+
+assign ap_ST_fsm_state132_blk = 1'b0;
+
+assign ap_ST_fsm_state133_blk = 1'b0;
+
+assign ap_ST_fsm_state134_blk = 1'b0;
+
+assign ap_ST_fsm_state135_blk = 1'b0;
+
+assign ap_ST_fsm_state136_blk = 1'b0;
+
+assign ap_ST_fsm_state137_blk = 1'b0;
+
+assign ap_ST_fsm_state138_blk = 1'b0;
+
+assign ap_ST_fsm_state139_blk = 1'b0;
+
 assign ap_ST_fsm_state13_blk = 1'b0;
+
+assign ap_ST_fsm_state140_blk = 1'b0;
+
+assign ap_ST_fsm_state141_blk = 1'b0;
+
+assign ap_ST_fsm_state142_blk = 1'b0;
+
+assign ap_ST_fsm_state143_blk = 1'b0;
+
+assign ap_ST_fsm_state144_blk = 1'b0;
+
+assign ap_ST_fsm_state145_blk = 1'b0;
+
+assign ap_ST_fsm_state146_blk = 1'b0;
+
+assign ap_ST_fsm_state147_blk = 1'b0;
+
+assign ap_ST_fsm_state148_blk = 1'b0;
+
+always @ (*) begin
+    if ((gmem1_0_BVALID == 1'b0)) begin
+        ap_ST_fsm_state149_blk = 1'b1;
+    end else begin
+        ap_ST_fsm_state149_blk = 1'b0;
+    end
+end
 
 assign ap_ST_fsm_state14_blk = 1'b0;
 
@@ -1891,7 +2150,7 @@ assign ap_ST_fsm_state38_blk = 1'b0;
 assign ap_ST_fsm_state39_blk = 1'b0;
 
 always @ (*) begin
-    if ((grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_done == 1'b0)) begin
+    if ((grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_done == 1'b0)) begin
         ap_ST_fsm_state3_blk = 1'b1;
     end else begin
         ap_ST_fsm_state3_blk = 1'b0;
@@ -1982,10 +2241,16 @@ assign ap_ST_fsm_state77_blk = 1'b0;
 
 assign ap_ST_fsm_state78_blk = 1'b0;
 
-assign ap_ST_fsm_state79_blk = 1'b0;
+always @ (*) begin
+    if ((1'b1 == ap_block_state79)) begin
+        ap_ST_fsm_state79_blk = 1'b1;
+    end else begin
+        ap_ST_fsm_state79_blk = 1'b0;
+    end
+end
 
 always @ (*) begin
-    if ((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_done == 1'b0)) begin
+    if ((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_done == 1'b0)) begin
         ap_ST_fsm_state7_blk = 1'b1;
     end else begin
         ap_ST_fsm_state7_blk = 1'b0;
@@ -1993,17 +2258,61 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((gmem1_0_BVALID == 1'b0)) begin
+    if ((gmem1_0_AWREADY == 1'b0)) begin
         ap_ST_fsm_state80_blk = 1'b1;
     end else begin
         ap_ST_fsm_state80_blk = 1'b0;
     end
 end
 
+always @ (*) begin
+    if ((gmem1_0_WREADY == 1'b0)) begin
+        ap_ST_fsm_state81_blk = 1'b1;
+    end else begin
+        ap_ST_fsm_state81_blk = 1'b0;
+    end
+end
+
+assign ap_ST_fsm_state82_blk = 1'b0;
+
+assign ap_ST_fsm_state83_blk = 1'b0;
+
+assign ap_ST_fsm_state84_blk = 1'b0;
+
+assign ap_ST_fsm_state85_blk = 1'b0;
+
+assign ap_ST_fsm_state86_blk = 1'b0;
+
+assign ap_ST_fsm_state87_blk = 1'b0;
+
+assign ap_ST_fsm_state88_blk = 1'b0;
+
+assign ap_ST_fsm_state89_blk = 1'b0;
+
 assign ap_ST_fsm_state8_blk = 1'b0;
 
+assign ap_ST_fsm_state90_blk = 1'b0;
+
+assign ap_ST_fsm_state91_blk = 1'b0;
+
+assign ap_ST_fsm_state92_blk = 1'b0;
+
+assign ap_ST_fsm_state93_blk = 1'b0;
+
+assign ap_ST_fsm_state94_blk = 1'b0;
+
+assign ap_ST_fsm_state95_blk = 1'b0;
+
+assign ap_ST_fsm_state96_blk = 1'b0;
+
+assign ap_ST_fsm_state97_blk = 1'b0;
+
+assign ap_ST_fsm_state98_blk = 1'b0;
+
+assign ap_ST_fsm_state99_blk = 1'b0;
+
 always @ (*) begin
-    if ((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_done == 1'b0)) begin
+    if ((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_done == 1'b0)) begin
         ap_ST_fsm_state9_blk = 1'b1;
     end else begin
         ap_ST_fsm_state9_blk = 1'b0;
@@ -2011,7 +2320,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+    if (((1'b0 == ap_block_state79) & (1'b1 == ap_CS_fsm_state79))) begin
         ap_done = 1'b1;
     end else begin
         ap_done = ap_done_reg;
@@ -2019,7 +2328,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((ap_start == 1'b0) & (1'b1 == ap_CS_fsm_state1))) begin
+    if (((1'b1 == ap_CS_fsm_state1) & (ap_start == 1'b0))) begin
         ap_idle = 1'b1;
     end else begin
         ap_idle = 1'b0;
@@ -2027,7 +2336,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+    if (((1'b0 == ap_block_state79) & (1'b1 == ap_CS_fsm_state79))) begin
         ap_ready = 1'b1;
     end else begin
         ap_ready = 1'b0;
@@ -2036,7 +2345,7 @@ end
 
 always @ (*) begin
     if (((1'b1 == ap_CS_fsm_state3) | (1'b1 == ap_CS_fsm_state2))) begin
-        gmem0_0_ARVALID = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_ARVALID;
+        gmem0_0_ARVALID = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_ARVALID;
     end else begin
         gmem0_0_ARVALID = 1'b0;
     end
@@ -2044,14 +2353,28 @@ end
 
 always @ (*) begin
     if (((1'b1 == ap_CS_fsm_state3) | (1'b1 == ap_CS_fsm_state2))) begin
-        gmem0_0_RREADY = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_m_axi_gmem0_0_RREADY;
+        gmem0_0_RREADY = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_m_axi_gmem0_0_RREADY;
     end else begin
         gmem0_0_RREADY = 1'b0;
     end
 end
 
 always @ (*) begin
-    if (((gmem1_0_AWREADY == 1'b1) & (1'b1 == ap_CS_fsm_state10))) begin
+    if ((gmem1_0_AWREADY == 1'b1)) begin
+        if ((1'b1 == ap_CS_fsm_state80)) begin
+            gmem1_0_AWADDR = sext_ln389_fu_793_p1;
+        end else if ((1'b1 == ap_CS_fsm_state10)) begin
+            gmem1_0_AWADDR = sext_ln410_fu_746_p1;
+        end else begin
+            gmem1_0_AWADDR = 'bx;
+        end
+    end else begin
+        gmem1_0_AWADDR = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((((gmem1_0_AWREADY == 1'b1) & (1'b1 == ap_CS_fsm_state10)) | ((gmem1_0_AWREADY == 1'b1) & (1'b1 == ap_CS_fsm_state80)))) begin
         gmem1_0_AWVALID = 1'b1;
     end else begin
         gmem1_0_AWVALID = 1'b0;
@@ -2059,7 +2382,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+    if ((((1'b0 == ap_block_state79) & (tmp_reg_935 == 1'd0) & (1'b1 == ap_CS_fsm_state79)) | ((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state149)))) begin
         gmem1_0_BREADY = 1'b1;
     end else begin
         gmem1_0_BREADY = 1'b0;
@@ -2067,7 +2390,17 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state12))) begin
+    if ((1'b1 == ap_CS_fsm_state81)) begin
+        gmem1_0_WDATA = packed_out_1_fu_804_p5;
+    end else if ((1'b1 == ap_CS_fsm_state11)) begin
+        gmem1_0_WDATA = packed_out_fu_780_p5;
+    end else begin
+        gmem1_0_WDATA = 'bx;
+    end
+end
+
+always @ (*) begin
+    if ((((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state11)) | ((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state81)))) begin
         gmem1_0_WVALID = 1'b1;
     end else begin
         gmem1_0_WVALID = 1'b0;
@@ -2075,7 +2408,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state10)) begin
+    if (((1'b1 == ap_CS_fsm_state10) | (1'b1 == ap_CS_fsm_state80))) begin
         gmem1_blk_n_AW = m_axi_gmem1_AWREADY;
     end else begin
         gmem1_blk_n_AW = 1'b1;
@@ -2083,7 +2416,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state80)) begin
+    if (((1'b1 == ap_CS_fsm_state149) | ((tmp_reg_935 == 1'd0) & (1'b1 == ap_CS_fsm_state79)))) begin
         gmem1_blk_n_B = m_axi_gmem1_BVALID;
     end else begin
         gmem1_blk_n_B = 1'b1;
@@ -2091,7 +2424,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state12)) begin
+    if (((1'b1 == ap_CS_fsm_state11) | (1'b1 == ap_CS_fsm_state81))) begin
         gmem1_blk_n_W = m_axi_gmem1_WREADY;
     end else begin
         gmem1_blk_n_W = 1'b1;
@@ -2100,9 +2433,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_10_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_address0;
+        lane_words_10_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_10_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_address0;
+        lane_words_10_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_address0;
     end else begin
         lane_words_10_address0 = 'bx;
     end
@@ -2110,9 +2443,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_10_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_10_ce0;
+        lane_words_10_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_10_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_10_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_ce0;
+        lane_words_10_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_ce0;
     end else begin
         lane_words_10_ce0 = 1'b0;
     end
@@ -2120,7 +2453,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_10_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_10_we0;
+        lane_words_10_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_10_we0;
     end else begin
         lane_words_10_we0 = 1'b0;
     end
@@ -2128,9 +2461,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_11_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_address0;
+        lane_words_11_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_11_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_address0;
+        lane_words_11_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_address0;
     end else begin
         lane_words_11_address0 = 'bx;
     end
@@ -2138,9 +2471,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_11_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_11_ce0;
+        lane_words_11_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_11_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_11_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_ce0;
+        lane_words_11_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_ce0;
     end else begin
         lane_words_11_ce0 = 1'b0;
     end
@@ -2148,7 +2481,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_11_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_11_we0;
+        lane_words_11_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_11_we0;
     end else begin
         lane_words_11_we0 = 1'b0;
     end
@@ -2156,9 +2489,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_12_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_address0;
+        lane_words_12_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_12_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_address0;
+        lane_words_12_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_address0;
     end else begin
         lane_words_12_address0 = 'bx;
     end
@@ -2166,9 +2499,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_12_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_12_ce0;
+        lane_words_12_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_12_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_12_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_ce0;
+        lane_words_12_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_ce0;
     end else begin
         lane_words_12_ce0 = 1'b0;
     end
@@ -2176,7 +2509,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_12_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_12_we0;
+        lane_words_12_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_12_we0;
     end else begin
         lane_words_12_we0 = 1'b0;
     end
@@ -2184,9 +2517,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_13_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_address0;
+        lane_words_13_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_13_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_address0;
+        lane_words_13_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_address0;
     end else begin
         lane_words_13_address0 = 'bx;
     end
@@ -2194,9 +2527,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_13_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_13_ce0;
+        lane_words_13_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_13_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_13_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_ce0;
+        lane_words_13_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_ce0;
     end else begin
         lane_words_13_ce0 = 1'b0;
     end
@@ -2204,7 +2537,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_13_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_13_we0;
+        lane_words_13_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_13_we0;
     end else begin
         lane_words_13_we0 = 1'b0;
     end
@@ -2212,9 +2545,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_14_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_address0;
+        lane_words_14_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_14_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_address0;
+        lane_words_14_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_address0;
     end else begin
         lane_words_14_address0 = 'bx;
     end
@@ -2222,9 +2555,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_14_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_14_ce0;
+        lane_words_14_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_14_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_14_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_ce0;
+        lane_words_14_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_ce0;
     end else begin
         lane_words_14_ce0 = 1'b0;
     end
@@ -2232,7 +2565,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_14_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_14_we0;
+        lane_words_14_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_14_we0;
     end else begin
         lane_words_14_we0 = 1'b0;
     end
@@ -2240,9 +2573,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_15_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_address0;
+        lane_words_15_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_15_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_address0;
+        lane_words_15_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_address0;
     end else begin
         lane_words_15_address0 = 'bx;
     end
@@ -2250,9 +2583,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_15_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_15_ce0;
+        lane_words_15_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_15_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_15_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_ce0;
+        lane_words_15_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_ce0;
     end else begin
         lane_words_15_ce0 = 1'b0;
     end
@@ -2260,7 +2593,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_15_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_15_we0;
+        lane_words_15_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_15_we0;
     end else begin
         lane_words_15_we0 = 1'b0;
     end
@@ -2268,9 +2601,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_1_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_address0;
+        lane_words_1_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_1_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_address0;
+        lane_words_1_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_address0;
     end else begin
         lane_words_1_address0 = 64'd0;
     end
@@ -2278,9 +2611,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_1_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_1_ce0;
+        lane_words_1_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_1_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_ce0;
+        lane_words_1_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_ce0;
     end else begin
         lane_words_1_ce0 = lane_words_1_ce0_local;
     end
@@ -2296,7 +2629,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_1_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_1_we0;
+        lane_words_1_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_1_we0;
     end else begin
         lane_words_1_we0 = 1'b0;
     end
@@ -2304,9 +2637,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_2_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_address0;
+        lane_words_2_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_2_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_address0;
+        lane_words_2_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_address0;
     end else begin
         lane_words_2_address0 = 64'd0;
     end
@@ -2314,9 +2647,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_2_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_2_ce0;
+        lane_words_2_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_2_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_ce0;
+        lane_words_2_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_ce0;
     end else begin
         lane_words_2_ce0 = lane_words_2_ce0_local;
     end
@@ -2332,7 +2665,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_2_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_2_we0;
+        lane_words_2_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_2_we0;
     end else begin
         lane_words_2_we0 = 1'b0;
     end
@@ -2340,9 +2673,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_3_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_address0;
+        lane_words_3_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_3_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_address0;
+        lane_words_3_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_address0;
     end else begin
         lane_words_3_address0 = 64'd0;
     end
@@ -2350,9 +2683,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_3_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_3_ce0;
+        lane_words_3_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_3_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_ce0;
+        lane_words_3_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_ce0;
     end else begin
         lane_words_3_ce0 = lane_words_3_ce0_local;
     end
@@ -2368,7 +2701,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_3_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_3_we0;
+        lane_words_3_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_3_we0;
     end else begin
         lane_words_3_we0 = 1'b0;
     end
@@ -2376,9 +2709,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_4_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_address0;
+        lane_words_4_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_4_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_address0;
+        lane_words_4_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_address0;
     end else begin
         lane_words_4_address0 = 64'd0;
     end
@@ -2386,9 +2719,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_4_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_4_ce0;
+        lane_words_4_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_4_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_ce0;
+        lane_words_4_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_ce0;
     end else begin
         lane_words_4_ce0 = lane_words_4_ce0_local;
     end
@@ -2404,7 +2737,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_4_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_4_we0;
+        lane_words_4_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_4_we0;
     end else begin
         lane_words_4_we0 = 1'b0;
     end
@@ -2412,9 +2745,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_5_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_address0;
+        lane_words_5_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_5_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_address0;
+        lane_words_5_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_address0;
     end else begin
         lane_words_5_address0 = 64'd0;
     end
@@ -2422,9 +2755,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_5_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_5_ce0;
+        lane_words_5_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_5_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_ce0;
+        lane_words_5_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_ce0;
     end else begin
         lane_words_5_ce0 = lane_words_5_ce0_local;
     end
@@ -2440,7 +2773,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_5_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_5_we0;
+        lane_words_5_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_5_we0;
     end else begin
         lane_words_5_we0 = 1'b0;
     end
@@ -2448,9 +2781,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_6_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_address0;
+        lane_words_6_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_6_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_address0;
+        lane_words_6_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_address0;
     end else begin
         lane_words_6_address0 = 64'd0;
     end
@@ -2458,9 +2791,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_6_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_6_ce0;
+        lane_words_6_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_6_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_ce0;
+        lane_words_6_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_ce0;
     end else begin
         lane_words_6_ce0 = lane_words_6_ce0_local;
     end
@@ -2476,7 +2809,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_6_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_6_we0;
+        lane_words_6_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_6_we0;
     end else begin
         lane_words_6_we0 = 1'b0;
     end
@@ -2484,9 +2817,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_7_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_address0;
+        lane_words_7_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_7_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_address0;
+        lane_words_7_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_address0;
     end else begin
         lane_words_7_address0 = 64'd0;
     end
@@ -2494,9 +2827,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_7_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_7_ce0;
+        lane_words_7_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_7_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_ce0;
+        lane_words_7_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_ce0;
     end else begin
         lane_words_7_ce0 = lane_words_7_ce0_local;
     end
@@ -2512,7 +2845,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_7_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_7_we0;
+        lane_words_7_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_7_we0;
     end else begin
         lane_words_7_we0 = 1'b0;
     end
@@ -2520,9 +2853,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_8_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_address0;
+        lane_words_8_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_8_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_address0;
+        lane_words_8_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_address0;
     end else begin
         lane_words_8_address0 = 'bx;
     end
@@ -2530,9 +2863,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_8_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_8_ce0;
+        lane_words_8_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_8_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_8_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_ce0;
+        lane_words_8_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_ce0;
     end else begin
         lane_words_8_ce0 = 1'b0;
     end
@@ -2540,7 +2873,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_8_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_8_we0;
+        lane_words_8_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_8_we0;
     end else begin
         lane_words_8_we0 = 1'b0;
     end
@@ -2548,9 +2881,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_9_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_address0;
+        lane_words_9_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_9_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_address0;
+        lane_words_9_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_address0;
     end else begin
         lane_words_9_address0 = 'bx;
     end
@@ -2558,9 +2891,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_9_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_9_ce0;
+        lane_words_9_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_9_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_9_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_ce0;
+        lane_words_9_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_ce0;
     end else begin
         lane_words_9_ce0 = 1'b0;
     end
@@ -2568,7 +2901,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_9_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_9_we0;
+        lane_words_9_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_9_we0;
     end else begin
         lane_words_9_we0 = 1'b0;
     end
@@ -2576,9 +2909,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_address0;
+        lane_words_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_address0;
+        lane_words_address0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_address0;
     end else begin
         lane_words_address0 = 64'd0;
     end
@@ -2586,9 +2919,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        lane_words_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_lane_words_0_ce0;
+        lane_words_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_lane_words_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_ce0;
+        lane_words_ce0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_ce0;
     end else begin
         lane_words_ce0 = lane_words_ce0_local;
     end
@@ -2604,7 +2937,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state3)) begin
-        lane_words_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_lane_words_0_we0;
+        lane_words_we0 = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_lane_words_0_we0;
     end else begin
         lane_words_we0 = 1'b0;
     end
@@ -2612,9 +2945,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_left_wall_bound_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_address0;
+        ref_left_wall_bound_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_left_wall_bound_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_address0;
+        ref_left_wall_bound_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_address0;
     end else begin
         ref_left_wall_bound_address0 = 'bx;
     end
@@ -2622,9 +2955,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_left_wall_bound_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_left_wall_bound_ce0;
+        ref_left_wall_bound_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_left_wall_bound_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_left_wall_bound_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_ce0;
+        ref_left_wall_bound_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_ce0;
     end else begin
         ref_left_wall_bound_ce0 = 1'b0;
     end
@@ -2632,7 +2965,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_left_wall_bound_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_left_wall_bound_we0;
+        ref_left_wall_bound_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_left_wall_bound_we0;
     end else begin
         ref_left_wall_bound_we0 = 1'b0;
     end
@@ -2640,9 +2973,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_path_curvature_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_address0;
+        ref_path_curvature_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_path_curvature_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_address0;
+        ref_path_curvature_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_address0;
     end else begin
         ref_path_curvature_address0 = 'bx;
     end
@@ -2650,9 +2983,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_path_curvature_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_path_curvature_ce0;
+        ref_path_curvature_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_path_curvature_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_path_curvature_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_ce0;
+        ref_path_curvature_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_ce0;
     end else begin
         ref_path_curvature_ce0 = 1'b0;
     end
@@ -2660,7 +2993,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_path_curvature_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_path_curvature_we0;
+        ref_path_curvature_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_path_curvature_we0;
     end else begin
         ref_path_curvature_we0 = 1'b0;
     end
@@ -2668,9 +3001,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_heading_error_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_address0;
+        ref_reference_heading_error_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_heading_error_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_address0;
+        ref_reference_heading_error_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_address0;
     end else begin
         ref_reference_heading_error_address0 = 'bx;
     end
@@ -2678,9 +3011,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_heading_error_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_heading_error_ce0;
+        ref_reference_heading_error_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_heading_error_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_heading_error_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_ce0;
+        ref_reference_heading_error_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_ce0;
     end else begin
         ref_reference_heading_error_ce0 = 1'b0;
     end
@@ -2688,7 +3021,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_heading_error_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_heading_error_we0;
+        ref_reference_heading_error_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_heading_error_we0;
     end else begin
         ref_reference_heading_error_we0 = 1'b0;
     end
@@ -2696,9 +3029,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_lateral_error_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_address0;
+        ref_reference_lateral_error_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_error_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_address0;
+        ref_reference_lateral_error_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_address0;
     end else begin
         ref_reference_lateral_error_address0 = 'bx;
     end
@@ -2706,9 +3039,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_lateral_error_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_error_ce0;
+        ref_reference_lateral_error_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_error_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_error_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_ce0;
+        ref_reference_lateral_error_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_ce0;
     end else begin
         ref_reference_lateral_error_ce0 = 1'b0;
     end
@@ -2716,7 +3049,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_error_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_error_we0;
+        ref_reference_lateral_error_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_error_we0;
     end else begin
         ref_reference_lateral_error_we0 = 1'b0;
     end
@@ -2724,9 +3057,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_lateral_velocity_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_address0;
+        ref_reference_lateral_velocity_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_velocity_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_address0;
+        ref_reference_lateral_velocity_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_address0;
     end else begin
         ref_reference_lateral_velocity_address0 = 'bx;
     end
@@ -2734,9 +3067,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_lateral_velocity_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_lateral_velocity_ce0;
+        ref_reference_lateral_velocity_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_lateral_velocity_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_velocity_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_ce0;
+        ref_reference_lateral_velocity_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_ce0;
     end else begin
         ref_reference_lateral_velocity_ce0 = 1'b0;
     end
@@ -2744,7 +3077,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_lateral_velocity_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_lateral_velocity_we0;
+        ref_reference_lateral_velocity_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_lateral_velocity_we0;
     end else begin
         ref_reference_lateral_velocity_we0 = 1'b0;
     end
@@ -2752,9 +3085,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_velocity_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_address0;
+        ref_reference_velocity_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_velocity_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_address0;
+        ref_reference_velocity_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_address0;
     end else begin
         ref_reference_velocity_address0 = 'bx;
     end
@@ -2762,9 +3095,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_velocity_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_velocity_ce0;
+        ref_reference_velocity_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_velocity_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_velocity_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_ce0;
+        ref_reference_velocity_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_ce0;
     end else begin
         ref_reference_velocity_ce0 = 1'b0;
     end
@@ -2772,7 +3105,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_velocity_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_velocity_we0;
+        ref_reference_velocity_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_velocity_we0;
     end else begin
         ref_reference_velocity_we0 = 1'b0;
     end
@@ -2780,9 +3113,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_yaw_rate_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_address0;
+        ref_reference_yaw_rate_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_yaw_rate_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_address0;
+        ref_reference_yaw_rate_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_address0;
     end else begin
         ref_reference_yaw_rate_address0 = 'bx;
     end
@@ -2790,9 +3123,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_reference_yaw_rate_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_reference_yaw_rate_ce0;
+        ref_reference_yaw_rate_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_reference_yaw_rate_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_yaw_rate_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_ce0;
+        ref_reference_yaw_rate_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_ce0;
     end else begin
         ref_reference_yaw_rate_ce0 = 1'b0;
     end
@@ -2800,7 +3133,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_reference_yaw_rate_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_reference_yaw_rate_we0;
+        ref_reference_yaw_rate_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_reference_yaw_rate_we0;
     end else begin
         ref_reference_yaw_rate_we0 = 1'b0;
     end
@@ -2808,9 +3141,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_right_wall_bound_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_address0;
+        ref_right_wall_bound_address0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_address0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_right_wall_bound_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_address0;
+        ref_right_wall_bound_address0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_address0;
     end else begin
         ref_right_wall_bound_address0 = 'bx;
     end
@@ -2818,9 +3151,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state9)) begin
-        ref_right_wall_bound_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ref_right_wall_bound_ce0;
+        ref_right_wall_bound_ce0 = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ref_right_wall_bound_ce0;
     end else if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_right_wall_bound_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_ce0;
+        ref_right_wall_bound_ce0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_ce0;
     end else begin
         ref_right_wall_bound_ce0 = 1'b0;
     end
@@ -2828,7 +3161,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state7)) begin
-        ref_right_wall_bound_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_out_ref_right_wall_bound_we0;
+        ref_right_wall_bound_we0 = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_out_ref_right_wall_bound_we0;
     end else begin
         ref_right_wall_bound_we0 = 1'b0;
     end
@@ -2847,7 +3180,7 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state3;
         end
         ap_ST_fsm_state3 : begin
-            if (((grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state3))) begin
+            if (((grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state3))) begin
                 ap_NS_fsm = ap_ST_fsm_state4;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state3;
@@ -2857,8 +3190,8 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state5;
         end
         ap_ST_fsm_state5 : begin
-            if (((tmp_fu_599_p3 == 1'd1) & (1'b1 == ap_CS_fsm_state5))) begin
-                ap_NS_fsm = ap_ST_fsm_state11;
+            if (((tmp_fu_604_p3 == 1'd1) & (1'b1 == ap_CS_fsm_state5))) begin
+                ap_NS_fsm = ap_ST_fsm_state80;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state6;
             end
@@ -2867,7 +3200,7 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state7;
         end
         ap_ST_fsm_state7 : begin
-            if (((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state7))) begin
+            if (((grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state7))) begin
                 ap_NS_fsm = ap_ST_fsm_state8;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state7;
@@ -2877,7 +3210,7 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state9;
         end
         ap_ST_fsm_state9 : begin
-            if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
+            if (((grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state9))) begin
                 ap_NS_fsm = ap_ST_fsm_state10;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state9;
@@ -2885,20 +3218,20 @@ always @ (*) begin
         end
         ap_ST_fsm_state10 : begin
             if (((gmem1_0_AWREADY == 1'b1) & (1'b1 == ap_CS_fsm_state10))) begin
-                ap_NS_fsm = ap_ST_fsm_state12;
+                ap_NS_fsm = ap_ST_fsm_state11;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state10;
             end
         end
         ap_ST_fsm_state11 : begin
-            ap_NS_fsm = ap_ST_fsm_state10;
+            if (((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state11))) begin
+                ap_NS_fsm = ap_ST_fsm_state12;
+            end else begin
+                ap_NS_fsm = ap_ST_fsm_state11;
+            end
         end
         ap_ST_fsm_state12 : begin
-            if (((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state12))) begin
-                ap_NS_fsm = ap_ST_fsm_state13;
-            end else begin
-                ap_NS_fsm = ap_ST_fsm_state12;
-            end
+            ap_NS_fsm = ap_ST_fsm_state13;
         end
         ap_ST_fsm_state13 : begin
             ap_NS_fsm = ap_ST_fsm_state14;
@@ -3099,13 +3432,232 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state79;
         end
         ap_ST_fsm_state79 : begin
-            ap_NS_fsm = ap_ST_fsm_state80;
-        end
-        ap_ST_fsm_state80 : begin
-            if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+            if (((1'b0 == ap_block_state79) & (1'b1 == ap_CS_fsm_state79))) begin
                 ap_NS_fsm = ap_ST_fsm_state1;
             end else begin
+                ap_NS_fsm = ap_ST_fsm_state79;
+            end
+        end
+        ap_ST_fsm_state80 : begin
+            if (((gmem1_0_AWREADY == 1'b1) & (1'b1 == ap_CS_fsm_state80))) begin
+                ap_NS_fsm = ap_ST_fsm_state81;
+            end else begin
                 ap_NS_fsm = ap_ST_fsm_state80;
+            end
+        end
+        ap_ST_fsm_state81 : begin
+            if (((gmem1_0_WREADY == 1'b1) & (1'b1 == ap_CS_fsm_state81))) begin
+                ap_NS_fsm = ap_ST_fsm_state82;
+            end else begin
+                ap_NS_fsm = ap_ST_fsm_state81;
+            end
+        end
+        ap_ST_fsm_state82 : begin
+            ap_NS_fsm = ap_ST_fsm_state83;
+        end
+        ap_ST_fsm_state83 : begin
+            ap_NS_fsm = ap_ST_fsm_state84;
+        end
+        ap_ST_fsm_state84 : begin
+            ap_NS_fsm = ap_ST_fsm_state85;
+        end
+        ap_ST_fsm_state85 : begin
+            ap_NS_fsm = ap_ST_fsm_state86;
+        end
+        ap_ST_fsm_state86 : begin
+            ap_NS_fsm = ap_ST_fsm_state87;
+        end
+        ap_ST_fsm_state87 : begin
+            ap_NS_fsm = ap_ST_fsm_state88;
+        end
+        ap_ST_fsm_state88 : begin
+            ap_NS_fsm = ap_ST_fsm_state89;
+        end
+        ap_ST_fsm_state89 : begin
+            ap_NS_fsm = ap_ST_fsm_state90;
+        end
+        ap_ST_fsm_state90 : begin
+            ap_NS_fsm = ap_ST_fsm_state91;
+        end
+        ap_ST_fsm_state91 : begin
+            ap_NS_fsm = ap_ST_fsm_state92;
+        end
+        ap_ST_fsm_state92 : begin
+            ap_NS_fsm = ap_ST_fsm_state93;
+        end
+        ap_ST_fsm_state93 : begin
+            ap_NS_fsm = ap_ST_fsm_state94;
+        end
+        ap_ST_fsm_state94 : begin
+            ap_NS_fsm = ap_ST_fsm_state95;
+        end
+        ap_ST_fsm_state95 : begin
+            ap_NS_fsm = ap_ST_fsm_state96;
+        end
+        ap_ST_fsm_state96 : begin
+            ap_NS_fsm = ap_ST_fsm_state97;
+        end
+        ap_ST_fsm_state97 : begin
+            ap_NS_fsm = ap_ST_fsm_state98;
+        end
+        ap_ST_fsm_state98 : begin
+            ap_NS_fsm = ap_ST_fsm_state99;
+        end
+        ap_ST_fsm_state99 : begin
+            ap_NS_fsm = ap_ST_fsm_state100;
+        end
+        ap_ST_fsm_state100 : begin
+            ap_NS_fsm = ap_ST_fsm_state101;
+        end
+        ap_ST_fsm_state101 : begin
+            ap_NS_fsm = ap_ST_fsm_state102;
+        end
+        ap_ST_fsm_state102 : begin
+            ap_NS_fsm = ap_ST_fsm_state103;
+        end
+        ap_ST_fsm_state103 : begin
+            ap_NS_fsm = ap_ST_fsm_state104;
+        end
+        ap_ST_fsm_state104 : begin
+            ap_NS_fsm = ap_ST_fsm_state105;
+        end
+        ap_ST_fsm_state105 : begin
+            ap_NS_fsm = ap_ST_fsm_state106;
+        end
+        ap_ST_fsm_state106 : begin
+            ap_NS_fsm = ap_ST_fsm_state107;
+        end
+        ap_ST_fsm_state107 : begin
+            ap_NS_fsm = ap_ST_fsm_state108;
+        end
+        ap_ST_fsm_state108 : begin
+            ap_NS_fsm = ap_ST_fsm_state109;
+        end
+        ap_ST_fsm_state109 : begin
+            ap_NS_fsm = ap_ST_fsm_state110;
+        end
+        ap_ST_fsm_state110 : begin
+            ap_NS_fsm = ap_ST_fsm_state111;
+        end
+        ap_ST_fsm_state111 : begin
+            ap_NS_fsm = ap_ST_fsm_state112;
+        end
+        ap_ST_fsm_state112 : begin
+            ap_NS_fsm = ap_ST_fsm_state113;
+        end
+        ap_ST_fsm_state113 : begin
+            ap_NS_fsm = ap_ST_fsm_state114;
+        end
+        ap_ST_fsm_state114 : begin
+            ap_NS_fsm = ap_ST_fsm_state115;
+        end
+        ap_ST_fsm_state115 : begin
+            ap_NS_fsm = ap_ST_fsm_state116;
+        end
+        ap_ST_fsm_state116 : begin
+            ap_NS_fsm = ap_ST_fsm_state117;
+        end
+        ap_ST_fsm_state117 : begin
+            ap_NS_fsm = ap_ST_fsm_state118;
+        end
+        ap_ST_fsm_state118 : begin
+            ap_NS_fsm = ap_ST_fsm_state119;
+        end
+        ap_ST_fsm_state119 : begin
+            ap_NS_fsm = ap_ST_fsm_state120;
+        end
+        ap_ST_fsm_state120 : begin
+            ap_NS_fsm = ap_ST_fsm_state121;
+        end
+        ap_ST_fsm_state121 : begin
+            ap_NS_fsm = ap_ST_fsm_state122;
+        end
+        ap_ST_fsm_state122 : begin
+            ap_NS_fsm = ap_ST_fsm_state123;
+        end
+        ap_ST_fsm_state123 : begin
+            ap_NS_fsm = ap_ST_fsm_state124;
+        end
+        ap_ST_fsm_state124 : begin
+            ap_NS_fsm = ap_ST_fsm_state125;
+        end
+        ap_ST_fsm_state125 : begin
+            ap_NS_fsm = ap_ST_fsm_state126;
+        end
+        ap_ST_fsm_state126 : begin
+            ap_NS_fsm = ap_ST_fsm_state127;
+        end
+        ap_ST_fsm_state127 : begin
+            ap_NS_fsm = ap_ST_fsm_state128;
+        end
+        ap_ST_fsm_state128 : begin
+            ap_NS_fsm = ap_ST_fsm_state129;
+        end
+        ap_ST_fsm_state129 : begin
+            ap_NS_fsm = ap_ST_fsm_state130;
+        end
+        ap_ST_fsm_state130 : begin
+            ap_NS_fsm = ap_ST_fsm_state131;
+        end
+        ap_ST_fsm_state131 : begin
+            ap_NS_fsm = ap_ST_fsm_state132;
+        end
+        ap_ST_fsm_state132 : begin
+            ap_NS_fsm = ap_ST_fsm_state133;
+        end
+        ap_ST_fsm_state133 : begin
+            ap_NS_fsm = ap_ST_fsm_state134;
+        end
+        ap_ST_fsm_state134 : begin
+            ap_NS_fsm = ap_ST_fsm_state135;
+        end
+        ap_ST_fsm_state135 : begin
+            ap_NS_fsm = ap_ST_fsm_state136;
+        end
+        ap_ST_fsm_state136 : begin
+            ap_NS_fsm = ap_ST_fsm_state137;
+        end
+        ap_ST_fsm_state137 : begin
+            ap_NS_fsm = ap_ST_fsm_state138;
+        end
+        ap_ST_fsm_state138 : begin
+            ap_NS_fsm = ap_ST_fsm_state139;
+        end
+        ap_ST_fsm_state139 : begin
+            ap_NS_fsm = ap_ST_fsm_state140;
+        end
+        ap_ST_fsm_state140 : begin
+            ap_NS_fsm = ap_ST_fsm_state141;
+        end
+        ap_ST_fsm_state141 : begin
+            ap_NS_fsm = ap_ST_fsm_state142;
+        end
+        ap_ST_fsm_state142 : begin
+            ap_NS_fsm = ap_ST_fsm_state143;
+        end
+        ap_ST_fsm_state143 : begin
+            ap_NS_fsm = ap_ST_fsm_state144;
+        end
+        ap_ST_fsm_state144 : begin
+            ap_NS_fsm = ap_ST_fsm_state145;
+        end
+        ap_ST_fsm_state145 : begin
+            ap_NS_fsm = ap_ST_fsm_state146;
+        end
+        ap_ST_fsm_state146 : begin
+            ap_NS_fsm = ap_ST_fsm_state147;
+        end
+        ap_ST_fsm_state147 : begin
+            ap_NS_fsm = ap_ST_fsm_state148;
+        end
+        ap_ST_fsm_state148 : begin
+            ap_NS_fsm = ap_ST_fsm_state149;
+        end
+        ap_ST_fsm_state149 : begin
+            if (((gmem1_0_BVALID == 1'b1) & (1'b1 == ap_CS_fsm_state149))) begin
+                ap_NS_fsm = ap_ST_fsm_state79;
+            end else begin
+                ap_NS_fsm = ap_ST_fsm_state149;
             end
         end
         default : begin
@@ -3114,21 +3666,21 @@ always @ (*) begin
     endcase
 end
 
-assign angle_1_fu_656_p2 = ($signed(epsi_word_reg_866) + $signed(32'd4293320197));
+assign angle_1_fu_668_p2 = ($signed(raw_2_fu_659_p1) + $signed(26'd67005921));
 
-assign angle_2_fu_661_p3 = ((icmp_ln435_fu_651_p2[0:0] == 1'b1) ? angle_1_fu_656_p2 : epsi_word_reg_866);
+assign angle_2_fu_674_p3 = ((icmp_ln415_fu_662_p2[0:0] == 1'b1) ? angle_1_fu_668_p2 : raw_2_fu_659_p1);
 
-assign angle_3_fu_673_p2 = (angle_2_reg_910 + 32'd1647099);
+assign angle_3_fu_693_p2 = (angle_2_reg_949 + 26'd102943);
 
-assign angle_4_fu_678_p3 = ((icmp_ln437_fu_668_p2[0:0] == 1'b1) ? angle_3_fu_673_p2 : angle_2_reg_910);
+assign angle_4_fu_698_p3 = ((icmp_ln417_fu_688_p2[0:0] == 1'b1) ? angle_3_fu_693_p2 : angle_2_reg_949);
 
-assign angle_5_fu_691_p2 = ($signed(angle_4_fu_678_p3) + $signed(32'd4293320197));
+assign angle_5_fu_711_p2 = ($signed(angle_4_fu_698_p3) + $signed(26'd67005921));
 
-assign angle_6_fu_697_p3 = ((icmp_ln435_1_fu_685_p2[0:0] == 1'b1) ? angle_5_fu_691_p2 : angle_4_fu_678_p3);
+assign angle_6_fu_717_p3 = ((icmp_ln415_1_fu_705_p2[0:0] == 1'b1) ? angle_5_fu_711_p2 : angle_4_fu_698_p3);
 
-assign angle_7_fu_711_p2 = (angle_6_fu_697_p3 + 32'd1647099);
+assign angle_7_fu_731_p2 = (angle_6_fu_717_p3 + 26'd102943);
 
-assign angle_8_fu_717_p3 = ((icmp_ln437_1_fu_705_p2[0:0] == 1'b1) ? angle_7_fu_711_p2 : angle_6_fu_697_p3);
+assign angle_8_fu_737_p3 = ((icmp_ln417_1_fu_725_p2[0:0] == 1'b1) ? angle_7_fu_731_p2 : angle_6_fu_717_p3);
 
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
@@ -3136,7 +3688,7 @@ assign ap_CS_fsm_state10 = ap_CS_fsm[32'd9];
 
 assign ap_CS_fsm_state11 = ap_CS_fsm[32'd10];
 
-assign ap_CS_fsm_state12 = ap_CS_fsm[32'd11];
+assign ap_CS_fsm_state149 = ap_CS_fsm[32'd148];
 
 assign ap_CS_fsm_state2 = ap_CS_fsm[32'd1];
 
@@ -3150,9 +3702,13 @@ assign ap_CS_fsm_state6 = ap_CS_fsm[32'd5];
 
 assign ap_CS_fsm_state7 = ap_CS_fsm[32'd6];
 
+assign ap_CS_fsm_state79 = ap_CS_fsm[32'd78];
+
 assign ap_CS_fsm_state8 = ap_CS_fsm[32'd7];
 
 assign ap_CS_fsm_state80 = ap_CS_fsm[32'd79];
+
+assign ap_CS_fsm_state81 = ap_CS_fsm[32'd80];
 
 assign ap_CS_fsm_state9 = ap_CS_fsm[32'd8];
 
@@ -3160,52 +3716,64 @@ always @ (*) begin
     ap_block_state1 = ((ap_done_reg == 1'b1) | (ap_start == 1'b0));
 end
 
+always @ (*) begin
+    ap_block_state79 = ((gmem1_0_BVALID == 1'b0) & (tmp_reg_935 == 1'd0));
+end
+
 assign gmem1_0_AWLEN = 64'd1;
 
-assign grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_ap_start_reg;
+assign grp_fu_591_p4 = {{output_words128_read_reg_813[63:4]}};
 
-assign grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_ap_start_reg;
+assign grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start = grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_457_ap_start_reg;
 
-assign grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start = grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_ap_start_reg;
+assign grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start = grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_485_ap_start_reg;
 
-assign icmp_ln435_1_fu_685_p2 = (($signed(angle_4_fu_678_p3) > $signed(32'd823549)) ? 1'b1 : 1'b0);
+assign grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start = grp_p_anonymous_namespace_unpack_input_lane_words_fu_434_ap_start_reg;
 
-assign icmp_ln435_fu_651_p2 = (($signed(epsi_word_reg_866) > $signed(32'd823549)) ? 1'b1 : 1'b0);
+assign icmp_ln415_1_fu_705_p2 = (($signed(angle_4_fu_698_p3) > $signed(26'd51471)) ? 1'b1 : 1'b0);
 
-assign icmp_ln437_1_fu_705_p2 = (($signed(angle_6_fu_697_p3) < $signed(32'd4294143747)) ? 1'b1 : 1'b0);
+assign icmp_ln415_fu_662_p2 = (($signed(raw_2_fu_659_p1) > $signed(26'd51471)) ? 1'b1 : 1'b0);
 
-assign icmp_ln437_fu_668_p2 = (($signed(angle_2_reg_910) < $signed(32'd4294143747)) ? 1'b1 : 1'b0);
+assign icmp_ln417_1_fu_725_p2 = (($signed(angle_6_fu_717_p3) < $signed(26'd67057393)) ? 1'b1 : 1'b0);
 
-assign packed_out_1_fu_774_p5 = {{{{prev_accel_word_reg_900}, {vx_word_reg_874}}, {epsi_word_reg_866}}, {ey_word_reg_860}};
+assign icmp_ln417_fu_688_p2 = (($signed(angle_2_reg_949) < $signed(26'd67057393)) ? 1'b1 : 1'b0);
 
-assign packed_out_fu_742_p5 = {{{{out_iters_fu_290}, {zext_ln418_fu_735_p1}}, {out_accel_fu_282}}, {out_steering_fu_278}};
+assign packed_out_1_fu_804_p5 = {{{{prev_accel_word_reg_929}, {vx_word_reg_903}}, {epsi_word_reg_897}}, {ey_word_reg_891}};
 
-assign sext_ln419_fu_763_p1 = $signed(trunc_ln_fu_754_p4);
+assign packed_out_fu_780_p5 = {{{{out_iters_fu_294}, {zext_ln411_fu_773_p1}}, {sext_ln411_1_fu_766_p1}}, {sext_ln411_fu_759_p1}};
 
-assign tmp_fu_599_p3 = lane_words_6_q0[32'd3];
+assign raw_2_fu_659_p1 = epsi_word_reg_897[25:0];
 
-assign trunc_ln382_fu_595_p1 = lane_words_6_q0[2:0];
+assign raw_3_fu_682_p1 = vx_word_reg_903[25:0];
 
-assign trunc_ln_fu_754_p4 = {{output_words128_read_reg_782[63:4]}};
+assign raw_4_fu_685_p1 = prev_accel_word_reg_929[25:0];
 
-assign zext_ln418_fu_735_p1 = out_status_fu_286;
+assign raw_fu_656_p1 = ey_word_reg_891[25:0];
+
+assign sext_ln389_fu_793_p1 = $signed(grp_fu_591_p4);
+
+assign sext_ln410_fu_746_p1 = $signed(trunc_ln1_reg_939);
+
+assign sext_ln411_1_fu_766_p1 = $signed(out_accel_fu_286);
+
+assign sext_ln411_fu_759_p1 = $signed(out_steering_fu_282);
+
+assign tmp_fu_604_p3 = lane_words_6_q0[32'd3];
+
+assign trunc_ln375_fu_600_p1 = lane_words_6_q0[2:0];
+
+assign zext_ln411_fu_773_p1 = out_status_fu_290;
 
 always @ (posedge ap_clk) begin
-    out_steering_arg_index[5:0] <= 6'b000000;
-    out_steering_arg_index[7:7] <= 1'b0;
-    out_steering_arg_index[9] <= 1'b0;
-    out_accel_arg_index[2:0] <= 3'b000;
-    out_accel_arg_index[5:4] <= 2'b00;
-    out_accel_arg_index[7:7] <= 1'b0;
-    out_accel_arg_index[9] <= 1'b0;
-    out_status_arg_index[3:0] <= 4'b0000;
-    out_status_arg_index[5:5] <= 1'b0;
-    out_status_arg_index[7:7] <= 1'b0;
-    out_status_arg_index[9] <= 1'b0;
-    out_iters_arg_index[2:0] <= 3'b000;
-    out_iters_arg_index[5:5] <= 1'b0;
-    out_iters_arg_index[7:7] <= 1'b0;
-    out_iters_arg_index[9] <= 1'b0;
+    out_steering_arg_index[2:0] <= 3'b000;
+    out_steering_arg_index[4:4] <= 1'b0;
+    out_steering_arg_index[9:7] <= 3'b000;
+    out_accel_arg_index[3:0] <= 4'b0000;
+    out_accel_arg_index[9:7] <= 3'b000;
+    out_status_arg_index[2:0] <= 3'b000;
+    out_status_arg_index[9:7] <= 3'b000;
+    out_iters_arg_index[6:0] <= 7'b0000000;
+    out_iters_arg_index[9:8] <= 2'b00;
 end
 
 endmodule //mpc_fpga_top_opencl

@@ -3,55 +3,37 @@
 
 <trans_list>
 
-<trans id="87" from="1" to="2">
+<trans id="71" from="1" to="2">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="88" from="2" to="3">
+<trans id="72" from="2" to="3">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="89" from="3" to="4">
+<trans id="73" from="3" to="4">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="90" from="4" to="5">
+<trans id="74" from="4" to="5">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="91" from="5" to="6">
+<trans id="75" from="5" to="6">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="92" from="6" to="7">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="93" from="7" to="8">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="94" from="8" to="9">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="95" from="9" to="10">
+<trans id="76" from="6" to="7">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
@@ -64,6 +46,51 @@
 
 <state id="1" st_id="1">
 
+<operation id="8" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="5" bw="20" op_0_bw="20" op_1_bw="20">
+<![CDATA[
+fpga_resource_hint.entry.63:0 %inv_D_r_read = read i20 @_ssdm_op_Read.ap_auto.i20, i20 %inv_D_r
+
+]]></Node>
+<StgValue><ssdm name="inv_D_r_read"/></StgValue>
+</operation>
+
+<operation id="9" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="6" bw="20" op_0_bw="20" op_1_bw="20">
+<![CDATA[
+fpga_resource_hint.entry.63:1 %vx_safe_read = read i20 @_ssdm_op_Read.ap_auto.i20, i20 %vx_safe
+
+]]></Node>
+<StgValue><ssdm name="vx_safe_read"/></StgValue>
+</operation>
+
+<operation id="10" st_id="1" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="10" bw="40" op_0_bw="20">
+<![CDATA[
+fpga_resource_hint.entry.63:5 %zext_ln574 = zext i20 %vx_safe_read
+
+]]></Node>
+<StgValue><ssdm name="zext_ln574"/></StgValue>
+</operation>
+
 <operation id="11" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
@@ -71,76 +98,76 @@
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="5" bw="23" op_0_bw="23" op_1_bw="23">
+<Node id="12" bw="40" op_0_bw="20">
 <![CDATA[
-fpga_resource_hint.entry.90:0 %inv_D_r_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %inv_D_r
+fpga_resource_hint.entry.63:7 %sext_ln574_22 = sext i20 %inv_D_r_read
 
 ]]></Node>
-<StgValue><ssdm name="inv_D_r_read"/></StgValue>
+<StgValue><ssdm name="sext_ln574_22"/></StgValue>
 </operation>
 
-<operation id="12" st_id="1" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="6" bw="25" op_0_bw="25" op_1_bw="25">
-<![CDATA[
-fpga_resource_hint.entry.90:1 %vx_safe_read = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %vx_safe
-
-]]></Node>
-<StgValue><ssdm name="vx_safe_read"/></StgValue>
-</operation>
-
-<operation id="13" st_id="1" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="10" bw="48" op_0_bw="25">
-<![CDATA[
-fpga_resource_hint.entry.90:5 %zext_ln671 = zext i25 %vx_safe_read
-
-]]></Node>
-<StgValue><ssdm name="zext_ln671"/></StgValue>
-</operation>
-
-<operation id="14" st_id="1" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="12" bw="48" op_0_bw="23">
-<![CDATA[
-fpga_resource_hint.entry.90:7 %sext_ln671_28 = sext i23 %inv_D_r_read
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_28"/></StgValue>
-</operation>
-
-<operation id="15" st_id="1" stage="4" lat="4">
+<operation id="12" st_id="1" stage="3" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="13" bw="48" op_0_bw="48" op_1_bw="48">
+<Node id="13" bw="40" op_0_bw="40" op_1_bw="40">
 <![CDATA[
-fpga_resource_hint.entry.90:8 %mul_ln671 = mul i48 %sext_ln671_28, i48 %zext_ln671
+fpga_resource_hint.entry.63:8 %mul_ln574 = mul i40 %sext_ln574_22, i40 %zext_ln574
 
 ]]></Node>
-<StgValue><ssdm name="mul_ln671"/></StgValue>
+<StgValue><ssdm name="mul_ln574"/></StgValue>
 </operation>
 </state>
 
 <state id="2" st_id="2">
+
+<operation id="13" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="7" bw="21" op_0_bw="21" op_1_bw="21">
+<![CDATA[
+fpga_resource_hint.entry.63:2 %rear_num_read = read i21 @_ssdm_op_Read.ap_auto.i21, i21 %rear_num
+
+]]></Node>
+<StgValue><ssdm name="rear_num_read"/></StgValue>
+</operation>
+
+<operation id="14" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="11" bw="41" op_0_bw="20">
+<![CDATA[
+fpga_resource_hint.entry.63:6 %sext_ln574 = sext i20 %inv_D_r_read
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574"/></StgValue>
+</operation>
+
+<operation id="15" st_id="2" stage="2" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="13" bw="40" op_0_bw="40" op_1_bw="40">
+<![CDATA[
+fpga_resource_hint.entry.63:8 %mul_ln574 = mul i40 %sext_ln574_22, i40 %zext_ln574
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574"/></StgValue>
+</operation>
 
 <operation id="16" st_id="2" stage="1" lat="1">
 <core>NULL</core>
@@ -149,478 +176,478 @@ fpga_resource_hint.entry.90:8 %mul_ln671 = mul i48 %sext_ln671_28, i48 %zext_ln6
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="7" bw="26" op_0_bw="26" op_1_bw="26">
+<Node id="18" bw="41" op_0_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:2 %rear_num_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %rear_num
+fpga_resource_hint.entry.63:13 %sext_ln574_23 = sext i21 %rear_num_read
 
 ]]></Node>
-<StgValue><ssdm name="rear_num_read"/></StgValue>
+<StgValue><ssdm name="sext_ln574_23"/></StgValue>
 </operation>
 
-<operation id="17" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="11" bw="49" op_0_bw="23">
-<![CDATA[
-fpga_resource_hint.entry.90:6 %sext_ln671 = sext i23 %inv_D_r_read
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671"/></StgValue>
-</operation>
-
-<operation id="18" st_id="2" stage="3" lat="4">
+<operation id="17" st_id="2" stage="3" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="13" bw="48" op_0_bw="48" op_1_bw="48">
+<Node id="19" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-fpga_resource_hint.entry.90:8 %mul_ln671 = mul i48 %sext_ln671_28, i48 %zext_ln671
+fpga_resource_hint.entry.63:14 %mul_ln574_18 = mul i41 %sext_ln574_23, i41 %sext_ln574
 
 ]]></Node>
-<StgValue><ssdm name="mul_ln671"/></StgValue>
-</operation>
-
-<operation id="19" st_id="2" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="18" bw="49" op_0_bw="26">
-<![CDATA[
-fpga_resource_hint.entry.90:13 %sext_ln671_29 = sext i26 %rear_num_read
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_29"/></StgValue>
-</operation>
-
-<operation id="20" st_id="2" stage="4" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="19" bw="49" op_0_bw="49" op_1_bw="49">
-<![CDATA[
-fpga_resource_hint.entry.90:14 %mul_ln671_18 = mul i49 %sext_ln671_29, i49 %sext_ln671
-
-]]></Node>
-<StgValue><ssdm name="mul_ln671_18"/></StgValue>
+<StgValue><ssdm name="mul_ln574_18"/></StgValue>
 </operation>
 </state>
 
 <state id="3" st_id="3">
 
-<operation id="21" st_id="3" stage="2" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="13" bw="48" op_0_bw="48" op_1_bw="48">
-<![CDATA[
-fpga_resource_hint.entry.90:8 %mul_ln671 = mul i48 %sext_ln671_28, i48 %zext_ln671
-
-]]></Node>
-<StgValue><ssdm name="mul_ln671"/></StgValue>
-</operation>
-
-<operation id="22" st_id="3" stage="3" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="19" bw="49" op_0_bw="49" op_1_bw="49">
-<![CDATA[
-fpga_resource_hint.entry.90:14 %mul_ln671_18 = mul i49 %sext_ln671_29, i49 %sext_ln671
-
-]]></Node>
-<StgValue><ssdm name="mul_ln671_18"/></StgValue>
-</operation>
-</state>
-
-<state id="4" st_id="4">
-
-<operation id="23" st_id="4" stage="1" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="13" bw="48" op_0_bw="48" op_1_bw="48">
-<![CDATA[
-fpga_resource_hint.entry.90:8 %mul_ln671 = mul i48 %sext_ln671_28, i48 %zext_ln671
-
-]]></Node>
-<StgValue><ssdm name="mul_ln671"/></StgValue>
-</operation>
-
-<operation id="24" st_id="4" stage="1" lat="1">
+<operation id="18" st_id="3" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="14" bw="0" op_0_bw="0" op_1_bw="48" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="8" bw="21" op_0_bw="21" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:9 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i48 %mul_ln671, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
-</operation>
-
-<operation id="25" st_id="4" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="16" bw="26" op_0_bw="26" op_1_bw="48" op_2_bw="32" op_3_bw="32">
-<![CDATA[
-fpga_resource_hint.entry.90:11 %product_q = partselect i26 @_ssdm_op_PartSelect.i26.i48.i32.i32, i48 %mul_ln671, i32 17, i32 42
-
-]]></Node>
-<StgValue><ssdm name="product_q"/></StgValue>
-</operation>
-
-<operation id="26" st_id="4" stage="2" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="19" bw="49" op_0_bw="49" op_1_bw="49">
-<![CDATA[
-fpga_resource_hint.entry.90:14 %mul_ln671_18 = mul i49 %sext_ln671_29, i49 %sext_ln671
-
-]]></Node>
-<StgValue><ssdm name="mul_ln671_18"/></StgValue>
-</operation>
-
-<operation id="27" st_id="4" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="25" bw="42" op_0_bw="26">
-<![CDATA[
-fpga_resource_hint.entry.90:20 %sext_ln671_30 = sext i26 %product_q
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_30"/></StgValue>
-</operation>
-
-<operation id="28" st_id="4" stage="4" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="26" bw="42" op_0_bw="42" op_1_bw="42">
-<![CDATA[
-fpga_resource_hint.entry.90:21 %product = mul i42 %sext_ln671_30, i42 20971
-
-]]></Node>
-<StgValue><ssdm name="product"/></StgValue>
-</operation>
-</state>
-
-<state id="5" st_id="5">
-
-<operation id="29" st_id="5" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="8" bw="26" op_0_bw="26" op_1_bw="26">
-<![CDATA[
-fpga_resource_hint.entry.90:3 %C_eff_r_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %C_eff_r
+fpga_resource_hint.entry.63:3 %C_eff_r_read = read i21 @_ssdm_op_Read.ap_auto.i21, i21 %C_eff_r
 
 ]]></Node>
 <StgValue><ssdm name="C_eff_r_read"/></StgValue>
 </operation>
 
-<operation id="30" st_id="5" stage="1" lat="4">
+<operation id="19" st_id="3" stage="1" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="19" bw="49" op_0_bw="49" op_1_bw="49">
+<Node id="13" bw="40" op_0_bw="40" op_1_bw="40">
 <![CDATA[
-fpga_resource_hint.entry.90:14 %mul_ln671_18 = mul i49 %sext_ln671_29, i49 %sext_ln671
+fpga_resource_hint.entry.63:8 %mul_ln574 = mul i40 %sext_ln574_22, i40 %zext_ln574
 
 ]]></Node>
-<StgValue><ssdm name="mul_ln671_18"/></StgValue>
+<StgValue><ssdm name="mul_ln574"/></StgValue>
 </operation>
 
-<operation id="31" st_id="5" stage="1" lat="1">
+<operation id="20" st_id="3" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="20" bw="0" op_0_bw="0" op_1_bw="49" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="14" bw="0" op_0_bw="0" op_1_bw="40" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
 <![CDATA[
-fpga_resource_hint.entry.90:15 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i49 %mul_ln671_18, i64 12, i64 3, i64 3, i1 0
+fpga_resource_hint.entry.63:9 %specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i40 %mul_ln574, i64 12, i64 3, i64 2, i1 0
 
 ]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+<StgValue><ssdm name="specfucore_ln576"/></StgValue>
 </operation>
 
-<operation id="32" st_id="5" stage="1" lat="1">
+<operation id="21" st_id="3" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="22" bw="26" op_0_bw="26" op_1_bw="49" op_2_bw="32" op_3_bw="32">
+<Node id="16" bw="21" op_0_bw="21" op_1_bw="40" op_2_bw="32" op_3_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:17 %product_q_47 = partselect i26 @_ssdm_op_PartSelect.i26.i49.i32.i32, i49 %mul_ln671_18, i32 17, i32 42
+fpga_resource_hint.entry.63:11 %product_q = partselect i21 @_ssdm_op_PartSelect.i21.i40.i32.i32, i40 %mul_ln574, i32 12, i32 32
 
 ]]></Node>
-<StgValue><ssdm name="product_q_47"/></StgValue>
+<StgValue><ssdm name="product_q"/></StgValue>
 </operation>
 
-<operation id="33" st_id="5" stage="3" lat="4">
+<operation id="22" st_id="3" stage="2" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="26" bw="42" op_0_bw="42" op_1_bw="42">
+<Node id="19" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-fpga_resource_hint.entry.90:21 %product = mul i42 %sext_ln671_30, i42 20971
+fpga_resource_hint.entry.63:14 %mul_ln574_18 = mul i41 %sext_ln574_23, i41 %sext_ln574
 
 ]]></Node>
-<StgValue><ssdm name="product"/></StgValue>
+<StgValue><ssdm name="mul_ln574_18"/></StgValue>
 </operation>
 
-<operation id="34" st_id="5" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="31" bw="43" op_0_bw="26">
-<![CDATA[
-fpga_resource_hint.entry.90:26 %sext_ln671_31 = sext i26 %C_eff_r_read
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_31"/></StgValue>
-</operation>
-
-<operation id="35" st_id="5" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="32" bw="43" op_0_bw="26">
-<![CDATA[
-fpga_resource_hint.entry.90:27 %sext_ln671_32 = sext i26 %product_q_47
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_32"/></StgValue>
-</operation>
-
-<operation id="36" st_id="5" stage="4" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="33" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:28 %product_246 = mul i43 %sext_ln671_32, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_246"/></StgValue>
-</operation>
-</state>
-
-<state id="6" st_id="6">
-
-<operation id="37" st_id="6" stage="1" lat="1">
+<operation id="23" st_id="3" stage="1" lat="1">
 <core>Adder</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="23" bw="26" op_0_bw="26" op_1_bw="26">
+<Node id="23" bw="21" op_0_bw="21" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:18 %dar_dvy = sub i26 0, i26 %product_q
+fpga_resource_hint.entry.63:18 %dar_dvy = sub i21 0, i21 %product_q
 
 ]]></Node>
 <StgValue><ssdm name="dar_dvy"/></StgValue>
 </operation>
 
-<operation id="38" st_id="6" stage="2" lat="4">
-<core>Mul_DSP</core>
+<operation id="24" st_id="3" stage="1" lat="1">
+<core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="26" bw="42" op_0_bw="42" op_1_bw="42">
+<Node id="24" bw="32" op_0_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:21 %product = mul i42 %sext_ln671_30, i42 20971
+fpga_resource_hint.entry.63:19 %sext_ln591 = sext i21 %product_q
+
+]]></Node>
+<StgValue><ssdm name="sext_ln591"/></StgValue>
+</operation>
+
+<operation id="25" st_id="3" stage="1" lat="1">
+<core>Multiplier</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="25" bw="32" op_0_bw="32" op_1_bw="32">
+<![CDATA[
+fpga_resource_hint.entry.63:20 %product = mul i32 %sext_ln591, i32 655
 
 ]]></Node>
 <StgValue><ssdm name="product"/></StgValue>
 </operation>
 
-<operation id="39" st_id="6" stage="3" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="33" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:28 %product_246 = mul i43 %sext_ln671_32, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_246"/></StgValue>
-</operation>
-
-<operation id="40" st_id="6" stage="1" lat="1">
+<operation id="26" st_id="3" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="38" bw="43" op_0_bw="26">
+<Node id="26" bw="20" op_0_bw="20" op_1_bw="32" op_2_bw="32" op_3_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:33 %sext_ln671_33 = sext i26 %dar_dvy
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_33"/></StgValue>
-</operation>
-
-<operation id="41" st_id="6" stage="4" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="39" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:34 %product_247 = mul i43 %sext_ln671_33, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_247"/></StgValue>
-</operation>
-</state>
-
-<state id="7" st_id="7">
-
-<operation id="42" st_id="7" stage="1" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="26" bw="42" op_0_bw="42" op_1_bw="42">
-<![CDATA[
-fpga_resource_hint.entry.90:21 %product = mul i42 %sext_ln671_30, i42 20971
-
-]]></Node>
-<StgValue><ssdm name="product"/></StgValue>
-</operation>
-
-<operation id="43" st_id="7" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="27" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-fpga_resource_hint.entry.90:22 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i42 %product, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
-</operation>
-
-<operation id="44" st_id="7" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="29" bw="25" op_0_bw="25" op_1_bw="42" op_2_bw="32" op_3_bw="32">
-<![CDATA[
-fpga_resource_hint.entry.90:24 %trunc_ln = partselect i25 @_ssdm_op_PartSelect.i25.i42.i32.i32, i42 %product, i32 17, i32 41
+fpga_resource_hint.entry.63:21 %trunc_ln = partselect i20 @_ssdm_op_PartSelect.i20.i32.i32.i32, i32 %product, i32 12, i32 31
 
 ]]></Node>
 <StgValue><ssdm name="trunc_ln"/></StgValue>
 </operation>
 
-<operation id="45" st_id="7" stage="2" lat="4">
+<operation id="27" st_id="3" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="28" bw="42" op_0_bw="21">
+<![CDATA[
+fpga_resource_hint.entry.63:23 %sext_ln574_24 = sext i21 %C_eff_r_read
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574_24"/></StgValue>
+</operation>
+
+<operation id="28" st_id="3" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="36" bw="42" op_0_bw="21">
+<![CDATA[
+fpga_resource_hint.entry.63:31 %sext_ln574_26 = sext i21 %dar_dvy
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574_26"/></StgValue>
+</operation>
+
+<operation id="29" st_id="3" stage="3" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="33" bw="43" op_0_bw="43" op_1_bw="43">
+<Node id="37" bw="42" op_0_bw="42" op_1_bw="42">
 <![CDATA[
-fpga_resource_hint.entry.90:28 %product_246 = mul i43 %sext_ln671_32, i43 %sext_ln671_31
+fpga_resource_hint.entry.63:32 %mul_ln574_20 = mul i42 %sext_ln574_26, i42 %sext_ln574_24
 
 ]]></Node>
-<StgValue><ssdm name="product_246"/></StgValue>
+<StgValue><ssdm name="mul_ln574_20"/></StgValue>
 </operation>
+</state>
 
-<operation id="46" st_id="7" stage="3" lat="4">
+<state id="4" st_id="4">
+
+<operation id="30" st_id="4" stage="1" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="39" bw="43" op_0_bw="43" op_1_bw="43">
+<Node id="19" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-fpga_resource_hint.entry.90:34 %product_247 = mul i43 %sext_ln671_33, i43 %sext_ln671_31
+fpga_resource_hint.entry.63:14 %mul_ln574_18 = mul i41 %sext_ln574_23, i41 %sext_ln574
 
 ]]></Node>
-<StgValue><ssdm name="product_247"/></StgValue>
+<StgValue><ssdm name="mul_ln574_18"/></StgValue>
 </operation>
+
+<operation id="31" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="20" bw="0" op_0_bw="0" op_1_bw="41" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.entry.63:15 %specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i41 %mul_ln574_18, i64 12, i64 3, i64 2, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln576"/></StgValue>
+</operation>
+
+<operation id="32" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="22" bw="21" op_0_bw="21" op_1_bw="41" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.entry.63:17 %product_q_45 = partselect i21 @_ssdm_op_PartSelect.i21.i41.i32.i32, i41 %mul_ln574_18, i32 12, i32 32
+
+]]></Node>
+<StgValue><ssdm name="product_q_45"/></StgValue>
+</operation>
+
+<operation id="33" st_id="4" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="30" bw="42" op_0_bw="21">
+<![CDATA[
+fpga_resource_hint.entry.63:25 %sext_ln574_25 = sext i21 %product_q_45
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574_25"/></StgValue>
+</operation>
+
+<operation id="34" st_id="4" stage="3" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="31" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.entry.63:26 %mul_ln574_19 = mul i42 %sext_ln574_25, i42 %sext_ln574_24
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_19"/></StgValue>
+</operation>
+
+<operation id="35" st_id="4" stage="2" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="37" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.entry.63:32 %mul_ln574_20 = mul i42 %sext_ln574_26, i42 %sext_ln574_24
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_20"/></StgValue>
+</operation>
+</state>
+
+<state id="5" st_id="5">
+
+<operation id="36" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="29" bw="41" op_0_bw="21">
+<![CDATA[
+fpga_resource_hint.entry.63:24 %sext_ln574_27 = sext i21 %C_eff_r_read
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574_27"/></StgValue>
+</operation>
+
+<operation id="37" st_id="5" stage="2" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="31" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.entry.63:26 %mul_ln574_19 = mul i42 %sext_ln574_25, i42 %sext_ln574_24
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_19"/></StgValue>
+</operation>
+
+<operation id="38" st_id="5" stage="1" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="37" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.entry.63:32 %mul_ln574_20 = mul i42 %sext_ln574_26, i42 %sext_ln574_24
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_20"/></StgValue>
+</operation>
+
+<operation id="39" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="38" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.entry.63:33 %specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i42 %mul_ln574_20, i64 12, i64 3, i64 2, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln576"/></StgValue>
+</operation>
+
+<operation id="40" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="40" bw="21" op_0_bw="21" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.entry.63:35 %product_q_47 = partselect i21 @_ssdm_op_PartSelect.i21.i42.i32.i32, i42 %mul_ln574_20, i32 12, i32 32
+
+]]></Node>
+<StgValue><ssdm name="product_q_47"/></StgValue>
+</operation>
+
+<operation id="41" st_id="5" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="42" bw="41" op_0_bw="20">
+<![CDATA[
+fpga_resource_hint.entry.63:37 %sext_ln574_28 = sext i20 %trunc_ln
+
+]]></Node>
+<StgValue><ssdm name="sext_ln574_28"/></StgValue>
+</operation>
+
+<operation id="42" st_id="5" stage="3" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+fpga_resource_hint.entry.63:38 %mul_ln574_21 = mul i41 %sext_ln574_28, i41 %sext_ln574_27
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_21"/></StgValue>
+</operation>
+</state>
+
+<state id="6" st_id="6">
+
+<operation id="43" st_id="6" stage="1" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="31" bw="42" op_0_bw="42" op_1_bw="42">
+<![CDATA[
+fpga_resource_hint.entry.63:26 %mul_ln574_19 = mul i42 %sext_ln574_25, i42 %sext_ln574_24
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_19"/></StgValue>
+</operation>
+
+<operation id="44" st_id="6" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="32" bw="0" op_0_bw="0" op_1_bw="42" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<![CDATA[
+fpga_resource_hint.entry.63:27 %specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i42 %mul_ln574_19, i64 12, i64 3, i64 2, i1 0
+
+]]></Node>
+<StgValue><ssdm name="specfucore_ln576"/></StgValue>
+</operation>
+
+<operation id="45" st_id="6" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="34" bw="21" op_0_bw="21" op_1_bw="42" op_2_bw="32" op_3_bw="32">
+<![CDATA[
+fpga_resource_hint.entry.63:29 %product_q_46 = partselect i21 @_ssdm_op_PartSelect.i21.i42.i32.i32, i42 %mul_ln574_19, i32 12, i32 32
+
+]]></Node>
+<StgValue><ssdm name="product_q_46"/></StgValue>
+</operation>
+
+<operation id="46" st_id="6" stage="2" lat="3">
+<core>Mul_DSP</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="43" bw="41" op_0_bw="41" op_1_bw="41">
+<![CDATA[
+fpga_resource_hint.entry.63:38 %mul_ln574_21 = mul i41 %sext_ln574_28, i41 %sext_ln574_27
+
+]]></Node>
+<StgValue><ssdm name="mul_ln574_21"/></StgValue>
+</operation>
+</state>
+
+<state id="7" st_id="7">
 
 <operation id="47" st_id="7" stage="1" lat="1">
 <core>NULL</core>
@@ -629,189 +656,15 @@ fpga_resource_hint.entry.90:34 %product_247 = mul i43 %sext_ln671_33, i43 %sext_
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="44" bw="43" op_0_bw="25">
-<![CDATA[
-fpga_resource_hint.entry.90:39 %sext_ln671_34 = sext i25 %trunc_ln
-
-]]></Node>
-<StgValue><ssdm name="sext_ln671_34"/></StgValue>
-</operation>
-
-<operation id="48" st_id="7" stage="4" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="45" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:40 %product_248 = mul i43 %sext_ln671_34, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_248"/></StgValue>
-</operation>
-</state>
-
-<state id="8" st_id="8">
-
-<operation id="49" st_id="8" stage="1" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="33" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:28 %product_246 = mul i43 %sext_ln671_32, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_246"/></StgValue>
-</operation>
-
-<operation id="50" st_id="8" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="34" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-fpga_resource_hint.entry.90:29 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_246, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
-</operation>
-
-<operation id="51" st_id="8" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="36" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
-<![CDATA[
-fpga_resource_hint.entry.90:31 %product_q_48 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_246, i32 17, i32 42
-
-]]></Node>
-<StgValue><ssdm name="product_q_48"/></StgValue>
-</operation>
-
-<operation id="52" st_id="8" stage="2" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="39" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:34 %product_247 = mul i43 %sext_ln671_33, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_247"/></StgValue>
-</operation>
-
-<operation id="53" st_id="8" stage="3" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="45" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:40 %product_248 = mul i43 %sext_ln671_34, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_248"/></StgValue>
-</operation>
-</state>
-
-<state id="9" st_id="9">
-
-<operation id="54" st_id="9" stage="1" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="39" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:34 %product_247 = mul i43 %sext_ln671_33, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_247"/></StgValue>
-</operation>
-
-<operation id="55" st_id="9" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="40" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
-<![CDATA[
-fpga_resource_hint.entry.90:35 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_247, i64 12, i64 3, i64 3, i1 0
-
-]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
-</operation>
-
-<operation id="56" st_id="9" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="42" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
-<![CDATA[
-fpga_resource_hint.entry.90:37 %product_q_49 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_247, i32 17, i32 42
-
-]]></Node>
-<StgValue><ssdm name="product_q_49"/></StgValue>
-</operation>
-
-<operation id="57" st_id="9" stage="2" lat="4">
-<core>Mul_DSP</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="45" bw="43" op_0_bw="43" op_1_bw="43">
-<![CDATA[
-fpga_resource_hint.entry.90:40 %product_248 = mul i43 %sext_ln671_34, i43 %sext_ln671_31
-
-]]></Node>
-<StgValue><ssdm name="product_248"/></StgValue>
-</operation>
-</state>
-
-<state id="10" st_id="10">
-
-<operation id="58" st_id="10" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
 <Node id="9" bw="32" op_0_bw="32" op_1_bw="0">
 <![CDATA[
-fpga_resource_hint.entry.90:4 %rbegin9 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_238
+fpga_resource_hint.entry.63:4 %rbegin8 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_62
 
 ]]></Node>
-<StgValue><ssdm name="rbegin9"/></StgValue>
+<StgValue><ssdm name="rbegin8"/></StgValue>
 </operation>
 
-<operation id="59" st_id="10" stage="1" lat="1">
+<operation id="48" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
@@ -820,13 +673,13 @@ fpga_resource_hint.entry.90:4 %rbegin9 = specregionbegin i32 @_ssdm_op_SpecRegio
 
 <Node id="15" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:10 %rend10 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_238, i32 %rbegin9
+fpga_resource_hint.entry.63:10 %rend9 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_62, i32 %rbegin8
 
 ]]></Node>
-<StgValue><ssdm name="rend10"/></StgValue>
+<StgValue><ssdm name="rend9"/></StgValue>
 </operation>
 
-<operation id="60" st_id="10" stage="1" lat="1">
+<operation id="49" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
@@ -835,13 +688,13 @@ fpga_resource_hint.entry.90:10 %rend10 = specregionend i32 @_ssdm_op_SpecRegionE
 
 <Node id="17" bw="32" op_0_bw="32" op_1_bw="0">
 <![CDATA[
-fpga_resource_hint.entry.90:12 %rbegin7 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_129
+fpga_resource_hint.entry.63:12 %rbegin6 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_51
 
 ]]></Node>
-<StgValue><ssdm name="rbegin7"/></StgValue>
+<StgValue><ssdm name="rbegin6"/></StgValue>
 </operation>
 
-<operation id="61" st_id="10" stage="1" lat="1">
+<operation id="50" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
@@ -850,232 +703,202 @@ fpga_resource_hint.entry.90:12 %rbegin7 = specregionbegin i32 @_ssdm_op_SpecRegi
 
 <Node id="21" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:16 %rend8 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_129, i32 %rbegin7
+fpga_resource_hint.entry.63:16 %rend7 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_51, i32 %rbegin6
 
 ]]></Node>
-<StgValue><ssdm name="rend8"/></StgValue>
+<StgValue><ssdm name="rend7"/></StgValue>
 </operation>
 
-<operation id="62" st_id="10" stage="1" lat="1">
+<operation id="51" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="24" bw="32" op_0_bw="32" op_1_bw="0">
+<Node id="27" bw="32" op_0_bw="32" op_1_bw="0">
 <![CDATA[
-fpga_resource_hint.entry.90:19 %rbegin5 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_192
+fpga_resource_hint.entry.63:22 %rbegin4 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_60
 
 ]]></Node>
-<StgValue><ssdm name="rbegin5"/></StgValue>
+<StgValue><ssdm name="rbegin4"/></StgValue>
 </operation>
 
-<operation id="63" st_id="10" stage="1" lat="1">
+<operation id="52" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="28" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<Node id="33" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:23 %rend6 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_192, i32 %rbegin5
+fpga_resource_hint.entry.63:28 %rend5 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_60, i32 %rbegin4
 
 ]]></Node>
-<StgValue><ssdm name="rend6"/></StgValue>
+<StgValue><ssdm name="rend5"/></StgValue>
 </operation>
 
-<operation id="64" st_id="10" stage="1" lat="1">
+<operation id="53" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="30" bw="32" op_0_bw="32" op_1_bw="0">
+<Node id="35" bw="32" op_0_bw="32" op_1_bw="0">
 <![CDATA[
-fpga_resource_hint.entry.90:25 %rbegin3 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_245
+fpga_resource_hint.entry.63:30 %rbegin2 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_86
 
 ]]></Node>
-<StgValue><ssdm name="rbegin3"/></StgValue>
+<StgValue><ssdm name="rbegin2"/></StgValue>
 </operation>
 
-<operation id="65" st_id="10" stage="1" lat="1">
+<operation id="54" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="35" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<Node id="39" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:30 %rend4 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_245, i32 %rbegin3
+fpga_resource_hint.entry.63:34 %rend3 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_86, i32 %rbegin2
 
 ]]></Node>
-<StgValue><ssdm name="rend4"/></StgValue>
+<StgValue><ssdm name="rend3"/></StgValue>
 </operation>
 
-<operation id="66" st_id="10" stage="1" lat="1">
+<operation id="55" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="37" bw="32" op_0_bw="32" op_1_bw="0">
+<Node id="41" bw="32" op_0_bw="32" op_1_bw="0">
 <![CDATA[
-fpga_resource_hint.entry.90:32 %rbegin1 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_132
-
-]]></Node>
-<StgValue><ssdm name="rbegin1"/></StgValue>
-</operation>
-
-<operation id="67" st_id="10" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="41" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
-<![CDATA[
-fpga_resource_hint.entry.90:36 %rend2 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_132, i32 %rbegin1
-
-]]></Node>
-<StgValue><ssdm name="rend2"/></StgValue>
-</operation>
-
-<operation id="68" st_id="10" stage="1" lat="1">
-<core>NULL</core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="43" bw="32" op_0_bw="32" op_1_bw="0">
-<![CDATA[
-fpga_resource_hint.entry.90:38 %rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_86
+fpga_resource_hint.entry.63:36 %rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_87
 
 ]]></Node>
 <StgValue><ssdm name="rbegin"/></StgValue>
 </operation>
 
-<operation id="69" st_id="10" stage="1" lat="4">
+<operation id="56" st_id="7" stage="1" lat="3">
 <core>Mul_DSP</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="45" bw="43" op_0_bw="43" op_1_bw="43">
+<Node id="43" bw="41" op_0_bw="41" op_1_bw="41">
 <![CDATA[
-fpga_resource_hint.entry.90:40 %product_248 = mul i43 %sext_ln671_34, i43 %sext_ln671_31
+fpga_resource_hint.entry.63:38 %mul_ln574_21 = mul i41 %sext_ln574_28, i41 %sext_ln574_27
 
 ]]></Node>
-<StgValue><ssdm name="product_248"/></StgValue>
+<StgValue><ssdm name="mul_ln574_21"/></StgValue>
 </operation>
 
-<operation id="70" st_id="10" stage="1" lat="1">
+<operation id="57" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="46" bw="0" op_0_bw="0" op_1_bw="43" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
+<Node id="44" bw="0" op_0_bw="0" op_1_bw="41" op_2_bw="64" op_3_bw="64" op_4_bw="64" op_5_bw="1">
 <![CDATA[
-fpga_resource_hint.entry.90:41 %specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_248, i64 12, i64 3, i64 3, i1 0
+fpga_resource_hint.entry.63:39 %specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i41 %mul_ln574_21, i64 12, i64 3, i64 2, i1 0
 
 ]]></Node>
-<StgValue><ssdm name="specfucore_ln673"/></StgValue>
+<StgValue><ssdm name="specfucore_ln576"/></StgValue>
 </operation>
 
-<operation id="71" st_id="10" stage="1" lat="1">
+<operation id="58" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="47" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
+<Node id="45" bw="32" op_0_bw="32" op_1_bw="0" op_2_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:42 %rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_86, i32 %rbegin
+fpga_resource_hint.entry.63:40 %rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_87, i32 %rbegin
 
 ]]></Node>
 <StgValue><ssdm name="rend"/></StgValue>
 </operation>
 
-<operation id="72" st_id="10" stage="1" lat="1">
+<operation id="59" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="48" bw="26" op_0_bw="26" op_1_bw="43" op_2_bw="32" op_3_bw="32">
+<Node id="46" bw="21" op_0_bw="21" op_1_bw="41" op_2_bw="32" op_3_bw="32">
 <![CDATA[
-fpga_resource_hint.entry.90:43 %product_q_50 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_248, i32 17, i32 42
+fpga_resource_hint.entry.63:41 %product_q_48 = partselect i21 @_ssdm_op_PartSelect.i21.i41.i32.i32, i41 %mul_ln574_21, i32 12, i32 32
 
 ]]></Node>
-<StgValue><ssdm name="product_q_50"/></StgValue>
+<StgValue><ssdm name="product_q_48"/></StgValue>
 </operation>
 
-<operation id="73" st_id="10" stage="1" lat="1">
+<operation id="60" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="49" bw="78" op_0_bw="78" op_1_bw="26">
+<Node id="47" bw="63" op_0_bw="63" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:44 %mrv = insertvalue i78 <undef>, i26 %product_q_48
+fpga_resource_hint.entry.63:42 %mrv = insertvalue i63 <undef>, i21 %product_q_46
 
 ]]></Node>
 <StgValue><ssdm name="mrv"/></StgValue>
 </operation>
 
-<operation id="74" st_id="10" stage="1" lat="1">
+<operation id="61" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="50" bw="78" op_0_bw="78" op_1_bw="26">
+<Node id="48" bw="63" op_0_bw="63" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:45 %mrv_1 = insertvalue i78 %mrv, i26 %product_q_49
+fpga_resource_hint.entry.63:43 %mrv_1 = insertvalue i63 %mrv, i21 %product_q_47
 
 ]]></Node>
 <StgValue><ssdm name="mrv_1"/></StgValue>
 </operation>
 
-<operation id="75" st_id="10" stage="1" lat="1">
+<operation id="62" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="51" bw="78" op_0_bw="78" op_1_bw="26">
+<Node id="49" bw="63" op_0_bw="63" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.90:46 %mrv_2 = insertvalue i78 %mrv_1, i26 %product_q_50
+fpga_resource_hint.entry.63:44 %mrv_2 = insertvalue i63 %mrv_1, i21 %product_q_48
 
 ]]></Node>
 <StgValue><ssdm name="mrv_2"/></StgValue>
 </operation>
 
-<operation id="76" st_id="10" stage="1" lat="1">
+<operation id="63" st_id="7" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="52" bw="0" op_0_bw="78">
+<Node id="50" bw="0" op_0_bw="63">
 <![CDATA[
-fpga_resource_hint.entry.90:47 %ret_ln162 = ret i78 %mrv_2
+fpga_resource_hint.entry.63:45 %ret_ln162 = ret i63 %mrv_2
 
 ]]></Node>
 <StgValue><ssdm name="ret_ln162"/></StgValue>
@@ -1085,349 +908,297 @@ fpga_resource_hint.entry.90:47 %ret_ln162 = ret i78 %mrv_2
 
 
 <ports>
-<port id="96" name="C_eff_r" dir="0" iftype="0">
+<port id="77" name="C_eff_r" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="C_eff_r"/></StgValue>
 </port>
-<port id="97" name="rear_num" dir="0" iftype="0">
+<port id="78" name="rear_num" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="rear_num"/></StgValue>
 </port>
-<port id="98" name="vx_safe" dir="0" iftype="0">
+<port id="79" name="vx_safe" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="vx_safe"/></StgValue>
 </port>
-<port id="99" name="inv_D_r" dir="0" iftype="0">
+<port id="80" name="inv_D_r" dir="0" iftype="0">
 <core>NULL</core><StgValue><ssdm name="inv_D_r"/></StgValue>
 </port>
 </ports>
 
 
 <dataflows>
-<dataflow id="101" from="_ssdm_op_Read.ap_auto.i23" to="inv_D_r_read" fromId="100" toId="11">
+<dataflow id="82" from="_ssdm_op_Read.ap_auto.i20" to="inv_D_r_read" fromId="81" toId="8">
 </dataflow>
-<dataflow id="102" from="inv_D_r" to="inv_D_r_read" fromId="99" toId="11">
+<dataflow id="83" from="inv_D_r" to="inv_D_r_read" fromId="80" toId="8">
 </dataflow>
-<dataflow id="104" from="_ssdm_op_Read.ap_auto.i25" to="vx_safe_read" fromId="103" toId="12">
+<dataflow id="84" from="_ssdm_op_Read.ap_auto.i20" to="vx_safe_read" fromId="81" toId="9">
 </dataflow>
-<dataflow id="105" from="vx_safe" to="vx_safe_read" fromId="98" toId="12">
+<dataflow id="85" from="vx_safe" to="vx_safe_read" fromId="79" toId="9">
 </dataflow>
-<dataflow id="106" from="vx_safe_read" to="zext_ln671" fromId="12" toId="13">
+<dataflow id="86" from="vx_safe_read" to="zext_ln574" fromId="9" toId="10">
 </dataflow>
-<dataflow id="107" from="inv_D_r_read" to="sext_ln671_28" fromId="11" toId="14">
+<dataflow id="87" from="inv_D_r_read" to="sext_ln574_22" fromId="8" toId="11">
 </dataflow>
-<dataflow id="108" from="sext_ln671_28" to="mul_ln671" fromId="14" toId="15">
+<dataflow id="88" from="sext_ln574_22" to="mul_ln574" fromId="11" toId="12">
 </dataflow>
-<dataflow id="109" from="zext_ln671" to="mul_ln671" fromId="13" toId="15">
+<dataflow id="89" from="zext_ln574" to="mul_ln574" fromId="10" toId="12">
 </dataflow>
-<dataflow id="111" from="_ssdm_op_Read.ap_auto.i26" to="rear_num_read" fromId="110" toId="16">
+<dataflow id="91" from="_ssdm_op_Read.ap_auto.i21" to="rear_num_read" fromId="90" toId="13">
 </dataflow>
-<dataflow id="112" from="rear_num" to="rear_num_read" fromId="97" toId="16">
+<dataflow id="92" from="rear_num" to="rear_num_read" fromId="78" toId="13">
 </dataflow>
-<dataflow id="113" from="inv_D_r_read" to="sext_ln671" fromId="11" toId="17">
+<dataflow id="93" from="inv_D_r_read" to="sext_ln574" fromId="8" toId="14">
 </dataflow>
-<dataflow id="114" from="sext_ln671_28" to="mul_ln671" fromId="14" toId="18">
+<dataflow id="94" from="sext_ln574_22" to="mul_ln574" fromId="11" toId="15">
 </dataflow>
-<dataflow id="115" from="zext_ln671" to="mul_ln671" fromId="13" toId="18">
+<dataflow id="95" from="zext_ln574" to="mul_ln574" fromId="10" toId="15">
 </dataflow>
-<dataflow id="116" from="rear_num_read" to="sext_ln671_29" fromId="16" toId="19">
+<dataflow id="96" from="rear_num_read" to="sext_ln574_23" fromId="13" toId="16">
 </dataflow>
-<dataflow id="117" from="sext_ln671_29" to="mul_ln671_18" fromId="19" toId="20">
+<dataflow id="97" from="sext_ln574_23" to="mul_ln574_18" fromId="16" toId="17">
 </dataflow>
-<dataflow id="118" from="sext_ln671" to="mul_ln671_18" fromId="17" toId="20">
+<dataflow id="98" from="sext_ln574" to="mul_ln574_18" fromId="14" toId="17">
 </dataflow>
-<dataflow id="119" from="sext_ln671_28" to="mul_ln671" fromId="14" toId="21">
+<dataflow id="99" from="_ssdm_op_Read.ap_auto.i21" to="C_eff_r_read" fromId="90" toId="18">
 </dataflow>
-<dataflow id="120" from="zext_ln671" to="mul_ln671" fromId="13" toId="21">
+<dataflow id="100" from="C_eff_r" to="C_eff_r_read" fromId="77" toId="18">
 </dataflow>
-<dataflow id="121" from="sext_ln671_29" to="mul_ln671_18" fromId="19" toId="22">
+<dataflow id="101" from="sext_ln574_22" to="mul_ln574" fromId="11" toId="19">
 </dataflow>
-<dataflow id="122" from="sext_ln671" to="mul_ln671_18" fromId="17" toId="22">
+<dataflow id="102" from="zext_ln574" to="mul_ln574" fromId="10" toId="19">
 </dataflow>
-<dataflow id="123" from="sext_ln671_28" to="mul_ln671" fromId="14" toId="23">
+<dataflow id="104" from="_ssdm_op_SpecFUCore" to="specfucore_ln576" fromId="103" toId="20">
 </dataflow>
-<dataflow id="124" from="zext_ln671" to="mul_ln671" fromId="13" toId="23">
+<dataflow id="105" from="mul_ln574" to="specfucore_ln576" fromId="19" toId="20">
 </dataflow>
-<dataflow id="126" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="24">
+<dataflow id="107" from="StgValue_106" to="specfucore_ln576" fromId="106" toId="20">
 </dataflow>
-<dataflow id="127" from="mul_ln671" to="specfucore_ln673" fromId="23" toId="24">
+<dataflow id="109" from="StgValue_108" to="specfucore_ln576" fromId="108" toId="20">
 </dataflow>
-<dataflow id="129" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="24">
+<dataflow id="111" from="StgValue_110" to="specfucore_ln576" fromId="110" toId="20">
 </dataflow>
-<dataflow id="131" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="24">
+<dataflow id="113" from="StgValue_112" to="specfucore_ln576" fromId="112" toId="20">
 </dataflow>
-<dataflow id="132" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="24">
+<dataflow id="115" from="_ssdm_op_PartSelect.i21.i40.i32.i32" to="product_q" fromId="114" toId="21">
 </dataflow>
-<dataflow id="134" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="24">
+<dataflow id="116" from="mul_ln574" to="product_q" fromId="19" toId="21">
 </dataflow>
-<dataflow id="136" from="_ssdm_op_PartSelect.i26.i48.i32.i32" to="product_q" fromId="135" toId="25">
+<dataflow id="118" from="StgValue_117" to="product_q" fromId="117" toId="21">
 </dataflow>
-<dataflow id="137" from="mul_ln671" to="product_q" fromId="23" toId="25">
+<dataflow id="120" from="StgValue_119" to="product_q" fromId="119" toId="21">
 </dataflow>
-<dataflow id="139" from="StgValue_138" to="product_q" fromId="138" toId="25">
+<dataflow id="121" from="sext_ln574_23" to="mul_ln574_18" fromId="16" toId="22">
 </dataflow>
-<dataflow id="141" from="StgValue_140" to="product_q" fromId="140" toId="25">
+<dataflow id="122" from="sext_ln574" to="mul_ln574_18" fromId="14" toId="22">
 </dataflow>
-<dataflow id="142" from="sext_ln671_29" to="mul_ln671_18" fromId="19" toId="26">
+<dataflow id="124" from="StgValue_123" to="dar_dvy" fromId="123" toId="23">
 </dataflow>
-<dataflow id="143" from="sext_ln671" to="mul_ln671_18" fromId="17" toId="26">
+<dataflow id="125" from="product_q" to="dar_dvy" fromId="21" toId="23">
 </dataflow>
-<dataflow id="144" from="product_q" to="sext_ln671_30" fromId="25" toId="27">
+<dataflow id="126" from="product_q" to="sext_ln591" fromId="21" toId="24">
 </dataflow>
-<dataflow id="145" from="sext_ln671_30" to="product" fromId="27" toId="28">
+<dataflow id="127" from="sext_ln591" to="product" fromId="24" toId="25">
 </dataflow>
-<dataflow id="147" from="StgValue_146" to="product" fromId="146" toId="28">
+<dataflow id="129" from="StgValue_128" to="product" fromId="128" toId="25">
 </dataflow>
-<dataflow id="148" from="_ssdm_op_Read.ap_auto.i26" to="C_eff_r_read" fromId="110" toId="29">
+<dataflow id="131" from="_ssdm_op_PartSelect.i20.i32.i32.i32" to="trunc_ln" fromId="130" toId="26">
 </dataflow>
-<dataflow id="149" from="C_eff_r" to="C_eff_r_read" fromId="96" toId="29">
+<dataflow id="132" from="product" to="trunc_ln" fromId="25" toId="26">
 </dataflow>
-<dataflow id="150" from="sext_ln671_29" to="mul_ln671_18" fromId="19" toId="30">
+<dataflow id="133" from="StgValue_117" to="trunc_ln" fromId="117" toId="26">
 </dataflow>
-<dataflow id="151" from="sext_ln671" to="mul_ln671_18" fromId="17" toId="30">
+<dataflow id="135" from="StgValue_134" to="trunc_ln" fromId="134" toId="26">
 </dataflow>
-<dataflow id="152" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="31">
+<dataflow id="136" from="C_eff_r_read" to="sext_ln574_24" fromId="18" toId="27">
 </dataflow>
-<dataflow id="153" from="mul_ln671_18" to="specfucore_ln673" fromId="30" toId="31">
+<dataflow id="137" from="dar_dvy" to="sext_ln574_26" fromId="23" toId="28">
 </dataflow>
-<dataflow id="154" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="31">
+<dataflow id="138" from="sext_ln574_26" to="mul_ln574_20" fromId="28" toId="29">
 </dataflow>
-<dataflow id="155" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="31">
+<dataflow id="139" from="sext_ln574_24" to="mul_ln574_20" fromId="27" toId="29">
 </dataflow>
-<dataflow id="156" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="31">
+<dataflow id="140" from="sext_ln574_23" to="mul_ln574_18" fromId="16" toId="30">
 </dataflow>
-<dataflow id="157" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="31">
+<dataflow id="141" from="sext_ln574" to="mul_ln574_18" fromId="14" toId="30">
 </dataflow>
-<dataflow id="159" from="_ssdm_op_PartSelect.i26.i49.i32.i32" to="product_q_47" fromId="158" toId="32">
+<dataflow id="142" from="_ssdm_op_SpecFUCore" to="specfucore_ln576" fromId="103" toId="31">
 </dataflow>
-<dataflow id="160" from="mul_ln671_18" to="product_q_47" fromId="30" toId="32">
+<dataflow id="143" from="mul_ln574_18" to="specfucore_ln576" fromId="30" toId="31">
 </dataflow>
-<dataflow id="161" from="StgValue_138" to="product_q_47" fromId="138" toId="32">
+<dataflow id="144" from="StgValue_106" to="specfucore_ln576" fromId="106" toId="31">
 </dataflow>
-<dataflow id="162" from="StgValue_140" to="product_q_47" fromId="140" toId="32">
+<dataflow id="145" from="StgValue_108" to="specfucore_ln576" fromId="108" toId="31">
 </dataflow>
-<dataflow id="163" from="sext_ln671_30" to="product" fromId="27" toId="33">
+<dataflow id="146" from="StgValue_110" to="specfucore_ln576" fromId="110" toId="31">
 </dataflow>
-<dataflow id="164" from="StgValue_146" to="product" fromId="146" toId="33">
+<dataflow id="147" from="StgValue_112" to="specfucore_ln576" fromId="112" toId="31">
 </dataflow>
-<dataflow id="165" from="C_eff_r_read" to="sext_ln671_31" fromId="29" toId="34">
+<dataflow id="149" from="_ssdm_op_PartSelect.i21.i41.i32.i32" to="product_q_45" fromId="148" toId="32">
 </dataflow>
-<dataflow id="166" from="product_q_47" to="sext_ln671_32" fromId="32" toId="35">
+<dataflow id="150" from="mul_ln574_18" to="product_q_45" fromId="30" toId="32">
 </dataflow>
-<dataflow id="167" from="sext_ln671_32" to="product_246" fromId="35" toId="36">
+<dataflow id="151" from="StgValue_117" to="product_q_45" fromId="117" toId="32">
 </dataflow>
-<dataflow id="168" from="sext_ln671_31" to="product_246" fromId="34" toId="36">
+<dataflow id="152" from="StgValue_119" to="product_q_45" fromId="119" toId="32">
 </dataflow>
-<dataflow id="170" from="StgValue_169" to="dar_dvy" fromId="169" toId="37">
+<dataflow id="153" from="product_q_45" to="sext_ln574_25" fromId="32" toId="33">
 </dataflow>
-<dataflow id="171" from="product_q" to="dar_dvy" fromId="25" toId="37">
+<dataflow id="154" from="sext_ln574_25" to="mul_ln574_19" fromId="33" toId="34">
 </dataflow>
-<dataflow id="172" from="sext_ln671_30" to="product" fromId="27" toId="38">
+<dataflow id="155" from="sext_ln574_24" to="mul_ln574_19" fromId="27" toId="34">
 </dataflow>
-<dataflow id="173" from="StgValue_146" to="product" fromId="146" toId="38">
+<dataflow id="156" from="sext_ln574_26" to="mul_ln574_20" fromId="28" toId="35">
 </dataflow>
-<dataflow id="174" from="sext_ln671_32" to="product_246" fromId="35" toId="39">
+<dataflow id="157" from="sext_ln574_24" to="mul_ln574_20" fromId="27" toId="35">
 </dataflow>
-<dataflow id="175" from="sext_ln671_31" to="product_246" fromId="34" toId="39">
+<dataflow id="158" from="C_eff_r_read" to="sext_ln574_27" fromId="18" toId="36">
 </dataflow>
-<dataflow id="176" from="dar_dvy" to="sext_ln671_33" fromId="37" toId="40">
+<dataflow id="159" from="sext_ln574_25" to="mul_ln574_19" fromId="33" toId="37">
 </dataflow>
-<dataflow id="177" from="sext_ln671_33" to="product_247" fromId="40" toId="41">
+<dataflow id="160" from="sext_ln574_24" to="mul_ln574_19" fromId="27" toId="37">
 </dataflow>
-<dataflow id="178" from="sext_ln671_31" to="product_247" fromId="34" toId="41">
+<dataflow id="161" from="sext_ln574_26" to="mul_ln574_20" fromId="28" toId="38">
 </dataflow>
-<dataflow id="179" from="sext_ln671_30" to="product" fromId="27" toId="42">
+<dataflow id="162" from="sext_ln574_24" to="mul_ln574_20" fromId="27" toId="38">
 </dataflow>
-<dataflow id="180" from="StgValue_146" to="product" fromId="146" toId="42">
+<dataflow id="163" from="_ssdm_op_SpecFUCore" to="specfucore_ln576" fromId="103" toId="39">
 </dataflow>
-<dataflow id="181" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="43">
+<dataflow id="164" from="mul_ln574_20" to="specfucore_ln576" fromId="38" toId="39">
 </dataflow>
-<dataflow id="182" from="product" to="specfucore_ln673" fromId="42" toId="43">
+<dataflow id="165" from="StgValue_106" to="specfucore_ln576" fromId="106" toId="39">
 </dataflow>
-<dataflow id="183" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="43">
+<dataflow id="166" from="StgValue_108" to="specfucore_ln576" fromId="108" toId="39">
 </dataflow>
-<dataflow id="184" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="43">
+<dataflow id="167" from="StgValue_110" to="specfucore_ln576" fromId="110" toId="39">
 </dataflow>
-<dataflow id="185" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="43">
+<dataflow id="168" from="StgValue_112" to="specfucore_ln576" fromId="112" toId="39">
 </dataflow>
-<dataflow id="186" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="43">
+<dataflow id="170" from="_ssdm_op_PartSelect.i21.i42.i32.i32" to="product_q_47" fromId="169" toId="40">
 </dataflow>
-<dataflow id="188" from="_ssdm_op_PartSelect.i25.i42.i32.i32" to="trunc_ln" fromId="187" toId="44">
+<dataflow id="171" from="mul_ln574_20" to="product_q_47" fromId="38" toId="40">
 </dataflow>
-<dataflow id="189" from="product" to="trunc_ln" fromId="42" toId="44">
+<dataflow id="172" from="StgValue_117" to="product_q_47" fromId="117" toId="40">
 </dataflow>
-<dataflow id="190" from="StgValue_138" to="trunc_ln" fromId="138" toId="44">
+<dataflow id="173" from="StgValue_119" to="product_q_47" fromId="119" toId="40">
 </dataflow>
-<dataflow id="192" from="StgValue_191" to="trunc_ln" fromId="191" toId="44">
+<dataflow id="174" from="trunc_ln" to="sext_ln574_28" fromId="26" toId="41">
 </dataflow>
-<dataflow id="193" from="sext_ln671_32" to="product_246" fromId="35" toId="45">
+<dataflow id="175" from="sext_ln574_28" to="mul_ln574_21" fromId="41" toId="42">
 </dataflow>
-<dataflow id="194" from="sext_ln671_31" to="product_246" fromId="34" toId="45">
+<dataflow id="176" from="sext_ln574_27" to="mul_ln574_21" fromId="36" toId="42">
 </dataflow>
-<dataflow id="195" from="sext_ln671_33" to="product_247" fromId="40" toId="46">
+<dataflow id="177" from="sext_ln574_25" to="mul_ln574_19" fromId="33" toId="43">
 </dataflow>
-<dataflow id="196" from="sext_ln671_31" to="product_247" fromId="34" toId="46">
+<dataflow id="178" from="sext_ln574_24" to="mul_ln574_19" fromId="27" toId="43">
 </dataflow>
-<dataflow id="197" from="trunc_ln" to="sext_ln671_34" fromId="44" toId="47">
+<dataflow id="179" from="_ssdm_op_SpecFUCore" to="specfucore_ln576" fromId="103" toId="44">
 </dataflow>
-<dataflow id="198" from="sext_ln671_34" to="product_248" fromId="47" toId="48">
+<dataflow id="180" from="mul_ln574_19" to="specfucore_ln576" fromId="43" toId="44">
 </dataflow>
-<dataflow id="199" from="sext_ln671_31" to="product_248" fromId="34" toId="48">
+<dataflow id="181" from="StgValue_106" to="specfucore_ln576" fromId="106" toId="44">
 </dataflow>
-<dataflow id="200" from="sext_ln671_32" to="product_246" fromId="35" toId="49">
+<dataflow id="182" from="StgValue_108" to="specfucore_ln576" fromId="108" toId="44">
 </dataflow>
-<dataflow id="201" from="sext_ln671_31" to="product_246" fromId="34" toId="49">
+<dataflow id="183" from="StgValue_110" to="specfucore_ln576" fromId="110" toId="44">
 </dataflow>
-<dataflow id="202" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="50">
+<dataflow id="184" from="StgValue_112" to="specfucore_ln576" fromId="112" toId="44">
 </dataflow>
-<dataflow id="203" from="product_246" to="specfucore_ln673" fromId="49" toId="50">
+<dataflow id="185" from="_ssdm_op_PartSelect.i21.i42.i32.i32" to="product_q_46" fromId="169" toId="45">
 </dataflow>
-<dataflow id="204" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="50">
+<dataflow id="186" from="mul_ln574_19" to="product_q_46" fromId="43" toId="45">
 </dataflow>
-<dataflow id="205" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="50">
+<dataflow id="187" from="StgValue_117" to="product_q_46" fromId="117" toId="45">
 </dataflow>
-<dataflow id="206" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="50">
+<dataflow id="188" from="StgValue_119" to="product_q_46" fromId="119" toId="45">
 </dataflow>
-<dataflow id="207" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="50">
+<dataflow id="189" from="sext_ln574_28" to="mul_ln574_21" fromId="41" toId="46">
 </dataflow>
-<dataflow id="209" from="_ssdm_op_PartSelect.i26.i43.i32.i32" to="product_q_48" fromId="208" toId="51">
+<dataflow id="190" from="sext_ln574_27" to="mul_ln574_21" fromId="36" toId="46">
 </dataflow>
-<dataflow id="210" from="product_246" to="product_q_48" fromId="49" toId="51">
+<dataflow id="192" from="_ssdm_op_SpecRegionBegin" to="rbegin8" fromId="191" toId="47">
 </dataflow>
-<dataflow id="211" from="StgValue_138" to="product_q_48" fromId="138" toId="51">
+<dataflow id="194" from="empty_62" to="rbegin8" fromId="193" toId="47">
 </dataflow>
-<dataflow id="212" from="StgValue_140" to="product_q_48" fromId="140" toId="51">
+<dataflow id="196" from="_ssdm_op_SpecRegionEnd" to="rend9" fromId="195" toId="48">
 </dataflow>
-<dataflow id="213" from="sext_ln671_33" to="product_247" fromId="40" toId="52">
+<dataflow id="197" from="empty_62" to="rend9" fromId="193" toId="48">
 </dataflow>
-<dataflow id="214" from="sext_ln671_31" to="product_247" fromId="34" toId="52">
+<dataflow id="198" from="rbegin8" to="rend9" fromId="47" toId="48">
 </dataflow>
-<dataflow id="215" from="sext_ln671_34" to="product_248" fromId="47" toId="53">
+<dataflow id="199" from="_ssdm_op_SpecRegionBegin" to="rbegin6" fromId="191" toId="49">
 </dataflow>
-<dataflow id="216" from="sext_ln671_31" to="product_248" fromId="34" toId="53">
+<dataflow id="201" from="empty_51" to="rbegin6" fromId="200" toId="49">
 </dataflow>
-<dataflow id="217" from="sext_ln671_33" to="product_247" fromId="40" toId="54">
+<dataflow id="202" from="_ssdm_op_SpecRegionEnd" to="rend7" fromId="195" toId="50">
 </dataflow>
-<dataflow id="218" from="sext_ln671_31" to="product_247" fromId="34" toId="54">
+<dataflow id="203" from="empty_51" to="rend7" fromId="200" toId="50">
 </dataflow>
-<dataflow id="219" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="55">
+<dataflow id="204" from="rbegin6" to="rend7" fromId="49" toId="50">
 </dataflow>
-<dataflow id="220" from="product_247" to="specfucore_ln673" fromId="54" toId="55">
+<dataflow id="205" from="_ssdm_op_SpecRegionBegin" to="rbegin4" fromId="191" toId="51">
 </dataflow>
-<dataflow id="221" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="55">
+<dataflow id="207" from="empty_60" to="rbegin4" fromId="206" toId="51">
 </dataflow>
-<dataflow id="222" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="55">
+<dataflow id="208" from="_ssdm_op_SpecRegionEnd" to="rend5" fromId="195" toId="52">
 </dataflow>
-<dataflow id="223" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="55">
+<dataflow id="209" from="empty_60" to="rend5" fromId="206" toId="52">
 </dataflow>
-<dataflow id="224" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="55">
+<dataflow id="210" from="rbegin4" to="rend5" fromId="51" toId="52">
 </dataflow>
-<dataflow id="225" from="_ssdm_op_PartSelect.i26.i43.i32.i32" to="product_q_49" fromId="208" toId="56">
+<dataflow id="211" from="_ssdm_op_SpecRegionBegin" to="rbegin2" fromId="191" toId="53">
 </dataflow>
-<dataflow id="226" from="product_247" to="product_q_49" fromId="54" toId="56">
+<dataflow id="213" from="empty_86" to="rbegin2" fromId="212" toId="53">
 </dataflow>
-<dataflow id="227" from="StgValue_138" to="product_q_49" fromId="138" toId="56">
+<dataflow id="214" from="_ssdm_op_SpecRegionEnd" to="rend3" fromId="195" toId="54">
 </dataflow>
-<dataflow id="228" from="StgValue_140" to="product_q_49" fromId="140" toId="56">
+<dataflow id="215" from="empty_86" to="rend3" fromId="212" toId="54">
 </dataflow>
-<dataflow id="229" from="sext_ln671_34" to="product_248" fromId="47" toId="57">
+<dataflow id="216" from="rbegin2" to="rend3" fromId="53" toId="54">
 </dataflow>
-<dataflow id="230" from="sext_ln671_31" to="product_248" fromId="34" toId="57">
+<dataflow id="217" from="_ssdm_op_SpecRegionBegin" to="rbegin" fromId="191" toId="55">
 </dataflow>
-<dataflow id="232" from="_ssdm_op_SpecRegionBegin" to="rbegin9" fromId="231" toId="58">
+<dataflow id="219" from="empty_87" to="rbegin" fromId="218" toId="55">
 </dataflow>
-<dataflow id="234" from="empty_238" to="rbegin9" fromId="233" toId="58">
+<dataflow id="220" from="sext_ln574_28" to="mul_ln574_21" fromId="41" toId="56">
 </dataflow>
-<dataflow id="236" from="_ssdm_op_SpecRegionEnd" to="rend10" fromId="235" toId="59">
+<dataflow id="221" from="sext_ln574_27" to="mul_ln574_21" fromId="36" toId="56">
 </dataflow>
-<dataflow id="237" from="empty_238" to="rend10" fromId="233" toId="59">
+<dataflow id="222" from="_ssdm_op_SpecFUCore" to="specfucore_ln576" fromId="103" toId="57">
 </dataflow>
-<dataflow id="238" from="rbegin9" to="rend10" fromId="58" toId="59">
+<dataflow id="223" from="mul_ln574_21" to="specfucore_ln576" fromId="56" toId="57">
 </dataflow>
-<dataflow id="239" from="_ssdm_op_SpecRegionBegin" to="rbegin7" fromId="231" toId="60">
+<dataflow id="224" from="StgValue_106" to="specfucore_ln576" fromId="106" toId="57">
 </dataflow>
-<dataflow id="241" from="empty_129" to="rbegin7" fromId="240" toId="60">
+<dataflow id="225" from="StgValue_108" to="specfucore_ln576" fromId="108" toId="57">
 </dataflow>
-<dataflow id="242" from="_ssdm_op_SpecRegionEnd" to="rend8" fromId="235" toId="61">
+<dataflow id="226" from="StgValue_110" to="specfucore_ln576" fromId="110" toId="57">
 </dataflow>
-<dataflow id="243" from="empty_129" to="rend8" fromId="240" toId="61">
+<dataflow id="227" from="StgValue_112" to="specfucore_ln576" fromId="112" toId="57">
 </dataflow>
-<dataflow id="244" from="rbegin7" to="rend8" fromId="60" toId="61">
+<dataflow id="228" from="_ssdm_op_SpecRegionEnd" to="rend" fromId="195" toId="58">
 </dataflow>
-<dataflow id="245" from="_ssdm_op_SpecRegionBegin" to="rbegin5" fromId="231" toId="62">
+<dataflow id="229" from="empty_87" to="rend" fromId="218" toId="58">
 </dataflow>
-<dataflow id="247" from="empty_192" to="rbegin5" fromId="246" toId="62">
+<dataflow id="230" from="rbegin" to="rend" fromId="55" toId="58">
 </dataflow>
-<dataflow id="248" from="_ssdm_op_SpecRegionEnd" to="rend6" fromId="235" toId="63">
+<dataflow id="231" from="_ssdm_op_PartSelect.i21.i41.i32.i32" to="product_q_48" fromId="148" toId="59">
 </dataflow>
-<dataflow id="249" from="empty_192" to="rend6" fromId="246" toId="63">
+<dataflow id="232" from="mul_ln574_21" to="product_q_48" fromId="56" toId="59">
 </dataflow>
-<dataflow id="250" from="rbegin5" to="rend6" fromId="62" toId="63">
+<dataflow id="233" from="StgValue_117" to="product_q_48" fromId="117" toId="59">
 </dataflow>
-<dataflow id="251" from="_ssdm_op_SpecRegionBegin" to="rbegin3" fromId="231" toId="64">
+<dataflow id="234" from="StgValue_119" to="product_q_48" fromId="119" toId="59">
 </dataflow>
-<dataflow id="253" from="empty_245" to="rbegin3" fromId="252" toId="64">
+<dataflow id="236" from="StgValue_235" to="mrv" fromId="235" toId="60">
 </dataflow>
-<dataflow id="254" from="_ssdm_op_SpecRegionEnd" to="rend4" fromId="235" toId="65">
+<dataflow id="237" from="product_q_46" to="mrv" fromId="45" toId="60">
 </dataflow>
-<dataflow id="255" from="empty_245" to="rend4" fromId="252" toId="65">
+<dataflow id="238" from="mrv" to="mrv_1" fromId="60" toId="61">
 </dataflow>
-<dataflow id="256" from="rbegin3" to="rend4" fromId="64" toId="65">
+<dataflow id="239" from="product_q_47" to="mrv_1" fromId="40" toId="61">
 </dataflow>
-<dataflow id="257" from="_ssdm_op_SpecRegionBegin" to="rbegin1" fromId="231" toId="66">
+<dataflow id="240" from="mrv_1" to="mrv_2" fromId="61" toId="62">
 </dataflow>
-<dataflow id="259" from="empty_132" to="rbegin1" fromId="258" toId="66">
+<dataflow id="241" from="product_q_48" to="mrv_2" fromId="59" toId="62">
 </dataflow>
-<dataflow id="260" from="_ssdm_op_SpecRegionEnd" to="rend2" fromId="235" toId="67">
-</dataflow>
-<dataflow id="261" from="empty_132" to="rend2" fromId="258" toId="67">
-</dataflow>
-<dataflow id="262" from="rbegin1" to="rend2" fromId="66" toId="67">
-</dataflow>
-<dataflow id="263" from="_ssdm_op_SpecRegionBegin" to="rbegin" fromId="231" toId="68">
-</dataflow>
-<dataflow id="265" from="empty_86" to="rbegin" fromId="264" toId="68">
-</dataflow>
-<dataflow id="266" from="sext_ln671_34" to="product_248" fromId="47" toId="69">
-</dataflow>
-<dataflow id="267" from="sext_ln671_31" to="product_248" fromId="34" toId="69">
-</dataflow>
-<dataflow id="268" from="_ssdm_op_SpecFUCore" to="specfucore_ln673" fromId="125" toId="70">
-</dataflow>
-<dataflow id="269" from="product_248" to="specfucore_ln673" fromId="69" toId="70">
-</dataflow>
-<dataflow id="270" from="StgValue_128" to="specfucore_ln673" fromId="128" toId="70">
-</dataflow>
-<dataflow id="271" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="70">
-</dataflow>
-<dataflow id="272" from="StgValue_130" to="specfucore_ln673" fromId="130" toId="70">
-</dataflow>
-<dataflow id="273" from="StgValue_133" to="specfucore_ln673" fromId="133" toId="70">
-</dataflow>
-<dataflow id="274" from="_ssdm_op_SpecRegionEnd" to="rend" fromId="235" toId="71">
-</dataflow>
-<dataflow id="275" from="empty_86" to="rend" fromId="264" toId="71">
-</dataflow>
-<dataflow id="276" from="rbegin" to="rend" fromId="68" toId="71">
-</dataflow>
-<dataflow id="277" from="_ssdm_op_PartSelect.i26.i43.i32.i32" to="product_q_50" fromId="208" toId="72">
-</dataflow>
-<dataflow id="278" from="product_248" to="product_q_50" fromId="69" toId="72">
-</dataflow>
-<dataflow id="279" from="StgValue_138" to="product_q_50" fromId="138" toId="72">
-</dataflow>
-<dataflow id="280" from="StgValue_140" to="product_q_50" fromId="140" toId="72">
-</dataflow>
-<dataflow id="282" from="StgValue_281" to="mrv" fromId="281" toId="73">
-</dataflow>
-<dataflow id="283" from="product_q_48" to="mrv" fromId="51" toId="73">
-</dataflow>
-<dataflow id="284" from="mrv" to="mrv_1" fromId="73" toId="74">
-</dataflow>
-<dataflow id="285" from="product_q_49" to="mrv_1" fromId="56" toId="74">
-</dataflow>
-<dataflow id="286" from="mrv_1" to="mrv_2" fromId="74" toId="75">
-</dataflow>
-<dataflow id="287" from="product_q_50" to="mrv_2" fromId="72" toId="75">
-</dataflow>
-<dataflow id="288" from="mrv_2" to="ret_ln162" fromId="75" toId="76">
+<dataflow id="242" from="mrv_2" to="ret_ln162" fromId="62" toId="63">
 </dataflow>
 </dataflows>
 

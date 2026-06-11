@@ -1,8 +1,8 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_32s_27ns_50_4_1
+set name mpc_fpga_top_opencl_mul_26s_23ns_49_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -32,14 +32,14 @@ if {${::AESL::PGuard_autoexp_gen}} {
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2246 \
+    id 2140 \
     name ref_reference_heading_error \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_reference_heading_error \
     op interface \
-    ports { ref_reference_heading_error_address0 { O 5 vector } ref_reference_heading_error_ce0 { O 1 bit } ref_reference_heading_error_q0 { I 32 vector } } \
+    ports { ref_reference_heading_error_address0 { O 5 vector } ref_reference_heading_error_ce0 { O 1 bit } ref_reference_heading_error_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_reference_heading_error'"
@@ -51,14 +51,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2247 \
+    id 2141 \
     name ref_reference_lateral_error \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_reference_lateral_error \
     op interface \
-    ports { ref_reference_lateral_error_address0 { O 5 vector } ref_reference_lateral_error_ce0 { O 1 bit } ref_reference_lateral_error_q0 { I 32 vector } } \
+    ports { ref_reference_lateral_error_address0 { O 5 vector } ref_reference_lateral_error_ce0 { O 1 bit } ref_reference_lateral_error_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_reference_lateral_error'"
@@ -70,14 +70,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2248 \
+    id 2142 \
     name ref_reference_velocity \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_reference_velocity \
     op interface \
-    ports { ref_reference_velocity_address0 { O 5 vector } ref_reference_velocity_ce0 { O 1 bit } ref_reference_velocity_q0 { I 32 vector } } \
+    ports { ref_reference_velocity_address0 { O 5 vector } ref_reference_velocity_ce0 { O 1 bit } ref_reference_velocity_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_reference_velocity'"
@@ -89,14 +89,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2249 \
+    id 2143 \
     name ref_reference_lateral_velocity \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_reference_lateral_velocity \
     op interface \
-    ports { ref_reference_lateral_velocity_address0 { O 5 vector } ref_reference_lateral_velocity_ce0 { O 1 bit } ref_reference_lateral_velocity_q0 { I 32 vector } } \
+    ports { ref_reference_lateral_velocity_address0 { O 5 vector } ref_reference_lateral_velocity_ce0 { O 1 bit } ref_reference_lateral_velocity_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_reference_lateral_velocity'"
@@ -108,14 +108,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2250 \
+    id 2144 \
     name ref_reference_yaw_rate \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_reference_yaw_rate \
     op interface \
-    ports { ref_reference_yaw_rate_address0 { O 5 vector } ref_reference_yaw_rate_ce0 { O 1 bit } ref_reference_yaw_rate_q0 { I 32 vector } } \
+    ports { ref_reference_yaw_rate_address0 { O 5 vector } ref_reference_yaw_rate_ce0 { O 1 bit } ref_reference_yaw_rate_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_reference_yaw_rate'"
@@ -127,14 +127,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2251 \
+    id 2145 \
     name ref_path_curvature \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_path_curvature \
     op interface \
-    ports { ref_path_curvature_address0 { O 5 vector } ref_path_curvature_ce0 { O 1 bit } ref_path_curvature_q0 { I 32 vector } } \
+    ports { ref_path_curvature_address0 { O 5 vector } ref_path_curvature_ce0 { O 1 bit } ref_path_curvature_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_path_curvature'"
@@ -146,14 +146,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2252 \
+    id 2146 \
     name ref_left_wall_bound \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_left_wall_bound \
     op interface \
-    ports { ref_left_wall_bound_address0 { O 5 vector } ref_left_wall_bound_ce0 { O 1 bit } ref_left_wall_bound_q0 { I 32 vector } } \
+    ports { ref_left_wall_bound_address0 { O 5 vector } ref_left_wall_bound_ce0 { O 1 bit } ref_left_wall_bound_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_left_wall_bound'"
@@ -165,14 +165,14 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 if {${::AESL::PGuard_autoexp_gen}} {
 if {[info proc ::AESL_LIB_XILADAPTER::xil_bram_gen] == "::AESL_LIB_XILADAPTER::xil_bram_gen"} {
 eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
-    id 2253 \
+    id 2147 \
     name ref_right_wall_bound \
     reset_level 1 \
     sync_rst true \
     dir I \
     corename ref_right_wall_bound \
     op interface \
-    ports { ref_right_wall_bound_address0 { O 5 vector } ref_right_wall_bound_ce0 { O 1 bit } ref_right_wall_bound_q0 { I 32 vector } } \
+    ports { ref_right_wall_bound_address0 { O 5 vector } ref_right_wall_bound_ce0 { O 1 bit } ref_right_wall_bound_q0 { I 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'ref_right_wall_bound'"
@@ -183,7 +183,7 @@ puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored ge
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2238 \
+    id 2132 \
     name ey \
     type other \
     dir I \
@@ -191,14 +191,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ey \
     op interface \
-    ports { ey { I 32 vector } } \
+    ports { ey { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2239 \
+    id 2133 \
     name epsi \
     type other \
     dir I \
@@ -206,14 +206,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_epsi \
     op interface \
-    ports { epsi { I 32 vector } } \
+    ports { epsi { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2240 \
+    id 2134 \
     name vx \
     type other \
     dir I \
@@ -221,14 +221,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx \
     op interface \
-    ports { vx { I 32 vector } } \
+    ports { vx { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2241 \
+    id 2135 \
     name vy \
     type other \
     dir I \
@@ -236,14 +236,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vy \
     op interface \
-    ports { vy { I 32 vector } } \
+    ports { vy { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2242 \
+    id 2136 \
     name omega \
     type other \
     dir I \
@@ -251,14 +251,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_omega \
     op interface \
-    ports { omega { I 32 vector } } \
+    ports { omega { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2243 \
+    id 2137 \
     name steering \
     type other \
     dir I \
@@ -266,14 +266,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_steering \
     op interface \
-    ports { steering { I 32 vector } } \
+    ports { steering { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2244 \
+    id 2138 \
     name prev_accel \
     type other \
     dir I \
@@ -281,14 +281,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_prev_accel \
     op interface \
-    ports { prev_accel { I 32 vector } } \
+    ports { prev_accel { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2245 \
+    id 2139 \
     name control_flags \
     type other \
     dir I \
@@ -303,7 +303,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2254 \
+    id 2148 \
     name out_steering \
     type other \
     dir O \
@@ -311,14 +311,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_out_steering \
     op interface \
-    ports { out_steering { O 32 vector } out_steering_ap_vld { O 1 bit } } \
+    ports { out_steering { O 26 vector } out_steering_ap_vld { O 1 bit } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2255 \
+    id 2149 \
     name out_accel \
     type other \
     dir O \
@@ -326,14 +326,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_out_accel \
     op interface \
-    ports { out_accel { O 32 vector } out_accel_ap_vld { O 1 bit } } \
+    ports { out_accel { O 26 vector } out_accel_ap_vld { O 1 bit } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2256 \
+    id 2150 \
     name out_status \
     type other \
     dir O \
@@ -348,7 +348,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2257 \
+    id 2151 \
     name out_iters \
     type other \
     dir O \
@@ -363,7 +363,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2258 \
+    id 2152 \
     name out_steering_arg_index \
     type other \
     dir I \
@@ -378,7 +378,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2259 \
+    id 2153 \
     name out_accel_arg_index \
     type other \
     dir I \
@@ -393,7 +393,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2260 \
+    id 2154 \
     name out_status_arg_index \
     type other \
     dir I \
@@ -408,7 +408,7 @@ eval "cg_default_interface_gen_dc { \
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2261 \
+    id 2155 \
     name out_iters_arg_index \
     type other \
     dir I \

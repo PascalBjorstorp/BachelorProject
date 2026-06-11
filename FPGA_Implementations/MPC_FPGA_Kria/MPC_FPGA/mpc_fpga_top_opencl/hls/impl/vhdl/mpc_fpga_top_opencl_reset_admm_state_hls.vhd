@@ -19,86 +19,86 @@ port (
     p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-    p_anonymous_namespace_g_core_state_admm_rho : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+    p_anonymous_namespace_g_core_state_admm_rho : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_rho_ap_vld : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_admm_rho_u : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_admm_rho_u : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_admm_initialized : OUT STD_LOGIC_VECTOR (0 downto 0);
     p_anonymous_namespace_g_core_state_admm_initialized_ap_vld : OUT STD_LOGIC );
@@ -115,6 +115,7 @@ architecture behav of mpc_fpga_top_opencl_reset_admm_state_hls is
     constant ap_const_boolean_1 : BOOLEAN := true;
     constant ap_const_lv32_0 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
     constant ap_const_lv32_1 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000001";
+    constant ap_const_lv26_0 : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
     constant ap_const_boolean_0 : BOOLEAN := false;
     constant ap_const_lv1_0 : STD_LOGIC_VECTOR (0 downto 0) := "0";
 
@@ -124,105 +125,105 @@ attribute shreg_extract : string;
     attribute fsm_encoding of ap_CS_fsm : signal is "none";
     signal ap_CS_fsm_state1 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state1 : signal is "none";
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_done : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_idle : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_ready : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_done : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_idle : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_ready : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg : STD_LOGIC := '0';
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_done : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_idle : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_ready : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_done : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_idle : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_ready : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg : STD_LOGIC := '0';
     signal ap_CS_fsm_state2 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state2 : signal is "none";
-    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg : STD_LOGIC := '0';
+    signal grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg : STD_LOGIC := '0';
     signal ap_block_state2_on_subcall_done : BOOLEAN;
     signal ap_NS_fsm : STD_LOGIC_VECTOR (1 downto 0);
     signal ap_ST_fsm_state1_blk : STD_LOGIC;
     signal ap_ST_fsm_state2_blk : STD_LOGIC;
     signal ap_ce_reg : STD_LOGIC;
 
-    component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1 IS
+    component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -233,71 +234,71 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3 IS
+    component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -308,121 +309,121 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
 
 begin
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54 : component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54 : component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start,
-        ap_done => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_done,
-        ap_idle => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_idle,
-        ap_ready => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
+        ap_start => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start,
+        ap_done => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_done,
+        ap_idle => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_idle,
+        ap_ready => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
 
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90 : component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90 : component mpc_fpga_top_opencl_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start,
-        ap_done => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_done,
-        ap_idle => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_idle,
-        ap_ready => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
+        ap_start => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start,
+        ap_done => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_done,
+        ap_idle => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_idle,
+        ap_ready => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
 
 
 
@@ -440,32 +441,32 @@ begin
     end process;
 
 
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg_assign_proc : process(ap_clk)
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg <= ap_const_logic_0;
+                grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg <= ap_const_logic_0;
             else
                 if (((ap_start = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state1))) then 
-                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_ready = ap_const_logic_1)) then 
-                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg <= ap_const_logic_0;
+                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_ready = ap_const_logic_1)) then 
+                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg_assign_proc : process(ap_clk)
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg <= ap_const_logic_0;
+                grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg <= ap_const_logic_0;
             else
                 if (((ap_start = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state1))) then 
-                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_ready = ap_const_logic_1)) then 
-                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg <= ap_const_logic_0;
+                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_ready = ap_const_logic_1)) then 
+                    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
@@ -514,9 +515,9 @@ begin
     end process;
 
 
-    ap_block_state2_on_subcall_done_assign_proc : process(grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_done, grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_done)
+    ap_block_state2_on_subcall_done_assign_proc : process(grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_done, grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_done)
     begin
-                ap_block_state2_on_subcall_done <= ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_done = ap_const_logic_0) or (grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_done = ap_const_logic_0));
+                ap_block_state2_on_subcall_done <= ((grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_done = ap_const_logic_0) or (grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_done = ap_const_logic_0));
     end process;
 
 
@@ -549,8 +550,8 @@ begin
         end if; 
     end process;
 
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg;
-    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg;
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg;
+    grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg;
     p_anonymous_namespace_g_core_state_admm_initialized <= ap_const_lv1_0;
 
     p_anonymous_namespace_g_core_state_admm_initialized_ap_vld_assign_proc : process(ap_CS_fsm_state2, ap_block_state2_on_subcall_done)
@@ -562,7 +563,7 @@ begin
         end if; 
     end process;
 
-    p_anonymous_namespace_g_core_state_admm_rho <= ap_const_lv32_0;
+    p_anonymous_namespace_g_core_state_admm_rho <= ap_const_lv26_0;
 
     p_anonymous_namespace_g_core_state_admm_rho_ap_vld_assign_proc : process(ap_CS_fsm_state2, ap_block_state2_on_subcall_done)
     begin
@@ -573,7 +574,7 @@ begin
         end if; 
     end process;
 
-    p_anonymous_namespace_g_core_state_admm_rho_u <= ap_const_lv32_0;
+    p_anonymous_namespace_g_core_state_admm_rho_u <= ap_const_lv26_0;
 
     p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld_assign_proc : process(ap_CS_fsm_state2, ap_block_state2_on_subcall_done)
     begin
@@ -584,84 +585,84 @@ begin
         end if; 
     end process;
 
-    p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
-    p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
-    p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
-    p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
-    p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
-    p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
-    p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
-    p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
-    p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
-    p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
-    p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
-    p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
-    p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
-    p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
-    p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
-    p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
-    p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
-    p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
-    p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
-    p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
+    p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
+    p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
+    p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
+    p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
+    p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
+    p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
+    p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
+    p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
+    p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
+    p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
+    p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
+    p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
+    p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
+    p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
+    p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
+    p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
+    p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
+    p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
+    p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
+    p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
 end behav;

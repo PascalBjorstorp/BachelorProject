@@ -11,9 +11,34 @@
 #include <climits>
 #include <cstdint>
 
+/* DSP multiply pipeline latency. MUST be >=2: the binding multiplies are
+ * QP*QP and P*QP at 26x26, which need TWO cascaded DSP48E2s (both operands
+ * exceed the 27x18 primitive). A 2-DSP cascade is ~4.17ns of logic and cannot
+ * complete in one clock -- latency=1 synthesized at WNS -0.268 (failing path:
+ * forward-pass mul_26s_26s, full DSP traversal in one cycle). QP is
+ * protocol-pinned at 26-bit so no family-width change can avoid this; latency=2
+ * is the floor. (F=14 + latency=2 closes at WNS +0.002.) */
 #ifndef MPC_HLS_MUL_LATENCY
-#define MPC_HLS_MUL_LATENCY 3
+#define MPC_HLS_MUL_LATENCY 2
 #endif
+
+/* Per-multiply latency by operand width. A product fits ONE DSP48E2 (27x18)
+ * when the smaller operand is <=18 bits and the larger <=27; a single DSP can
+ * close at the lower latency, while a 2-DSP cascade (26x26 QP*QP, P*QP with
+ * P>=21) cannot and must keep MPC_HLS_MUL_LATENCY. Deriving latency from the
+ * family widths means a multiply auto-drops to lat1 the moment its operands
+ * shrink under the 1-DSP line -- no per-site edits. With today's widths this
+ * flips K*QP / QP*K / MG*K / K*MG (K=17<=18) to lat1; MG*QP/QP*MG upgrade once
+ * MG<=18. latency=1 paths MUST be WNS-verified in synthesis. */
+#ifndef MPC_HLS_MUL_LATENCY_1DSP
+#define MPC_HLS_MUL_LATENCY_1DSP 1
+#endif
+#define MPC_HLS_MUL_MIN2(A, B) ((A) < (B) ? (A) : (B))
+#define MPC_HLS_MUL_MAX2(A, B) ((A) > (B) ? (A) : (B))
+#define MPC_HLS_MUL_LAT(WA, WB)                                                \
+  ((MPC_HLS_MUL_MIN2((WA), (WB)) <= 18 && MPC_HLS_MUL_MAX2((WA), (WB)) <= 27)  \
+       ? MPC_HLS_MUL_LATENCY_1DSP                                              \
+       : MPC_HLS_MUL_LATENCY)
 
 #define FP_FRAC_BITS (MPC_HLS_QP_FRAC_BITS)
 
@@ -70,10 +95,10 @@ static_assert((1 << FP_ATAN_LUT_DOMAIN_LOG2) == FP_ATAN_LUT_DOMAIN,
  * normalized to [-pi, pi], folded with symmetry into [0, pi], and sine sign is
  * restored afterward. */
 #define FP_TRIG_LUT_SCALE FP_QP_CONST(325.94932345220166780564)
-/* FN cannot store 1024/pi in fp_FN_t: Q26.17 with 9 integer bits tops out at
- * ~256, so 325.949... would wrap under AP_WRAP. Keep the LUT scale in raw
- * Q17 integer form and use it directly in the FN trig index multiply. */
-#define FP_FN_TRIG_LUT_SCALE_RAW ((int32_t)42722830)
+/* FN trig LUT scale 1024/pi kept in raw integer form (F=12, decoupled from QP)
+ * and used directly in the FN trig index multiply. Must match the identical
+ * definition in fp_trig_lut_fn_1024.h. round(1024/pi * 2^12) = 1335088. */
+#define FP_FN_TRIG_LUT_SCALE_RAW ((int32_t)1335088)
 /* Reciprocal LUTs cover x_norm in [0.5, 1.0) using linear interpolation.
  * 256 segments were empirically best under this fixed-point lerp pipeline. */
 #define FP_RECIP_LUT_BITS 8
@@ -346,6 +371,9 @@ fp_QP_t fp_atan_lut(fp_QP_t x);
 
 /* FN family */
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
+/* Constant-operand variant: no DSP binding -> HLS shift-add in LUT. Use only
+ * when one argument is a compile-time constant. */
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE

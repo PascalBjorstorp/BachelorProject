@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -109,7 +109,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -145,7 +145,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -181,7 +181,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -217,7 +217,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -253,7 +253,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -289,7 +289,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -325,7 +325,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -361,7 +361,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -397,7 +397,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -433,7 +433,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -469,7 +469,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -505,7 +505,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -541,7 +541,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -577,7 +577,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -613,7 +613,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -649,7 +649,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -685,7 +685,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -721,7 +721,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>1</if_type>
@@ -757,7 +757,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>0</if_type>
@@ -793,7 +793,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>0</if_type>
@@ -952,10 +952,10 @@
 					<Obj>
 						<type>0</type>
 						<id>26</id>
-						<name>p_anonymous_namespace_g_core_state_admm_rho_write_ln380</name>
+						<name>p_anonymous_namespace_g_core_state_admm_rho_write_ln338</name>
 						<fileName>include/mpc_fpga_types.h</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>380</lineNumber>
+						<lineNumber>338</lineNumber>
 						<contextFuncName>mpc_admm_reset_all_hls</contextFuncName>
 						<contextNormFuncName>mpc_admm_reset_all_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -971,7 +971,7 @@
 											<first>include/mpc_fpga_types.h</first>
 											<second>mpc_admm_reset_all_hls</second>
 										</first>
-										<second>380</second>
+										<second>338</second>
 									</item>
 								</second>
 							</item>
@@ -985,7 +985,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>reset_admm_state_hls</second>
 										</first>
-										<second>114</second>
+										<second>112</second>
 									</item>
 								</second>
 							</item>
@@ -1023,10 +1023,10 @@
 					<Obj>
 						<type>0</type>
 						<id>27</id>
-						<name>p_anonymous_namespace_g_core_state_admm_rho_u_write_ln381</name>
+						<name>p_anonymous_namespace_g_core_state_admm_rho_u_write_ln339</name>
 						<fileName>include/mpc_fpga_types.h</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>381</lineNumber>
+						<lineNumber>339</lineNumber>
 						<contextFuncName>mpc_admm_reset_all_hls</contextFuncName>
 						<contextNormFuncName>mpc_admm_reset_all_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1042,7 +1042,7 @@
 											<first>include/mpc_fpga_types.h</first>
 											<second>mpc_admm_reset_all_hls</second>
 										</first>
-										<second>381</second>
+										<second>339</second>
 									</item>
 								</second>
 							</item>
@@ -1056,7 +1056,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>reset_admm_state_hls</second>
 										</first>
-										<second>114</second>
+										<second>112</second>
 									</item>
 								</second>
 							</item>
@@ -1094,10 +1094,10 @@
 					<Obj>
 						<type>0</type>
 						<id>28</id>
-						<name>p_anonymous_namespace_g_core_state_admm_initialized_write_ln382</name>
+						<name>p_anonymous_namespace_g_core_state_admm_initialized_write_ln340</name>
 						<fileName>include/mpc_fpga_types.h</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>382</lineNumber>
+						<lineNumber>340</lineNumber>
 						<contextFuncName>mpc_admm_reset_all_hls</contextFuncName>
 						<contextNormFuncName>mpc_admm_reset_all_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1113,7 +1113,7 @@
 											<first>include/mpc_fpga_types.h</first>
 											<second>mpc_admm_reset_all_hls</second>
 										</first>
-										<second>382</second>
+										<second>340</second>
 									</item>
 								</second>
 							</item>
@@ -1127,7 +1127,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>reset_admm_state_hls</second>
 										</first>
-										<second>114</second>
+										<second>112</second>
 									</item>
 								</second>
 							</item>
@@ -1165,10 +1165,10 @@
 					<Obj>
 						<type>0</type>
 						<id>29</id>
-						<name>_ln115</name>
+						<name>_ln113</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>115</lineNumber>
+						<lineNumber>113</lineNumber>
 						<contextFuncName>reset_admm_state_hls</contextFuncName>
 						<contextNormFuncName>reset_admm_state_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -1184,7 +1184,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>reset_admm_state_hls</second>
 										</first>
-										<second>115</second>
+										<second>113</second>
 									</item>
 								</second>
 							</item>
@@ -1224,7 +1224,7 @@
 					<Obj>
 						<type>2</type>
 						<id>31</id>
-						<name>reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1</name>
+						<name>reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
 						<lineNumber>0</lineNumber>
@@ -1248,14 +1248,14 @@
 					<bitwidth>0</bitwidth>
 				</Value>
 				<const_type>6</const_type>
-				<content>&lt;constant:reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1&gt;</content>
+				<content>&lt;constant:reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1&gt;</content>
 			</item>
 			<item class_id_reference="16" object_id="_31">
 				<Value>
 					<Obj>
 						<type>2</type>
 						<id>33</id>
-						<name>reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3</name>
+						<name>reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
 						<lineNumber>0</lineNumber>
@@ -1279,7 +1279,7 @@
 					<bitwidth>0</bitwidth>
 				</Value>
 				<const_type>6</const_type>
-				<content>&lt;constant:reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3&gt;</content>
+				<content>&lt;constant:reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3&gt;</content>
 			</item>
 			<item class_id_reference="16" object_id="_32">
 				<Value>
@@ -1307,7 +1307,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<const_type>0</const_type>
 				<content>0</content>
@@ -1807,7 +1807,7 @@
 		<count>2</count>
 		<item_version>0</item_version>
 		<item class_id="46" tracking_level="0" version="0">
-			<first>grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54</first>
+			<first>grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54</first>
 			<second>
 				<count>2</count>
 				<item_version>0</item_version>
@@ -1816,7 +1816,7 @@
 			</second>
 		</item>
 		<item>
-			<first>grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90</first>
+			<first>grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90</first>
 			<second>
 				<count>2</count>
 				<item_version>0</item_version>
@@ -1829,7 +1829,7 @@
 		<count>3</count>
 		<item_version>0</item_version>
 		<item>
-			<first>store_ln380_store_fu_102</first>
+			<first>store_ln338_store_fu_102</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1837,7 +1837,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln381_store_fu_108</first>
+			<first>store_ln339_store_fu_108</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1845,7 +1845,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln382_store_fu_114</first>
+			<first>store_ln340_store_fu_114</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>

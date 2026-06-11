@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'p_anonymous_namespace_reset_core_state_hls'" level="0">
-<item name = "Date">Thu May 21 15:23:03 2026
+<item name = "Date">Thu Jun 11 16:06:47 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -31,8 +31,8 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68">p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
-<column name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104">p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70">p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1, 23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106">p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3, 22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">

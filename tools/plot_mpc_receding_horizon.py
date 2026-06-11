@@ -439,15 +439,13 @@ def make_track_plot(
     plt.close(fig)
 
 
-def make_tracking_plot(
+def _prepare_tracking_series(
     state_rows: list[dict],
     replay_by_idx: dict[int, dict],
     selected_row_idx: int,
-    selected_idx_value: int,
     plan_rows: list[dict],
-    out_path: Path,
     past_steps: int,
-) -> None:
+) -> dict[str, np.ndarray]:
     past_slice = state_rows[max(0, selected_row_idx - past_steps):selected_row_idx + 1]
     past_ctrl_x = np.arange(-(len(past_slice) - 1), 1)
     past_steer = []
@@ -482,42 +480,119 @@ def make_tracking_plot(
     predicted_ey = np.array([float(r["plan_ey"]) for r in plan_rows])
     predicted_epsi = np.array([float(r["plan_epsi"]) for r in plan_rows])
 
-    fig = plt.figure(figsize=(12, 12), constrained_layout=True)
-    gs = fig.add_gridspec(5, 1, height_ratios=[1.0, 1.0, 1.0, 1.0, 1.0])
+    return {
+        "past_ctrl_x": past_ctrl_x,
+        "past_steer": past_steer,
+        "past_accel": past_accel,
+        "past_vx": past_vx,
+        "past_ey": past_ey,
+        "past_epsi": past_epsi,
+        "past_ref_vx": past_ref_vx,
+        "predicted_stage": predicted_stage,
+        "predicted_state_stage": predicted_state_stage,
+        "predicted_steer": predicted_steer,
+        "predicted_accel": predicted_accel,
+        "predicted_vx": predicted_vx,
+        "reference_vx": reference_vx,
+        "predicted_ey": predicted_ey,
+        "predicted_epsi": predicted_epsi,
+    }
+
+
+def make_output_plot(
+    state_rows: list[dict],
+    replay_by_idx: dict[int, dict],
+    selected_row_idx: int,
+    plan_rows: list[dict],
+    out_path: Path,
+    past_steps: int,
+) -> None:
+    series = _prepare_tracking_series(
+        state_rows=state_rows,
+        replay_by_idx=replay_by_idx,
+        selected_row_idx=selected_row_idx,
+        plan_rows=plan_rows,
+        past_steps=past_steps,
+    )
+
+    fig = plt.figure(figsize=(12, 6.8), constrained_layout=True)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.0])
     ax_steer = fig.add_subplot(gs[0, 0])
     ax_accel = fig.add_subplot(gs[1, 0], sharex=ax_steer)
-    ax_vx = fig.add_subplot(gs[2, 0], sharex=ax_steer)
-    ax_ey = fig.add_subplot(gs[3, 0], sharex=ax_steer)
-    ax_epsi = fig.add_subplot(gs[4, 0], sharex=ax_steer)
 
     shade_end = HORIZON - 0.2
-    for axis in (ax_steer, ax_accel, ax_vx, ax_ey, ax_epsi):
+    for axis in (ax_steer, ax_accel):
         axis.axvline(0.0, color="black", lw=3.0)
         axis.axvspan(0.0, shade_end, color="#d7f2f4", alpha=0.25)
         axis.grid(color="#efefef", linewidth=0.8)
         axis.set_xlim(-past_steps, HORIZON)
 
-    ax_steer.step(past_ctrl_x, past_steer, where="post", color=PAST_COLOR, lw=3.0)
-    ax_steer.step(predicted_stage, predicted_steer, where="post", color=PREDICTED_COLOR, lw=3.2)
+    ax_steer.step(series["past_ctrl_x"], series["past_steer"], where="post", color=PAST_COLOR, lw=3.0)
+    ax_steer.step(series["predicted_stage"], series["predicted_steer"], where="post", color=PREDICTED_COLOR, lw=3.2)
     ax_steer.set_ylabel("steering [rad]")
 
-    ax_accel.step(past_ctrl_x, past_accel, where="post", color=PAST_COLOR, lw=3.0)
-    ax_accel.step(predicted_stage, predicted_accel, where="post", color=PREDICTED_COLOR, lw=3.2)
+    ax_accel.step(series["past_ctrl_x"], series["past_accel"], where="post", color=PAST_COLOR, lw=3.0)
+    ax_accel.step(series["predicted_stage"], series["predicted_accel"], where="post", color=PREDICTED_COLOR, lw=3.2)
     ax_accel.set_ylabel("accel [m/s²]")
 
-    ax_vx.plot(past_ctrl_x, past_vx, color=PAST_COLOR, lw=3.0)
-    ax_vx.plot(predicted_state_stage, predicted_vx, color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.5)
-    ax_vx.step(past_ctrl_x, past_ref_vx, where="post", color=REFERENCE_COLOR, lw=3.0, ls="--", alpha=0.95)
-    ax_vx.step(predicted_stage, reference_vx, where="post", color=REFERENCE_COLOR, lw=3.2, ls="--")
+    legend_handles = [
+        Line2D([0], [0], color=PAST_COLOR, lw=3.0, label="Past value"),
+        Line2D([0], [0], color=PREDICTED_COLOR, lw=3.2, marker="o", ms=4, label="Predicted value"),
+    ]
+    ax_steer.legend(
+        handles=legend_handles,
+        loc="lower right",
+        ncol=1,
+        frameon=True,
+        framealpha=0.95,
+    )
+
+    fig.savefig(out_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def make_tracking_error_plot(
+    state_rows: list[dict],
+    replay_by_idx: dict[int, dict],
+    selected_row_idx: int,
+    plan_rows: list[dict],
+    out_path: Path,
+    past_steps: int,
+) -> None:
+    series = _prepare_tracking_series(
+        state_rows=state_rows,
+        replay_by_idx=replay_by_idx,
+        selected_row_idx=selected_row_idx,
+        plan_rows=plan_rows,
+        past_steps=past_steps,
+    )
+
+    fig = plt.figure(figsize=(12, 12), constrained_layout=True)
+    gs = fig.add_gridspec(3, 1, height_ratios=[1.0, 1.0, 1.0])
+    ax_vx = fig.add_subplot(gs[0, 0])
+    ax_ey = fig.add_subplot(gs[1, 0], sharex=ax_vx)
+    ax_epsi = fig.add_subplot(gs[2, 0], sharex=ax_vx)
+
+    shade_end = HORIZON - 0.2
+    for axis in (ax_vx, ax_ey, ax_epsi):
+        axis.axvline(0.0, color="black", lw=3.0)
+        axis.axvspan(0.0, shade_end, color="#d7f2f4", alpha=0.25)
+        axis.grid(color="#efefef", linewidth=0.8)
+        axis.set_xlim(-past_steps, HORIZON)
+
+    ax_vx.plot(series["past_ctrl_x"], series["past_vx"], color=PAST_COLOR, lw=3.0)
+    ax_vx.plot(series["predicted_state_stage"], series["predicted_vx"], color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.5)
+    ax_vx.step(series["past_ctrl_x"], series["past_ref_vx"], where="post", color=REFERENCE_COLOR, lw=3.0, ls="--", alpha=0.95)
+    ax_vx.step(series["predicted_stage"], series["reference_vx"], where="post", color=REFERENCE_COLOR, lw=3.2, ls="--")
     ax_vx.set_ylabel("v_x [m/s]")
 
-    ax_ey.plot(past_ctrl_x, past_ey, color=PAST_COLOR, lw=3.0)
-    ax_ey.plot(predicted_state_stage, predicted_ey, color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.8)
+    ax_ey.plot(series["past_ctrl_x"], series["past_ey"], color=PAST_COLOR, lw=3.0)
+    ax_ey.plot(series["predicted_state_stage"], series["predicted_ey"], color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.8)
     ax_ey.axhline(0.0, color=REFERENCE_COLOR, lw=3.0, ls="--")
     ax_ey.set_ylabel("e_y [m]")
 
-    ax_epsi.plot(past_ctrl_x, past_epsi, color=PAST_COLOR, lw=3.0)
-    ax_epsi.plot(predicted_state_stage, predicted_epsi, color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.8)
+    ax_epsi.plot(series["past_ctrl_x"], series["past_epsi"], color=PAST_COLOR, lw=3.0)
+    ax_epsi.plot(series["predicted_state_stage"], series["predicted_epsi"], color=PREDICTED_COLOR, lw=3.2, marker="o", ms=3.8)
     ax_epsi.axhline(0.0, color=REFERENCE_COLOR, lw=3.0, ls="--")
     ax_epsi.set_ylabel("e_psi [rad]")
 
@@ -526,7 +601,7 @@ def make_tracking_plot(
         Line2D([0], [0], color=PREDICTED_COLOR, lw=3.2, marker="o", ms=4, label="Predicted value"),
         Line2D([0], [0], color=REFERENCE_COLOR, lw=3.0, ls="--", label="Reference value"),
     ]
-    ax_steer.legend(
+    ax_vx.legend(
         handles=legend_handles,
         loc="lower right",
         ncol=1,
@@ -558,8 +633,9 @@ def main() -> None:
     else:
         out_prefix = Path(args.out_prefix).resolve()
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
-    track_out = out_prefix.with_name(f"{out_prefix.name}_track.png")
-    tracking_out = out_prefix.with_name(f"{out_prefix.name}_tracking.png")
+    track_out = out_prefix.with_name(f"{out_prefix.name}_track.svg")
+    output_out = out_prefix.with_name(f"{out_prefix.name}_output.svg")
+    tracking_error_out = out_prefix.with_name(f"{out_prefix.name}_tracking_errors.svg")
 
     state_rows = load_state_rows(state_csv)
     selected_row_idx = pick_snapshot(state_rows, args.seed, args.past_steps) if args.idx is None else None
@@ -593,18 +669,26 @@ def main() -> None:
         out_path=track_out,
         past_steps=args.past_steps,
     )
-    make_tracking_plot(
+    make_output_plot(
         state_rows=state_rows,
         replay_by_idx=replay_by_idx,
         selected_row_idx=selected_row_idx,
-        selected_idx_value=selected_idx_value,
         plan_rows=plan_rows,
-        out_path=tracking_out,
+        out_path=output_out,
+        past_steps=args.past_steps,
+    )
+    make_tracking_error_plot(
+        state_rows=state_rows,
+        replay_by_idx=replay_by_idx,
+        selected_row_idx=selected_row_idx,
+        plan_rows=plan_rows,
+        out_path=tracking_error_out,
         past_steps=args.past_steps,
     )
 
     print(f"Saved track plot to {track_out}")
-    print(f"Saved tracking plot to {tracking_out}")
+    print(f"Saved output plot to {output_out}")
+    print(f"Saved tracking error plot to {tracking_error_out}")
     print(f"Selected replay idx: {selected_idx_value}")
 
 

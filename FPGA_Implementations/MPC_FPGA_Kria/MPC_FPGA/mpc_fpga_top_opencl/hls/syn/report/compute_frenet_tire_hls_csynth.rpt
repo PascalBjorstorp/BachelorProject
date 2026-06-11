@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'compute_frenet_tire_hls'
 ================================================================
-* Date:           Thu May 21 15:23:09 2026
+* Date:           Thu Jun 11 16:06:59 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  4.433 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  4.376 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -29,7 +29,7 @@
     |  Latency (cycles) |  Latency (absolute) |  Interval | Pipeline|
     |   min   |   max   |    min   |    max   | min | max |   Type  |
     +---------+---------+----------+----------+-----+-----+---------+
-    |       71|       71|  0.355 us|  0.355 us|   72|   72|      yes|
+    |       49|       49|  0.245 us|  0.245 us|   50|   50|      yes|
     +---------+---------+----------+----------+-----+-----+---------+
 
     + Detail: 
@@ -38,11 +38,11 @@
         |                                       |                            |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
         |                Instance               |           Module           |   min   |   max   |    min    |    max    | min | max |   Type  |
         +---------------------------------------+----------------------------+---------+---------+-----------+-----------+-----+-----+---------+
-        |grp_fp_trig_pair_fused_fn_fu_154       |fp_trig_pair_fused_fn       |       10|       10|  50.000 ns|  50.000 ns|   11|   11|      yes|
-        |grp_fp_recip_fn_fu_184                 |fp_recip_fn                 |        6|        6|  30.000 ns|  30.000 ns|    1|    1|      yes|
-        |grp_fp_slip_terms_fu_191               |fp_slip_terms               |        8|        8|  40.000 ns|  40.000 ns|    9|    9|      yes|
-        |grp_compute_front_tire_path_fn_fu_198  |compute_front_tire_path_fn  |       47|       47|   0.235 us|   0.235 us|   48|   48|      yes|
-        |grp_compute_rear_tire_path_fn_fu_219   |compute_rear_tire_path_fn   |       47|       47|   0.235 us|   0.235 us|   48|   48|      yes|
+        |grp_fp_recip_fn_fu_144                 |fp_recip_fn                 |        5|        5|  25.000 ns|  25.000 ns|    1|    1|      yes|
+        |grp_fp_slip_terms_fu_151               |fp_slip_terms               |        4|        4|  20.000 ns|  20.000 ns|    5|    5|      yes|
+        |grp_compute_front_tire_path_fn_fu_158  |compute_front_tire_path_fn  |       32|       32|   0.160 us|   0.160 us|   33|   33|      yes|
+        |grp_compute_rear_tire_path_fn_fu_179   |compute_rear_tire_path_fn   |       31|       31|   0.155 us|   0.155 us|   32|   32|      yes|
+        |grp_fp_trig_pair_fused_fn_fu_199       |fp_trig_pair_fused_fn       |        8|        8|  40.000 ns|  40.000 ns|    9|    9|      yes|
         +---------------------------------------+----------------------------+---------+---------+-----------+-----------+-----+-----+---------+
 
         * Loop: 
@@ -58,18 +58,18 @@
 |       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
 +-----------------+---------+------+--------+--------+-----+
 |DSP              |        -|     -|       -|       -|    -|
-|Expression       |        -|     -|       0|     359|    -|
+|Expression       |        -|     -|       0|     298|    -|
 |FIFO             |        -|     -|       -|       -|    -|
-|Instance         |       22|    75|   11118|   13721|    -|
+|Instance         |       19|    63|    6872|   10413|    -|
 |Memory           |        -|     -|       -|       -|    -|
-|Multiplexer      |        -|     -|       0|     445|    -|
-|Register         |        -|     -|     937|       -|    -|
+|Multiplexer      |        -|     -|       0|     286|    -|
+|Register         |        -|     -|     796|       -|    -|
 +-----------------+---------+------+--------+--------+-----+
-|Total            |       22|    75|   12055|   14525|    0|
+|Total            |       19|    63|    7668|   10997|    0|
 +-----------------+---------+------+--------+--------+-----+
 |Available        |      288|  1248|  234240|  117120|   64|
 +-----------------+---------+------+--------+--------+-----+
-|Utilization (%)  |        7|     6|       5|      12|    0|
+|Utilization (%)  |        6|     5|       3|       9|    0|
 +-----------------+---------+------+--------+--------+-----+
 
 + Detail: 
@@ -77,20 +77,19 @@
     +---------------------------------------+----------------------------+---------+----+------+------+-----+
     |                Instance               |           Module           | BRAM_18K| DSP|  FF  |  LUT | URAM|
     +---------------------------------------+----------------------------+---------+----+------+------+-----+
-    |grp_compute_front_tire_path_fn_fu_198  |compute_front_tire_path_fn  |        8|  27|  3854|  4878|    0|
-    |grp_compute_rear_tire_path_fn_fu_219   |compute_rear_tire_path_fn   |        8|  26|  3866|  4851|    0|
-    |grp_fp_recip_fn_fu_184                 |fp_recip_fn                 |        1|   1|  2033|  2710|    0|
-    |grp_fp_slip_terms_fu_191               |fp_slip_terms               |        0|   6|   599|   236|    0|
-    |grp_fp_trig_pair_fused_fn_fu_154       |fp_trig_pair_fused_fn       |        5|   5|   345|   846|    0|
-    |mul_25ns_25ns_50_4_1_U390              |mul_25ns_25ns_50_4_1        |        0|   2|    55|    26|    0|
-    |mul_26s_16ns_42_4_1_U394               |mul_26s_16ns_42_4_1         |        0|   1|    61|    29|    0|
-    |mul_26s_16ns_42_4_1_U395               |mul_26s_16ns_42_4_1         |        0|   1|    61|    29|    0|
-    |mul_26s_18ns_44_4_1_U393               |mul_26s_18ns_44_4_1         |        0|   1|    61|    29|    0|
-    |mul_26s_18ns_44_4_1_U396               |mul_26s_18ns_44_4_1         |        0|   1|    61|    29|    0|
-    |mul_26s_26s_42_4_1_U391                |mul_26s_26s_42_4_1          |        0|   2|    61|    29|    0|
-    |mul_26s_26s_43_4_1_x_U392              |mul_26s_26s_43_4_1_x        |        0|   2|    61|    29|    0|
+    |grp_compute_front_tire_path_fn_fu_158  |compute_front_tire_path_fn  |        7|  22|  2415|  3732|    0|
+    |grp_compute_rear_tire_path_fn_fu_179   |compute_rear_tire_path_fn   |        7|  23|  2405|  3696|    0|
+    |grp_fp_recip_fn_fu_144                 |fp_recip_fn                 |        1|   0|  1573|  2061|    0|
+    |grp_fp_slip_terms_fu_151               |fp_slip_terms               |        0|   6|   305|   145|    0|
+    |grp_fp_trig_pair_fused_fn_fu_199       |fp_trig_pair_fused_fn       |        4|   4|   156|   694|    0|
+    |mul_20ns_20ns_40_3_1_U389              |mul_20ns_20ns_40_3_1        |        0|   2|     8|    11|    0|
+    |mul_21s_11ns_32_1_1_U392               |mul_21s_11ns_32_1_1         |        0|   1|     0|    15|    0|
+    |mul_21s_11ns_32_1_1_U393               |mul_21s_11ns_32_1_1         |        0|   1|     0|    15|    0|
+    |mul_21s_13ns_33_1_1_U391               |mul_21s_13ns_33_1_1         |        0|   1|     0|    15|    0|
+    |mul_21s_13ns_33_1_1_U394               |mul_21s_13ns_33_1_1         |        0|   1|     0|    15|    0|
+    |mul_21s_21s_42_3_1_x_U390              |mul_21s_21s_42_3_1_x        |        0|   2|    10|    14|    0|
     +---------------------------------------+----------------------------+---------+----+------+------+-----+
-    |Total                                  |                            |       22|  75| 11118| 13721|    0|
+    |Total                                  |                            |       19|  63|  6872| 10413|    0|
     +---------------------------------------+----------------------------+---------+----+------+------+-----+
 
     * DSP: 
@@ -106,79 +105,77 @@
     +----------------------+----------+----+---+----+------------+------------+
     |     Variable Name    | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
     +----------------------+----------+----+---+----+------------+------------+
-    |D_f_fn_fu_495_p2      |         +|   0|  0|  26|          26|          26|
-    |D_pac_r_fu_523_p2     |         +|   0|  0|  33|          26|          21|
-    |add_ln363_fu_512_p2   |         +|   0|  0|  33|          26|          20|
-    |add_ln380_fu_409_p2   |         +|   0|  0|  33|          26|          26|
-    |add_ln382_fu_490_p2   |         +|   0|  0|  26|          26|          26|
-    |rear_num2_fu_536_p2   |         +|   0|  0|  26|          26|          26|
-    |D_pac_f_fu_518_p2     |         -|   0|  0|  33|          21|          26|
-    |D_r_fn_fu_540_p2      |         -|   0|  0|  26|          26|          26|
-    |sub_ln361_fu_503_p2   |         -|   0|  0|  33|          20|          26|
-    |icmp_ln351_fu_301_p2  |      icmp|   0|  0|  33|          26|          17|
-    |low_speed_fu_546_p2   |      icmp|   0|  0|  32|          25|          17|
-    |out_fu_307_p3         |    select|   0|  0|  25|           1|          25|
+    |D_f_fn_fu_453_p2      |         +|   0|  0|  21|          21|          21|
+    |D_pac_r_fu_498_p2     |         +|   0|  0|  28|          21|          16|
+    |add_ln363_fu_492_p2   |         +|   0|  0|  28|          21|          15|
+    |add_ln380_fu_389_p2   |         +|   0|  0|  28|          21|          21|
+    |add_ln382_fu_448_p2   |         +|   0|  0|  21|          21|          21|
+    |rear_num2_fu_511_p2   |         +|   0|  0|  21|          21|          21|
+    |D_pac_f_fu_468_p2     |         -|   0|  0|  28|          16|          21|
+    |D_r_fn_fu_516_p2      |         -|   0|  0|  21|          21|          21|
+    |sub_ln361_fu_462_p2   |         -|   0|  0|  28|          15|          21|
+    |icmp_ln351_fu_270_p2  |      icmp|   0|  0|  28|          21|          12|
+    |low_speed_fu_473_p2   |      icmp|   0|  0|  27|          20|          12|
+    |out_fu_276_p3         |    select|   0|  0|  19|           1|          20|
     +----------------------+----------+----+---+----+------------+------------+
-    |Total                 |          |   0|  0| 359|         275|         282|
+    |Total                 |          |   0|  0| 298|         220|         222|
     +----------------------+----------+----+---+----+------------+------------+
 
     * Multiplexer: 
     +---------------+-----+-----------+-----+-----------+
     |      Name     | LUT | Input Size| Bits| Total Bits|
     +---------------+-----+-----------+-----+-----------+
-    |ap_NS_fsm      |  377|         73|    1|         73|
-    |grp_fu_243_p0  |   14|          3|   26|         78|
-    |grp_fu_243_p1  |   14|          3|   26|         78|
-    |grp_fu_247_p0  |   20|          4|   26|        104|
-    |grp_fu_247_p1  |   20|          4|   26|        104|
+    |ap_NS_fsm      |  229|         51|    1|         51|
+    |grp_fu_212_p0  |   31|          6|   21|        126|
+    |grp_fu_212_p1  |   26|          5|   21|        105|
     +---------------+-----+-----------+-----+-----------+
-    |Total          |  445|         87|  105|        437|
+    |Total          |  286|         62|   43|        282|
     +---------------+-----+-----------+-----+-----------+
 
     * Register: 
     +----------------------------------------------------+----+----+-----+-----------+
     |                        Name                        | FF | LUT| Bits| Const Bits|
     +----------------------------------------------------+----+----+-----+-----------+
-    |D_f_fn_reg_878                                      |  26|   0|   26|          0|
-    |D_pac_f_reg_894                                     |  26|   0|   26|          0|
-    |D_pac_r_reg_899                                     |  26|   0|   26|          0|
-    |D_r_fn_reg_904                                      |  26|   0|   26|          0|
-    |a_cmd_fn_reg_721                                    |  26|   0|   26|          0|
-    |add_ln363_reg_889                                   |  26|   0|   26|          0|
-    |add_ln380_reg_794                                   |  26|   0|   26|          0|
-    |ap_CS_fsm                                           |  72|   0|   72|          0|
-    |ap_port_reg_delta                                   |  18|   0|   18|          0|
-    |ap_port_reg_omega                                   |  27|   0|   27|          0|
-    |ap_port_reg_vy                                      |  27|   0|   27|          0|
-    |delta_fn_reg_915                                    |  17|   0|   17|          0|
-    |front_num_reg_821                                   |  26|   0|   26|          0|
-    |front_ratio_reg_831                                 |  26|   0|   26|          0|
-    |grp_compute_front_tire_path_fn_fu_198_ap_start_reg  |   1|   0|    1|          0|
-    |grp_compute_rear_tire_path_fn_fu_219_ap_start_reg   |   1|   0|    1|          0|
-    |grp_fp_slip_terms_fu_191_ap_start_reg               |   1|   0|    1|          0|
-    |grp_fp_trig_pair_fused_fn_fu_154_ap_start_reg       |   1|   0|    1|          0|
-    |lf_omega_reg_810                                    |  26|   0|   26|          0|
-    |low_speed_reg_909                                   |   1|   0|    1|          0|
-    |lr_omega_reg_815                                    |  26|   0|   26|          0|
-    |out_reg_726                                         |  25|   0|   25|          0|
-    |product_q_100_reg_863                               |  26|   0|   26|          0|
-    |product_q_101_reg_873                               |  26|   0|   26|          0|
-    |product_q_95_reg_753                                |  26|   0|   26|          0|
-    |product_q_96_reg_773                                |  25|   0|   25|          0|
-    |product_q_97_reg_784                                |  25|   0|   25|          0|
-    |product_q_98_reg_789                                |  26|   0|   26|          0|
-    |product_q_reg_805                                   |  26|   0|   26|          0|
-    |rear_num_reg_826                                    |  26|   0|   26|          0|
-    |rear_ratio_reg_836                                  |  26|   0|   26|          0|
-    |ref_tmp_i_reg_800                                   |  23|   0|   23|          0|
-    |sext_ln671_91_reg_735                               |  44|   0|   44|          0|
-    |sext_ln671_92_reg_853                               |  42|   0|   42|          0|
-    |sext_ln671_reg_747                                  |  42|   0|   42|          0|
-    |sub_ln361_reg_883                                   |  26|   0|   26|          0|
-    |vy_fn_reg_767                                       |  26|   0|   26|          0|
-    |zext_ln352_reg_741                                  |  25|   0|   26|          1|
+    |D_f_fn_reg_803                                      |  21|   0|   21|          0|
+    |D_pac_f_reg_814                                     |  21|   0|   21|          0|
+    |D_pac_r_reg_836                                     |  21|   0|   21|          0|
+    |D_r_fn_reg_841                                      |  21|   0|   21|          0|
+    |a_cmd_fn_reg_681                                    |  21|   0|   21|          0|
+    |add_ln363_reg_831                                   |  21|   0|   21|          0|
+    |add_ln380_reg_755                                   |  21|   0|   21|          0|
+    |ap_CS_fsm                                           |  50|   0|   50|          0|
+    |ap_port_reg_delta                                   |  14|   0|   14|          0|
+    |ap_port_reg_omega                                   |  23|   0|   23|          0|
+    |ap_port_reg_vy                                      |  23|   0|   23|          0|
+    |delta_fn_reg_825                                    |  12|   0|   12|          0|
+    |front_num_reg_771                                   |  21|   0|   21|          0|
+    |front_ratio_reg_781                                 |  21|   0|   21|          0|
+    |grp_compute_front_tire_path_fn_fu_158_ap_start_reg  |   1|   0|    1|          0|
+    |grp_compute_rear_tire_path_fn_fu_179_ap_start_reg   |   1|   0|    1|          0|
+    |grp_fp_slip_terms_fu_151_ap_start_reg               |   1|   0|    1|          0|
+    |grp_fp_trig_pair_fused_fn_fu_199_ap_start_reg       |   1|   0|    1|          0|
+    |low_speed_reg_819                                   |   1|   0|    1|          0|
+    |lr_omega_reg_766                                    |  21|   0|   21|          0|
+    |out_reg_686                                         |  20|   0|   20|          0|
+    |product_q_93_reg_699                                |  21|   0|   21|          0|
+    |product_q_94_reg_729                                |  20|   0|   20|          0|
+    |product_q_95_reg_740                                |  20|   0|   20|          0|
+    |product_q_96_reg_745                                |  21|   0|   21|          0|
+    |product_q_reg_750                                   |  21|   0|   21|          0|
+    |rear_num_reg_776                                    |  21|   0|   21|          0|
+    |rear_ratio_reg_786                                  |  21|   0|   21|          0|
+    |ref_tmp_i_reg_761                                   |  20|   0|   20|          0|
+    |reg_236                                             |  21|   0|   21|          0|
+    |sext_ln574_64_reg_791                               |  42|   0|   42|          0|
+    |sext_ln574_65_reg_797                               |  42|   0|   42|          0|
+    |sext_ln574_reg_734                                  |  42|   0|   42|          0|
+    |sext_ln591_21_reg_694                               |  33|   0|   33|          0|
+    |sext_ln591_reg_724                                  |  32|   0|   32|          0|
+    |sub_ln361_reg_808                                   |  21|   0|   21|          0|
+    |vy_fn_reg_713                                       |  21|   0|   21|          0|
+    |zext_ln352_reg_718                                  |  20|   0|   21|          1|
     +----------------------------------------------------+----+----+-----+-----------+
-    |Total                                               | 937|   0|  938|          1|
+    |Total                                               | 796|   0|  797|          1|
     +----------------------------------------------------+----+----+-----+-----------+
 
 
@@ -196,27 +193,27 @@
 |ap_done       |  out|    1|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
 |ap_idle       |  out|    1|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
 |ap_ready      |  out|    1|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_0   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_1   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_2   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_3   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_4   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_5   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_6   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_7   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_8   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_9   |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_10  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_11  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_12  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_13  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_14  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_15  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|ap_return_16  |  out|   26|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
-|vx            |   in|   27|     ap_none|                       vx|        scalar|
-|vy            |   in|   27|     ap_none|                       vy|        scalar|
-|omega         |   in|   27|     ap_none|                    omega|        scalar|
-|delta         |   in|   18|     ap_none|                    delta|        scalar|
-|a_cmd         |   in|   27|     ap_none|                    a_cmd|        scalar|
+|ap_return_0   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_1   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_2   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_3   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_4   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_5   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_6   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_7   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_8   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_9   |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_10  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_11  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_12  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_13  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_14  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_15  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|ap_return_16  |  out|   21|  ap_ctrl_hs|  compute_frenet_tire_hls|  return value|
+|vx            |   in|   23|     ap_none|                       vx|        scalar|
+|vy            |   in|   23|     ap_none|                       vy|        scalar|
+|omega         |   in|   23|     ap_none|                    omega|        scalar|
+|delta         |   in|   14|     ap_none|                    delta|        scalar|
+|a_cmd         |   in|   23|     ap_none|                    a_cmd|        scalar|
 +--------------+-----+-----+------------+-------------------------+--------------+
 

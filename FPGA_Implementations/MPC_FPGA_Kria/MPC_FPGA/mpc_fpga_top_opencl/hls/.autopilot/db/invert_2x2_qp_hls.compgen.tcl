@@ -1,25 +1,13 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_27s_29s_50_4_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_9_3_3_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {onehotencoding_realdef}
 }
 
 
-set name mpc_fpga_top_opencl_mul_27s_32s_50_4_1
+set name mpc_fpga_top_opencl_mul_17s_26s_43_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
-}
-
-
-set name mpc_fpga_top_opencl_mul_28s_28s_50_4_1
-if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
-}
-
-
-if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_13_5_3_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {onehotencoding_realdef}
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -33,7 +21,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 839 \
+    id 813 \
     name p_read \
     type other \
     dir I \
@@ -41,14 +29,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read \
     op interface \
-    ports { p_read { I 32 vector } } \
+    ports { p_read { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 840 \
+    id 814 \
     name p_read1 \
     type other \
     dir I \
@@ -56,14 +44,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read1 \
     op interface \
-    ports { p_read1 { I 28 vector } } \
+    ports { p_read1 { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 841 \
+    id 815 \
     name p_read3 \
     type other \
     dir I \
@@ -71,14 +59,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read3 \
     op interface \
-    ports { p_read3 { I 32 vector } } \
+    ports { p_read3 { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 842 \
+    id 816 \
     name p_read4 \
     type other \
     dir I \
@@ -86,14 +74,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read4 \
     op interface \
-    ports { p_read4 { I 32 vector } } \
+    ports { p_read4 { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 843 \
+    id 817 \
     name p_read5 \
     type other \
     dir I \
@@ -101,14 +89,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read5 \
     op interface \
-    ports { p_read5 { I 32 vector } } \
+    ports { p_read5 { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 844 \
+    id 818 \
     name p_read6 \
     type other \
     dir I \
@@ -116,14 +104,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read6 \
     op interface \
-    ports { p_read6 { I 32 vector } } \
+    ports { p_read6 { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 845 \
+    id 819 \
     name p_read7 \
     type other \
     dir I \
@@ -131,7 +119,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_read7 \
     op interface \
-    ports { p_read7 { I 32 vector } } \
+    ports { p_read7 { I 26 vector } } \
 } "
 }
 

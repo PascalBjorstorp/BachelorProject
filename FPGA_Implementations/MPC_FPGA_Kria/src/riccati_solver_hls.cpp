@@ -12,6 +12,23 @@
 #include "../include/fp_math_hls.h"
 #include <climits>
 
+/* Backward-pass matrix-loop partial-unroll factors. The backward pass runs
+ * every ADMM iteration (the shared riccati instance), so its per-step latency
+ * is multiplied by the iteration count -- unrolling these independent matrix
+ * loops trades freed DSP for cycles, paid ONCE in the shared instance but
+ * saved on every pass. Default 1 == current behavior (no unroll, no change).
+ * Sweep 2/3 in synthesis to trade DSP for cycles; watch WNS (these are wide
+ * P/MG/K products, ~2 DSP each). Numerically identical at any factor. */
+#ifndef MPC_HLS_BWD_PA_UNROLL
+#define MPC_HLS_BWD_PA_UNROLL 5   /* PA = P*A   (6x5 = 30 trips, biggest) */
+#endif
+#ifndef MPC_HLS_BWD_G_UNROLL
+#define MPC_HLS_BWD_G_UNROLL 6    /* G  = M*A   (2x6 = 12 trips)          */
+#endif
+#ifndef MPC_HLS_BWD_PNEW_UNROLL
+#define MPC_HLS_BWD_PNEW_UNROLL 6 /* P-update row reduction (6 trips)     */
+#endif
+
 #define MPC_HLS_DEBUG_TRACE_MAX 256
 
 #ifndef __SYNTHESIS__
@@ -366,14 +383,13 @@ MPC_HLS_UNROLL()
         (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][6], xk_raw[6]),
         (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][7], xk_raw[7]));
 
+    /* u = K*x + kk : K*QP product (K_FRAC+QP_FRAC) -> QP, and kk is K-raw. */
     const fp_QP_raw_t u0_raw =
-        add_cast_QP_raw((fp_QP_raw_t)kk[k][0],
-                        fp_shift_right_cast<fp_QP_raw_t>(prod_sum0,
-                                                         FP_FRAC_BITS));
+        add_cast_QP_raw(fp_K_raw_to_QP_raw(kk[k][0]),
+                        fp_K_QP_sum_to_QP_raw(prod_sum0));
     const fp_QP_raw_t u1_raw =
-        add_cast_QP_raw((fp_QP_raw_t)kk[k][1],
-                        fp_shift_right_cast<fp_QP_raw_t>(prod_sum1,
-                                                         FP_FRAC_BITS));
+        add_cast_QP_raw(fp_K_raw_to_QP_raw(kk[k][1]),
+                        fp_K_QP_sum_to_QP_raw(prod_sum1));
 
     const fp_QP_t u0_k = fp_QP_from_qp_raw(u0_raw);
     const fp_QP_t u1_k = fp_QP_from_qp_raw(u1_raw);
@@ -500,7 +516,7 @@ MPC_HLS_UNROLL()
     fp_QP_mul_t rho_state_mul =
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
-        (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
+        fp_product_shift_to_raw<fp_P_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(rho_state_mul);
     p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
         (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
@@ -516,7 +532,7 @@ MPC_HLS_UNROLL()
     fp_QP_mul_t rho_state_mul =
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
-        (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
+        fp_product_shift_to_raw<fp_P_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(rho_state_mul);
     p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
         (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
@@ -567,12 +583,12 @@ MPC_HLS_UNROLL()
     q_aug_diag[IDX_DELTA_RATE_PREV] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_delta_prev));
     q_aug_diag[IDX_ACCEL_PREV] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_accel_prev));
 
-    q_aug_linear[0] = fp_probe_store_P((fp_P_raw_t)sd->q[0]);
-    q_aug_linear[1] = fp_probe_store_P((fp_P_raw_t)sd->q[1]);
-    q_aug_linear[2] = fp_probe_store_P((fp_P_raw_t)sd->q[2]);
-    q_aug_linear[3] = fp_probe_store_P((fp_P_raw_t)sd->q[3]);
-    q_aug_linear[4] = fp_probe_store_P((fp_P_raw_t)sd->q[4]);
-    q_aug_linear[IDX_DELTA_ACT] = fp_probe_store_P((fp_P_raw_t)sd->q[IDX_DELTA_ACT]);
+    q_aug_linear[0] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[0]));
+    q_aug_linear[1] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[1]));
+    q_aug_linear[2] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[2]));
+    q_aug_linear[3] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[3]));
+    q_aug_linear[4] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[4]));
+    q_aug_linear[IDX_DELTA_ACT] = fp_probe_store_P(fp_QP_raw_to_P_raw(sd->q[IDX_DELTA_ACT]));
     q_aug_linear[IDX_DELTA_RATE_PREV] = fp_probe_store_P(0);
     q_aug_linear[IDX_ACCEL_PREV] = fp_probe_store_P(0);
 
@@ -588,7 +604,7 @@ MPC_HLS_UNROLL()
       fp_QP_mul_t rho_state_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
-          (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
+          fp_product_shift_to_raw<fp_P_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(rho_state_mul);
       q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[idx] +
           (fp_sum2_P_raw_t)(-rho_state_term)));
@@ -606,7 +622,7 @@ MPC_HLS_UNROLL()
       fp_QP_mul_t rho_state_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
-          (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
+          fp_product_shift_to_raw<fp_P_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS, MPC_HLS_P_FRAC_BITS>(rho_state_mul);
       q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[idx] +
           (fp_sum2_P_raw_t)(-rho_state_term)));
@@ -633,8 +649,8 @@ MPC_HLS_UNROLL()
       fp_QP_mul_t rho_ctrl_mul =
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho_u), zu_minus_yu);
       const fp_MG_raw_t rho_ctrl_term =
-          (fp_MG_raw_t)(rho_ctrl_mul >> FP_FRAC_BITS);
-      fp_sum2_QP_raw_t rlin = -(fp_sum2_QP_raw_t)rho_ctrl_term;
+          fp_product_shift_to_raw<fp_MG_raw_t, MPC_HLS_QP_FRAC_BITS, MPC_HLS_QP_FRAC_BITS, MPC_HLS_MG_FRAC_BITS>(rho_ctrl_mul);
+      fp_sum2_MG_raw_t rlin = -(fp_sum2_MG_raw_t)rho_ctrl_term;
       FP_WPROBE(FP_WP_SUM2_QP_RAW, rlin.to_int64());
       r_aug_linear[a] = fp_probe_store_MG((fp_MG_raw_t)rlin);
     }
@@ -662,8 +678,8 @@ MPC_HLS_UNROLL()
           ((fp_sum4_P_QP_t)P[IDX_ACCEL_PREV][j] << FP_FRAC_BITS);
       fp_probe_sum4_P_QP(s1);
 
-      M[0][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s0, FP_FRAC_BITS));
-      M[1][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s1, FP_FRAC_BITS));
+      M[0][j] = fp_probe_store_MG(fp_P_QP_sum_to_MG_raw(s0));
+      M[1][j] = fp_probe_store_MG(fp_P_QP_sum4_to_MG_raw(s1));
     }
 
     fp_QP_raw_t S[2][2];
@@ -694,12 +710,12 @@ MPC_HLS_UNROLL()
 
       S[0][0] =
           (fp_QP_raw_t)((fp_sum2_QP_raw_t)r_aug_diag[0] +
-                        (fp_sum2_QP_raw_t)fp_shift_right_cast<fp_QP_raw_t>(mb00, FP_FRAC_BITS));
-      S[0][1] = fp_shift_right_cast<fp_QP_raw_t>(mb01, FP_FRAC_BITS);
-      S[1][0] = fp_shift_right_cast<fp_QP_raw_t>(mb10, FP_FRAC_BITS);
+                        (fp_sum2_QP_raw_t)fp_MG_QP_sum_to_QP_raw(mb00));
+      S[0][1] = fp_MG_QP_sum4_to_QP_raw(mb01);
+      S[1][0] = fp_MG_QP_sum_to_QP_raw(mb10);
       S[1][1] =
           (fp_QP_raw_t)((fp_sum2_QP_raw_t)r_aug_diag[1] +
-                        (fp_sum2_QP_raw_t)fp_shift_right_cast<fp_QP_raw_t>(mb11, FP_FRAC_BITS));
+                        (fp_sum2_QP_raw_t)fp_MG_QP_sum4_to_QP_raw(mb11));
 
       fp_sum2_QP_raw_t s01 = (((fp_sum2_QP_raw_t)S[0][1]) +
                               ((fp_sum2_QP_raw_t)S[1][0])) >> 1;
@@ -725,6 +741,7 @@ MPC_HLS_UNROLL()
 #pragma HLS ARRAY_PARTITION variable = G complete dim = 2
     for (a = 0; a < nu; a++) {
       for (j = 0; j < 6; j++) {
+#pragma HLS UNROLL factor = MPC_HLS_BWD_G_UNROLL
 MPC_HLS_PIPELINE(1)
         fp_sum6_MG_QP_t sum = sum6_MG_QP_raw(
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][0], sd->A[0][j]),
@@ -757,8 +774,8 @@ MPC_HLS_PIPELINE(1)
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], G[1][j]);
       fp_probe_sum2_QP_MG(val0);
       fp_probe_sum2_QP_MG(val1);
-      K[k][0][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS));
-      K[k][1][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS));
+      K[k][0][j] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val0));
+      K[k][1][j] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val1));
     }
 
     fp_P_raw_t p_shift[MPC_NX_AUG];
@@ -791,7 +808,7 @@ MPC_HLS_PIPELINE(1)
           (fp_sum2_P_QP_t)fp_mul_QP_P(b00, ps5) +
           ((fp_sum2_P_QP_t)ps6 << FP_FRAC_BITS);
       fp_probe_sum2_P_QP(bp0);
-      Bp[0] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp0, FP_FRAC_BITS));
+      Bp[0] = fp_probe_store_MG(fp_P_QP_sum_to_MG_raw(bp0));
 
       fp_sum4_P_QP_t bp1 =
           (fp_sum4_P_QP_t)fp_mul_QP_P(b10, ps2) +
@@ -799,7 +816,7 @@ MPC_HLS_PIPELINE(1)
           (fp_sum4_P_QP_t)fp_mul_QP_P(b12, ps4) +
           ((fp_sum4_P_QP_t)ps7 << FP_FRAC_BITS);
       fp_probe_sum4_P_QP(bp1);
-      Bp[1] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp1, FP_FRAC_BITS));
+      Bp[1] = fp_probe_store_MG(fp_P_QP_sum4_to_MG_raw(bp1));
     }
 
     {
@@ -815,8 +832,8 @@ MPC_HLS_PIPELINE(1)
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], rhs1);
       fp_probe_sum2_QP_MG(val0);
       fp_probe_sum2_QP_MG(val1);
-      kk[k][0] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS));
-      kk[k][1] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS));
+      kk[k][0] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val0));
+      kk[k][1] = fp_probe_store_K(fp_QP_MG_sum_to_K_raw(-val1));
     }
 
     fp_P_raw_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
@@ -830,6 +847,7 @@ MPC_HLS_UNROLL()
 
     for (i = 0; i < 6; i++) {
       for (j = 1; j < 6; j++) {
+#pragma HLS UNROLL factor = MPC_HLS_BWD_PA_UNROLL
 MPC_HLS_PIPELINE(1)
         fp_sum6_P_QP_t sum = sum6_P_QP_raw(
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], sd->A[0][j]),
@@ -852,8 +870,8 @@ MPC_HLS_PIPELINE(1)
         (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(II)], PA[3][(JJ)]),                   \
         (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(II)], PA[4][(JJ)]),                   \
         (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(II)], PA[5][(JJ)]),                   \
-        (fp_P_mix_item_t)fp_mul_MG_K(G[0][(II)], K[k][0][(JJ)]),                     \
-        (fp_P_mix_item_t)fp_mul_MG_K(G[1][(II)], K[k][1][(JJ)]));                    \
+        fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][(II)], K[k][0][(JJ)])),                     \
+        fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][(II)], K[k][1][(JJ)])));                    \
   } while (0)
 
 #define CAST_P_MIX(VALUE)                                                            \
@@ -973,8 +991,8 @@ MPC_HLS_UNROLL()
         fp_probe_sum2_MG_K(s6);
         fp_probe_sum2_MG_K(s7);
 
-        gtk_i6[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s6, FP_FRAC_BITS));
-        gtk_i7[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s7, FP_FRAC_BITS));
+        gtk_i6[i] = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s6));
+        gtk_i7[i] = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s7));
       }
 
       {
@@ -988,9 +1006,9 @@ MPC_HLS_UNROLL()
         fp_probe_sum2_MG_K(s67);
         fp_probe_sum2_MG_K(s77);
 
-        gtk_66 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s66, FP_FRAC_BITS));
-        gtk_67 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s67, FP_FRAC_BITS));
-        gtk_77 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s77, FP_FRAC_BITS));
+        gtk_66 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s66));
+        gtk_67 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s67));
+        gtk_77 = fp_probe_store_P(fp_MG_K_sum_to_P_raw(s77));
       }
 
       for (i = 0; i < 6; i++) {
@@ -1011,6 +1029,7 @@ MPC_HLS_UNROLL()
     fp_P_raw_t p_new[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = p_new complete dim = 1
     for (i = 0; i < 6; i++) {
+#pragma HLS UNROLL factor = MPC_HLS_BWD_PNEW_UNROLL
 MPC_HLS_PIPELINE(1)
       fp_sum8_P_MIX_t total = sum8_P_MIX_raw(
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][i], p_shift[0]),
@@ -1019,8 +1038,8 @@ MPC_HLS_PIPELINE(1)
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][i], p_shift[3]),
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][i], p_shift[4]),
           (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][i], p_shift[5]),
-          (fp_P_mix_item_t)fp_mul_MG_K(G[0][i], kk[k][0]),
-          (fp_P_mix_item_t)fp_mul_MG_K(G[1][i], kk[k][1]));
+          fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[0][i], kk[k][0])),
+          fp_MG_K_mul_to_PQP_mix_item(fp_mul_MG_K(G[1][i], kk[k][1])));
       p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[i] +
           (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS)));
@@ -1034,7 +1053,7 @@ MPC_HLS_PIPELINE(1)
       fp_probe_sum2_MG_K(total);
       p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
           (fp_sum2_P_raw_t)q_aug_linear[i] +
-          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS)));
+          (fp_sum2_P_raw_t)fp_MG_K_sum_to_P_raw(total)));
     }
 
     for (i = 0; i < nx; i++) {
@@ -1134,7 +1153,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
     
   int max_iter = config->max_iterations;
   fp_QP_t abs_tolerance = config->tolerance;
-  const fp_QP_t rel_tolerance = FP_QP_CONST(0.02);
+  const fp_QP_t rel_tolerance = FP_QP_CONST(MPC_FPGA_ADMM_REL_TOL);
 
   /* Local ADMM variables */
   fp_QP_t z_x[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG];
@@ -1333,7 +1352,13 @@ MPC_HLS_UNROLL()
     fp_QP_t primal_u0 = 0, dual_u0 = 0, znorm_u0 = 0, lnorm_u0 = 0;
     fp_QP_t primal_u1 = 0, dual_u1 = 0, znorm_u1 = 0, lnorm_u1 = 0;
 
-    /* State z/y update */
+    /* Fused state+control z/y update. The state and control updates touch
+     * disjoint arrays (z_x/y_x vs z_u/y_u) and disjoint per-channel
+     * accumulators, and every cross-k reduction is max() (order-independent),
+     * so interleaving them in one II=1 loop overlaps the two passes
+     * (~49 -> ~25 cyc/pass) with NO added arithmetic -- it just stops them
+     * running back-to-back. State runs for all k; control for k < MPC_HORIZON.
+     * Bit-identical to the previous two sequential loops. */
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
       /* Only e_y and delta_actual are projected. Copy the remaining fixed
        * channels directly instead of routing them through an unrolled
@@ -1380,43 +1405,38 @@ MPC_HLS_UNROLL()
             &primal_da,
             &dual_da, &znorm_da, &lnorm_da);
       }
+
+      /* Control z/y update (interleaved). k == MPC_HORIZON has no control. */
+      if (k < MPC_HORIZON) {
+        const StepData_t *sd = &step_data[k];
+
+        fp_QP_t u_norm_k = fp_max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
+        if (u_norm_k > u_norm)
+          u_norm = u_norm_k;
+
+        admm_update_control_channel_raw(
+            sol_u[k][0], &z_u[k][0], &y_u[k][0], rho_u,
+            (fp_QP_t)(-VP_MAX_STEER_RATE), (fp_QP_t)(VP_MAX_STEER_RATE),
+            &primal_u0, &dual_u0, &znorm_u0, &lnorm_u0);
+
+        admm_update_control_channel_raw(
+            sol_u[k][1], &z_u[k][1], &y_u[k][1], rho_u,
+            VP_MIN_ACCEL, step_accel_ub(sd),
+            &primal_u1, &dual_u1, &znorm_u1, &lnorm_u1);
+      }
     }
 
     state_primal = fp_max2(primal_ey, primal_da);
     state_dual = fp_max2(dual_ey, dual_da);
-    {
-      const fp_QP_t z_norm_state = fp_max2(znorm_ey, znorm_da);
-      const fp_QP_t lnorm_state = fp_max2(lnorm_ey, lnorm_da);
-      z_norm = fp_max2(z_norm, z_norm_state);
-      lambda_norm = fp_max2(lambda_norm, lnorm_state);
-    }
-
-    /* Control z/y update — dual residual computed inline */
-    for (k = 0; k < MPC_HORIZON; k++) {
-      const StepData_t *sd = &step_data[k];
-
-      fp_QP_t u_norm_k = fp_max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
-      if (u_norm_k > u_norm)
-        u_norm = u_norm_k;
-
-      admm_update_control_channel_raw(
-          sol_u[k][0], &z_u[k][0], &y_u[k][0], rho_u,
-          (fp_QP_t)(-VP_MAX_STEER_RATE), (fp_QP_t)(VP_MAX_STEER_RATE),
-          &primal_u0, &dual_u0, &znorm_u0, &lnorm_u0);
-
-      admm_update_control_channel_raw(
-          sol_u[k][1], &z_u[k][1], &y_u[k][1], rho_u,
-          VP_MIN_ACCEL, step_accel_ub(sd),
-          &primal_u1, &dual_u1, &znorm_u1, &lnorm_u1);
-    }
-
     ctrl_primal = fp_max2(primal_u0, primal_u1);
     ctrl_dual = fp_max2(dual_u0, dual_u1);
     {
+      const fp_QP_t z_norm_state = fp_max2(znorm_ey, znorm_da);
+      const fp_QP_t lnorm_state = fp_max2(lnorm_ey, lnorm_da);
       const fp_QP_t z_norm_ctrl = fp_max2(znorm_u0, znorm_u1);
       const fp_QP_t lnorm_ctrl = fp_max2(lnorm_u0, lnorm_u1);
-      z_norm = fp_max2(z_norm, z_norm_ctrl);
-      lambda_norm = fp_max2(lambda_norm, lnorm_ctrl);
+      z_norm = fp_max2(z_norm, fp_max2(z_norm_state, z_norm_ctrl));
+      lambda_norm = fp_max2(lambda_norm, fp_max2(lnorm_state, lnorm_ctrl));
     }
     const fp_QP_t primal_res = fp_max2(state_primal, ctrl_primal);
     const fp_QP_t dual_res = fp_max2(state_dual, ctrl_dual);

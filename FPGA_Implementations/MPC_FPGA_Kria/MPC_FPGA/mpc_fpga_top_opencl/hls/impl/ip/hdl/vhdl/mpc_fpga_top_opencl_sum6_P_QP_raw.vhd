@@ -11,13 +11,13 @@ use IEEE.numeric_std.all;
 entity mpc_fpga_top_opencl_sum6_P_QP_raw is
 port (
     ap_ready : OUT STD_LOGIC;
-    a0 : IN STD_LOGIC_VECTOR (57 downto 0);
-    a1 : IN STD_LOGIC_VECTOR (57 downto 0);
-    a2 : IN STD_LOGIC_VECTOR (57 downto 0);
-    a3 : IN STD_LOGIC_VECTOR (57 downto 0);
-    a4 : IN STD_LOGIC_VECTOR (57 downto 0);
-    a5 : IN STD_LOGIC_VECTOR (57 downto 0);
-    ap_return : OUT STD_LOGIC_VECTOR (57 downto 0);
+    a0 : IN STD_LOGIC_VECTOR (40 downto 0);
+    a1 : IN STD_LOGIC_VECTOR (40 downto 0);
+    a2 : IN STD_LOGIC_VECTOR (40 downto 0);
+    a3 : IN STD_LOGIC_VECTOR (40 downto 0);
+    a4 : IN STD_LOGIC_VECTOR (40 downto 0);
+    a5 : IN STD_LOGIC_VECTOR (40 downto 0);
+    ap_return : OUT STD_LOGIC_VECTOR (40 downto 0);
     ap_rst : IN STD_LOGIC );
 end;
 
@@ -30,20 +30,20 @@ architecture behav of mpc_fpga_top_opencl_sum6_P_QP_raw is
     constant ap_const_logic_0 : STD_LOGIC := '0';
 
 attribute shreg_extract : string;
-    signal add_ln187_fu_68_p2 : STD_LOGIC_VECTOR (57 downto 0);
-    signal add_ln187_2_fu_80_p2 : STD_LOGIC_VECTOR (57 downto 0);
-    signal add_ln187_3_fu_86_p2 : STD_LOGIC_VECTOR (57 downto 0);
-    signal add_ln187_1_fu_74_p2 : STD_LOGIC_VECTOR (57 downto 0);
+    signal add_ln202_fu_60_p2 : STD_LOGIC_VECTOR (40 downto 0);
+    signal add_ln202_2_fu_72_p2 : STD_LOGIC_VECTOR (40 downto 0);
+    signal add_ln202_3_fu_78_p2 : STD_LOGIC_VECTOR (40 downto 0);
+    signal add_ln202_1_fu_66_p2 : STD_LOGIC_VECTOR (40 downto 0);
 
 
 begin
 
 
 
-    add_ln187_1_fu_74_p2 <= std_logic_vector(unsigned(add_ln187_fu_68_p2) + unsigned(a1));
-    add_ln187_2_fu_80_p2 <= std_logic_vector(unsigned(a4) + unsigned(a5));
-    add_ln187_3_fu_86_p2 <= std_logic_vector(unsigned(add_ln187_2_fu_80_p2) + unsigned(a3));
-    add_ln187_fu_68_p2 <= std_logic_vector(unsigned(a0) + unsigned(a2));
+    add_ln202_1_fu_66_p2 <= std_logic_vector(unsigned(add_ln202_fu_60_p2) + unsigned(a1));
+    add_ln202_2_fu_72_p2 <= std_logic_vector(unsigned(a4) + unsigned(a5));
+    add_ln202_3_fu_78_p2 <= std_logic_vector(unsigned(add_ln202_2_fu_72_p2) + unsigned(a3));
+    add_ln202_fu_60_p2 <= std_logic_vector(unsigned(a0) + unsigned(a2));
     ap_ready <= ap_const_logic_1;
-    ap_return <= std_logic_vector(unsigned(add_ln187_3_fu_86_p2) + unsigned(add_ln187_1_fu_74_p2));
+    ap_return <= std_logic_vector(unsigned(add_ln202_3_fu_78_p2) + unsigned(add_ln202_1_fu_66_p2));
 end behav;

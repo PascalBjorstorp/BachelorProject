@@ -1,19 +1,20 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_26s_18s_44_4_1
+set name mpc_fpga_top_opencl_mul_21s_13s_34_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_16s_42_4_1
+set name mpc_fpga_top_opencl_mul_21s_13ns_34_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
+set name mpc_fpga_top_opencl_mul_21s_11s_32_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_am_addmul_26s_26s_11ns_38_4_1 BINDTYPE {op} TYPE {all} IMPL {dsp_slice} LATENCY 3
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -27,7 +28,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 514 \
+    id 510 \
     name tr_C_eff_f_raw_val \
     type other \
     dir I \
@@ -35,14 +36,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_C_eff_f_raw_val \
     op interface \
-    ports { tr_C_eff_f_raw_val { I 26 vector } } \
+    ports { tr_C_eff_f_raw_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 515 \
+    id 511 \
     name tr_C_eff_r_val \
     type other \
     dir I \
@@ -50,14 +51,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_C_eff_r_val \
     op interface \
-    ports { tr_C_eff_r_val { I 26 vector } } \
+    ports { tr_C_eff_r_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 516 \
+    id 512 \
     name tr_C_min_f_val \
     type other \
     dir I \
@@ -65,14 +66,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_C_min_f_val \
     op interface \
-    ports { tr_C_min_f_val { I 26 vector } } \
+    ports { tr_C_min_f_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 517 \
+    id 513 \
     name tr_cos_delta_val \
     type other \
     dir I \
@@ -80,14 +81,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_cos_delta_val \
     op interface \
-    ports { tr_cos_delta_val { I 26 vector } } \
+    ports { tr_cos_delta_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 518 \
+    id 514 \
     name tr_alpha_f_op_val \
     type other \
     dir I \
@@ -95,14 +96,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_alpha_f_op_val \
     op interface \
-    ports { tr_alpha_f_op_val { I 26 vector } } \
+    ports { tr_alpha_f_op_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 519 \
+    id 515 \
     name tr_alpha_r_op_val \
     type other \
     dir I \
@@ -110,14 +111,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_alpha_r_op_val \
     op interface \
-    ports { tr_alpha_r_op_val { I 26 vector } } \
+    ports { tr_alpha_r_op_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 520 \
+    id 516 \
     name tr_Fz_transfer_val \
     type other \
     dir I \
@@ -125,7 +126,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_Fz_transfer_val \
     op interface \
-    ports { tr_Fz_transfer_val { I 26 vector } } \
+    ports { tr_Fz_transfer_val { I 21 vector } } \
 } "
 }
 

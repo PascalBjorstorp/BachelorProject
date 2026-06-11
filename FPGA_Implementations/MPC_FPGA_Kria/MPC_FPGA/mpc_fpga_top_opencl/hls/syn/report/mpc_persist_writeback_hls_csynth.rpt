@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_persist_writeback_hls'
 ================================================================
-* Date:           Thu May 21 15:23:13 2026
+* Date:           Thu Jun 11 16:07:08 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -96,14 +96,14 @@
 +------------------------------------------------------------------------+-----+-----+------------+-----------------------------------------------------------------+--------------+
 |ap_ready                                                                |  out|    1|  ap_ctrl_hs|                                        mpc_persist_writeback_hls|  return value|
 |ap_rst                                                                  |   in|    1|  ap_ctrl_hs|                                        mpc_persist_writeback_hls|  return value|
-|prev_steer_rate                                                         |   in|   32|     ap_none|                                                  prev_steer_rate|        scalar|
-|prev_accel                                                              |   in|   22|     ap_none|                                                       prev_accel|        scalar|
-|prev_curvature                                                          |   in|   32|     ap_none|                                                   prev_curvature|        scalar|
-|p_anonymous_namespace_g_core_state_persist_prev_steer_rate              |  out|   32|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
+|prev_steer_rate                                                         |   in|   26|     ap_none|                                                  prev_steer_rate|        scalar|
+|prev_accel                                                              |   in|   19|     ap_none|                                                       prev_accel|        scalar|
+|prev_curvature                                                          |   in|   26|     ap_none|                                                   prev_curvature|        scalar|
+|p_anonymous_namespace_g_core_state_persist_prev_steer_rate              |  out|   26|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld       |  out|    1|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
-|p_anonymous_namespace_g_core_state_persist_prev_accel                   |  out|   32|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
+|p_anonymous_namespace_g_core_state_persist_prev_accel                   |  out|   26|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld            |  out|    1|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
-|p_anonymous_namespace_g_core_state_persist_prev_curvature               |  out|   32|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
+|p_anonymous_namespace_g_core_state_persist_prev_curvature               |  out|   26|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld        |  out|    1|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_model_signature         |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_persist_prev_model_signature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld  |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_persist_prev_model_signature|       pointer|

@@ -16,16 +16,16 @@ Runs are auto-classified:
                 trajectory overlay can show *where* the run died.
 
 Outputs (in <out-dir>):
-  test3_trajectory_overlay.png  all runs' driven paths overlaid; crashed
+    test3_trajectory_overlay.svg  all runs' driven paths overlaid; crashed
                                 runs end abruptly
-  test3_iter_boxplot.png        boxplot of per-solve iteration counts for
+    test3_iter_boxplot.svg        boxplot of per-solve iteration counts for
                                 every run, including crashed ones up to
                                 the crash point
-  test3_steering_smoothness.png working runs side-by-side on the track,
+    test3_steering_smoothness.svg working runs side-by-side on the track,
                                 colored by |Δsteer| (jitter)
-  test3_speed_track.png         working runs side-by-side, colored by
+    test3_speed_track.svg         working runs side-by-side, colored by
                                 commanded speed
-  test3_iter_track.png          working runs side-by-side, colored by
+    test3_iter_track.svg          working runs side-by-side, colored by
                                 per-solve iteration count
 """
 
@@ -38,6 +38,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
+
+plt.rcParams.update({
+    "font.size": 18,
+    "axes.titlesize": 20,
+    "axes.labelsize": 18,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+})
 
 DEFAULT_STEERING_RATE_LIMIT_RAD_S = 2.849
 
@@ -532,30 +541,30 @@ def main():
               f"{p_small:>5.1f}% {p_large:>7.1f}% {raw_cmd_p99:>11.3f} "
               f"{lat_p95:>15.3f}")
 
-    plot_trajectory_overlay(runs, out_dir / "test3_trajectory_overlay.png")
-    plot_iter_boxplot(runs, out_dir / "test3_iter_boxplot.png")
-    plot_steer_rate_histogram(runs, out_dir / "test3_steer_rate_histogram.png")
+    plot_trajectory_overlay(runs, out_dir / "test3_trajectory_overlay.svg")
+    plot_iter_boxplot(runs, out_dir / "test3_iter_boxplot.svg")
+    plot_steer_rate_histogram(runs, out_dir / "test3_steer_rate_histogram.svg")
     crashed = [r for r in runs if r.status == "crashed"]
     if crashed:
         plot_crash_forensics(crashed, ref_xy,
-                             out_dir / "test3_crash_forensics.png")
+                             out_dir / "test3_crash_forensics.svg")
         plot_crash_trajectory_zoom(crashed, ref_xy,
-                                   out_dir / "test3_crash_trajectory_zoom.png")
+                                   out_dir / "test3_crash_trajectory_zoom.svg")
     if len(working) >= 1:
-        plot_steering_trace(working, out_dir / "test3_steering_trace.png")
+        plot_steering_trace(working, out_dir / "test3_steering_trace.svg")
         plot_metric_side_by_side(working, "abs_steer_rate",
                                  "|estimated actuator steering rate| [rad/s]", "viridis",
-                                 out_dir / "test3_steering_smoothness.png")
+                                 out_dir / "test3_steering_smoothness.svg")
         plot_metric_side_by_side(working, "speed",
                                  "commanded speed [m/s]", "viridis",
-                                 out_dir / "test3_speed_track.png")
+                                 out_dir / "test3_speed_track.svg")
         plot_metric_side_by_side(working, "iterations",
                                  "iterations per solve", "viridis",
-                                 out_dir / "test3_iter_track.png")
+                                 out_dir / "test3_iter_track.svg")
         plot_metric_side_by_side(working, "lateral_dev",
                                  "lateral deviation from baseline path [m]",
                                  "magma",
-                                 out_dir / "test3_tracking_error_track.png")
+                                 out_dir / "test3_tracking_error_track.svg")
 
     print(f"\nWrote plots to {out_dir}")
     return 0

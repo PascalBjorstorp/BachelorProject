@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'fp_frenet_rows01_fn'" level="0">
-<item name = "Date">Thu May 21 15:23:09 2026
+<item name = "Date">Thu Jun 11 16:06:59 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 3.563 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 3.300 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">18, 18, 90.000 ns, 90.000 ns, 19, 19, yes</column>
+<column name="">13, 13, 65.000 ns, 65.000 ns, 14, 14, yes</column>
 </table>
 </item>
 <item name = "Detail">
@@ -47,12 +47,12 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 190, -</column>
+<column name="Expression">-, -, 0, 159, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">-, 20, 707, 336, -</column>
+<column name="Instance">-, 17, 76, 166, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 181, -</column>
-<column name="Register">-, -, 737, -, -</column>
+<column name="Multiplexer">-, -, 0, 145, -</column>
+<column name="Register">-, -, 581, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
 <specialColumn name="Utilization (%)">0, 1, ~0, ~0, 0</specialColumn>
 </table>
@@ -61,18 +61,18 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="mul_22s_25ns_47_4_1_U408">mul_22s_25ns_47_4_1, 0, 2, 55, 26, 0</column>
-<column name="mul_22s_26s_43_4_1_U409">mul_22s_26s_43_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_23s_23s_46_4_1_U410">mul_23s_23s_46_4_1, 0, 2, 42, 20, 0</column>
-<column name="mul_25ns_26s_51_4_1_U411">mul_25ns_26s_51_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U416">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U417">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U418">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_13ns_39_4_1_U419">mul_26s_13ns_39_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_22s_43_4_1_U412">mul_26s_22s_43_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_23s_49_4_1_U413">mul_26s_23s_49_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_25ns_51_4_1_U414">mul_26s_25ns_51_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_26s_43_4_1_x_U415">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+<column name="mul_17s_20ns_37_3_1_U412">mul_17s_20ns_37_3_1, 0, 1, 8, 11, 0</column>
+<column name="mul_17s_21s_38_3_1_U414">mul_17s_21s_38_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_20ns_21s_41_3_1_U405">mul_20ns_21s_41_3_1, 0, 2, 10, 14, 0</column>
+<column name="mul_20s_20s_40_3_1_U406">mul_20s_20s_40_3_1, 0, 2, 8, 11, 0</column>
+<column name="mul_21s_17s_38_3_1_U415">mul_21s_17s_38_3_1, 0, 1, 10, 14, 0</column>
+<column name="mul_21s_20ns_41_3_1_U407">mul_21s_20ns_41_3_1, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_20s_41_3_1_U408">mul_21s_20s_41_3_1, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_21s_42_3_1_x_U409">mul_21s_21s_42_3_1_x, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_8ns_29_1_1_U410">mul_21s_8ns_29_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_8ns_29_1_1_U411">mul_21s_8ns_29_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_8ns_29_1_1_U413">mul_21s_8ns_29_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_8ns_29_1_1_U416">mul_21s_8ns_29_1_1, 0, 1, 0, 15, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -89,53 +89,52 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="add_ln112_fu_444_p2">+, 0, 0, 33, 26, 18</column>
-<column name="value_198_fu_421_p2">-, 0, 0, 33, 1, 26</column>
-<column name="value_199_fu_387_p2">-, 0, 0, 33, 1, 26</column>
-<column name="value_fu_320_p2">-, 0, 0, 33, 26, 26</column>
-<column name="icmp_ln96_fu_207_p2">icmp, 0, 0, 33, 26, 17</column>
-<column name="out_fu_213_p3">select, 0, 0, 25, 1, 25</column>
+<column name="add_ln112_fu_438_p2">+, 0, 0, 28, 21, 13</column>
+<column name="value_166_fu_415_p2">-, 0, 0, 28, 1, 21</column>
+<column name="value_167_fu_377_p2">-, 0, 0, 28, 1, 21</column>
+<column name="value_fu_387_p2">-, 0, 0, 28, 21, 21</column>
+<column name="icmp_ln96_fu_190_p2">icmp, 0, 0, 28, 21, 12</column>
+<column name="out_fu_196_p3">select, 0, 0, 19, 1, 20</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">101, 20, 1, 20</column>
-<column name="grp_fu_146_p0">14, 3, 26, 78</column>
-<column name="grp_fu_146_p1">14, 3, 23, 69</column>
-<column name="grp_fu_154_p0">26, 5, 26, 130</column>
-<column name="grp_fu_154_p1">26, 5, 26, 130</column>
+<column name="ap_NS_fsm">65, 15, 1, 15</column>
+<column name="grp_fu_132_p0">14, 3, 21, 63</column>
+<column name="grp_fu_132_p1">14, 3, 20, 60</column>
+<column name="grp_fu_136_p0">26, 5, 21, 105</column>
+<column name="grp_fu_136_p1">26, 5, 21, 105</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="ap_CS_fsm">19, 0, 19, 0</column>
-<column name="ap_port_reg_cos_epsi">26, 0, 26, 0</column>
-<column name="ap_port_reg_inv_denom">23, 0, 23, 0</column>
-<column name="ap_port_reg_sin_epsi">26, 0, 26, 0</column>
-<column name="ap_port_reg_vx">26, 0, 26, 0</column>
-<column name="ap_port_reg_vy">26, 0, 26, 0</column>
-<column name="cos_epsi_read_reg_500">26, 0, 26, 0</column>
-<column name="inv_denom_read_reg_604">23, 0, 23, 0</column>
-<column name="kappa_read_reg_484">26, 0, 26, 0</column>
-<column name="out_reg_511">25, 0, 25, 0</column>
-<column name="product_q_58_reg_589">26, 0, 26, 0</column>
-<column name="product_q_60_reg_675">22, 0, 22, 0</column>
-<column name="product_q_61_reg_665">22, 0, 22, 0</column>
-<column name="product_q_62_reg_645">26, 0, 26, 0</column>
-<column name="product_q_63_reg_569">26, 0, 26, 0</column>
-<column name="product_q_64_reg_635">26, 0, 26, 0</column>
-<column name="product_q_66_reg_584">26, 0, 26, 0</column>
-<column name="product_q_67_reg_655">26, 0, 26, 0</column>
-<column name="product_q_68_reg_695">26, 0, 26, 0</column>
-<column name="product_q_69_reg_625">26, 0, 26, 0</column>
-<column name="product_q_70_reg_690">26, 0, 26, 0</column>
-<column name="product_q_reg_547">22, 0, 22, 0</column>
-<column name="sext_ln671_51_reg_563">43, 0, 43, 0</column>
-<column name="sext_ln671_53_reg_650">49, 0, 49, 0</column>
-<column name="sin_epsi_read_reg_553">26, 0, 26, 0</column>
-<column name="trunc_ln674_s_reg_527">22, 0, 22, 0</column>
-<column name="value_reg_609">26, 0, 26, 0</column>
-<column name="zext_ln671_reg_516">25, 0, 51, 26</column>
+<column name="ap_CS_fsm">14, 0, 14, 0</column>
+<column name="ap_port_reg_cos_epsi">21, 0, 21, 0</column>
+<column name="ap_port_reg_inv_denom">20, 0, 20, 0</column>
+<column name="ap_port_reg_sin_epsi">21, 0, 21, 0</column>
+<column name="ap_port_reg_vx">21, 0, 21, 0</column>
+<column name="ap_port_reg_vy">21, 0, 21, 0</column>
+<column name="cos_epsi_read_reg_490">21, 0, 21, 0</column>
+<column name="inv_denom_read_reg_538">20, 0, 20, 0</column>
+<column name="out_reg_496">20, 0, 20, 0</column>
+<column name="product_q_56_reg_620">21, 0, 21, 0</column>
+<column name="product_q_58_reg_645">17, 0, 17, 0</column>
+<column name="product_q_59_reg_528">17, 0, 17, 0</column>
+<column name="product_q_60_reg_575">21, 0, 21, 0</column>
+<column name="product_q_61_reg_559">21, 0, 21, 0</column>
+<column name="product_q_62_reg_615">21, 0, 21, 0</column>
+<column name="product_q_64_reg_549">21, 0, 21, 0</column>
+<column name="product_q_65_reg_605">21, 0, 21, 0</column>
+<column name="product_q_66_reg_665">21, 0, 21, 0</column>
+<column name="product_q_67_reg_595">21, 0, 21, 0</column>
+<column name="product_q_68_reg_660">21, 0, 21, 0</column>
+<column name="product_q_reg_501">17, 0, 17, 0</column>
+<column name="sext_ln574_42_reg_569">42, 0, 42, 0</column>
+<column name="sext_ln574_43_reg_625">41, 0, 41, 0</column>
+<column name="sin_epsi_read_reg_517">21, 0, 21, 0</column>
+<column name="trunc_ln593_6_reg_478">17, 0, 17, 0</column>
+<column name="value_reg_635">21, 0, 21, 0</column>
+<column name="zext_ln574_reg_522">20, 0, 41, 21</column>
 </table>
 </item>
 </section>
@@ -151,18 +150,18 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_2">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_3">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_4">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="ap_return_5">out, 26, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
-<column name="sin_epsi">in, 26, ap_none, sin_epsi, scalar</column>
-<column name="cos_epsi">in, 26, ap_none, cos_epsi, scalar</column>
-<column name="vx">in, 26, ap_none, vx, scalar</column>
-<column name="vy">in, 26, ap_none, vy, scalar</column>
-<column name="kappa">in, 26, ap_none, kappa, scalar</column>
-<column name="inv_denom">in, 23, ap_none, inv_denom, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="ap_return_2">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="ap_return_3">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="ap_return_4">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="ap_return_5">out, 21, ap_ctrl_hs, fp_frenet_rows01_fn, return value</column>
+<column name="sin_epsi">in, 21, ap_none, sin_epsi, scalar</column>
+<column name="cos_epsi">in, 21, ap_none, cos_epsi, scalar</column>
+<column name="vx">in, 21, ap_none, vx, scalar</column>
+<column name="vy">in, 21, ap_none, vy, scalar</column>
+<column name="kappa">in, 21, ap_none, kappa, scalar</column>
+<column name="inv_denom">in, 20, ap_none, inv_denom, scalar</column>
 </table>
 </item>
 </section>

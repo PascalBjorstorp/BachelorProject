@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'fp_frenet_recip'" level="0">
-<item name = "Date">Thu May 21 15:23:04 2026
+<item name = "Date">Thu Jun 11 16:06:49 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 4.351 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 4.376 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">12, 12, 60.000 ns, 60.000 ns, 13, 13, yes</column>
+<column name="">9, 9, 45.000 ns, 45.000 ns, 10, 10, yes</column>
 </table>
 </item>
 <item name = "Detail">

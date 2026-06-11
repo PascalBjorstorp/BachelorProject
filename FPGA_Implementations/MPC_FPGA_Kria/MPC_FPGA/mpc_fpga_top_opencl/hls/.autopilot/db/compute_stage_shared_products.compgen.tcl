@@ -1,8 +1,8 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_26s_12ns_38_4_1
+set name mpc_fpga_top_opencl_mul_21s_7ns_28_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
@@ -16,7 +16,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 475 \
+    id 474 \
     name tr_dFyf_dvx_val \
     type other \
     dir I \
@@ -24,14 +24,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyf_dvx_val \
     op interface \
-    ports { tr_dFyf_dvx_val { I 26 vector } } \
+    ports { tr_dFyf_dvx_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 476 \
+    id 475 \
     name tr_dFyf_dvy_val \
     type other \
     dir I \
@@ -39,14 +39,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyf_dvy_val \
     op interface \
-    ports { tr_dFyf_dvy_val { I 26 vector } } \
+    ports { tr_dFyf_dvy_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 477 \
+    id 476 \
     name tr_dFyf_dom_val \
     type other \
     dir I \
@@ -54,14 +54,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyf_dom_val \
     op interface \
-    ports { tr_dFyf_dom_val { I 26 vector } } \
+    ports { tr_dFyf_dom_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 478 \
+    id 477 \
     name tr_dFyr_dvx_val \
     type other \
     dir I \
@@ -69,14 +69,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyr_dvx_val \
     op interface \
-    ports { tr_dFyr_dvx_val { I 26 vector } } \
+    ports { tr_dFyr_dvx_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 479 \
+    id 478 \
     name tr_dFyr_dvy_val \
     type other \
     dir I \
@@ -84,14 +84,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyr_dvy_val \
     op interface \
-    ports { tr_dFyr_dvy_val { I 26 vector } } \
+    ports { tr_dFyr_dvy_val { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 480 \
+    id 479 \
     name tr_dFyr_dom_val \
     type other \
     dir I \
@@ -99,7 +99,22 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_tr_dFyr_dom_val \
     op interface \
-    ports { tr_dFyr_dom_val { I 26 vector } } \
+    ports { tr_dFyr_dom_val { I 21 vector } } \
+} "
+}
+
+# Direct connection:
+if {${::AESL::PGuard_autoexp_gen}} {
+eval "cg_default_interface_gen_dc { \
+    id 480 \
+    name p_0_0_05039 \
+    type other \
+    dir I \
+    reset_level 1 \
+    sync_rst true \
+    corename dc_p_0_0_05039 \
+    op interface \
+    ports { p_0_0_05039 { I 21 vector } } \
 } "
 }
 
@@ -107,14 +122,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 481 \
-    name p_0_0_04262 \
+    name p_0_0_05038 \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_p_0_0_04262 \
+    corename dc_p_0_0_05038 \
     op interface \
-    ports { p_0_0_04262 { I 26 vector } } \
+    ports { p_0_0_05038 { I 21 vector } } \
 } "
 }
 
@@ -122,14 +137,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 482 \
-    name p_0_0_04261 \
+    name conv5_i_i_i_i465 \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_p_0_0_04261 \
+    corename dc_conv5_i_i_i_i465 \
     op interface \
-    ports { p_0_0_04261 { I 26 vector } } \
+    ports { conv5_i_i_i_i465 { I 21 vector } } \
 } "
 }
 
@@ -137,29 +152,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 483 \
-    name conv_i_i_i_i425 \
+    name conv5_i_i_i_i629 \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_conv_i_i_i_i425 \
+    corename dc_conv5_i_i_i_i629 \
     op interface \
-    ports { conv_i_i_i_i425 { I 26 vector } } \
-} "
-}
-
-# Direct connection:
-if {${::AESL::PGuard_autoexp_gen}} {
-eval "cg_default_interface_gen_dc { \
-    id 484 \
-    name conv_i_i_i_i574 \
-    type other \
-    dir I \
-    reset_level 1 \
-    sync_rst true \
-    corename dc_conv_i_i_i_i574 \
-    op interface \
-    ports { conv_i_i_i_i574 { I 26 vector } } \
+    ports { conv5_i_i_i_i629 { I 21 vector } } \
 } "
 }
 

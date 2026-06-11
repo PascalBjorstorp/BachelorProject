@@ -1,26 +1,26 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_23ns_23s_46_4_1
+set name mpc_fpga_top_opencl_mul_20s_20ns_40_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_23s_25ns_48_4_1
+set name mpc_fpga_top_opencl_mul_21s_21s_42_3_1_x
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_26s_43_4_1_x
+set name mpc_fpga_top_opencl_mul_20ns_11ns_30_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_25ns_16ns_40_4_1
+set name mpc_fpga_top_opencl_mul_18ns_20s_38_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -42,7 +42,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_C_eff_f \
     op interface \
-    ports { C_eff_f { I 26 vector } } \
+    ports { C_eff_f { I 21 vector } } \
 } "
 }
 
@@ -57,7 +57,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_front_num \
     op interface \
-    ports { front_num { I 26 vector } } \
+    ports { front_num { I 21 vector } } \
 } "
 }
 
@@ -72,7 +72,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx_safe \
     op interface \
-    ports { vx_safe { I 25 vector } } \
+    ports { vx_safe { I 20 vector } } \
 } "
 }
 
@@ -87,7 +87,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_inv_D_f \
     op interface \
-    ports { inv_D_f { I 23 vector } } \
+    ports { inv_D_f { I 20 vector } } \
 } "
 }
 

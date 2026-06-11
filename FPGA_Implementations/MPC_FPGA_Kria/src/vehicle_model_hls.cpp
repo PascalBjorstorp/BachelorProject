@@ -52,7 +52,7 @@
 static fp_FN_t fp_pacejka_inner_arg(fp_FN_t ba) {
 #pragma HLS INLINE
   fp_FN_t atan_ba_fn = fp_atan_lut_fn(ba);
-  return fp_mul_fn(VP_FN_C_SHAPE, atan_ba_fn);
+  return fp_mul_fn_const(VP_FN_C_SHAPE, atan_ba_fn);
 }
 
 static fp_FN_t fp_pacejka_ceff(fp_FN_t cos_inner, fp_FN_t inv_denom,
@@ -94,14 +94,14 @@ static void fp_frenet_rows01_fn(fp_FN_t sin_epsi, fp_FN_t cos_epsi, fp_FN_t vx,
   (void)ey;
   const fp_FN_t min_lin_vel_fn = fp_FN_from_QP(MIN_LIN_VEL);
   fp_FN_t v_eff = (vx > min_lin_vel_fn) ? vx : min_lin_vel_fn;
-  fp_FN_t dt_cp = fp_mul_fn(FN_MPC_DT, cos_epsi);
-  fp_FN_t kappa_dt = fp_mul_fn(kappa, FN_MPC_DT);
+  fp_FN_t dt_cp = fp_mul_fn_const(FN_MPC_DT, cos_epsi);
+  fp_FN_t kappa_dt = fp_mul_fn_const(kappa, FN_MPC_DT);
   fp_FN_t kappa2 = fp_mul_fn(kappa, kappa);
   fp_FN_t vx_cp = fp_mul_fn(v_eff, cos_epsi);
   fp_FN_t vy_sp = fp_mul_fn(vy, sin_epsi);
   *A00 = FP_FN_ONE;
-  *A01 = fp_mul_fn(FN_MPC_DT, vx_cp - vy_sp);
-  *A02 = fp_mul_fn(FN_MPC_DT, sin_epsi);
+  *A01 = fp_mul_fn_const(FN_MPC_DT, vx_cp - vy_sp);
+  *A02 = fp_mul_fn_const(FN_MPC_DT, sin_epsi);
   *A03 = dt_cp;
   fp_FN_t inv_denom2 = fp_mul_fn(inv_denom, inv_denom);
   fp_FN_t k2_vx = fp_mul_fn(kappa2, v_eff);
@@ -119,8 +119,8 @@ static void fp_slip_terms(fp_FN_t vy, fp_FN_t omega, fp_FN_t inv_vx,
                           fp_FN_t *front_num, fp_FN_t *rear_num,
                           fp_FN_t *front_ratio, fp_FN_t *rear_ratio) {
 #pragma HLS INLINE off
-  fp_FN_t lf_omega_local = fp_mul_fn(VP_FN_LF, omega);
-  fp_FN_t lr_omega_local = fp_mul_fn(VP_FN_LR, omega);
+  fp_FN_t lf_omega_local = fp_mul_fn_const(VP_FN_LF, omega);
+  fp_FN_t lr_omega_local = fp_mul_fn_const(VP_FN_LR, omega);
   fp_FN_t front_num_local = vy + lf_omega_local;
   fp_FN_t rear_num_local = vy - lr_omega_local;
 
@@ -140,7 +140,7 @@ static void fp_front_force_jacobians_fn(fp_FN_t C_eff_f, fp_FN_t front_num,
   fp_FN_t vx_inv = fp_mul_fn(vx_safe, inv_D_f);
   fp_FN_t daf_dvx = fp_mul_fn(front_num, inv_D_f);
   fp_FN_t daf_dvy = -vx_inv;
-  fp_FN_t lf_vx = fp_mul_fn(VP_FN_LF, vx_safe);
+  fp_FN_t lf_vx = fp_mul_fn_const(VP_FN_LF, vx_safe);
   fp_FN_t daf_dom = -fp_mul_fn(lf_vx, inv_D_f);
   *dFyf_dvx = fp_mul_fn(C_eff_f, daf_dvx);
   *dFyf_dvy = fp_mul_fn(C_eff_f, daf_dvy);
@@ -155,7 +155,7 @@ static void fp_rear_force_jacobians_fn(fp_FN_t C_eff_r, fp_FN_t rear_num,
   fp_FN_t vx_inv = fp_mul_fn(vx_safe, inv_D_r);
   fp_FN_t dar_dvx = fp_mul_fn(rear_num, inv_D_r);
   fp_FN_t dar_dvy = -vx_inv;
-  fp_FN_t dar_dom = fp_mul_fn(VP_FN_LR, vx_inv);
+  fp_FN_t dar_dom = fp_mul_fn_const(VP_FN_LR, vx_inv);
   *dFyr_dvx = fp_mul_fn(C_eff_r, dar_dvx);
   *dFyr_dvy = fp_mul_fn(C_eff_r, dar_dvy);
   *dFyr_dom = fp_mul_fn(C_eff_r, dar_dom);
@@ -193,11 +193,11 @@ static void fp_rollout_from_forces_fn(
   fp_FN_t dvy_term = fyf_cos + F_yr;
   fp_FN_t vx_omega = fp_mul_fn(vx_safe, omega);
   fp_FN_t vy_omega = fp_mul_fn(vy, omega);
-  fp_FN_t domega_lf = fp_mul_fn(VP_FN_LF, fyf_cos);
-  fp_FN_t domega_lr = fp_mul_fn(VP_FN_LR, F_yr);
-  fp_FN_t dvx_dt = fp_mul_fn((Fx - fx_sin_delta), VP_FN_INV_MASS) + vy_omega;
-  fp_FN_t dvy_dt = fp_mul_fn(dvy_term, VP_FN_INV_MASS) - vx_omega;
-  fp_FN_t domega_dt = fp_mul_fn((domega_lf - domega_lr), VP_FN_INV_IZ);
+  fp_FN_t domega_lf = fp_mul_fn_const(VP_FN_LF, fyf_cos);
+  fp_FN_t domega_lr = fp_mul_fn_const(VP_FN_LR, F_yr);
+  fp_FN_t dvx_dt = fp_mul_fn_const((Fx - fx_sin_delta), VP_FN_INV_MASS) + vy_omega;
+  fp_FN_t dvy_dt = fp_mul_fn_const(dvy_term, VP_FN_INV_MASS) - vx_omega;
+  fp_FN_t domega_dt = fp_mul_fn_const((domega_lf - domega_lr), VP_FN_INV_IZ);
   fp_FN_t e_y_step_vx = fp_mul_fn(dt, vx_sin_epsi);
   fp_FN_t e_y_step_vy = fp_mul_fn(dt, vy_cos_epsi);
   fp_FN_t e_psi_step_omega = fp_mul_fn(dt, omega);
@@ -268,13 +268,13 @@ static void compute_front_tire_path_fn(fp_FN_t delta_fn, fp_FN_t front_ratio,
 #pragma HLS INLINE off
   fp_FN_t alpha = delta_fn - fp_atan_lut_fn(front_ratio);
 
-  fp_FN_t Ba_f_fn = fp_mul_fn(FP_FN_CONST(MPC_FPGA_B_FRONT), alpha);
+  fp_FN_t Ba_f_fn = fp_mul_fn_const(FP_FN_CONST(MPC_FPGA_B_FRONT), alpha);
   fp_FN_t inner_f_fn = fp_pacejka_inner_arg(Ba_f_fn);
   fp_FN_t sin_inner_f, cos_inner_f;
   fp_trig_pair(inner_f_fn, &sin_inner_f, &cos_inner_f);
   fp_FN_t inv_denom_f_fn = fp_recip_fn(FP_FN_ONE + fp_mul_fn(Ba_f_fn, Ba_f_fn));
-  fp_FN_t D_pac_f_cb_fn = fp_mul_fn(VP_FN_D_FRONT, VP_FN_CB_FRONT) +
-                          (-fp_mul_fn(D_transfer, VP_FN_CB_FRONT));
+  fp_FN_t D_pac_f_cb_fn = fp_mul_fn_const(VP_FN_D_FRONT, VP_FN_CB_FRONT) +
+                          (-fp_mul_fn_const(D_transfer, VP_FN_CB_FRONT));
   fp_FN_t C_eff_raw =
       fp_pacejka_ceff(cos_inner_f, inv_denom_f_fn, D_pac_f_cb_fn);
   fp_FN_t F_y = fp_mul_fn(D_pac_f, sin_inner_f);
@@ -301,13 +301,13 @@ static void compute_rear_tire_path_fn(fp_FN_t rear_ratio, fp_FN_t D_transfer,
 #pragma HLS INLINE off
   fp_FN_t alpha = -fp_atan_lut_fn(rear_ratio);
 
-  fp_FN_t Ba_r_fn = fp_mul_fn(FP_FN_CONST(MPC_FPGA_B_REAR), alpha);
+  fp_FN_t Ba_r_fn = fp_mul_fn_const(FP_FN_CONST(MPC_FPGA_B_REAR), alpha);
   fp_FN_t inner_r_fn = fp_pacejka_inner_arg(Ba_r_fn);
   fp_FN_t sin_inner_r, cos_inner_r;
   fp_trig_pair(inner_r_fn, &sin_inner_r, &cos_inner_r);
   fp_FN_t inv_denom_r_fn = fp_recip_fn(FP_FN_ONE + fp_mul_fn(Ba_r_fn, Ba_r_fn));
   fp_FN_t D_pac_r_cb_fn =
-      fp_mul_fn(VP_FN_D_REAR, VP_FN_CB_REAR) + fp_mul_fn(D_transfer, VP_FN_CB_REAR);
+      fp_mul_fn_const(VP_FN_D_REAR, VP_FN_CB_REAR) + fp_mul_fn_const(D_transfer, VP_FN_CB_REAR);
   fp_FN_t C_eff_raw = fp_pacejka_ceff(cos_inner_r, inv_denom_r_fn, D_pac_r_cb_fn);
   fp_FN_t F_y = fp_mul_fn(D_pac_r, sin_inner_r);
   fp_FN_t C_eff = (C_eff_raw > C_min_r) ? C_eff_raw : C_min_r;
@@ -340,7 +340,7 @@ static void compute_frenet_tire_hls(fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
    * +3 BRAM in tire for only 5 saved cycles per Frenet call. The LUT
    * pressure spread riccati_pass placement and broke WNS via the bucket
    * A fanout (LOOP_522 product reg -> LOOP_580 sum6). Not worth it. */
-#pragma HLS ALLOCATION function instances=fp_trig_pair_fused_fn limit=2
+//#pragma HLS ALLOCATION function instances=fp_trig_pair_fused_fn limit=2
 #pragma HLS INLINE off
   const fp_FN_t min_lin_vel_fn = fp_FN_from_QP(MIN_LIN_VEL);
   const fp_FN_t vx_fn = fp_FN_from_QP(vx);
@@ -355,12 +355,12 @@ static void compute_frenet_tire_hls(fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
   fp_trig_pair(delta_fn, &tr.sin_delta, &tr.cos_delta);
 
   /* Load transfer in FN. */
-  tr.Fz_transfer = fp_mul_fn(a_cmd_fn, VP_FN_FZ_LOAD_GAIN);
-  tr.D_transfer = fp_mul_fn(a_cmd_fn, VP_FN_D_LOAD_GAIN);
+  tr.Fz_transfer = fp_mul_fn_const(a_cmd_fn, VP_FN_FZ_LOAD_GAIN);
+  tr.D_transfer = fp_mul_fn_const(a_cmd_fn, VP_FN_D_LOAD_GAIN);
   tr.C_min_f =
-      VP_FN_CMIN_FRONT_STATIC - fp_mul_fn(a_cmd_fn, VP_FN_CMIN_FRONT_LOAD_GAIN);
+      VP_FN_CMIN_FRONT_STATIC - fp_mul_fn_const(a_cmd_fn, VP_FN_CMIN_FRONT_LOAD_GAIN);
   tr.C_min_r =
-      VP_FN_CMIN_REAR_STATIC + fp_mul_fn(a_cmd_fn, VP_FN_CMIN_REAR_LOAD_GAIN);
+      VP_FN_CMIN_REAR_STATIC + fp_mul_fn_const(a_cmd_fn, VP_FN_CMIN_REAR_LOAD_GAIN);
 
   fp_FN_t D_pac_f = VP_FN_D_FRONT - tr.D_transfer;
   fp_FN_t D_pac_r = VP_FN_D_REAR + tr.D_transfer;
@@ -460,9 +460,9 @@ static inline void compute_stage_shared_products(const FpTireResults &tr,
   out.dFyf_dvx_sin = dFyf_dvx_sin_fn;
   out.dFyf_dvy_sin = dFyf_dvy_sin_fn;
   out.dFyf_dom_sin = dFyf_dom_sin_fn;
-  out.vx_damping = fp_mul_fn(out.dFyf_dvx_sin, VP_FN_DT_INV_MASS);
-  out.vy_damping = fp_mul_fn(out.dFyf_dvy_sin, VP_FN_DT_INV_MASS);
-  out.om_damping = fp_mul_fn(out.dFyf_dom_sin, VP_FN_DT_INV_MASS);
+  out.vx_damping = fp_mul_fn_const(out.dFyf_dvx_sin, VP_FN_DT_INV_MASS);
+  out.vy_damping = fp_mul_fn_const(out.dFyf_dvy_sin, VP_FN_DT_INV_MASS);
+  out.om_damping = fp_mul_fn_const(out.dFyf_dom_sin, VP_FN_DT_INV_MASS);
   out.neg_vx_damping = -out.vx_damping;
   out.neg_vy_damping = -out.vy_damping;
   out.neg_om_damping = -out.om_damping;
@@ -472,17 +472,17 @@ static inline void compute_stage_shared_products(const FpTireResults &tr,
   out.dFyf_dvx_cos = dFyf_dvx_cos_fn;
   out.dFyf_dvy_cos = dFyf_dvy_cos_fn;
   out.dFyf_dom_cos = dFyf_dom_cos_fn;
-  out.mass_omega = fp_mul_fn(VP_FN_MASS, omega);
-  out.mass_vx = fp_mul_fn(VP_FN_MASS, vx);
+  out.mass_omega = fp_mul_fn_const(VP_FN_MASS, omega);
+  out.mass_vx = fp_mul_fn_const(VP_FN_MASS, vx);
   out.neg_mass_omega = -out.mass_omega;
   out.neg_mass_vx = -out.mass_vx;
 
-  out.lf_dFyf_dvx_cos = fp_mul_fn(VP_FN_LF, out.dFyf_dvx_cos);
-  out.lf_dFyf_dvy_cos = fp_mul_fn(VP_FN_LF, out.dFyf_dvy_cos);
-  out.lf_dFyf_dom_cos = fp_mul_fn(VP_FN_LF, out.dFyf_dom_cos);
-  out.lr_dFyr_dvx = fp_mul_fn(VP_FN_LR, tr.dFyr_dvx);
-  out.lr_dFyr_dvy = fp_mul_fn(VP_FN_LR, tr.dFyr_dvy);
-  out.lr_dFyr_dom = fp_mul_fn(VP_FN_LR, tr.dFyr_dom);
+  out.lf_dFyf_dvx_cos = fp_mul_fn_const(VP_FN_LF, out.dFyf_dvx_cos);
+  out.lf_dFyf_dvy_cos = fp_mul_fn_const(VP_FN_LF, out.dFyf_dvy_cos);
+  out.lf_dFyf_dom_cos = fp_mul_fn_const(VP_FN_LF, out.dFyf_dom_cos);
+  out.lr_dFyr_dvx = fp_mul_fn_const(VP_FN_LR, tr.dFyr_dvx);
+  out.lr_dFyr_dvy = fp_mul_fn_const(VP_FN_LR, tr.dFyr_dvy);
+  out.lr_dFyr_dom = fp_mul_fn_const(VP_FN_LR, tr.dFyr_dom);
   out.neg_lr_dFyr_dvx = -out.lr_dFyr_dvx;
   out.neg_lr_dFyr_dvy = -out.lr_dFyr_dvy;
   out.neg_lr_dFyr_dom = -out.lr_dFyr_dom;
@@ -502,19 +502,19 @@ static inline void compute_B_steering(const FpTireResults &tr,
       fp_mul_fn(tr.C_eff_f_raw, tr.cos_delta);
   fp_FN_t dFyf_dd_cos_min_fn = fp_mul_fn(tr.C_min_f, tr.cos_delta);
   fp_FN_t Fyf_sin_fn = fp_mul_fn(tr.F_yf, tr.sin_delta);
-  fp_FN_t Fyf_cos_dt = fp_mul_fn(Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
-  fp_FN_t Fyf_sin_dt = fp_mul_fn(Fyf_sin_fn, VP_FN_DT_INV_MASS);
+  fp_FN_t Fyf_cos_dt = fp_mul_fn_const(Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
+  fp_FN_t Fyf_sin_dt = fp_mul_fn_const(Fyf_sin_fn, VP_FN_DT_INV_MASS);
 
   fp_FN_t B20_raw =
-      fp_mul_fn(dFyf_dd_sin_raw_fn + Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
+      fp_mul_fn_const(dFyf_dd_sin_raw_fn + Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
   fp_FN_t B20_min =
-      fp_mul_fn(dFyf_dd_sin_min_fn + Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
+      fp_mul_fn_const(dFyf_dd_sin_min_fn + Fyf_cos_fn, VP_FN_NEG_DT_INV_MASS);
   *B20 = use_front_raw ? B20_raw : B20_min;
 
   fp_FN_t B30_raw =
-      fp_mul_fn(dFyf_dd_cos_raw_fn, VP_FN_DT_INV_MASS) + (-Fyf_sin_dt);
+      fp_mul_fn_const(dFyf_dd_cos_raw_fn, VP_FN_DT_INV_MASS) + (-Fyf_sin_dt);
   fp_FN_t B30_min =
-      fp_mul_fn(dFyf_dd_cos_min_fn, VP_FN_DT_INV_MASS) + (-Fyf_sin_dt);
+      fp_mul_fn_const(dFyf_dd_cos_min_fn, VP_FN_DT_INV_MASS) + (-Fyf_sin_dt);
   *B30 = use_front_raw ? B30_raw : B30_min;
 
   fp_FN_t B40_raw =
@@ -553,9 +553,9 @@ static void compute_B_accel_load_transfer(const FpTireResults &tr,
   fp_FN_t dFyf_da_min_cos = fp_mul_fn(dFyf_da_min, tr.cos_delta);
 
   fp_FN_t B31_raw =
-      fp_mul_fn(dFyf_da_raw_cos + dFyr_da, VP_FN_DT_INV_MASS);
+      fp_mul_fn_const(dFyf_da_raw_cos + dFyr_da, VP_FN_DT_INV_MASS);
   fp_FN_t B31_min =
-      fp_mul_fn(dFyf_da_min_cos + dFyr_da, VP_FN_DT_INV_MASS);
+      fp_mul_fn_const(dFyf_da_min_cos + dFyr_da, VP_FN_DT_INV_MASS);
   *B31 = use_front_raw ? B31_raw : B31_min;
 
   fp_FN_t lr_dFyr_da_dt_iz = fp_mul_fn(dFyr_da, neg_lr_dt_over_iz);
@@ -603,7 +603,7 @@ void compute_frenet_AB_hls(fp_QP_t ey, fp_QP_t epsi, fp_QP_t vx, fp_QP_t vy,
 
     /* Reuse exactly the same trig pair for rollout to avoid duplicate LUT
      * reads. */
-    fp_FN_t Fx = fp_mul_fn(VP_FN_MASS, a_cmd_fn);
+    fp_FN_t Fx = fp_mul_fn_const(VP_FN_MASS, a_cmd_fn);
     fp_rollout_from_forces_fn(
         ey_fn, epsi_fn, sin_epsi_fn, cos_epsi_fn,
         tr.vx_safe, ref_v_fn, vy_fn,
@@ -644,33 +644,33 @@ void compute_frenet_AB_hls(fp_QP_t ey, fp_QP_t epsi, fp_QP_t vx, fp_QP_t vy,
   fp_FN_t neg_lr_dFyr_dvx = s.neg_lr_dFyr_dvx;
   fp_FN_t neg_lr_dFyr_dvy = s.neg_lr_dFyr_dvy;
   fp_FN_t neg_lr_dFyr_dom = s.neg_lr_dFyr_dom;
-  fp_FN_t lf_dt_over_iz = fp_mul_fn(VP_FN_LF, VP_FN_DT_INV_IZ);
-  fp_FN_t neg_lr_dt_over_iz = fp_mul_fn(-VP_FN_LR, VP_FN_DT_INV_IZ);
+  fp_FN_t lf_dt_over_iz = fp_mul_fn_const(VP_FN_LF, VP_FN_DT_INV_IZ);
+  fp_FN_t neg_lr_dt_over_iz = fp_mul_fn_const(-VP_FN_LR, VP_FN_DT_INV_IZ);
 
   /* Row 2: vx dynamics */
   fp_FN_t A22 = FP_FN_ONE + neg_vx_damping;
-  fp_FN_t A23 = fp_mul_fn(FN_MPC_DT, omega_fn) + neg_vy_damping;
-  fp_FN_t A24 = fp_mul_fn(FN_MPC_DT, vy_fn) + neg_om_damping;
+  fp_FN_t A23 = fp_mul_fn_const(FN_MPC_DT, omega_fn) + neg_vy_damping;
+  fp_FN_t A24 = fp_mul_fn_const(FN_MPC_DT, vy_fn) + neg_om_damping;
 
   /* Row 3: vy dynamics (uses DT-scaled inv_mass, matching baseline QP). */
   fp_FN_t A32 =
-      fp_mul_fn(dFyf_dvx_cos + tr.dFyr_dvx + neg_mass_omega,
+      fp_mul_fn_const(dFyf_dvx_cos + tr.dFyr_dvx + neg_mass_omega,
                         VP_FN_DT_INV_MASS);
   fp_FN_t A33 =
       FP_FN_ONE +
-      fp_mul_fn(dFyf_dvy_cos + tr.dFyr_dvy, VP_FN_DT_INV_MASS);
+      fp_mul_fn_const(dFyf_dvy_cos + tr.dFyr_dvy, VP_FN_DT_INV_MASS);
   fp_FN_t A34 =
-      fp_mul_fn(dFyf_dom_cos + tr.dFyr_dom + neg_mass_vx,
+      fp_mul_fn_const(dFyf_dom_cos + tr.dFyr_dom + neg_mass_vx,
                         VP_FN_DT_INV_MASS);
 
   /* Row 4: omega dynamics.*/
   fp_FN_t A42 =
-      fp_mul_fn(lf_dFyf_dvx_cos + neg_lr_dFyr_dvx, VP_FN_DT_INV_IZ);
+      fp_mul_fn_const(lf_dFyf_dvx_cos + neg_lr_dFyr_dvx, VP_FN_DT_INV_IZ);
   fp_FN_t A43 =
-      fp_mul_fn(lf_dFyf_dvy_cos + neg_lr_dFyr_dvy, VP_FN_DT_INV_IZ);
+      fp_mul_fn_const(lf_dFyf_dvy_cos + neg_lr_dFyr_dvy, VP_FN_DT_INV_IZ);
   fp_FN_t A44 =
       FP_FN_ONE +
-      fp_mul_fn(lf_dFyf_dom_cos + neg_lr_dFyr_dom, VP_FN_DT_INV_IZ);
+      fp_mul_fn_const(lf_dFyf_dom_cos + neg_lr_dFyr_dom, VP_FN_DT_INV_IZ);
 
   /* B matrix — steering (moved into helper) */
   fp_FN_t B20, B30, B40;

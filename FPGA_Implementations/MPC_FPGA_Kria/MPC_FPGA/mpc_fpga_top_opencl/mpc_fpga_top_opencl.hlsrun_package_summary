@@ -9,10 +9,10 @@
 <ENTRY>
 {
  "type": "ET_CmdStep",
- "dateTimestamp": "Thu May 21 14:12:55 2026",
- "timestampMillis": "1779365575879",
+ "dateTimestamp": "Wed Jun 10 20:46:40 2026",
+ "timestampMillis": "1781117200045",
  "buildStep": {
-  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "cmdId": "821c80ea-edb6-4a7e-9746-257b8484be87",
   "name": "vitis-run",
   "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/logs/mpc_fpga_top_opencl.steps.log",
   "commandLine": "/home/akselmo/Vivado_program/2025.2/Vitis/bin/unwrapped/lnx64.o/vitis-run  --mode hls --package --config /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg --work_dir mpc_fpga_top_opencl ",
@@ -33,10 +33,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 14:12:55 2026",
- "timestampMillis": "1779365575879",
+ "dateTimestamp": "Wed Jun 10 20:46:40 2026",
+ "timestampMillis": "1781117200045",
  "status": {
-  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "cmdId": "821c80ea-edb6-4a7e-9746-257b8484be87",
   "state": "CS_RUNNING"
  }
 }
@@ -44,8 +44,8 @@
 <ENTRY>
 {
  "type": "ET_FlowMetaData",
- "dateTimestamp": "Thu May 21 14:12:57 2026",
- "timestampMillis": "1779365577823",
+ "dateTimestamp": "Wed Jun 10 20:46:41 2026",
+ "timestampMillis": "1781117201960",
  "buildSummary": {
   "hardwarePlatform": "",
   "hardwareDsa": "",
@@ -68,8 +68,7 @@
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp",
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp",
      "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp",
-     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp",
-     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_runtime_tune.cpp"
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp"
     ],
     "psSources": [],
     "cuNames": [],
@@ -85,10 +84,10 @@
 <ENTRY>
 {
  "type": "ET_SubCmdStep",
- "dateTimestamp": "Thu May 21 14:12:57 2026",
- "timestampMillis": "1779365577823",
+ "dateTimestamp": "Wed Jun 10 20:46:41 2026",
+ "timestampMillis": "1781117201961",
  "buildStep": {
-  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "cmdId": "fa0763ae-c994-49d7-9f44-13ccc3c94f90",
   "name": "",
   "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/hls.log",
   "commandLine": "",
@@ -101,10 +100,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 14:12:57 2026",
- "timestampMillis": "1779365577823",
+ "dateTimestamp": "Wed Jun 10 20:46:41 2026",
+ "timestampMillis": "1781117201961",
  "status": {
-  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "cmdId": "fa0763ae-c994-49d7-9f44-13ccc3c94f90",
   "state": "CS_RUNNING"
  }
 }
@@ -112,10 +111,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 14:13:04 2026",
- "timestampMillis": "1779365584540",
+ "dateTimestamp": "Wed Jun 10 20:46:48 2026",
+ "timestampMillis": "1781117208603",
  "status": {
-  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "cmdId": "fa0763ae-c994-49d7-9f44-13ccc3c94f90",
   "state": "CS_PASSED"
  }
 }
@@ -123,10 +122,10 @@
 <ENTRY>
 {
  "type": "ET_Status",
- "dateTimestamp": "Thu May 21 14:13:04 2026",
- "timestampMillis": "1779365584595",
+ "dateTimestamp": "Wed Jun 10 20:46:48 2026",
+ "timestampMillis": "1781117208657",
  "status": {
-  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "cmdId": "821c80ea-edb6-4a7e-9746-257b8484be87",
   "state": "CS_PASSED"
  }
 }
@@ -134,8 +133,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 14:13:04 2026",
- "timestampMillis": "1779365584595",
+ "dateTimestamp": "Wed Jun 10 20:46:48 2026",
+ "timestampMillis": "1781117208657",
  "report": {
   "path": "",
   "name": "",
@@ -148,8 +147,8 @@
 <ENTRY>
 {
  "type": "ET_Report",
- "dateTimestamp": "Thu May 21 14:13:04 2026",
- "timestampMillis": "1779365584595",
+ "dateTimestamp": "Wed Jun 10 20:46:48 2026",
+ "timestampMillis": "1781117208657",
  "report": {
   "path": "",
   "name": "",

@@ -163,13 +163,13 @@ extern "C" {
 
 
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_pragma_ablation.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 10 "../src/../include/fp_math_hls.h" 2
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 1
 # 21 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
 # 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_constants.h" 1
 # 22 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_profile_config.hpp" 1
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
 # 23 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/common/technology/autopilot/ap_fixed.h" 1
 
@@ -54701,99 +54701,161 @@ static inline void fp_cast_audit_bump_mulqp_site(int site_id) {
 #pragma HLS INLINE
   (void)site_id;
 }
-# 168 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(32 == 32,
+# 192 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert(26 == 26,
               "External payload width must match QP width for raw QP transport");
-static_assert(14 == 14,
+static_assert(12 == 12,
               "External payload format must match QP format for raw QP transport");
-# 410 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-static_assert(((40) + 0) > (32 - 14), "P width too small");
-static_assert(((34) + 0) > (32 - 14), "MG width too small");
-static_assert(((26) + 0) > (32 - 14), "K width too small");
-
-static_assert((((59) + 1) - ((40) + 0)) > 0, "P/QP guard must be positive");
-static_assert((((52) + 1) - ((34) + 0)) > 0, "MG/QP guard must be positive");
-static_assert((((58) + 1) - ((34) + 0)) > 0, "MG/K guard must be positive");
-static_assert((((45) + 1) - ((26) + 0)) > 0, "K/QP guard must be positive");
 
 
 
+static_assert(26 == 26, "Expected Q12.14 QP width");
+static_assert(12 == 12, "Expected Q12.14 QP integer bits");
+static_assert((26 - 12) == 14, "Expected Q12.14 QP fractional bits");
+static_assert((1 << (26 - 12)) == 16384, "Expected Q12.14 raw scale");
+# 471 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+static_assert((21 + 6) == 21 + 6, "P width must be int+frac");
+static_assert((15 + 3) == 15 + 3, "MG width must be int+frac");
+static_assert((9 + 8) == 9 + 8, "K width must be int+frac");
 
 
 
-typedef ap_fixed<32, 14, AP_TRN, AP_WRAP> fp_QP_t;
-typedef ap_int<32> fp_QP_raw_t;
+static_assert(21 >= 12 && 21 <= 24, "P int bits out of sane range");
+static_assert(15 >= 8 && 15 <= 20, "MG int bits out of sane range");
+static_assert(9 >= 5 && 9 <= 16, "K int bits out of sane range");
+static_assert(6 > 0 && 3 > 0 &&
+              8 > 0, "family fractional bits must be positive");
+
+static_assert((((43) + 1) - (21 + 6)) > 0, "P/QP guard must be positive");
+static_assert((((34) + 1) - (15 + 3)) > 0, "MG/QP guard must be positive");
+static_assert((((35) + 1) - (15 + 3)) > 0, "MG/K guard must be positive");
+static_assert((((33) + 1) - (9 + 8)) > 0, "K/QP guard must be positive");
+
+
+
+
+
+
+typedef ap_fixed<26, 12, AP_TRN, AP_WRAP> fp_QP_t;
+typedef ap_int<26> fp_QP_raw_t;
 
 
 typedef fp_QP_raw_t fp_stream_raw_t;
 
 
-typedef ap_int<(32 + (((51) + 1) - 32))> fp_QP_mul_t;
+typedef ap_int<(26 + (((43) + 1) - 26))> fp_QP_mul_t;
 
 
-typedef ap_int<((44) + 1)> fp_sum6_QP_mul_t;
+typedef ap_int<((38) + 1)> fp_sum6_QP_mul_t;
 
 
-typedef ap_fixed<((26) + 0), 9, AP_TRN, AP_WRAP> fp_FN_t;
-typedef ap_int<((26) + 0)> fp_fn_raw_t;
-typedef ap_int<(((26) + 0) + (((44) + 1) - ((26) + 0)))> fp_fn_accum_t;
-
-
-
+typedef ap_fixed<((21) + 0), (((21) + 0) - 12), AP_TRN, AP_WRAP> fp_FN_t;
+typedef ap_int<((21) + 0)> fp_fn_raw_t;
+typedef ap_int<(((21) + 0) + (((35) + 1) - ((21) + 0)))> fp_fn_accum_t;
 
 
 
-typedef ap_fixed<((40) + 0), (((40) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_P_t;
-typedef ap_int<((40) + 0)> fp_P_raw_t;
 
 
-typedef ap_fixed<((34) + 0), (((34) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_MG_t;
-typedef ap_int<((34) + 0)> fp_MG_raw_t;
+
+typedef ap_fixed<(21 + 6), 21, AP_TRN, AP_WRAP> fp_P_t;
+typedef ap_int<(21 + 6)> fp_P_raw_t;
 
 
-typedef ap_fixed<((26) + 0), (((26) + 0) - (32 - 14)), AP_TRN, AP_WRAP> fp_K_t;
-typedef ap_int<((26) + 0)> fp_K_raw_t;
-# 465 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
-typedef ap_int<(((40) + 0) + (((59) + 1) - ((40) + 0)))> fp_P_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((52) + 1) - ((34) + 0)))> fp_MG_QP_mul_t;
-typedef ap_int<(((34) + 0) + (((58) + 1) - ((34) + 0)))> fp_MG_K_mul_t;
-typedef ap_int<(((26) + 0) + (((45) + 1) - ((26) + 0)))> fp_K_QP_mul_t;
+typedef ap_fixed<(15 + 3), 15, AP_TRN, AP_WRAP> fp_MG_t;
+typedef ap_int<(15 + 3)> fp_MG_raw_t;
 
-typedef ap_int<((31) + 1)> fp_sum2_QP_raw_t;
-typedef ap_int<((25) + 1)> fp_sum4_QP_raw_t;
-typedef ap_int<((24) + 1)> fp_sum8_QP_raw_t;
-typedef ap_int<((39) + 1)> fp_sum2_P_raw_t;
-typedef ap_int<((33) + 1)> fp_sum2_MG_raw_t;
-typedef ap_int<((58) + 1)> fp_sum6_P_QP_t;
-typedef ap_int<((52) + 1)> fp_sum6_MG_QP_t;
-typedef ap_int<((51) + 1)> fp_sum2_P_QP_t;
-typedef ap_int<((50) + 1)> fp_sum4_P_QP_t;
-typedef ap_int<((45) + 1)> fp_sum2_MG_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_MG_QP_t;
-typedef ap_int<((48) + 1)> fp_sum2_MG_K_t;
+
+typedef ap_fixed<(9 + 8), 9, AP_TRN, AP_WRAP> fp_K_t;
+typedef ap_int<(9 + 8)> fp_K_raw_t;
+# 534 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+typedef ap_int<((21 + 6) + (((43) + 1) - (21 + 6)))> fp_P_QP_mul_t;
+typedef ap_int<((15 + 3) + (((34) + 1) - (15 + 3)))> fp_MG_QP_mul_t;
+typedef ap_int<((15 + 3) + (((35) + 1) - (15 + 3)))> fp_MG_K_mul_t;
+typedef ap_int<((9 + 8) + (((33) + 1) - (9 + 8)))> fp_K_QP_mul_t;
+
+typedef ap_int<((27) + 1)> fp_sum2_QP_raw_t;
+typedef ap_int<((23) + 1)> fp_sum4_QP_raw_t;
+typedef ap_int<((22) + 1)> fp_sum8_QP_raw_t;
+typedef ap_int<((27) + 1)> fp_sum2_P_raw_t;
+typedef ap_int<((19) + 1)> fp_sum2_MG_raw_t;
+typedef ap_int<((42) + 1)> fp_sum6_P_QP_t;
+typedef ap_int<((34) + 1)> fp_sum6_MG_QP_t;
+typedef ap_int<((35) + 1)> fp_sum2_P_QP_t;
+typedef ap_int<((35) + 1)> fp_sum4_P_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_MG_QP_t;
+typedef ap_int<((27) + 1)> fp_sum4_MG_QP_t;
+typedef ap_int<((24) + 1)> fp_sum2_MG_K_t;
 enum {
   MPC_HLS_P_MIX_MUL_WIDTH =
-      ((((40) + 0) + (((59) + 1) - ((40) + 0))) >
-       (((34) + 0) + (((58) + 1) - ((34) + 0))))
-          ? (((40) + 0) + (((59) + 1) - ((40) + 0)))
-          : (((34) + 0) + (((58) + 1) - ((34) + 0)))
+      (((21 + 6) + (((43) + 1) - (21 + 6))) >
+       ((15 + 3) + (((35) + 1) - (15 + 3))))
+          ? ((21 + 6) + (((43) + 1) - (21 + 6)))
+          : ((15 + 3) + (((35) + 1) - (15 + 3)))
 };
-typedef ap_int<((59) + 1)> fp_P_mix_item_t;
-typedef ap_int<((59) + 1)> fp_sum2_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum4_P_MIX_t;
-typedef ap_int<((56) + 1)> fp_sum8_P_MIX_t;
-typedef ap_int<((57) + 1)> fp_sum8_P_MIX_pup_t;
-typedef ap_int<((45) + 1)> fp_K_qp_item_t;
-typedef ap_int<((44) + 1)> fp_sum2_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum4_K_QP_t;
-typedef ap_int<((43) + 1)> fp_sum8_K_QP_t;
-typedef ap_int<((44) + 1)> fp_sum2_QP_MG_t;
-typedef ap_int<((25) + 1)> fp_QP_recip_shift_t;
-typedef ap_int<((21) + 1)> fp_FN_recip_shift_t;
-typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
+typedef ap_int<((43) + 1)> fp_P_mix_item_t;
+typedef ap_int<((43) + 1)> fp_sum2_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum4_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_t;
+typedef ap_int<((41) + 1)> fp_sum8_P_MIX_pup_t;
+typedef ap_int<((33) + 1)> fp_K_qp_item_t;
+typedef ap_int<((33) + 1)> fp_sum2_K_QP_t;
+typedef ap_int<((33) + 1)> fp_sum4_K_QP_t;
+typedef ap_int<((31) + 1)> fp_sum8_K_QP_t;
+typedef ap_int<((28) + 1)> fp_sum2_QP_MG_t;
+typedef ap_int<((15) + 1)> fp_QP_recip_shift_t;
+typedef ap_int<((18) + 1)> fp_FN_recip_shift_t;
+typedef ap_int<((42) + 1)> fp_QP_det_mul_t;
 
-# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_width_probe.hpp" 1
-# 504 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
+# 1 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp" 1
+# 80 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_hls_config.hpp"
+enum FpWidthProbeId {
+  FP_WP_QP_MUL = 0,
+  FP_WP_P_QP_MUL,
+  FP_WP_MG_QP_MUL,
+  FP_WP_MG_K_MUL,
+  FP_WP_K_QP_MUL,
+  FP_WP_FN_MUL,
+  FP_WP_SUM2_QP_RAW,
+  FP_WP_SUM4_QP_RAW,
+  FP_WP_SUM8_QP_RAW,
+  FP_WP_SUM6_QP,
+  FP_WP_SUM6_QP_ACC,
+  FP_WP_SUM2_P_RAW,
+  FP_WP_SUM6_P_QP,
+  FP_WP_SUM2_P_QP,
+  FP_WP_SUM4_P_QP,
+  FP_WP_SUM2_P_MIX,
+  FP_WP_SUM4_P_MIX,
+  FP_WP_SUM8_P_MIX,
+  FP_WP_SUM8_P_MIX_PUP,
+  FP_WP_SUM2_MG_RAW,
+  FP_WP_SUM6_MG_QP,
+  FP_WP_SUM2_MG_QP,
+  FP_WP_SUM4_MG_QP,
+  FP_WP_SUM2_QP_MG,
+  FP_WP_SUM2_MG_K,
+  FP_WP_SUM2_K_QP,
+  FP_WP_SUM4_K_QP,
+  FP_WP_SUM8_K_QP,
+  FP_WP_QP_RECIP_SHIFT,
+  FP_WP_FN_RECIP_SHIFT,
+  FP_WP_QP_DET_MUL,
+  FP_WP_QP_ITEM,
+  FP_WP_P_QP_ITEM,
+  FP_WP_P_MIX_ITEM,
+  FP_WP_MG_QP_ITEM,
+  FP_WP_K_QP_ITEM,
+  FP_WP_QP_STORE,
+  FP_WP_FN_STORE,
+  FP_WP_P_STORE,
+  FP_WP_MG_STORE,
+  FP_WP_K_STORE,
+  FP_WP_COUNT
+};
+# 574 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp" 2
+
 
 
 
@@ -54802,126 +54864,143 @@ typedef ap_int<((50) + 1)> fp_QP_det_mul_t;
 static inline fp_QP_t fp_QP_from_raw(fp_stream_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_stream_raw_t fp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_stream_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
   return out;
 }
 
 static inline fp_QP_raw_t fp_qp_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   fp_QP_raw_t out = 0;
-  out.range(32 - 1, 0) = value.range(32 - 1, 0);
-  ((void)0);
+  out.range(26 - 1, 0) = value.range(26 - 1, 0);
+  VITIS_LOOP_598_1: do { (void)(FP_WP_QP_STORE); (void)(out.to_int64()); (void)((26 - 12)); } while (0);
   return out;
 }
 
 static inline fp_QP_t fp_QP_from_qp_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
   fp_QP_t out = 0;
-  out.range(32 - 1, 0) = raw.range(32 - 1, 0);
+  out.range(26 - 1, 0) = raw.range(26 - 1, 0);
   return out;
+}
+# 623 "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp"
+template <typename OutT, int SH, bool RIGHT>
+struct fp_frac_shifter_ {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(v >> SH);
+  }
+};
+template <typename OutT, int SH>
+struct fp_frac_shifter_<OutT, SH, false> {
+  template <typename InT> static inline OutT go(InT v) {
+#pragma HLS INLINE
+    return (OutT)(((OutT)v) << SH);
+  }
+};
+
+template <typename OutT, int IN_FRAC, int OUT_FRAC, typename InT>
+static inline OutT fp_rescale_raw_frac(InT value) {
+#pragma HLS INLINE
+  return fp_frac_shifter_<OutT,
+      (IN_FRAC >= OUT_FRAC ? IN_FRAC - OUT_FRAC : OUT_FRAC - IN_FRAC),
+      (IN_FRAC >= OUT_FRAC)>::go(value);
+}
+
+template <typename OutT, int A_FRAC, int B_FRAC, int OUT_FRAC, typename ProdT>
+static inline OutT fp_product_shift_to_raw(ProdT product) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<OutT, A_FRAC + B_FRAC, OUT_FRAC>(product);
 }
 
 
 
 
 
-static inline fp_P_raw_t fp_P_raw_from_P(fp_P_t value) {
-#pragma HLS INLINE
-  fp_P_raw_t out = 0;
-  out.range(((40) + 0) - 1, 0) = value.range(((40) + 0) - 1, 0);
-  return out;
-}
 
-static inline fp_P_t fp_P_from_raw(fp_P_raw_t raw) {
+static inline fp_P_raw_t fp_QP_raw_to_P_raw(fp_QP_raw_t raw) {
 #pragma HLS INLINE
-  fp_P_t out = 0;
-  out.range(((40) + 0) - 1, 0) = raw.range(((40) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_P_raw_t, (26 - 12), 6>(raw);
+}
+static inline fp_MG_raw_t fp_QP_raw_to_MG_raw(fp_QP_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_MG_raw_t, (26 - 12), 3>(raw);
+}
+static inline fp_QP_raw_t fp_K_raw_to_QP_raw(fp_K_raw_t raw) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_QP_raw_t, 8, (26 - 12)>(raw);
 }
 
 static inline fp_P_raw_t fp_P_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_P_raw_t)fp_qp_raw_from_QP(value);
-}
-
-static inline fp_P_t fp_P_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_P_from_raw(fp_P_raw_from_QP(value));
-}
-
-static inline fp_MG_raw_t fp_MG_raw_from_MG(fp_MG_t value) {
-#pragma HLS INLINE
-  fp_MG_raw_t out = 0;
-  out.range(((34) + 0) - 1, 0) = value.range(((34) + 0) - 1, 0);
-  return out;
-}
-
-static inline fp_MG_t fp_MG_from_raw(fp_MG_raw_t raw) {
-#pragma HLS INLINE
-  fp_MG_t out = 0;
-  out.range(((34) + 0) - 1, 0) = raw.range(((34) + 0) - 1, 0);
-  return out;
+  return fp_QP_raw_to_P_raw(fp_qp_raw_from_QP(value));
 }
 
 static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
-  return (fp_MG_raw_t)fp_qp_raw_from_QP(value);
+  return fp_QP_raw_to_MG_raw(fp_qp_raw_from_QP(value));
 }
 
-static inline fp_MG_t fp_MG_from_QP(fp_QP_t value) {
+
+static inline fp_MG_raw_t fp_P_QP_sum_to_MG_raw(fp_sum2_P_QP_t v) {
 #pragma HLS INLINE
-  return fp_MG_from_raw(fp_MG_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_K(fp_K_t value) {
+static inline fp_MG_raw_t fp_P_QP_sum4_to_MG_raw(fp_sum4_P_QP_t v) {
 #pragma HLS INLINE
-  fp_K_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_MG_raw_t,
+      6 + (26 - 12), 3>(v);
 }
-
-static inline fp_K_t fp_K_from_raw(fp_K_raw_t raw) {
+static inline fp_QP_raw_t fp_MG_QP_sum_to_QP_raw(fp_sum2_MG_QP_t v) {
 #pragma HLS INLINE
-  fp_K_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
-  return out;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_raw_t fp_K_raw_from_QP(fp_QP_t value) {
+static inline fp_QP_raw_t fp_MG_QP_sum4_to_QP_raw(fp_sum4_MG_QP_t v) {
 #pragma HLS INLINE
-  return (fp_K_raw_t)fp_qp_raw_from_QP(value);
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      3 + (26 - 12), (26 - 12)>(v);
 }
-
-static inline fp_K_t fp_K_from_QP(fp_QP_t value) {
+static inline fp_K_raw_t fp_QP_MG_sum_to_K_raw(fp_sum2_QP_MG_t v) {
 #pragma HLS INLINE
-  return fp_K_from_raw(fp_K_raw_from_QP(value));
+  return fp_rescale_raw_frac<fp_K_raw_t,
+      (26 - 12) + 3, 8>(v);
 }
-
-
-
-
-
-static inline fp_QP_raw_t fp_cast_K_raw_to_qp(fp_K_raw_t value) {
+static inline fp_QP_raw_t fp_K_QP_sum_to_QP_raw(fp_sum8_K_QP_t v) {
 #pragma HLS INLINE
-
-
-
-
-  return (fp_QP_raw_t)value;
+  return fp_rescale_raw_frac<fp_QP_raw_t,
+      8 + (26 - 12), (26 - 12)>(v);
 }
+static inline fp_P_raw_t fp_MG_K_sum_to_P_raw(fp_sum2_MG_K_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_raw_t,
+      3 + 8, 6>(v);
+}
+
+static inline fp_P_mix_item_t fp_MG_K_mul_to_PQP_mix_item(fp_MG_K_mul_t v) {
+#pragma HLS INLINE
+  return fp_rescale_raw_frac<fp_P_mix_item_t,
+      3 + 8,
+      6 + (26 - 12)>(v);
+}
+
+
+
+
+
 
 static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp_site(fp_sum2_QP_raw_t value,
                                                        int site_id) {
 #pragma HLS INLINE
   (void)site_id;
-  ((void)0);
+  VITIS_LOOP_733_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(value.to_int64()); } while (0);
   return (fp_QP_raw_t)value;
 }
 
@@ -54943,12 +55022,6 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp_site(fp_QP_mul_t value,
   return (fp_QP_raw_t)(value >> shift);
 }
 
-static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return fp_shift_right_cast_to_qp_site(value, shift, FP_CAST_SITE_UNKNOWN);
-}
-
 
 
 
@@ -54956,15 +55029,15 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
 static inline fp_fn_raw_t fp_fn_raw_from_FN(fp_FN_t value) {
 #pragma HLS INLINE
   fp_fn_raw_t out = 0;
-  out.range(((26) + 0) - 1, 0) = value.range(((26) + 0) - 1, 0);
-  ((void)0);
+  out.range(((21) + 0) - 1, 0) = value.range(((21) + 0) - 1, 0);
+  VITIS_LOOP_763_1: do { (void)(FP_WP_FN_STORE); (void)(out.to_int64()); (void)((((21) + 0) - (((21) + 0) - 12))); } while (0);
   return out;
 }
 
 static inline fp_FN_t fp_FN_from_fn_raw(fp_fn_raw_t raw) {
 #pragma HLS INLINE
   fp_FN_t out = 0;
-  out.range(((26) + 0) - 1, 0) = raw.range(((26) + 0) - 1, 0);
+  out.range(((21) + 0) - 1, 0) = raw.range(((21) + 0) - 1, 0);
   return out;
 }
 
@@ -54978,7 +55051,6 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
   return (fp_QP_t)fn_value;
 }
 # 11 "../src/../include/fp_math_hls.h" 2
-
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 1 3
 # 40 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 3
 
@@ -55016,20 +55088,18 @@ static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
 # 204 "/usr/include/limits.h" 2 3 4
 # 22 "/home/akselmo/Vivado_program/2025.2/lnx64/tools/clang-16/lib/clang/16/include/limits.h" 2 3
 # 43 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 2 3
-# 13 "../src/../include/fp_math_hls.h" 2
-# 38 "../src/../include/fp_math_hls.h"
+# 12 "../src/../include/fp_math_hls.h" 2
+# 62 "../src/../include/fp_math_hls.h"
 static_assert((1 << 3) == 8,
               "FP_ATAN_LUT_DOMAIN_LOG2 must be log2(FP_ATAN_LUT_DOMAIN)");
-# 83 "../src/../include/fp_math_hls.h"
+# 107 "../src/../include/fp_math_hls.h"
 fp_QP_t fp_recip(fp_QP_t x);
 
 
 fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id);
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
-fp_QP_t fp_sq(fp_QP_t x);
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b);
-# 99 "../src/../include/fp_math_hls.h"
+# 121 "../src/../include/fp_math_hls.h"
 fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b);
 fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b);
 
@@ -55039,13 +55109,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b);
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b);
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b);
-
-static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  if (a == 0 || b == 0)
-    return 0;
-  return fp_mul(a, fp_recip(b));
-}
 
 static inline fp_QP_t fp_abs(fp_QP_t a) {
 #pragma HLS INLINE
@@ -55068,7 +55131,7 @@ static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi) {
 
 static inline fp_QP_raw_t fp_qp_raw_from_neg_pow2(int exp) {
 #pragma HLS INLINE
-  const int shift = ((32 - 14)) - exp;
+  const int shift = ((26 - 12)) - exp;
   if (shift <= 0)
     return (fp_QP_raw_t)1;
   return ((fp_QP_raw_t)1) << shift;
@@ -55090,7 +55153,7 @@ static inline fp_QP_raw_t fp_add3_cast_qp_raw(fp_QP_raw_t a, fp_QP_raw_t b,
                                                fp_QP_raw_t c, int site_id) {
 #pragma HLS INLINE
   fp_sum2_QP_raw_t sum_ab = (fp_sum2_QP_raw_t)a + (fp_sum2_QP_raw_t)b;
-  ((void)0);
+  VITIS_LOOP_174_1: do { (void)(FP_WP_SUM2_QP_RAW); (void)(sum_ab.to_int64()); } while (0);
   fp_sum2_QP_raw_t sum_abc = sum_ab + (fp_sum2_QP_raw_t)c;
   return cast_sum2_qp_raw_to_qp_site(sum_abc, site_id);
 }
@@ -55109,11 +55172,11 @@ static fp_sum6_P_QP_t sum6_P_QP_raw(fp_sum6_P_QP_t a0,
                                     fp_sum6_P_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_193_1: do { (void)(FP_WP_SUM6_P_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_197_2: do { (void)(FP_WP_P_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_P_QP_t s01 = a0 + a1;
   fp_sum6_P_QP_t s23 = a2 + a3;
   fp_sum6_P_QP_t s45 = a4 + a5;
@@ -55131,24 +55194,24 @@ static fp_sum8_P_MIX_t sum8_P_MIX_raw(fp_P_mix_item_t a0,
                                       fp_P_mix_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_215_1: do { (void)(FP_WP_SUM8_P_MIX); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_220_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_225_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_226_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_227_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_228_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_231_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_232_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_t)(s0123 + s4567);
 }
 
@@ -55170,24 +55233,24 @@ static fp_sum8_P_MIX_pup_t sum8_P_MIX_raw_pupdate(fp_P_mix_item_t a0,
 
 
 #pragma HLS LATENCY min = 1 max = 1
-  ((void)0);
+  VITIS_LOOP_254_1: do { (void)(FP_WP_SUM8_P_MIX_PUP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_259_2: do { (void)(FP_WP_P_MIX_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_P_MIX_t s01 = a0 + a1;
   fp_sum2_P_MIX_t s23 = a2 + a3;
   fp_sum2_P_MIX_t s45 = a4 + a5;
   fp_sum2_P_MIX_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_264_3: do { (void)(FP_WP_SUM2_P_MIX); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_265_4: do { (void)(FP_WP_SUM2_P_MIX); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_266_5: do { (void)(FP_WP_SUM2_P_MIX); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_267_6: do { (void)(FP_WP_SUM2_P_MIX); (void)(s67.to_int64()); } while (0);
   fp_sum4_P_MIX_t s0123 = s01 + s23;
   fp_sum4_P_MIX_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_270_7: do { (void)(FP_WP_SUM4_P_MIX); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_271_8: do { (void)(FP_WP_SUM4_P_MIX); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_P_MIX_pup_t)(s0123 + s4567);
 }
 
@@ -55199,11 +55262,11 @@ static fp_sum6_QP_mul_t sum6_QP_raw(fp_sum6_QP_mul_t a0,
                                     fp_sum6_QP_mul_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_283_1: do { (void)(FP_WP_SUM6_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_287_2: do { (void)(FP_WP_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_QP_mul_t s01 = a0 + a1;
   fp_sum6_QP_mul_t s23 = a2 + a3;
   fp_sum6_QP_mul_t s45 = a4 + a5;
@@ -55219,11 +55282,11 @@ static fp_sum6_MG_QP_t sum6_MG_QP_raw(fp_sum6_MG_QP_t a0,
                                       fp_sum6_MG_QP_t a5) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_303_1: do { (void)(FP_WP_SUM6_MG_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64()); } while (0);
 
 
 
-  ((void)0);
+  VITIS_LOOP_307_2: do { (void)(FP_WP_MG_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); } while (0);
   fp_sum6_MG_QP_t s01 = a0 + a1;
   fp_sum6_MG_QP_t s23 = a2 + a3;
   fp_sum6_MG_QP_t s45 = a4 + a5;
@@ -55241,24 +55304,24 @@ static fp_sum8_K_QP_t sum8_K_QP_raw(fp_K_qp_item_t a0,
                                     fp_K_qp_item_t a7) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II = 1
-  ((void)0);
+  VITIS_LOOP_325_1: do { (void)(FP_WP_SUM8_K_QP); (void)((__int128)a0.to_int64() + (__int128)a1.to_int64() + (__int128)a2.to_int64() + (__int128)a3.to_int64() + (__int128)a4.to_int64() + (__int128)a5.to_int64() + (__int128)a6.to_int64() + (__int128)a7.to_int64()); } while (0);
 
 
 
 
-  ((void)0);
+  VITIS_LOOP_330_2: do { (void)(FP_WP_K_QP_ITEM); (void)(a0); (void)(a1); (void)(a2); (void)(a3); (void)(a4); (void)(a5); (void)(a6); (void)(a7); } while (0);
   fp_sum2_K_QP_t s01 = a0 + a1;
   fp_sum2_K_QP_t s23 = a2 + a3;
   fp_sum2_K_QP_t s45 = a4 + a5;
   fp_sum2_K_QP_t s67 = a6 + a7;
-  ((void)0);
-  ((void)0);
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_335_3: do { (void)(FP_WP_SUM2_K_QP); (void)(s01.to_int64()); } while (0);
+  VITIS_LOOP_336_4: do { (void)(FP_WP_SUM2_K_QP); (void)(s23.to_int64()); } while (0);
+  VITIS_LOOP_337_5: do { (void)(FP_WP_SUM2_K_QP); (void)(s45.to_int64()); } while (0);
+  VITIS_LOOP_338_6: do { (void)(FP_WP_SUM2_K_QP); (void)(s67.to_int64()); } while (0);
   fp_sum4_K_QP_t s0123 = s01 + s23;
   fp_sum4_K_QP_t s4567 = s45 + s67;
-  ((void)0);
-  ((void)0);
+  VITIS_LOOP_341_7: do { (void)(FP_WP_SUM4_K_QP); (void)(s0123.to_int64()); } while (0);
+  VITIS_LOOP_342_8: do { (void)(FP_WP_SUM4_K_QP); (void)(s4567.to_int64()); } while (0);
   return (fp_sum8_K_QP_t)(s0123 + s4567);
 }
 
@@ -55285,65 +55348,20 @@ static inline fp_QP_t fp_max3_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2) {
   return fp_max2(fp_max2(x0, x1), x2);
 }
 
-static inline fp_QP_t fp_max4_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2,
-                                 fp_QP_t x3) {
-#pragma HLS INLINE
-  const fp_QP_t m01 = fp_max2(x0, x1);
-  const fp_QP_t m23 = fp_max2(x2, x3);
-  return fp_max2(m01, m23);
-}
-
-
-
-
-
-static inline fp_P_raw_t fp_shift_right_cast_to_P(fp_P_QP_mul_t value,
-                                                  int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_PQ_to_MG(fp_P_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_KQ_to_qp(fp_K_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)(value >> shift);
-}
-
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
-fp_QP_t fp_sin(fp_QP_t angle);
-fp_QP_t fp_cos(fp_QP_t angle);
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out);
 fp_QP_t fp_atan_lut(fp_QP_t x);
 
 
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b);
+
+
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE
   return (a < 0) ? fp_FN_t(-a) : a;
 }
 
-fp_FN_t fp_sin_fn(fp_FN_t angle);
-fp_FN_t fp_cos_fn(fp_FN_t angle);
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out);
 fp_FN_t fp_atan_lut_fn(fp_FN_t x);
 fp_FN_t fp_recip_fn(fp_FN_t x);
@@ -55351,2062 +55369,10 @@ fp_FN_t fp_recip_fn(fp_FN_t x);
 int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]);
 # 11 "../src/fp_math_hls.cpp" 2
 # 1 "../src/../include/fp_trig_lut_1024.h" 1
-# 13 "../src/../include/fp_trig_lut_1024.h"
-static const fp_QP_t sin_lut[1025] = {
-    ((fp_QP_t)(0.00000000000000000000)),
-    ((fp_QP_t)(0.00306795676296597614)),
-    ((fp_QP_t)(0.00613588464915447527)),
-    ((fp_QP_t)(0.00920375478205981944)),
-    ((fp_QP_t)(0.01227153828571992539)),
-    ((fp_QP_t)(0.01533920628498810015)),
-    ((fp_QP_t)(0.01840672990580482019)),
-    ((fp_QP_t)(0.02147408027546950787)),
-    ((fp_QP_t)(0.02454122852291228812)),
-    ((fp_QP_t)(0.02760814577896573974)),
-    ((fp_QP_t)(0.03067480317663662595)),
-    ((fp_QP_t)(0.03374117185137757990)),
-    ((fp_QP_t)(0.03680722294135883171)),
-    ((fp_QP_t)(0.03987292758773981066)),
-    ((fp_QP_t)(0.04293825693494082024)),
-    ((fp_QP_t)(0.04600318213091462299)),
-    ((fp_QP_t)(0.04906767432741801493)),
-    ((fp_QP_t)(0.05213170468028332366)),
-    ((fp_QP_t)(0.05519524434968993420)),
-    ((fp_QP_t)(0.05825826450043575244)),
-    ((fp_QP_t)(0.06132073630220857829)),
-    ((fp_QP_t)(0.06438263092985746505)),
-    ((fp_QP_t)(0.06744391956366405094)),
-    ((fp_QP_t)(0.07050457338961385600)),
-    ((fp_QP_t)(0.07356456359966742631)),
-    ((fp_QP_t)(0.07662386139203149205)),
-    ((fp_QP_t)(0.07968243797143012563)),
-    ((fp_QP_t)(0.08274026454937569164)),
-    ((fp_QP_t)(0.08579731234443989385)),
-    ((fp_QP_t)(0.08885355258252460031)),
-    ((fp_QP_t)(0.09190895649713272386)),
-    ((fp_QP_t)(0.09496349532963899165)),
-    ((fp_QP_t)(0.09801714032956060363)),
-    ((fp_QP_t)(0.10106986275482782167)),
-    ((fp_QP_t)(0.10412163387205458642)),
-    ((fp_QP_t)(0.10717242495680884273)),
-    ((fp_QP_t)(0.11022220729388305938)),
-    ((fp_QP_t)(0.11327095217756434631)),
-    ((fp_QP_t)(0.11631863091190475235)),
-    ((fp_QP_t)(0.11936521481099135467)),
-    ((fp_QP_t)(0.12241067519921619566)),
-    ((fp_QP_t)(0.12545498341154623367)),
-    ((fp_QP_t)(0.12849811079379316880)),
-    ((fp_QP_t)(0.13154002870288311611)),
-    ((fp_QP_t)(0.13458070850712616773)),
-    ((fp_QP_t)(0.13762012158648603832)),
-    ((fp_QP_t)(0.14065823933284921088)),
-    ((fp_QP_t)(0.14369503315029447110)),
-    ((fp_QP_t)(0.14673047445536174793)),
-    ((fp_QP_t)(0.14976453467732150915)),
-    ((fp_QP_t)(0.15279718525844343535)),
-    ((fp_QP_t)(0.15582839765426523271)),
-    ((fp_QP_t)(0.15885814333386144570)),
-    ((fp_QP_t)(0.16188639378011182579)),
-    ((fp_QP_t)(0.16491312048996992212)),
-    ((fp_QP_t)(0.16793829497473117263)),
-    ((fp_QP_t)(0.17096188876030121717)),
-    ((fp_QP_t)(0.17398387338746382214)),
-    ((fp_QP_t)(0.17700422041214874946)),
-    ((fp_QP_t)(0.18002290140569951471)),
-    ((fp_QP_t)(0.18303988795514095078)),
-    ((fp_QP_t)(0.18605515166344663291)),
-    ((fp_QP_t)(0.18906866414980619262)),
-    ((fp_QP_t)(0.19208039704989243734)),
-    ((fp_QP_t)(0.19509032201612824808)),
-    ((fp_QP_t)(0.19809841071795356027)),
-    ((fp_QP_t)(0.20110463484209190055)),
-    ((fp_QP_t)(0.20410896609281686809)),
-    ((fp_QP_t)(0.20711137619221856032)),
-    ((fp_QP_t)(0.21011183688046961016)),
-    ((fp_QP_t)(0.21311031991609136194)),
-    ((fp_QP_t)(0.21610679707621952006)),
-    ((fp_QP_t)(0.21910124015686979759)),
-    ((fp_QP_t)(0.22209362097320350937)),
-    ((fp_QP_t)(0.22508391135979283204)),
-    ((fp_QP_t)(0.22807208317088573102)),
-    ((fp_QP_t)(0.23105810828067110951)),
-    ((fp_QP_t)(0.23404195858354343018)),
-    ((fp_QP_t)(0.23702360599436719801)),
-    ((fp_QP_t)(0.24000302244874149871)),
-    ((fp_QP_t)(0.24298017990326387094)),
-    ((fp_QP_t)(0.24595505033579459497)),
-    ((fp_QP_t)(0.24892760574572014853)),
-    ((fp_QP_t)(0.25189781815421696809)),
-    ((fp_QP_t)(0.25486565960451457169)),
-    ((fp_QP_t)(0.25783110216215898713)),
-    ((fp_QP_t)(0.26079411791527551401)),
-    ((fp_QP_t)(0.26375467897483134694)),
-    ((fp_QP_t)(0.26671275747489836538)),
-    ((fp_QP_t)(0.26966832557291509076)),
-    ((fp_QP_t)(0.27262135544994897662)),
-    ((fp_QP_t)(0.27557181931095814376)),
-    ((fp_QP_t)(0.27851968938505305973)),
-    ((fp_QP_t)(0.28146493792575794091)),
-    ((fp_QP_t)(0.28440753721127187692)),
-    ((fp_QP_t)(0.28734745954472951102)),
-    ((fp_QP_t)(0.29028467725446233105)),
-    ((fp_QP_t)(0.29321916269425862822)),
-    ((fp_QP_t)(0.29615088824362378883)),
-    ((fp_QP_t)(0.29907982630804047508)),
-    ((fp_QP_t)(0.30200594931922808417)),
-    ((fp_QP_t)(0.30492922973540237397)),
-    ((fp_QP_t)(0.30784964004153486661)),
-    ((fp_QP_t)(0.31076715274961147495)),
-    ((fp_QP_t)(0.31368174039889151761)),
-    ((fp_QP_t)(0.31659337555616584581)),
-    ((fp_QP_t)(0.31950203081601569188)),
-    ((fp_QP_t)(0.32240767880106985244)),
-    ((fp_QP_t)(0.32531029216226292622)),
-    ((fp_QP_t)(0.32820984357909249729)),
-    ((fp_QP_t)(0.33110630575987642921)),
-    ((fp_QP_t)(0.33399965144200938205)),
-    ((fp_QP_t)(0.33688985339222005111)),
-    ((fp_QP_t)(0.33977688440682685123)),
-    ((fp_QP_t)(0.34266071731199437833)),
-    ((fp_QP_t)(0.34554132496398909380)),
-    ((fp_QP_t)(0.34841868024943456472)),
-    ((fp_QP_t)(0.35129275608556709276)),
-    ((fp_QP_t)(0.35416352542049034380)),
-    ((fp_QP_t)(0.35703096123342997759)),
-    ((fp_QP_t)(0.35989503653498811087)),
-    ((fp_QP_t)(0.36275572436739722537)),
-    ((fp_QP_t)(0.36561299780477385379)),
-    ((fp_QP_t)(0.36846682995337232125)),
-    ((fp_QP_t)(0.37131719395183754306)),
-    ((fp_QP_t)(0.37416406297145793358)),
-    ((fp_QP_t)(0.37700741021641825945)),
-    ((fp_QP_t)(0.37984720892405116066)),
-    ((fp_QP_t)(0.38268343236508978178)),
-    ((fp_QP_t)(0.38551605384391884890)),
-    ((fp_QP_t)(0.38834504669882624617)),
-    ((fp_QP_t)(0.39117038430225387069)),
-    ((fp_QP_t)(0.39399204006104809883)),
-    ((fp_QP_t)(0.39680998741671030805)),
-    ((fp_QP_t)(0.39962419984564678810)),
-    ((fp_QP_t)(0.40243465085941843018)),
-    ((fp_QP_t)(0.40524131400498986100)),
-    ((fp_QP_t)(0.40804416286497868782)),
-    ((fp_QP_t)(0.41084317105790391089)),
-    ((fp_QP_t)(0.41363831223843450235)),
-    ((fp_QP_t)(0.41642956009763715253)),
-    ((fp_QP_t)(0.41921688836322390515)),
-    ((fp_QP_t)(0.42200027079979968159)),
-    ((fp_QP_t)(0.42477968120910880589)),
-    ((fp_QP_t)(0.42755509343028208491)),
-    ((fp_QP_t)(0.43032648134008261165)),
-    ((fp_QP_t)(0.43309381885315195726)),
-    ((fp_QP_t)(0.43585707992225547480)),
-    ((fp_QP_t)(0.43861623853852765853)),
-    ((fp_QP_t)(0.44137126873171667052)),
-    ((fp_QP_t)(0.44412214457042920035)),
-    ((fp_QP_t)(0.44686884016237415906)),
-    ((fp_QP_t)(0.44961132965460653965)),
-    ((fp_QP_t)(0.45234958723377088896)),
-    ((fp_QP_t)(0.45508358712634383592)),
-    ((fp_QP_t)(0.45781330359887717485)),
-    ((fp_QP_t)(0.46053871095824000514)),
-    ((fp_QP_t)(0.46325978355186014923)),
-    ((fp_QP_t)(0.46597649576796618121)),
-    ((fp_QP_t)(0.46868882203582790114)),
-    ((fp_QP_t)(0.47139673682599764204)),
-    ((fp_QP_t)(0.47410021465054996703)),
-    ((fp_QP_t)(0.47679923006332208812)),
-    ((fp_QP_t)(0.47949375766015300826)),
-    ((fp_QP_t)(0.48218377207912271887)),
-    ((fp_QP_t)(0.48486924800079106435)),
-    ((fp_QP_t)(0.48755016014843599592)),
-    ((fp_QP_t)(0.49022648328829115938)),
-    ((fp_QP_t)(0.49289819222978403790)),
-    ((fp_QP_t)(0.49556526182577254058)),
-    ((fp_QP_t)(0.49822766697278186854)),
-    ((fp_QP_t)(0.50088538261124071482)),
-    ((fp_QP_t)(0.50353838372571757542)),
-    ((fp_QP_t)(0.50618664534515522835)),
-    ((fp_QP_t)(0.50883014254310698909)),
-    ((fp_QP_t)(0.51146885043797030157)),
-    ((fp_QP_t)(0.51410274419322166128)),
-    ((fp_QP_t)(0.51673179901764987321)),
-    ((fp_QP_t)(0.51935599016558964269)),
-    ((fp_QP_t)(0.52197529293715438925)),
-    ((fp_QP_t)(0.52458968267846894928)),
-    ((fp_QP_t)(0.52719913478190127964)),
-    ((fp_QP_t)(0.52980362468629460526)),
-    ((fp_QP_t)(0.53240312787719790144)),
-    ((fp_QP_t)(0.53499761988709715332)),
-    ((fp_QP_t)(0.53758707629564539410)),
-    ((fp_QP_t)(0.54017147272989285423)),
-    ((fp_QP_t)(0.54275078486451588944)),
-    ((fp_QP_t)(0.54532498842204646383)),
-    ((fp_QP_t)(0.54789405917310018967)),
-    ((fp_QP_t)(0.55045797293660481131)),
-    ((fp_QP_t)(0.55301670558002746780)),
-    ((fp_QP_t)(0.55557023301960217765)),
-    ((fp_QP_t)(0.55811853122055610221)),
-    ((fp_QP_t)(0.56066157619733603124)),
-    ((fp_QP_t)(0.56319934401383409117)),
-    ((fp_QP_t)(0.56573181078361312046)),
-    ((fp_QP_t)(0.56825895267013148970)),
-    ((fp_QP_t)(0.57078074588696725566)),
-    ((fp_QP_t)(0.57329716669804220430)),
-    ((fp_QP_t)(0.57580819141784533866)),
-    ((fp_QP_t)(0.57831379641165558958)),
-    ((fp_QP_t)(0.58081395809576452649)),
-    ((fp_QP_t)(0.58330865293769829094)),
-    ((fp_QP_t)(0.58579785745643886408)),
-    ((fp_QP_t)(0.58828154822264522306)),
-    ((fp_QP_t)(0.59075970185887416442)),
-    ((fp_QP_t)(0.59323229503979979516)),
-    ((fp_QP_t)(0.59569930449243335691)),
-    ((fp_QP_t)(0.59816070699634227292)),
-    ((fp_QP_t)(0.60061647938386897305)),
-    ((fp_QP_t)(0.60306659854034816437)),
-    ((fp_QP_t)(0.60551104140432554512)),
-    ((fp_QP_t)(0.60794978496777363208)),
-    ((fp_QP_t)(0.61038280627630947528)),
-    ((fp_QP_t)(0.61281008242940970820)),
-    ((fp_QP_t)(0.61523159058062681925)),
-    ((fp_QP_t)(0.61764730793780386886)),
-    ((fp_QP_t)(0.62005721176328909561)),
-    ((fp_QP_t)(0.62246127937414996723)),
-    ((fp_QP_t)(0.62485948814238634341)),
-    ((fp_QP_t)(0.62725181549514408275)),
-    ((fp_QP_t)(0.62963823891492698426)),
-    ((fp_QP_t)(0.63201873593980906207)),
-    ((fp_QP_t)(0.63439328416364548779)),
-    ((fp_QP_t)(0.63676186123628419899)),
-    ((fp_QP_t)(0.63912444486377573138)),
-    ((fp_QP_t)(0.64148101280858316198)),
-    ((fp_QP_t)(0.64383154288979138613)),
-    ((fp_QP_t)(0.64617601298331628357)),
-    ((fp_QP_t)(0.64851440102211244110)),
-    ((fp_QP_t)(0.65084668499638087535)),
-    ((fp_QP_t)(0.65317284295377675551)),
-    ((fp_QP_t)(0.65549285299961534967)),
-    ((fp_QP_t)(0.65780669329707863735)),
-    ((fp_QP_t)(0.66011434206742047870)),
-    ((fp_QP_t)(0.66241577759017178373)),
-    ((fp_QP_t)(0.66471097820334479334)),
-    ((fp_QP_t)(0.66699992230363747137)),
-    ((fp_QP_t)(0.66928258834663600929)),
-    ((fp_QP_t)(0.67155895484701833009)),
-    ((fp_QP_t)(0.67382900037875603783)),
-    ((fp_QP_t)(0.67609270357531592310)),
-    ((fp_QP_t)(0.67835004312986146857)),
-    ((fp_QP_t)(0.68060099779545302212)),
-    ((fp_QP_t)(0.68284554638524808112)),
-    ((fp_QP_t)(0.68508366777270035541)),
-    ((fp_QP_t)(0.68731534089175905233)),
-    ((fp_QP_t)(0.68954054473706682948)),
-    ((fp_QP_t)(0.69175925836415774750)),
-    ((fp_QP_t)(0.69397146088965400157)),
-    ((fp_QP_t)(0.69617713149146298601)),
-    ((fp_QP_t)(0.69837624940897291559)),
-    ((fp_QP_t)(0.70056879394324833576)),
-    ((fp_QP_t)(0.70275474445722529993)),
-    ((fp_QP_t)(0.70493408037590488124)),
-    ((fp_QP_t)(0.70710678118654746172)),
-    ((fp_QP_t)(0.70927282643886557789)),
-    ((fp_QP_t)(0.71143219574521643356)),
-    ((fp_QP_t)(0.71358486878079352422)),
-    ((fp_QP_t)(0.71573082528381859468)),
-    ((fp_QP_t)(0.71787004505573170920)),
-    ((fp_QP_t)(0.72000250796138165477)),
-    ((fp_QP_t)(0.72212819392921534511)),
-    ((fp_QP_t)(0.72424708295146689174)),
-    ((fp_QP_t)(0.72635915508434600873)),
-    ((fp_QP_t)(0.72846439044822519637)),
-    ((fp_QP_t)(0.73056276922782759087)),
-    ((fp_QP_t)(0.73265427167241281570)),
-    ((fp_QP_t)(0.73473887809596338805)),
-    ((fp_QP_t)(0.73681656887736979300)),
-    ((fp_QP_t)(0.73888732446061511361)),
-    ((fp_QP_t)(0.74095112535495910588)),
-    ((fp_QP_t)(0.74300795213512171866)),
-    ((fp_QP_t)(0.74505778544146594733)),
-    ((fp_QP_t)(0.74710060598018013245)),
-    ((fp_QP_t)(0.74913639452345925918)),
-    ((fp_QP_t)(0.75116513190968636771)),
-    ((fp_QP_t)(0.75318679904361240940)),
-    ((fp_QP_t)(0.75520137689653654700)),
-    ((fp_QP_t)(0.75720884650648445646)),
-    ((fp_QP_t)(0.75920918897838796102)),
-    ((fp_QP_t)(0.76120238548426177871)),
-    ((fp_QP_t)(0.76318841726338126907)),
-    ((fp_QP_t)(0.76516726562245895860)),
-    ((fp_QP_t)(0.76713891193582040007)),
-    ((fp_QP_t)(0.76910333764557958780)),
-    ((fp_QP_t)(0.77106052426181370674)),
-    ((fp_QP_t)(0.77301045336273699338)),
-    ((fp_QP_t)(0.77495310659487381955)),
-    ((fp_QP_t)(0.77688846567323244230)),
-    ((fp_QP_t)(0.77881651238147586724)),
-    ((fp_QP_t)(0.78073722857209437720)),
-    ((fp_QP_t)(0.78265059616657572938)),
-    ((fp_QP_t)(0.78455659715557524159)),
-    ((fp_QP_t)(0.78645521359908576731)),
-    ((fp_QP_t)(0.78834642762660622761)),
-    ((fp_QP_t)(0.79023022143731003197)),
-    ((fp_QP_t)(0.79210657730021238887)),
-    ((fp_QP_t)(0.79397547755433717231)),
-    ((fp_QP_t)(0.79583690460888345530)),
-    ((fp_QP_t)(0.79769084094339104407)),
-    ((fp_QP_t)(0.79953726910790501314)),
-    ((fp_QP_t)(0.80137617172314012937)),
-    ((fp_QP_t)(0.80320753148064483184)),
-    ((fp_QP_t)(0.80503133114296365758)),
-    ((fp_QP_t)(0.80684755354379922299)),
-    ((fp_QP_t)(0.80865618158817498262)),
-    ((fp_QP_t)(0.81045719825259476821)),
-    ((fp_QP_t)(0.81225058658520388200)),
-    ((fp_QP_t)(0.81403632970594830276)),
-    ((fp_QP_t)(0.81581441080673378075)),
-    ((fp_QP_t)(0.81758481315158371139)),
-    ((fp_QP_t)(0.81934752007679689800)),
-    ((fp_QP_t)(0.82110251499110464835)),
-    ((fp_QP_t)(0.82284978137582631685)),
-    ((fp_QP_t)(0.82458930278502529099)),
-    ((fp_QP_t)(0.82632106284566342325)),
-    ((fp_QP_t)(0.82804504525775579626)),
-    ((fp_QP_t)(0.82976123379452304540)),
-    ((fp_QP_t)(0.83146961230254523567)),
-    ((fp_QP_t)(0.83317016470191318511)),
-    ((fp_QP_t)(0.83486287498638001026)),
-    ((fp_QP_t)(0.83654772722351189440)),
-    ((fp_QP_t)(0.83822470555483796772)),
-    ((fp_QP_t)(0.83989379419599941023)),
-    ((fp_QP_t)(0.84155497743689833268)),
-    ((fp_QP_t)(0.84320823964184543620)),
-    ((fp_QP_t)(0.84485356524970700587)),
-    ((fp_QP_t)(0.84649093877405201525)),
-    ((fp_QP_t)(0.84812034480329712149)),
-    ((fp_QP_t)(0.84974176800085243766)),
-    ((fp_QP_t)(0.85135519310526519554)),
-    ((fp_QP_t)(0.85296060493036363059)),
-    ((fp_QP_t)(0.85455798836540053376)),
-    ((fp_QP_t)(0.85614732837519447184)),
-    ((fp_QP_t)(0.85772861000027211809)),
-    ((fp_QP_t)(0.85930181835700836235)),
-    ((fp_QP_t)(0.86086693863776730939)),
-    ((fp_QP_t)(0.86242395611104050168)),
-    ((fp_QP_t)(0.86397285612158669643)),
-    ((fp_QP_t)(0.86551362409056897818)),
-    ((fp_QP_t)(0.86704624551569264845)),
-    ((fp_QP_t)(0.86857070597134089507)),
-    ((fp_QP_t)(0.87008699110871134952)),
-    ((fp_QP_t)(0.87159508665595109012)),
-    ((fp_QP_t)(0.87309497841829009079)),
-    ((fp_QP_t)(0.87458665227817611321)),
-    ((fp_QP_t)(0.87607009419540660122)),
-    ((fp_QP_t)(0.87754529020726124156)),
-    ((fp_QP_t)(0.87901222642863341417)),
-    ((fp_QP_t)(0.88047088905216075450)),
-    ((fp_QP_t)(0.88192126434835493853)),
-    ((fp_QP_t)(0.88336333866573157891)),
-    ((fp_QP_t)(0.88479709843093778954)),
-    ((fp_QP_t)(0.88622253014888063838)),
-    ((fp_QP_t)(0.88763962040285393496)),
-    ((fp_QP_t)(0.88904835585466457371)),
-    ((fp_QP_t)(0.89044872324475787817)),
-    ((fp_QP_t)(0.89184070939234272313)),
-    ((fp_QP_t)(0.89322430119551532446)),
-    ((fp_QP_t)(0.89459948563138258493)),
-    ((fp_QP_t)(0.89596624975618510689)),
-    ((fp_QP_t)(0.89732458070541831763)),
-    ((fp_QP_t)(0.89867446569395381673)),
-    ((fp_QP_t)(0.90001589201616027935)),
-    ((fp_QP_t)(0.90134884704602202810)),
-    ((fp_QP_t)(0.90267331823725882600)),
-    ((fp_QP_t)(0.90398929312344333820)),
-    ((fp_QP_t)(0.90529675931811881551)),
-    ((fp_QP_t)(0.90659570451491533483)),
-    ((fp_QP_t)(0.90788611648766615048)),
-    ((fp_QP_t)(0.90916798309052226923)),
-    ((fp_QP_t)(0.91044129225806713634)),
-    ((fp_QP_t)(0.91170603200542987832)),
-    ((fp_QP_t)(0.91296219042839810154)),
-    ((fp_QP_t)(0.91420975570353069095)),
-    ((fp_QP_t)(0.91544871608826783316)),
-    ((fp_QP_t)(0.91667905992104270485)),
-    ((fp_QP_t)(0.91790077562139038569)),
-    ((fp_QP_t)(0.91911385169005777040)),
-    ((fp_QP_t)(0.92031827670911048322)),
-    ((fp_QP_t)(0.92151403934204190183)),
-    ((fp_QP_t)(0.92270112833387851747)),
-    ((fp_QP_t)(0.92387953251128673848)),
-    ((fp_QP_t)(0.92504924078267758425)),
-    ((fp_QP_t)(0.92621024213831126826)),
-    ((fp_QP_t)(0.92736252565040111495)),
-    ((fp_QP_t)(0.92850608047321547822)),
-    ((fp_QP_t)(0.92964089584318132520)),
-    ((fp_QP_t)(0.93076696107898371224)),
-    ((fp_QP_t)(0.93188426558166814750)),
-    ((fp_QP_t)(0.93299279883473884567)),
-    ((fp_QP_t)(0.93409255040425887007)),
-    ((fp_QP_t)(0.93518350993894749923)),
-    ((fp_QP_t)(0.93626566717027825959)),
-    ((fp_QP_t)(0.93733901191257495977)),
-    ((fp_QP_t)(0.93840353406310805795)),
-    ((fp_QP_t)(0.93945922360218991898)),
-    ((fp_QP_t)(0.94050607059326829518)),
-    ((fp_QP_t)(0.94154406518302080631)),
-    ((fp_QP_t)(0.94257319760144686605)),
-    ((fp_QP_t)(0.94359345816196038559)),
-    ((fp_QP_t)(0.94460483726148025685)),
-    ((fp_QP_t)(0.94560732538052127971)),
-    ((fp_QP_t)(0.94660091308328353499)),
-    ((fp_QP_t)(0.94758559101774109124)),
-    ((fp_QP_t)(0.94856134991573026749)),
-    ((fp_QP_t)(0.94952818059303667475)),
-    ((fp_QP_t)(0.95048607394948170235)),
-    ((fp_QP_t)(0.95143502096900833820)),
-    ((fp_QP_t)(0.95237501271976587880)),
-    ((fp_QP_t)(0.95330604035419375109)),
-    ((fp_QP_t)(0.95422809510910566733)),
-    ((fp_QP_t)(0.95514116830577067141)),
-    ((fp_QP_t)(0.95604525134999640557)),
-    ((fp_QP_t)(0.95694033573220893540)),
-    ((fp_QP_t)(0.95782641302753290802)),
-    ((fp_QP_t)(0.95870347489587159906)),
-    ((fp_QP_t)(0.95957151308198451733)),
-    ((fp_QP_t)(0.96043051941556578655)),
-    ((fp_QP_t)(0.96128048581132063966)),
-    ((fp_QP_t)(0.96212140426904158019)),
-    ((fp_QP_t)(0.96295326687368387741)),
-    ((fp_QP_t)(0.96377606579543984022)),
-    ((fp_QP_t)(0.96458979328981264700)),
-    ((fp_QP_t)(0.96539444169768939830)),
-    ((fp_QP_t)(0.96619000344541261516)),
-    ((fp_QP_t)(0.96697647104485207059)),
-    ((fp_QP_t)(0.96775383709347551076)),
-    ((fp_QP_t)(0.96852209427441726675)),
-    ((fp_QP_t)(0.96928123535654853171)),
-    ((fp_QP_t)(0.97003125319454397424)),
-    ((fp_QP_t)(0.97077214072895035013)),
-    ((fp_QP_t)(0.97150389098625178352)),
-    ((fp_QP_t)(0.97222649707893626925)),
-    ((fp_QP_t)(0.97293995220556006576)),
-    ((fp_QP_t)(0.97364424965081186603)),
-    ((fp_QP_t)(0.97433938278557585821)),
-    ((fp_QP_t)(0.97502534506699412020)),
-    ((fp_QP_t)(0.97570213003852857003)),
-    ((fp_QP_t)(0.97636973133002114000)),
-    ((fp_QP_t)(0.97702814265775439484)),
-    ((fp_QP_t)(0.97767735782450992943)),
-    ((fp_QP_t)(0.97831737071962765473)),
-    ((fp_QP_t)(0.97894817531906219710)),
-    ((fp_QP_t)(0.97956976568544051887)),
-    ((fp_QP_t)(0.98018213596811731847)),
-    ((fp_QP_t)(0.98078528040323043058)),
-    ((fp_QP_t)(0.98137919331375456089)),
-    ((fp_QP_t)(0.98196386910955524296)),
-    ((fp_QP_t)(0.98253930228744124076)),
-    ((fp_QP_t)(0.98310548743121628501)),
-    ((fp_QP_t)(0.98366241921173025453)),
-    ((fp_QP_t)(0.98421009238692902521)),
-    ((fp_QP_t)(0.98474850180190420801)),
-    ((fp_QP_t)(0.98527764238894122162)),
-    ((fp_QP_t)(0.98579750916756736512)),
-    ((fp_QP_t)(0.98630809724459866938)),
-    ((fp_QP_t)(0.98680940181418541624)),
-    ((fp_QP_t)(0.98730141815785843473)),
-    ((fp_QP_t)(0.98778414164457217783)),
-    ((fp_QP_t)(0.98825756773074946437)),
-    ((fp_QP_t)(0.98872169196032377858)),
-    ((fp_QP_t)(0.98917650996478101444)),
-    ((fp_QP_t)(0.98962201746320077600)),
-    ((fp_QP_t)(0.99005821026229712256)),
-    ((fp_QP_t)(0.99048508425645698239)),
-    ((fp_QP_t)(0.99090263542778000971)),
-    ((fp_QP_t)(0.99131085984611544415)),
-    ((fp_QP_t)(0.99170975366909952520)),
-    ((fp_QP_t)(0.99209931314219179654)),
-    ((fp_QP_t)(0.99247953459870996706)),
-    ((fp_QP_t)(0.99285041445986510489)),
-    ((fp_QP_t)(0.99321194923479450001)),
-    ((fp_QP_t)(0.99356413552059530403)),
-    ((fp_QP_t)(0.99390697000235606051)),
-    ((fp_QP_t)(0.99424044945318790223)),
-    ((fp_QP_t)(0.99456457073425541537)),
-    ((fp_QP_t)(0.99487933079480561638)),
-    ((fp_QP_t)(0.99518472667219681771)),
-    ((fp_QP_t)(0.99548075549192693856)),
-    ((fp_QP_t)(0.99576741446765981713)),
-    ((fp_QP_t)(0.99604470090125196702)),
-    ((fp_QP_t)(0.99631261218277800129)),
-    ((fp_QP_t)(0.99657114579055483539)),
-    ((fp_QP_t)(0.99682029929116566791)),
-    ((fp_QP_t)(0.99706007033948296225)),
-    ((fp_QP_t)(0.99729045667869020697)),
-    ((fp_QP_t)(0.99751145614030345410)),
-    ((fp_QP_t)(0.99772306664419163624)),
-    ((fp_QP_t)(0.99792528619859599548)),
-    ((fp_QP_t)(0.99811811290014917919)),
-    ((fp_QP_t)(0.99830154493389289261)),
-    ((fp_QP_t)(0.99847558057329477421)),
-    ((fp_QP_t)(0.99864021818026527111)),
-    ((fp_QP_t)(0.99879545620517240501)),
-    ((fp_QP_t)(0.99894129318685687124)),
-    ((fp_QP_t)(0.99907772775264536147)),
-    ((fp_QP_t)(0.99920475861836388631)),
-    ((fp_QP_t)(0.99932238458834954375)),
-    ((fp_QP_t)(0.99943060455546173237)),
-    ((fp_QP_t)(0.99952941750109314256)),
-    ((fp_QP_t)(0.99961882249517863830)),
-    ((fp_QP_t)(0.99969881869620424997)),
-    ((fp_QP_t)(0.99976940535121527898)),
-    ((fp_QP_t)(0.99983058179582340319)),
-    ((fp_QP_t)(0.99988234745421256111)),
-    ((fp_QP_t)(0.99992470183914450299)),
-    ((fp_QP_t)(0.99995764455196389786)),
-    ((fp_QP_t)(0.99998117528260110909)),
-    ((fp_QP_t)(0.99999529380957619118)),
-    ((fp_QP_t)(1.00000000000000000000)),
-    ((fp_QP_t)(0.99999529380957619118)),
-    ((fp_QP_t)(0.99998117528260110909)),
-    ((fp_QP_t)(0.99995764455196389786)),
-    ((fp_QP_t)(0.99992470183914450299)),
-    ((fp_QP_t)(0.99988234745421256111)),
-    ((fp_QP_t)(0.99983058179582340319)),
-    ((fp_QP_t)(0.99976940535121527898)),
-    ((fp_QP_t)(0.99969881869620424997)),
-    ((fp_QP_t)(0.99961882249517863830)),
-    ((fp_QP_t)(0.99952941750109314256)),
-    ((fp_QP_t)(0.99943060455546173237)),
-    ((fp_QP_t)(0.99932238458834954375)),
-    ((fp_QP_t)(0.99920475861836388631)),
-    ((fp_QP_t)(0.99907772775264536147)),
-    ((fp_QP_t)(0.99894129318685687124)),
-    ((fp_QP_t)(0.99879545620517240501)),
-    ((fp_QP_t)(0.99864021818026527111)),
-    ((fp_QP_t)(0.99847558057329477421)),
-    ((fp_QP_t)(0.99830154493389289261)),
-    ((fp_QP_t)(0.99811811290014917919)),
-    ((fp_QP_t)(0.99792528619859599548)),
-    ((fp_QP_t)(0.99772306664419163624)),
-    ((fp_QP_t)(0.99751145614030345410)),
-    ((fp_QP_t)(0.99729045667869020697)),
-    ((fp_QP_t)(0.99706007033948296225)),
-    ((fp_QP_t)(0.99682029929116577893)),
-    ((fp_QP_t)(0.99657114579055483539)),
-    ((fp_QP_t)(0.99631261218277800129)),
-    ((fp_QP_t)(0.99604470090125196702)),
-    ((fp_QP_t)(0.99576741446765981713)),
-    ((fp_QP_t)(0.99548075549192693856)),
-    ((fp_QP_t)(0.99518472667219692873)),
-    ((fp_QP_t)(0.99487933079480561638)),
-    ((fp_QP_t)(0.99456457073425541537)),
-    ((fp_QP_t)(0.99424044945318790223)),
-    ((fp_QP_t)(0.99390697000235606051)),
-    ((fp_QP_t)(0.99356413552059530403)),
-    ((fp_QP_t)(0.99321194923479450001)),
-    ((fp_QP_t)(0.99285041445986510489)),
-    ((fp_QP_t)(0.99247953459870996706)),
-    ((fp_QP_t)(0.99209931314219179654)),
-    ((fp_QP_t)(0.99170975366909952520)),
-    ((fp_QP_t)(0.99131085984611544415)),
-    ((fp_QP_t)(0.99090263542778000971)),
-    ((fp_QP_t)(0.99048508425645698239)),
-    ((fp_QP_t)(0.99005821026229712256)),
-    ((fp_QP_t)(0.98962201746320088702)),
-    ((fp_QP_t)(0.98917650996478101444)),
-    ((fp_QP_t)(0.98872169196032377858)),
-    ((fp_QP_t)(0.98825756773074946437)),
-    ((fp_QP_t)(0.98778414164457217783)),
-    ((fp_QP_t)(0.98730141815785843473)),
-    ((fp_QP_t)(0.98680940181418552726)),
-    ((fp_QP_t)(0.98630809724459866938)),
-    ((fp_QP_t)(0.98579750916756747614)),
-    ((fp_QP_t)(0.98527764238894122162)),
-    ((fp_QP_t)(0.98474850180190420801)),
-    ((fp_QP_t)(0.98421009238692902521)),
-    ((fp_QP_t)(0.98366241921173025453)),
-    ((fp_QP_t)(0.98310548743121628501)),
-    ((fp_QP_t)(0.98253930228744124076)),
-    ((fp_QP_t)(0.98196386910955524296)),
-    ((fp_QP_t)(0.98137919331375456089)),
-    ((fp_QP_t)(0.98078528040323043058)),
-    ((fp_QP_t)(0.98018213596811742949)),
-    ((fp_QP_t)(0.97956976568544051887)),
-    ((fp_QP_t)(0.97894817531906219710)),
-    ((fp_QP_t)(0.97831737071962765473)),
-    ((fp_QP_t)(0.97767735782450992943)),
-    ((fp_QP_t)(0.97702814265775439484)),
-    ((fp_QP_t)(0.97636973133002114000)),
-    ((fp_QP_t)(0.97570213003852857003)),
-    ((fp_QP_t)(0.97502534506699412020)),
-    ((fp_QP_t)(0.97433938278557585821)),
-    ((fp_QP_t)(0.97364424965081197705)),
-    ((fp_QP_t)(0.97293995220556017678)),
-    ((fp_QP_t)(0.97222649707893638027)),
-    ((fp_QP_t)(0.97150389098625178352)),
-    ((fp_QP_t)(0.97077214072895035013)),
-    ((fp_QP_t)(0.97003125319454397424)),
-    ((fp_QP_t)(0.96928123535654853171)),
-    ((fp_QP_t)(0.96852209427441737777)),
-    ((fp_QP_t)(0.96775383709347551076)),
-    ((fp_QP_t)(0.96697647104485207059)),
-    ((fp_QP_t)(0.96619000344541261516)),
-    ((fp_QP_t)(0.96539444169768939830)),
-    ((fp_QP_t)(0.96458979328981275803)),
-    ((fp_QP_t)(0.96377606579543984022)),
-    ((fp_QP_t)(0.96295326687368387741)),
-    ((fp_QP_t)(0.96212140426904158019)),
-    ((fp_QP_t)(0.96128048581132063966)),
-    ((fp_QP_t)(0.96043051941556589757)),
-    ((fp_QP_t)(0.95957151308198451733)),
-    ((fp_QP_t)(0.95870347489587159906)),
-    ((fp_QP_t)(0.95782641302753290802)),
-    ((fp_QP_t)(0.95694033573220893540)),
-    ((fp_QP_t)(0.95604525134999651659)),
-    ((fp_QP_t)(0.95514116830577067141)),
-    ((fp_QP_t)(0.95422809510910566733)),
-    ((fp_QP_t)(0.95330604035419386211)),
-    ((fp_QP_t)(0.95237501271976587880)),
-    ((fp_QP_t)(0.95143502096900833820)),
-    ((fp_QP_t)(0.95048607394948181337)),
-    ((fp_QP_t)(0.94952818059303667475)),
-    ((fp_QP_t)(0.94856134991573037851)),
-    ((fp_QP_t)(0.94758559101774120226)),
-    ((fp_QP_t)(0.94660091308328353499)),
-    ((fp_QP_t)(0.94560732538052139073)),
-    ((fp_QP_t)(0.94460483726148025685)),
-    ((fp_QP_t)(0.94359345816196038559)),
-    ((fp_QP_t)(0.94257319760144686605)),
-    ((fp_QP_t)(0.94154406518302080631)),
-    ((fp_QP_t)(0.94050607059326829518)),
-    ((fp_QP_t)(0.93945922360218991898)),
-    ((fp_QP_t)(0.93840353406310816897)),
-    ((fp_QP_t)(0.93733901191257495977)),
-    ((fp_QP_t)(0.93626566717027825959)),
-    ((fp_QP_t)(0.93518350993894761025)),
-    ((fp_QP_t)(0.93409255040425898109)),
-    ((fp_QP_t)(0.93299279883473884567)),
-    ((fp_QP_t)(0.93188426558166814750)),
-    ((fp_QP_t)(0.93076696107898371224)),
-    ((fp_QP_t)(0.92964089584318132520)),
-    ((fp_QP_t)(0.92850608047321558924)),
-    ((fp_QP_t)(0.92736252565040111495)),
-    ((fp_QP_t)(0.92621024213831137928)),
-    ((fp_QP_t)(0.92504924078267769527)),
-    ((fp_QP_t)(0.92387953251128673848)),
-    ((fp_QP_t)(0.92270112833387851747)),
-    ((fp_QP_t)(0.92151403934204201285)),
-    ((fp_QP_t)(0.92031827670911059425)),
-    ((fp_QP_t)(0.91911385169005777040)),
-    ((fp_QP_t)(0.91790077562139049672)),
-    ((fp_QP_t)(0.91667905992104270485)),
-    ((fp_QP_t)(0.91544871608826783316)),
-    ((fp_QP_t)(0.91420975570353069095)),
-    ((fp_QP_t)(0.91296219042839821256)),
-    ((fp_QP_t)(0.91170603200542987832)),
-    ((fp_QP_t)(0.91044129225806724737)),
-    ((fp_QP_t)(0.90916798309052249127)),
-    ((fp_QP_t)(0.90788611648766615048)),
-    ((fp_QP_t)(0.90659570451491533483)),
-    ((fp_QP_t)(0.90529675931811881551)),
-    ((fp_QP_t)(0.90398929312344344922)),
-    ((fp_QP_t)(0.90267331823725882600)),
-    ((fp_QP_t)(0.90134884704602202810)),
-    ((fp_QP_t)(0.90001589201616027935)),
-    ((fp_QP_t)(0.89867446569395392775)),
-    ((fp_QP_t)(0.89732458070541831763)),
-    ((fp_QP_t)(0.89596624975618521791)),
-    ((fp_QP_t)(0.89459948563138280697)),
-    ((fp_QP_t)(0.89322430119551521344)),
-    ((fp_QP_t)(0.89184070939234272313)),
-    ((fp_QP_t)(0.89044872324475798919)),
-    ((fp_QP_t)(0.88904835585466468473)),
-    ((fp_QP_t)(0.88763962040285393496)),
-    ((fp_QP_t)(0.88622253014888063838)),
-    ((fp_QP_t)(0.88479709843093790056)),
-    ((fp_QP_t)(0.88336333866573168994)),
-    ((fp_QP_t)(0.88192126434835504956)),
-    ((fp_QP_t)(0.88047088905216086552)),
-    ((fp_QP_t)(0.87901222642863352519)),
-    ((fp_QP_t)(0.87754529020726124156)),
-    ((fp_QP_t)(0.87607009419540660122)),
-    ((fp_QP_t)(0.87458665227817622423)),
-    ((fp_QP_t)(0.87309497841829020182)),
-    ((fp_QP_t)(0.87159508665595097909)),
-    ((fp_QP_t)(0.87008699110871146054)),
-    ((fp_QP_t)(0.86857070597134100609)),
-    ((fp_QP_t)(0.86704624551569275948)),
-    ((fp_QP_t)(0.86551362409056908920)),
-    ((fp_QP_t)(0.86397285612158680745)),
-    ((fp_QP_t)(0.86242395611104061270)),
-    ((fp_QP_t)(0.86086693863776719837)),
-    ((fp_QP_t)(0.85930181835700836235)),
-    ((fp_QP_t)(0.85772861000027211809)),
-    ((fp_QP_t)(0.85614732837519458286)),
-    ((fp_QP_t)(0.85455798836540053376)),
-    ((fp_QP_t)(0.85296060493036374162)),
-    ((fp_QP_t)(0.85135519310526519554)),
-    ((fp_QP_t)(0.84974176800085265970)),
-    ((fp_QP_t)(0.84812034480329723252)),
-    ((fp_QP_t)(0.84649093877405212627)),
-    ((fp_QP_t)(0.84485356524970722791)),
-    ((fp_QP_t)(0.84320823964184543620)),
-    ((fp_QP_t)(0.84155497743689844370)),
-    ((fp_QP_t)(0.83989379419599963228)),
-    ((fp_QP_t)(0.83822470555483818977)),
-    ((fp_QP_t)(0.83654772722351200542)),
-    ((fp_QP_t)(0.83486287498638012128)),
-    ((fp_QP_t)(0.83317016470191329613)),
-    ((fp_QP_t)(0.83146961230254545772)),
-    ((fp_QP_t)(0.82976123379452304540)),
-    ((fp_QP_t)(0.82804504525775579626)),
-    ((fp_QP_t)(0.82632106284566364529)),
-    ((fp_QP_t)(0.82458930278502517996)),
-    ((fp_QP_t)(0.82284978137582631685)),
-    ((fp_QP_t)(0.82110251499110475937)),
-    ((fp_QP_t)(0.81934752007679712005)),
-    ((fp_QP_t)(0.81758481315158371139)),
-    ((fp_QP_t)(0.81581441080673378075)),
-    ((fp_QP_t)(0.81403632970594852480)),
-    ((fp_QP_t)(0.81225058658520388200)),
-    ((fp_QP_t)(0.81045719825259476821)),
-    ((fp_QP_t)(0.80865618158817509364)),
-    ((fp_QP_t)(0.80684755354379944503)),
-    ((fp_QP_t)(0.80503133114296354655)),
-    ((fp_QP_t)(0.80320753148064494287)),
-    ((fp_QP_t)(0.80137617172314035141)),
-    ((fp_QP_t)(0.79953726910790523519)),
-    ((fp_QP_t)(0.79769084094339104407)),
-    ((fp_QP_t)(0.79583690460888356633)),
-    ((fp_QP_t)(0.79397547755433728334)),
-    ((fp_QP_t)(0.79210657730021227785)),
-    ((fp_QP_t)(0.79023022143731003197)),
-    ((fp_QP_t)(0.78834642762660633863)),
-    ((fp_QP_t)(0.78645521359908587833)),
-    ((fp_QP_t)(0.78455659715557513056)),
-    ((fp_QP_t)(0.78265059616657572938)),
-    ((fp_QP_t)(0.78073722857209459924)),
-    ((fp_QP_t)(0.77881651238147608929)),
-    ((fp_QP_t)(0.77688846567323244230)),
-    ((fp_QP_t)(0.77495310659487393057)),
-    ((fp_QP_t)(0.77301045336273710440)),
-    ((fp_QP_t)(0.77106052426181370674)),
-    ((fp_QP_t)(0.76910333764557958780)),
-    ((fp_QP_t)(0.76713891193582051109)),
-    ((fp_QP_t)(0.76516726562245906962)),
-    ((fp_QP_t)(0.76318841726338126907)),
-    ((fp_QP_t)(0.76120238548426188974)),
-    ((fp_QP_t)(0.75920918897838818307)),
-    ((fp_QP_t)(0.75720884650648467851)),
-    ((fp_QP_t)(0.75520137689653654700)),
-    ((fp_QP_t)(0.75318679904361252042)),
-    ((fp_QP_t)(0.75116513190968658975)),
-    ((fp_QP_t)(0.74913639452345925918)),
-    ((fp_QP_t)(0.74710060598018013245)),
-    ((fp_QP_t)(0.74505778544146605835)),
-    ((fp_QP_t)(0.74300795213512182968)),
-    ((fp_QP_t)(0.74095112535495899486)),
-    ((fp_QP_t)(0.73888732446061522463)),
-    ((fp_QP_t)(0.73681656887737001504)),
-    ((fp_QP_t)(0.73473887809596361009)),
-    ((fp_QP_t)(0.73265427167241281570)),
-    ((fp_QP_t)(0.73056276922782759087)),
-    ((fp_QP_t)(0.72846439044822530740)),
-    ((fp_QP_t)(0.72635915508434589771)),
-    ((fp_QP_t)(0.72424708295146689174)),
-    ((fp_QP_t)(0.72212819392921545614)),
-    ((fp_QP_t)(0.72000250796138176579)),
-    ((fp_QP_t)(0.71787004505573170920)),
-    ((fp_QP_t)(0.71573082528381870571)),
-    ((fp_QP_t)(0.71358486878079374627)),
-    ((fp_QP_t)(0.71143219574521665560)),
-    ((fp_QP_t)(0.70927282643886557789)),
-    ((fp_QP_t)(0.70710678118654757274)),
-    ((fp_QP_t)(0.70493408037590510329)),
-    ((fp_QP_t)(0.70275474445722518890)),
-    ((fp_QP_t)(0.70056879394324833576)),
-    ((fp_QP_t)(0.69837624940897291559)),
-    ((fp_QP_t)(0.69617713149146309703)),
-    ((fp_QP_t)(0.69397146088965400157)),
-    ((fp_QP_t)(0.69175925836415785852)),
-    ((fp_QP_t)(0.68954054473706705153)),
-    ((fp_QP_t)(0.68731534089175927438)),
-    ((fp_QP_t)(0.68508366777270035541)),
-    ((fp_QP_t)(0.68284554638524819214)),
-    ((fp_QP_t)(0.68060099779545324417)),
-    ((fp_QP_t)(0.67835004312986135755)),
-    ((fp_QP_t)(0.67609270357531592310)),
-    ((fp_QP_t)(0.67382900037875614885)),
-    ((fp_QP_t)(0.67155895484701855214)),
-    ((fp_QP_t)(0.66928258834663600929)),
-    ((fp_QP_t)(0.66699992230363758239)),
-    ((fp_QP_t)(0.66471097820334501538)),
-    ((fp_QP_t)(0.66241577759017200577)),
-    ((fp_QP_t)(0.66011434206742047870)),
-    ((fp_QP_t)(0.65780669329707874837)),
-    ((fp_QP_t)(0.65549285299961557172)),
-    ((fp_QP_t)(0.65317284295377664449)),
-    ((fp_QP_t)(0.65084668499638098638)),
-    ((fp_QP_t)(0.64851440102211255212)),
-    ((fp_QP_t)(0.64617601298331661663)),
-    ((fp_QP_t)(0.64383154288979138613)),
-    ((fp_QP_t)(0.64148101280858316198)),
-    ((fp_QP_t)(0.63912444486377584241)),
-    ((fp_QP_t)(0.63676186123628442104)),
-    ((fp_QP_t)(0.63439328416364548779)),
-    ((fp_QP_t)(0.63201873593980906207)),
-    ((fp_QP_t)(0.62963823891492720630)),
-    ((fp_QP_t)(0.62725181549514408275)),
-    ((fp_QP_t)(0.62485948814238634341)),
-    ((fp_QP_t)(0.62246127937415007825)),
-    ((fp_QP_t)(0.62005721176328942867)),
-    ((fp_QP_t)(0.61764730793780386886)),
-    ((fp_QP_t)(0.61523159058062693028)),
-    ((fp_QP_t)(0.61281008242940981923)),
-    ((fp_QP_t)(0.61038280627630969732)),
-    ((fp_QP_t)(0.60794978496777363208)),
-    ((fp_QP_t)(0.60551104140432565615)),
-    ((fp_QP_t)(0.60306659854034838641)),
-    ((fp_QP_t)(0.60061647938386886203)),
-    ((fp_QP_t)(0.59816070699634238395)),
-    ((fp_QP_t)(0.59569930449243346793)),
-    ((fp_QP_t)(0.59323229503980001720)),
-    ((fp_QP_t)(0.59075970185887416442)),
-    ((fp_QP_t)(0.58828154822264533408)),
-    ((fp_QP_t)(0.58579785745643897510)),
-    ((fp_QP_t)(0.58330865293769851299)),
-    ((fp_QP_t)(0.58081395809576452649)),
-    ((fp_QP_t)(0.57831379641165570060)),
-    ((fp_QP_t)(0.57580819141784544968)),
-    ((fp_QP_t)(0.57329716669804209328)),
-    ((fp_QP_t)(0.57078074588696725566)),
-    ((fp_QP_t)(0.56825895267013171175)),
-    ((fp_QP_t)(0.56573181078361345353)),
-    ((fp_QP_t)(0.56319934401383409117)),
-    ((fp_QP_t)(0.56066157619733614226)),
-    ((fp_QP_t)(0.55811853122055632426)),
-    ((fp_QP_t)(0.55557023301960217765)),
-    ((fp_QP_t)(0.55301670558002757883)),
-    ((fp_QP_t)(0.55045797293660492233)),
-    ((fp_QP_t)(0.54789405917310041172)),
-    ((fp_QP_t)(0.54532498842204635281)),
-    ((fp_QP_t)(0.54275078486451588944)),
-    ((fp_QP_t)(0.54017147272989296525)),
-    ((fp_QP_t)(0.53758707629564572716)),
-    ((fp_QP_t)(0.53499761988709715332)),
-    ((fp_QP_t)(0.53240312787719801246)),
-    ((fp_QP_t)(0.52980362468629482731)),
-    ((fp_QP_t)(0.52719913478190127964)),
-    ((fp_QP_t)(0.52458968267846894928)),
-    ((fp_QP_t)(0.52197529293715450027)),
-    ((fp_QP_t)(0.51935599016558975372)),
-    ((fp_QP_t)(0.51673179901764976218)),
-    ((fp_QP_t)(0.51410274419322177231)),
-    ((fp_QP_t)(0.51146885043797052361)),
-    ((fp_QP_t)(0.50883014254310732216)),
-    ((fp_QP_t)(0.50618664534515522835)),
-    ((fp_QP_t)(0.50353838372571768645)),
-    ((fp_QP_t)(0.50088538261124093687)),
-    ((fp_QP_t)(0.49822766697278175752)),
-    ((fp_QP_t)(0.49556526182577254058)),
-    ((fp_QP_t)(0.49289819222978414892)),
-    ((fp_QP_t)(0.49022648328829138142)),
-    ((fp_QP_t)(0.48755016014843588490)),
-    ((fp_QP_t)(0.48486924800079111986)),
-    ((fp_QP_t)(0.48218377207912288540)),
-    ((fp_QP_t)(0.47949375766015328582)),
-    ((fp_QP_t)(0.47679923006332208812)),
-    ((fp_QP_t)(0.47410021465055007805)),
-    ((fp_QP_t)(0.47139673682599786408)),
-    ((fp_QP_t)(0.46868882203582784562)),
-    ((fp_QP_t)(0.46597649576796618121)),
-    ((fp_QP_t)(0.46325978355186031576)),
-    ((fp_QP_t)(0.46053871095824022719)),
-    ((fp_QP_t)(0.45781330359887717485)),
-    ((fp_QP_t)(0.45508358712634389143)),
-    ((fp_QP_t)(0.45234958723377105549)),
-    ((fp_QP_t)(0.44961132965460687272)),
-    ((fp_QP_t)(0.44686884016237415906)),
-    ((fp_QP_t)(0.44412214457042931137)),
-    ((fp_QP_t)(0.44137126873171689256)),
-    ((fp_QP_t)(0.43861623853852754751)),
-    ((fp_QP_t)(0.43585707992225553031)),
-    ((fp_QP_t)(0.43309381885315206828)),
-    ((fp_QP_t)(0.43032648134008288920)),
-    ((fp_QP_t)(0.42755509343028202940)),
-    ((fp_QP_t)(0.42477968120910886141)),
-    ((fp_QP_t)(0.42200027079979984812)),
-    ((fp_QP_t)(0.41921688836322423821)),
-    ((fp_QP_t)(0.41642956009763715253)),
-    ((fp_QP_t)(0.41363831223843461338)),
-    ((fp_QP_t)(0.41084317105790413294)),
-    ((fp_QP_t)(0.40804416286497857680)),
-    ((fp_QP_t)(0.40524131400498991651)),
-    ((fp_QP_t)(0.40243465085941859671)),
-    ((fp_QP_t)(0.39962419984564706565)),
-    ((fp_QP_t)(0.39680998741671025254)),
-    ((fp_QP_t)(0.39399204006104815434)),
-    ((fp_QP_t)(0.39117038430225403722)),
-    ((fp_QP_t)(0.38834504669882657923)),
-    ((fp_QP_t)(0.38551605384391884890)),
-    ((fp_QP_t)(0.38268343236508989280)),
-    ((fp_QP_t)(0.37984720892405138271)),
-    ((fp_QP_t)(0.37700741021641814843)),
-    ((fp_QP_t)(0.37416406297145804460)),
-    ((fp_QP_t)(0.37131719395183770960)),
-    ((fp_QP_t)(0.36846682995337259880)),
-    ((fp_QP_t)(0.36561299780477379828)),
-    ((fp_QP_t)(0.36275572436739728088)),
-    ((fp_QP_t)(0.35989503653498833291)),
-    ((fp_QP_t)(0.35703096123343031065)),
-    ((fp_QP_t)(0.35416352542049039931)),
-    ((fp_QP_t)(0.35129275608556720378)),
-    ((fp_QP_t)(0.34841868024943478677)),
-    ((fp_QP_t)(0.34554132496398898278)),
-    ((fp_QP_t)(0.34266071731199443384)),
-    ((fp_QP_t)(0.33977688440682701776)),
-    ((fp_QP_t)(0.33688985339222032867)),
-    ((fp_QP_t)(0.33399965144200938205)),
-    ((fp_QP_t)(0.33110630575987648472)),
-    ((fp_QP_t)(0.32820984357909271933)),
-    ((fp_QP_t)(0.32531029216226325929)),
-    ((fp_QP_t)(0.32240767880106985244)),
-    ((fp_QP_t)(0.31950203081601580291)),
-    ((fp_QP_t)(0.31659337555616606785)),
-    ((fp_QP_t)(0.31368174039889140658)),
-    ((fp_QP_t)(0.31076715274961153046)),
-    ((fp_QP_t)(0.30784964004153503314)),
-    ((fp_QP_t)(0.30492922973540265152)),
-    ((fp_QP_t)(0.30200594931922802866)),
-    ((fp_QP_t)(0.29907982630804053059)),
-    ((fp_QP_t)(0.29615088824362401088)),
-    ((fp_QP_t)(0.29321916269425896129)),
-    ((fp_QP_t)(0.29028467725446238656)),
-    ((fp_QP_t)(0.28734745954472962204)),
-    ((fp_QP_t)(0.28440753721127209896)),
-    ((fp_QP_t)(0.28146493792575788540)),
-    ((fp_QP_t)(0.27851968938505317075)),
-    ((fp_QP_t)(0.27557181931095831029)),
-    ((fp_QP_t)(0.27262135544994925418)),
-    ((fp_QP_t)(0.26966832557291509076)),
-    ((fp_QP_t)(0.26671275747489847641)),
-    ((fp_QP_t)(0.26375467897483156898)),
-    ((fp_QP_t)(0.26079411791527584707)),
-    ((fp_QP_t)(0.25783110216215898713)),
-    ((fp_QP_t)(0.25486565960451468271)),
-    ((fp_QP_t)(0.25189781815421719013)),
-    ((fp_QP_t)(0.24892760574572009302)),
-    ((fp_QP_t)(0.24595505033579465048)),
-    ((fp_QP_t)(0.24298017990326406523)),
-    ((fp_QP_t)(0.24000302244874177626)),
-    ((fp_QP_t)(0.23702360599436717026)),
-    ((fp_QP_t)(0.23404195858354351345)),
-    ((fp_QP_t)(0.23105810828067133156)),
-    ((fp_QP_t)(0.22807208317088606409)),
-    ((fp_QP_t)(0.22508391135979283204)),
-    ((fp_QP_t)(0.22209362097320364815)),
-    ((fp_QP_t)(0.21910124015687004739)),
-    ((fp_QP_t)(0.21610679707621943679)),
-    ((fp_QP_t)(0.21311031991609141745)),
-    ((fp_QP_t)(0.21011183688046980444)),
-    ((fp_QP_t)(0.20711137619221883788)),
-    ((fp_QP_t)(0.20410896609281684033)),
-    ((fp_QP_t)(0.20110463484209201157)),
-    ((fp_QP_t)(0.19809841071795381007)),
-    ((fp_QP_t)(0.19509032201612860891)),
-    ((fp_QP_t)(0.19208039704989246510)),
-    ((fp_QP_t)(0.18906866414980635915)),
-    ((fp_QP_t)(0.18605515166344691047)),
-    ((fp_QP_t)(0.18303988795514089527)),
-    ((fp_QP_t)(0.18002290140569957022)),
-    ((fp_QP_t)(0.17700422041214894375)),
-    ((fp_QP_t)(0.17398387338746412745)),
-    ((fp_QP_t)(0.17096188876030121717)),
-    ((fp_QP_t)(0.16793829497473128365)),
-    ((fp_QP_t)(0.16491312048997014417)),
-    ((fp_QP_t)(0.16188639378011174252)),
-    ((fp_QP_t)(0.15885814333386147346)),
-    ((fp_QP_t)(0.15582839765426537149)),
-    ((fp_QP_t)(0.15279718525844368515)),
-    ((fp_QP_t)(0.14976453467732145364)),
-    ((fp_QP_t)(0.14673047445536180344)),
-    ((fp_QP_t)(0.14369503315029463764)),
-    ((fp_QP_t)(0.14065823933284954395)),
-    ((fp_QP_t)(0.13762012158648603832)),
-    ((fp_QP_t)(0.13458070850712627875)),
-    ((fp_QP_t)(0.13154002870288333815)),
-    ((fp_QP_t)(0.12849811079379308554)),
-    ((fp_QP_t)(0.12545498341154626143)),
-    ((fp_QP_t)(0.12241067519921634832)),
-    ((fp_QP_t)(0.11936521481099163222)),
-    ((fp_QP_t)(0.11631863091190471071)),
-    ((fp_QP_t)(0.11327095217756441570)),
-    ((fp_QP_t)(0.11022220729388323979)),
-    ((fp_QP_t)(0.10717242495680916192)),
-    ((fp_QP_t)(0.10412163387205457254)),
-    ((fp_QP_t)(0.10106986275482793269)),
-    ((fp_QP_t)(0.09801714032956082567)),
-    ((fp_QP_t)(0.09496349532963890838)),
-    ((fp_QP_t)(0.09190895649713275162)),
-    ((fp_QP_t)(0.08885355258252475297)),
-    ((fp_QP_t)(0.08579731234444015753)),
-    ((fp_QP_t)(0.08274026454937563613)),
-    ((fp_QP_t)(0.07968243797143019502)),
-    ((fp_QP_t)(0.07662386139203168633)),
-    ((fp_QP_t)(0.07356456359966773162)),
-    ((fp_QP_t)(0.07050457338961385600)),
-    ((fp_QP_t)(0.06744391956366417584)),
-    ((fp_QP_t)(0.06438263092985770097)),
-    ((fp_QP_t)(0.06132073630220848809)),
-    ((fp_QP_t)(0.05825826450043579408)),
-    ((fp_QP_t)(0.05519524434969009380)),
-    ((fp_QP_t)(0.05213170468028359428)),
-    ((fp_QP_t)(0.04906767432741796636)),
-    ((fp_QP_t)(0.04600318213091470626)),
-    ((fp_QP_t)(0.04293825693494102147)),
-    ((fp_QP_t)(0.03987292758774012985)),
-    ((fp_QP_t)(0.03680722294135883171)),
-    ((fp_QP_t)(0.03374117185137770480)),
-    ((fp_QP_t)(0.03067480317663686534)),
-    ((fp_QP_t)(0.02760814577896565994)),
-    ((fp_QP_t)(0.02454122852291232629)),
-    ((fp_QP_t)(0.02147408027546966747)),
-    ((fp_QP_t)(0.01840672990580510121)),
-    ((fp_QP_t)(0.01533920628498806026)),
-    ((fp_QP_t)(0.01227153828572000692)),
-    ((fp_QP_t)(0.00920375478206002066)),
-    ((fp_QP_t)(0.00613588464915479880)),
-    ((fp_QP_t)(0.00306795676296597701)),
-    ((fp_QP_t)(0.00000000000000000000)),
-};
 
-static const fp_QP_t cos_lut[1025] = {
-    ((fp_QP_t)(1.00000000000000000000)),
-    ((fp_QP_t)(0.99999529380957619118)),
-    ((fp_QP_t)(0.99998117528260110909)),
-    ((fp_QP_t)(0.99995764455196389786)),
-    ((fp_QP_t)(0.99992470183914450299)),
-    ((fp_QP_t)(0.99988234745421256111)),
-    ((fp_QP_t)(0.99983058179582340319)),
-    ((fp_QP_t)(0.99976940535121527898)),
-    ((fp_QP_t)(0.99969881869620424997)),
-    ((fp_QP_t)(0.99961882249517863830)),
-    ((fp_QP_t)(0.99952941750109314256)),
-    ((fp_QP_t)(0.99943060455546173237)),
-    ((fp_QP_t)(0.99932238458834954375)),
-    ((fp_QP_t)(0.99920475861836388631)),
-    ((fp_QP_t)(0.99907772775264536147)),
-    ((fp_QP_t)(0.99894129318685687124)),
-    ((fp_QP_t)(0.99879545620517240501)),
-    ((fp_QP_t)(0.99864021818026527111)),
-    ((fp_QP_t)(0.99847558057329477421)),
-    ((fp_QP_t)(0.99830154493389289261)),
-    ((fp_QP_t)(0.99811811290014917919)),
-    ((fp_QP_t)(0.99792528619859599548)),
-    ((fp_QP_t)(0.99772306664419163624)),
-    ((fp_QP_t)(0.99751145614030345410)),
-    ((fp_QP_t)(0.99729045667869020697)),
-    ((fp_QP_t)(0.99706007033948296225)),
-    ((fp_QP_t)(0.99682029929116566791)),
-    ((fp_QP_t)(0.99657114579055483539)),
-    ((fp_QP_t)(0.99631261218277800129)),
-    ((fp_QP_t)(0.99604470090125196702)),
-    ((fp_QP_t)(0.99576741446765981713)),
-    ((fp_QP_t)(0.99548075549192693856)),
-    ((fp_QP_t)(0.99518472667219692873)),
-    ((fp_QP_t)(0.99487933079480561638)),
-    ((fp_QP_t)(0.99456457073425541537)),
-    ((fp_QP_t)(0.99424044945318790223)),
-    ((fp_QP_t)(0.99390697000235606051)),
-    ((fp_QP_t)(0.99356413552059530403)),
-    ((fp_QP_t)(0.99321194923479450001)),
-    ((fp_QP_t)(0.99285041445986510489)),
-    ((fp_QP_t)(0.99247953459870996706)),
-    ((fp_QP_t)(0.99209931314219179654)),
-    ((fp_QP_t)(0.99170975366909952520)),
-    ((fp_QP_t)(0.99131085984611544415)),
-    ((fp_QP_t)(0.99090263542778000971)),
-    ((fp_QP_t)(0.99048508425645709341)),
-    ((fp_QP_t)(0.99005821026229712256)),
-    ((fp_QP_t)(0.98962201746320088702)),
-    ((fp_QP_t)(0.98917650996478101444)),
-    ((fp_QP_t)(0.98872169196032377858)),
-    ((fp_QP_t)(0.98825756773074946437)),
-    ((fp_QP_t)(0.98778414164457217783)),
-    ((fp_QP_t)(0.98730141815785843473)),
-    ((fp_QP_t)(0.98680940181418552726)),
-    ((fp_QP_t)(0.98630809724459866938)),
-    ((fp_QP_t)(0.98579750916756747614)),
-    ((fp_QP_t)(0.98527764238894122162)),
-    ((fp_QP_t)(0.98474850180190420801)),
-    ((fp_QP_t)(0.98421009238692902521)),
-    ((fp_QP_t)(0.98366241921173025453)),
-    ((fp_QP_t)(0.98310548743121628501)),
-    ((fp_QP_t)(0.98253930228744124076)),
-    ((fp_QP_t)(0.98196386910955524296)),
-    ((fp_QP_t)(0.98137919331375456089)),
-    ((fp_QP_t)(0.98078528040323043058)),
-    ((fp_QP_t)(0.98018213596811742949)),
-    ((fp_QP_t)(0.97956976568544051887)),
-    ((fp_QP_t)(0.97894817531906219710)),
-    ((fp_QP_t)(0.97831737071962765473)),
-    ((fp_QP_t)(0.97767735782450992943)),
-    ((fp_QP_t)(0.97702814265775439484)),
-    ((fp_QP_t)(0.97636973133002114000)),
-    ((fp_QP_t)(0.97570213003852857003)),
-    ((fp_QP_t)(0.97502534506699412020)),
-    ((fp_QP_t)(0.97433938278557585821)),
-    ((fp_QP_t)(0.97364424965081197705)),
-    ((fp_QP_t)(0.97293995220556017678)),
-    ((fp_QP_t)(0.97222649707893626925)),
-    ((fp_QP_t)(0.97150389098625178352)),
-    ((fp_QP_t)(0.97077214072895035013)),
-    ((fp_QP_t)(0.97003125319454397424)),
-    ((fp_QP_t)(0.96928123535654853171)),
-    ((fp_QP_t)(0.96852209427441737777)),
-    ((fp_QP_t)(0.96775383709347551076)),
-    ((fp_QP_t)(0.96697647104485207059)),
-    ((fp_QP_t)(0.96619000344541250413)),
-    ((fp_QP_t)(0.96539444169768939830)),
-    ((fp_QP_t)(0.96458979328981275803)),
-    ((fp_QP_t)(0.96377606579543984022)),
-    ((fp_QP_t)(0.96295326687368387741)),
-    ((fp_QP_t)(0.96212140426904158019)),
-    ((fp_QP_t)(0.96128048581132063966)),
-    ((fp_QP_t)(0.96043051941556578655)),
-    ((fp_QP_t)(0.95957151308198451733)),
-    ((fp_QP_t)(0.95870347489587159906)),
-    ((fp_QP_t)(0.95782641302753290802)),
-    ((fp_QP_t)(0.95694033573220882438)),
-    ((fp_QP_t)(0.95604525134999640557)),
-    ((fp_QP_t)(0.95514116830577078243)),
-    ((fp_QP_t)(0.95422809510910566733)),
-    ((fp_QP_t)(0.95330604035419386211)),
-    ((fp_QP_t)(0.95237501271976587880)),
-    ((fp_QP_t)(0.95143502096900833820)),
-    ((fp_QP_t)(0.95048607394948170235)),
-    ((fp_QP_t)(0.94952818059303667475)),
-    ((fp_QP_t)(0.94856134991573026749)),
-    ((fp_QP_t)(0.94758559101774109124)),
-    ((fp_QP_t)(0.94660091308328353499)),
-    ((fp_QP_t)(0.94560732538052127971)),
-    ((fp_QP_t)(0.94460483726148025685)),
-    ((fp_QP_t)(0.94359345816196038559)),
-    ((fp_QP_t)(0.94257319760144686605)),
-    ((fp_QP_t)(0.94154406518302080631)),
-    ((fp_QP_t)(0.94050607059326829518)),
-    ((fp_QP_t)(0.93945922360218991898)),
-    ((fp_QP_t)(0.93840353406310805795)),
-    ((fp_QP_t)(0.93733901191257495977)),
-    ((fp_QP_t)(0.93626566717027825959)),
-    ((fp_QP_t)(0.93518350993894761025)),
-    ((fp_QP_t)(0.93409255040425898109)),
-    ((fp_QP_t)(0.93299279883473895669)),
-    ((fp_QP_t)(0.93188426558166814750)),
-    ((fp_QP_t)(0.93076696107898371224)),
-    ((fp_QP_t)(0.92964089584318132520)),
-    ((fp_QP_t)(0.92850608047321558924)),
-    ((fp_QP_t)(0.92736252565040111495)),
-    ((fp_QP_t)(0.92621024213831137928)),
-    ((fp_QP_t)(0.92504924078267758425)),
-    ((fp_QP_t)(0.92387953251128673848)),
-    ((fp_QP_t)(0.92270112833387862850)),
-    ((fp_QP_t)(0.92151403934204201285)),
-    ((fp_QP_t)(0.92031827670911059425)),
-    ((fp_QP_t)(0.91911385169005777040)),
-    ((fp_QP_t)(0.91790077562139049672)),
-    ((fp_QP_t)(0.91667905992104270485)),
-    ((fp_QP_t)(0.91544871608826783316)),
-    ((fp_QP_t)(0.91420975570353069095)),
-    ((fp_QP_t)(0.91296219042839821256)),
-    ((fp_QP_t)(0.91170603200542987832)),
-    ((fp_QP_t)(0.91044129225806724737)),
-    ((fp_QP_t)(0.90916798309052238025)),
-    ((fp_QP_t)(0.90788611648766626150)),
-    ((fp_QP_t)(0.90659570451491533483)),
-    ((fp_QP_t)(0.90529675931811881551)),
-    ((fp_QP_t)(0.90398929312344333820)),
-    ((fp_QP_t)(0.90267331823725882600)),
-    ((fp_QP_t)(0.90134884704602202810)),
-    ((fp_QP_t)(0.90001589201616027935)),
-    ((fp_QP_t)(0.89867446569395381673)),
-    ((fp_QP_t)(0.89732458070541831763)),
-    ((fp_QP_t)(0.89596624975618521791)),
-    ((fp_QP_t)(0.89459948563138269595)),
-    ((fp_QP_t)(0.89322430119551532446)),
-    ((fp_QP_t)(0.89184070939234272313)),
-    ((fp_QP_t)(0.89044872324475787817)),
-    ((fp_QP_t)(0.88904835585466457371)),
-    ((fp_QP_t)(0.88763962040285393496)),
-    ((fp_QP_t)(0.88622253014888063838)),
-    ((fp_QP_t)(0.88479709843093778954)),
-    ((fp_QP_t)(0.88336333866573157891)),
-    ((fp_QP_t)(0.88192126434835504956)),
-    ((fp_QP_t)(0.88047088905216075450)),
-    ((fp_QP_t)(0.87901222642863352519)),
-    ((fp_QP_t)(0.87754529020726135258)),
-    ((fp_QP_t)(0.87607009419540660122)),
-    ((fp_QP_t)(0.87458665227817611321)),
-    ((fp_QP_t)(0.87309497841829009079)),
-    ((fp_QP_t)(0.87159508665595097909)),
-    ((fp_QP_t)(0.87008699110871146054)),
-    ((fp_QP_t)(0.86857070597134089507)),
-    ((fp_QP_t)(0.86704624551569264845)),
-    ((fp_QP_t)(0.86551362409056908920)),
-    ((fp_QP_t)(0.86397285612158680745)),
-    ((fp_QP_t)(0.86242395611104061270)),
-    ((fp_QP_t)(0.86086693863776730939)),
-    ((fp_QP_t)(0.85930181835700847337)),
-    ((fp_QP_t)(0.85772861000027211809)),
-    ((fp_QP_t)(0.85614732837519447184)),
-    ((fp_QP_t)(0.85455798836540053376)),
-    ((fp_QP_t)(0.85296060493036363059)),
-    ((fp_QP_t)(0.85135519310526519554)),
-    ((fp_QP_t)(0.84974176800085254868)),
-    ((fp_QP_t)(0.84812034480329723252)),
-    ((fp_QP_t)(0.84649093877405212627)),
-    ((fp_QP_t)(0.84485356524970711689)),
-    ((fp_QP_t)(0.84320823964184543620)),
-    ((fp_QP_t)(0.84155497743689844370)),
-    ((fp_QP_t)(0.83989379419599952126)),
-    ((fp_QP_t)(0.83822470555483807875)),
-    ((fp_QP_t)(0.83654772722351200542)),
-    ((fp_QP_t)(0.83486287498638001026)),
-    ((fp_QP_t)(0.83317016470191318511)),
-    ((fp_QP_t)(0.83146961230254523567)),
-    ((fp_QP_t)(0.82976123379452304540)),
-    ((fp_QP_t)(0.82804504525775579626)),
-    ((fp_QP_t)(0.82632106284566353427)),
-    ((fp_QP_t)(0.82458930278502529099)),
-    ((fp_QP_t)(0.82284978137582642788)),
-    ((fp_QP_t)(0.82110251499110464835)),
-    ((fp_QP_t)(0.81934752007679689800)),
-    ((fp_QP_t)(0.81758481315158371139)),
-    ((fp_QP_t)(0.81581441080673378075)),
-    ((fp_QP_t)(0.81403632970594841378)),
-    ((fp_QP_t)(0.81225058658520388200)),
-    ((fp_QP_t)(0.81045719825259476821)),
-    ((fp_QP_t)(0.80865618158817498262)),
-    ((fp_QP_t)(0.80684755354379933401)),
-    ((fp_QP_t)(0.80503133114296365758)),
-    ((fp_QP_t)(0.80320753148064494287)),
-    ((fp_QP_t)(0.80137617172314024039)),
-    ((fp_QP_t)(0.79953726910790501314)),
-    ((fp_QP_t)(0.79769084094339115509)),
-    ((fp_QP_t)(0.79583690460888356633)),
-    ((fp_QP_t)(0.79397547755433717231)),
-    ((fp_QP_t)(0.79210657730021238887)),
-    ((fp_QP_t)(0.79023022143731003197)),
-    ((fp_QP_t)(0.78834642762660633863)),
-    ((fp_QP_t)(0.78645521359908576731)),
-    ((fp_QP_t)(0.78455659715557524159)),
-    ((fp_QP_t)(0.78265059616657572938)),
-    ((fp_QP_t)(0.78073722857209448822)),
-    ((fp_QP_t)(0.77881651238147597827)),
-    ((fp_QP_t)(0.77688846567323244230)),
-    ((fp_QP_t)(0.77495310659487393057)),
-    ((fp_QP_t)(0.77301045336273699338)),
-    ((fp_QP_t)(0.77106052426181381776)),
-    ((fp_QP_t)(0.76910333764557969882)),
-    ((fp_QP_t)(0.76713891193582040007)),
-    ((fp_QP_t)(0.76516726562245895860)),
-    ((fp_QP_t)(0.76318841726338126907)),
-    ((fp_QP_t)(0.76120238548426177871)),
-    ((fp_QP_t)(0.75920918897838807204)),
-    ((fp_QP_t)(0.75720884650648456748)),
-    ((fp_QP_t)(0.75520137689653654700)),
-    ((fp_QP_t)(0.75318679904361252042)),
-    ((fp_QP_t)(0.75116513190968647873)),
-    ((fp_QP_t)(0.74913639452345937020)),
-    ((fp_QP_t)(0.74710060598018013245)),
-    ((fp_QP_t)(0.74505778544146605835)),
-    ((fp_QP_t)(0.74300795213512171866)),
-    ((fp_QP_t)(0.74095112535495910588)),
-    ((fp_QP_t)(0.73888732446061511361)),
-    ((fp_QP_t)(0.73681656887736990402)),
-    ((fp_QP_t)(0.73473887809596349907)),
-    ((fp_QP_t)(0.73265427167241281570)),
-    ((fp_QP_t)(0.73056276922782759087)),
-    ((fp_QP_t)(0.72846439044822519637)),
-    ((fp_QP_t)(0.72635915508434600873)),
-    ((fp_QP_t)(0.72424708295146700276)),
-    ((fp_QP_t)(0.72212819392921534511)),
-    ((fp_QP_t)(0.72000250796138165477)),
-    ((fp_QP_t)(0.71787004505573170920)),
-    ((fp_QP_t)(0.71573082528381859468)),
-    ((fp_QP_t)(0.71358486878079363525)),
-    ((fp_QP_t)(0.71143219574521643356)),
-    ((fp_QP_t)(0.70927282643886568891)),
-    ((fp_QP_t)(0.70710678118654757274)),
-    ((fp_QP_t)(0.70493408037590499227)),
-    ((fp_QP_t)(0.70275474445722529993)),
-    ((fp_QP_t)(0.70056879394324844679)),
-    ((fp_QP_t)(0.69837624940897291559)),
-    ((fp_QP_t)(0.69617713149146298601)),
-    ((fp_QP_t)(0.69397146088965400157)),
-    ((fp_QP_t)(0.69175925836415774750)),
-    ((fp_QP_t)(0.68954054473706694051)),
-    ((fp_QP_t)(0.68731534089175916336)),
-    ((fp_QP_t)(0.68508366777270035541)),
-    ((fp_QP_t)(0.68284554638524808112)),
-    ((fp_QP_t)(0.68060099779545313314)),
-    ((fp_QP_t)(0.67835004312986157959)),
-    ((fp_QP_t)(0.67609270357531603413)),
-    ((fp_QP_t)(0.67382900037875614885)),
-    ((fp_QP_t)(0.67155895484701833009)),
-    ((fp_QP_t)(0.66928258834663600929)),
-    ((fp_QP_t)(0.66699992230363747137)),
-    ((fp_QP_t)(0.66471097820334490436)),
-    ((fp_QP_t)(0.66241577759017178373)),
-    ((fp_QP_t)(0.66011434206742047870)),
-    ((fp_QP_t)(0.65780669329707863735)),
-    ((fp_QP_t)(0.65549285299961546070)),
-    ((fp_QP_t)(0.65317284295377675551)),
-    ((fp_QP_t)(0.65084668499638098638)),
-    ((fp_QP_t)(0.64851440102211255212)),
-    ((fp_QP_t)(0.64617601298331639459)),
-    ((fp_QP_t)(0.64383154288979149715)),
-    ((fp_QP_t)(0.64148101280858316198)),
-    ((fp_QP_t)(0.63912444486377573138)),
-    ((fp_QP_t)(0.63676186123628419899)),
-    ((fp_QP_t)(0.63439328416364548779)),
-    ((fp_QP_t)(0.63201873593980906207)),
-    ((fp_QP_t)(0.62963823891492709528)),
-    ((fp_QP_t)(0.62725181549514419377)),
-    ((fp_QP_t)(0.62485948814238645443)),
-    ((fp_QP_t)(0.62246127937415007825)),
-    ((fp_QP_t)(0.62005721176328920663)),
-    ((fp_QP_t)(0.61764730793780397988)),
-    ((fp_QP_t)(0.61523159058062681925)),
-    ((fp_QP_t)(0.61281008242940970820)),
-    ((fp_QP_t)(0.61038280627630947528)),
-    ((fp_QP_t)(0.60794978496777374311)),
-    ((fp_QP_t)(0.60551104140432554512)),
-    ((fp_QP_t)(0.60306659854034827539)),
-    ((fp_QP_t)(0.60061647938386897305)),
-    ((fp_QP_t)(0.59816070699634238395)),
-    ((fp_QP_t)(0.59569930449243346793)),
-    ((fp_QP_t)(0.59323229503979979516)),
-    ((fp_QP_t)(0.59075970185887427544)),
-    ((fp_QP_t)(0.58828154822264533408)),
-    ((fp_QP_t)(0.58579785745643886408)),
-    ((fp_QP_t)(0.58330865293769829094)),
-    ((fp_QP_t)(0.58081395809576452649)),
-    ((fp_QP_t)(0.57831379641165558958)),
-    ((fp_QP_t)(0.57580819141784533866)),
-    ((fp_QP_t)(0.57329716669804231532)),
-    ((fp_QP_t)(0.57078074588696736669)),
-    ((fp_QP_t)(0.56825895267013148970)),
-    ((fp_QP_t)(0.56573181078361323149)),
-    ((fp_QP_t)(0.56319934401383409117)),
-    ((fp_QP_t)(0.56066157619733603124)),
-    ((fp_QP_t)(0.55811853122055610221)),
-    ((fp_QP_t)(0.55557023301960228867)),
-    ((fp_QP_t)(0.55301670558002757883)),
-    ((fp_QP_t)(0.55045797293660481131)),
-    ((fp_QP_t)(0.54789405917310018967)),
-    ((fp_QP_t)(0.54532498842204646383)),
-    ((fp_QP_t)(0.54275078486451600046)),
-    ((fp_QP_t)(0.54017147272989296525)),
-    ((fp_QP_t)(0.53758707629564550512)),
-    ((fp_QP_t)(0.53499761988709726435)),
-    ((fp_QP_t)(0.53240312787719801246)),
-    ((fp_QP_t)(0.52980362468629482731)),
-    ((fp_QP_t)(0.52719913478190139067)),
-    ((fp_QP_t)(0.52458968267846883826)),
-    ((fp_QP_t)(0.52197529293715438925)),
-    ((fp_QP_t)(0.51935599016558953167)),
-    ((fp_QP_t)(0.51673179901764998423)),
-    ((fp_QP_t)(0.51410274419322166128)),
-    ((fp_QP_t)(0.51146885043797052361)),
-    ((fp_QP_t)(0.50883014254310698909)),
-    ((fp_QP_t)(0.50618664534515545039)),
-    ((fp_QP_t)(0.50353838372571757542)),
-    ((fp_QP_t)(0.50088538261124093687)),
-    ((fp_QP_t)(0.49822766697278186854)),
-    ((fp_QP_t)(0.49556526182577248507)),
-    ((fp_QP_t)(0.49289819222978409341)),
-    ((fp_QP_t)(0.49022648328829110387)),
-    ((fp_QP_t)(0.48755016014843605143)),
-    ((fp_QP_t)(0.48486924800079111986)),
-    ((fp_QP_t)(0.48218377207912282989)),
-    ((fp_QP_t)(0.47949375766015300826)),
-    ((fp_QP_t)(0.47679923006332225466)),
-    ((fp_QP_t)(0.47410021465055002254)),
-    ((fp_QP_t)(0.47139673682599780857)),
-    ((fp_QP_t)(0.46868882203582795665)),
-    ((fp_QP_t)(0.46597649576796612569)),
-    ((fp_QP_t)(0.46325978355186026025)),
-    ((fp_QP_t)(0.46053871095824000514)),
-    ((fp_QP_t)(0.45781330359887728587)),
-    ((fp_QP_t)(0.45508358712634383592)),
-    ((fp_QP_t)(0.45234958723377099998)),
-    ((fp_QP_t)(0.44961132965460659516)),
-    ((fp_QP_t)(0.44686884016237432560)),
-    ((fp_QP_t)(0.44412214457042925586)),
-    ((fp_QP_t)(0.44137126873171661501)),
-    ((fp_QP_t)(0.43861623853852771404)),
-    ((fp_QP_t)(0.43585707992225547480)),
-    ((fp_QP_t)(0.43309381885315201277)),
-    ((fp_QP_t)(0.43032648134008261165)),
-    ((fp_QP_t)(0.42755509343028219593)),
-    ((fp_QP_t)(0.42477968120910880589)),
-    ((fp_QP_t)(0.42200027079979979261)),
-    ((fp_QP_t)(0.41921688836322396066)),
-    ((fp_QP_t)(0.41642956009763731906)),
-    ((fp_QP_t)(0.41363831223843455787)),
-    ((fp_QP_t)(0.41084317105790391089)),
-    ((fp_QP_t)(0.40804416286497874333)),
-    ((fp_QP_t)(0.40524131400498986100)),
-    ((fp_QP_t)(0.40243465085941854120)),
-    ((fp_QP_t)(0.39962419984564678810)),
-    ((fp_QP_t)(0.39680998741671041907)),
-    ((fp_QP_t)(0.39399204006104809883)),
-    ((fp_QP_t)(0.39117038430225398171)),
-    ((fp_QP_t)(0.38834504669882630168)),
-    ((fp_QP_t)(0.38551605384391901543)),
-    ((fp_QP_t)(0.38268343236508983729)),
-    ((fp_QP_t)(0.37984720892405110515)),
-    ((fp_QP_t)(0.37700741021641831496)),
-    ((fp_QP_t)(0.37416406297145798909)),
-    ((fp_QP_t)(0.37131719395183759858)),
-    ((fp_QP_t)(0.36846682995337232125)),
-    ((fp_QP_t)(0.36561299780477396482)),
-    ((fp_QP_t)(0.36275572436739722537)),
-    ((fp_QP_t)(0.35989503653498827740)),
-    ((fp_QP_t)(0.35703096123343003310)),
-    ((fp_QP_t)(0.35416352542049051033)),
-    ((fp_QP_t)(0.35129275608556714827)),
-    ((fp_QP_t)(0.34841868024943450921)),
-    ((fp_QP_t)(0.34554132496398914931)),
-    ((fp_QP_t)(0.34266071731199437833)),
-    ((fp_QP_t)(0.33977688440682696225)),
-    ((fp_QP_t)(0.33688985339222005111)),
-    ((fp_QP_t)(0.33399965144200949307)),
-    ((fp_QP_t)(0.33110630575987642921)),
-    ((fp_QP_t)(0.32820984357909266382)),
-    ((fp_QP_t)(0.32531029216226298173)),
-    ((fp_QP_t)(0.32240767880107001897)),
-    ((fp_QP_t)(0.31950203081601574739)),
-    ((fp_QP_t)(0.31659337555616584581)),
-    ((fp_QP_t)(0.31368174039889157312)),
-    ((fp_QP_t)(0.31076715274961147495)),
-    ((fp_QP_t)(0.30784964004153497763)),
-    ((fp_QP_t)(0.30492922973540242948)),
-    ((fp_QP_t)(0.30200594931922819519)),
-    ((fp_QP_t)(0.29907982630804047508)),
-    ((fp_QP_t)(0.29615088824362395536)),
-    ((fp_QP_t)(0.29321916269425868373)),
-    ((fp_QP_t)(0.29028467725446233105)),
-    ((fp_QP_t)(0.28734745954472956653)),
-    ((fp_QP_t)(0.28440753721127182141)),
-    ((fp_QP_t)(0.28146493792575805193)),
-    ((fp_QP_t)(0.27851968938505305973)),
-    ((fp_QP_t)(0.27557181931095825478)),
-    ((fp_QP_t)(0.27262135544994897662)),
-    ((fp_QP_t)(0.26966832557291520178)),
-    ((fp_QP_t)(0.26671275747489842090)),
-    ((fp_QP_t)(0.26375467897483151347)),
-    ((fp_QP_t)(0.26079411791527556952)),
-    ((fp_QP_t)(0.25783110216215893162)),
-    ((fp_QP_t)(0.25486565960451462720)),
-    ((fp_QP_t)(0.25189781815421691258)),
-    ((fp_QP_t)(0.24892760574572025956)),
-    ((fp_QP_t)(0.24595505033579459497)),
-    ((fp_QP_t)(0.24298017990326398197)),
-    ((fp_QP_t)(0.24000302244874149871)),
-    ((fp_QP_t)(0.23702360599436733679)),
-    ((fp_QP_t)(0.23404195858354345794)),
-    ((fp_QP_t)(0.23105810828067127605)),
-    ((fp_QP_t)(0.22807208317088578653)),
-    ((fp_QP_t)(0.22508391135979277653)),
-    ((fp_QP_t)(0.22209362097320359264)),
-    ((fp_QP_t)(0.21910124015686976984)),
-    ((fp_QP_t)(0.21610679707621960333)),
-    ((fp_QP_t)(0.21311031991609136194)),
-    ((fp_QP_t)(0.21011183688046972118)),
-    ((fp_QP_t)(0.20711137619221856032)),
-    ((fp_QP_t)(0.20410896609281700687)),
-    ((fp_QP_t)(0.20110463484209195606)),
-    ((fp_QP_t)(0.19809841071795372680)),
-    ((fp_QP_t)(0.19509032201612833135)),
-    ((fp_QP_t)(0.19208039704989238183)),
-    ((fp_QP_t)(0.18906866414980627589)),
-    ((fp_QP_t)(0.18605515166344663291)),
-    ((fp_QP_t)(0.18303988795514106180)),
-    ((fp_QP_t)(0.18002290140569951471)),
-    ((fp_QP_t)(0.17700422041214886049)),
-    ((fp_QP_t)(0.17398387338746384989)),
-    ((fp_QP_t)(0.17096188876030135595)),
-    ((fp_QP_t)(0.16793829497473122814)),
-    ((fp_QP_t)(0.16491312048997008866)),
-    ((fp_QP_t)(0.16188639378011188130)),
-    ((fp_QP_t)(0.15885814333386139019)),
-    ((fp_QP_t)(0.15582839765426531597)),
-    ((fp_QP_t)(0.15279718525844340760)),
-    ((fp_QP_t)(0.14976453467732162017)),
-    ((fp_QP_t)(0.14673047445536174793)),
-    ((fp_QP_t)(0.14369503315029458212)),
-    ((fp_QP_t)(0.14065823933284923863)),
-    ((fp_QP_t)(0.13762012158648617710)),
-    ((fp_QP_t)(0.13458070850712622324)),
-    ((fp_QP_t)(0.13154002870288328264)),
-    ((fp_QP_t)(0.12849811079379322432)),
-    ((fp_QP_t)(0.12545498341154620592)),
-    ((fp_QP_t)(0.12241067519921627893)),
-    ((fp_QP_t)(0.11936521481099135467)),
-    ((fp_QP_t)(0.11631863091190487725)),
-    ((fp_QP_t)(0.11327095217756436019)),
-    ((fp_QP_t)(0.11022220729388318428)),
-    ((fp_QP_t)(0.10717242495680887049)),
-    ((fp_QP_t)(0.10412163387205472520)),
-    ((fp_QP_t)(0.10106986275482787718)),
-    ((fp_QP_t)(0.09801714032956077016)),
-    ((fp_QP_t)(0.09496349532963906104)),
-    ((fp_QP_t)(0.09190895649713269611)),
-    ((fp_QP_t)(0.08885355258252468358)),
-    ((fp_QP_t)(0.08579731234443987997)),
-    ((fp_QP_t)(0.08274026454937580266)),
-    ((fp_QP_t)(0.07968243797143012563)),
-    ((fp_QP_t)(0.07662386139203161695)),
-    ((fp_QP_t)(0.07356456359966745406)),
-    ((fp_QP_t)(0.07050457338961400866)),
-    ((fp_QP_t)(0.06744391956366410645)),
-    ((fp_QP_t)(0.06438263092985740954)),
-    ((fp_QP_t)(0.06132073630220864768)),
-    ((fp_QP_t)(0.05825826450043573163)),
-    ((fp_QP_t)(0.05519524434969003135)),
-    ((fp_QP_t)(0.05213170468028331672)),
-    ((fp_QP_t)(0.04906767432741812596)),
-    ((fp_QP_t)(0.04600318213091464381)),
-    ((fp_QP_t)(0.04293825693494095902)),
-    ((fp_QP_t)(0.03987292758773984536)),
-    ((fp_QP_t)(0.03680722294135899131)),
-    ((fp_QP_t)(0.03374117185137764235)),
-    ((fp_QP_t)(0.03067480317663658085)),
-    ((fp_QP_t)(0.02760814577896581953)),
-    ((fp_QP_t)(0.02454122852291226384)),
-    ((fp_QP_t)(0.02147408027546960502)),
-    ((fp_QP_t)(0.01840672990580482019)),
-    ((fp_QP_t)(0.01533920628498821985)),
-    ((fp_QP_t)(0.01227153828571994447)),
-    ((fp_QP_t)(0.00920375478205995995)),
-    ((fp_QP_t)(0.00613588464915451517)),
-    ((fp_QP_t)(0.00306795676296613791)),
-    ((fp_QP_t)(0.00000000000000006123)),
-    ((fp_QP_t)(-0.00306795676296601561)),
-    ((fp_QP_t)(-0.00613588464915439287)),
-    ((fp_QP_t)(-0.00920375478205983678)),
-    ((fp_QP_t)(-0.01227153828571982304)),
-    ((fp_QP_t)(-0.01533920628498809842)),
-    ((fp_QP_t)(-0.01840672990580469529)),
-    ((fp_QP_t)(-0.02147408027546948359)),
-    ((fp_QP_t)(-0.02454122852291214241)),
-    ((fp_QP_t)(-0.02760814577896569810)),
-    ((fp_QP_t)(-0.03067480317663645942)),
-    ((fp_QP_t)(-0.03374117185137751745)),
-    ((fp_QP_t)(-0.03680722294135886641)),
-    ((fp_QP_t)(-0.03987292758773972740)),
-    ((fp_QP_t)(-0.04293825693494083412)),
-    ((fp_QP_t)(-0.04600318213091451891)),
-    ((fp_QP_t)(-0.04906767432741800800)),
-    ((fp_QP_t)(-0.05213170468028319182)),
-    ((fp_QP_t)(-0.05519524434968991339)),
-    ((fp_QP_t)(-0.05825826450043560673)),
-    ((fp_QP_t)(-0.06132073630220852972)),
-    ((fp_QP_t)(-0.06438263092985728464)),
-    ((fp_QP_t)(-0.06744391956366398155)),
-    ((fp_QP_t)(-0.07050457338961389764)),
-    ((fp_QP_t)(-0.07356456359966732916)),
-    ((fp_QP_t)(-0.07662386139203150592)),
-    ((fp_QP_t)(-0.07968243797143001461)),
-    ((fp_QP_t)(-0.08274026454937567776)),
-    ((fp_QP_t)(-0.08579731234443975507)),
-    ((fp_QP_t)(-0.08885355258252455868)),
-    ((fp_QP_t)(-0.09190895649713257121)),
-    ((fp_QP_t)(-0.09496349532963895002)),
-    ((fp_QP_t)(-0.09801714032956064526)),
-    ((fp_QP_t)(-0.10106986275482775228)),
-    ((fp_QP_t)(-0.10412163387205460030)),
-    ((fp_QP_t)(-0.10717242495680875947)),
-    ((fp_QP_t)(-0.11022220729388305938)),
-    ((fp_QP_t)(-0.11327095217756423529)),
-    ((fp_QP_t)(-0.11631863091190475235)),
-    ((fp_QP_t)(-0.11936521481099122977)),
-    ((fp_QP_t)(-0.12241067519921615403)),
-    ((fp_QP_t)(-0.12545498341154606714)),
-    ((fp_QP_t)(-0.12849811079379311329)),
-    ((fp_QP_t)(-0.13154002870288314386)),
-    ((fp_QP_t)(-0.13458070850712611222)),
-    ((fp_QP_t)(-0.13762012158648606608)),
-    ((fp_QP_t)(-0.14065823933284912761)),
-    ((fp_QP_t)(-0.14369503315029444335)),
-    ((fp_QP_t)(-0.14673047445536163691)),
-    ((fp_QP_t)(-0.14976453467732150915)),
-    ((fp_QP_t)(-0.15279718525844329657)),
-    ((fp_QP_t)(-0.15582839765426520495)),
-    ((fp_QP_t)(-0.15885814333386127917)),
-    ((fp_QP_t)(-0.16188639378011177028)),
-    ((fp_QP_t)(-0.16491312048996994988)),
-    ((fp_QP_t)(-0.16793829497473108936)),
-    ((fp_QP_t)(-0.17096188876030124493)),
-    ((fp_QP_t)(-0.17398387338746371111)),
-    ((fp_QP_t)(-0.17700422041214874946)),
-    ((fp_QP_t)(-0.18002290140569940369)),
-    ((fp_QP_t)(-0.18303988795514092303)),
-    ((fp_QP_t)(-0.18605515166344649414)),
-    ((fp_QP_t)(-0.18906866414980616486)),
-    ((fp_QP_t)(-0.19208039704989227081)),
-    ((fp_QP_t)(-0.19509032201612819257)),
-    ((fp_QP_t)(-0.19809841071795361578)),
-    ((fp_QP_t)(-0.20110463484209181728)),
-    ((fp_QP_t)(-0.20410896609281689584)),
-    ((fp_QP_t)(-0.20711137619221844930)),
-    ((fp_QP_t)(-0.21011183688046961016)),
-    ((fp_QP_t)(-0.21311031991609125091)),
-    ((fp_QP_t)(-0.21610679707621949230)),
-    ((fp_QP_t)(-0.21910124015686965881)),
-    ((fp_QP_t)(-0.22209362097320348162)),
-    ((fp_QP_t)(-0.22508391135979266551)),
-    ((fp_QP_t)(-0.22807208317088567551)),
-    ((fp_QP_t)(-0.23105810828067113727)),
-    ((fp_QP_t)(-0.23404195858354331916)),
-    ((fp_QP_t)(-0.23702360599436722577)),
-    ((fp_QP_t)(-0.24000302244874138768)),
-    ((fp_QP_t)(-0.24298017990326387094)),
-    ((fp_QP_t)(-0.24595505033579448395)),
-    ((fp_QP_t)(-0.24892760574572012078)),
-    ((fp_QP_t)(-0.25189781815421680156)),
-    ((fp_QP_t)(-0.25486565960451451618)),
-    ((fp_QP_t)(-0.25783110216215882060)),
-    ((fp_QP_t)(-0.26079411791527545850)),
-    ((fp_QP_t)(-0.26375467897483140245)),
-    ((fp_QP_t)(-0.26671275747489830987)),
-    ((fp_QP_t)(-0.26966832557291509076)),
-    ((fp_QP_t)(-0.27262135544994886560)),
-    ((fp_QP_t)(-0.27557181931095814376)),
-    ((fp_QP_t)(-0.27851968938505294870)),
-    ((fp_QP_t)(-0.28146493792575794091)),
-    ((fp_QP_t)(-0.28440753721127171039)),
-    ((fp_QP_t)(-0.28734745954472945551)),
-    ((fp_QP_t)(-0.29028467725446216452)),
-    ((fp_QP_t)(-0.29321916269425857271)),
-    ((fp_QP_t)(-0.29615088824362384434)),
-    ((fp_QP_t)(-0.29907982630804036406)),
-    ((fp_QP_t)(-0.30200594931922808417)),
-    ((fp_QP_t)(-0.30492922973540226295)),
-    ((fp_QP_t)(-0.30784964004153486661)),
-    ((fp_QP_t)(-0.31076715274961136393)),
-    ((fp_QP_t)(-0.31368174039889140658)),
-    ((fp_QP_t)(-0.31659337555616573479)),
-    ((fp_QP_t)(-0.31950203081601563637)),
-    ((fp_QP_t)(-0.32240767880106985244)),
-    ((fp_QP_t)(-0.32531029216226287071)),
-    ((fp_QP_t)(-0.32820984357909255280)),
-    ((fp_QP_t)(-0.33110630575987631818)),
-    ((fp_QP_t)(-0.33399965144200938205)),
-    ((fp_QP_t)(-0.33688985339221994009)),
-    ((fp_QP_t)(-0.33977688440682685123)),
-    ((fp_QP_t)(-0.34266071731199426731)),
-    ((fp_QP_t)(-0.34554132496398903829)),
-    ((fp_QP_t)(-0.34841868024943439819)),
-    ((fp_QP_t)(-0.35129275608556703725)),
-    ((fp_QP_t)(-0.35416352542049039931)),
-    ((fp_QP_t)(-0.35703096123342992207)),
-    ((fp_QP_t)(-0.35989503653498816638)),
-    ((fp_QP_t)(-0.36275572436739711435)),
-    ((fp_QP_t)(-0.36561299780477385379)),
-    ((fp_QP_t)(-0.36846682995337221023)),
-    ((fp_QP_t)(-0.37131719395183748755)),
-    ((fp_QP_t)(-0.37416406297145787807)),
-    ((fp_QP_t)(-0.37700741021641820394)),
-    ((fp_QP_t)(-0.37984720892405099413)),
-    ((fp_QP_t)(-0.38268343236508972627)),
-    ((fp_QP_t)(-0.38551605384391890441)),
-    ((fp_QP_t)(-0.38834504669882619066)),
-    ((fp_QP_t)(-0.39117038430225387069)),
-    ((fp_QP_t)(-0.39399204006104798781)),
-    ((fp_QP_t)(-0.39680998741671030805)),
-    ((fp_QP_t)(-0.39962419984564667708)),
-    ((fp_QP_t)(-0.40243465085941843018)),
-    ((fp_QP_t)(-0.40524131400498974998)),
-    ((fp_QP_t)(-0.40804416286497863231)),
-    ((fp_QP_t)(-0.41084317105790379987)),
-    ((fp_QP_t)(-0.41363831223843444684)),
-    ((fp_QP_t)(-0.41642956009763698599)),
-    ((fp_QP_t)(-0.41921688836322407168)),
-    ((fp_QP_t)(-0.42200027079979968159)),
-    ((fp_QP_t)(-0.42477968120910869487)),
-    ((fp_QP_t)(-0.42755509343028186287)),
-    ((fp_QP_t)(-0.43032648134008272267)),
-    ((fp_QP_t)(-0.43309381885315190175)),
-    ((fp_QP_t)(-0.43585707992225536378)),
-    ((fp_QP_t)(-0.43861623853852738097)),
-    ((fp_QP_t)(-0.44137126873171672603)),
-    ((fp_QP_t)(-0.44412214457042914484)),
-    ((fp_QP_t)(-0.44686884016237399253)),
-    ((fp_QP_t)(-0.44961132965460670619)),
-    ((fp_QP_t)(-0.45234958723377088896)),
-    ((fp_QP_t)(-0.45508358712634372489)),
-    ((fp_QP_t)(-0.45781330359887700832)),
-    ((fp_QP_t)(-0.46053871095824006066)),
-    ((fp_QP_t)(-0.46325978355186014923)),
-    ((fp_QP_t)(-0.46597649576796601467)),
-    ((fp_QP_t)(-0.46868882203582767909)),
-    ((fp_QP_t)(-0.47139673682599769755)),
-    ((fp_QP_t)(-0.47410021465054991152)),
-    ((fp_QP_t)(-0.47679923006332192159)),
-    ((fp_QP_t)(-0.47949375766015311928)),
-    ((fp_QP_t)(-0.48218377207912271887)),
-    ((fp_QP_t)(-0.48486924800079100883)),
-    ((fp_QP_t)(-0.48755016014843571837)),
-    ((fp_QP_t)(-0.49022648328829121489)),
-    ((fp_QP_t)(-0.49289819222978398239)),
-    ((fp_QP_t)(-0.49556526182577237405)),
-    ((fp_QP_t)(-0.49822766697278159098)),
-    ((fp_QP_t)(-0.50088538261124082585)),
-    ((fp_QP_t)(-0.50353838372571746440)),
-    ((fp_QP_t)(-0.50618664534515511733)),
-    ((fp_QP_t)(-0.50883014254310710012)),
-    ((fp_QP_t)(-0.51146885043797041259)),
-    ((fp_QP_t)(-0.51410274419322166128)),
-    ((fp_QP_t)(-0.51673179901764965116)),
-    ((fp_QP_t)(-0.51935599016558964269)),
-    ((fp_QP_t)(-0.52197529293715427823)),
-    ((fp_QP_t)(-0.52458968267846872724)),
-    ((fp_QP_t)(-0.52719913478190105760)),
-    ((fp_QP_t)(-0.52980362468629471628)),
-    ((fp_QP_t)(-0.53240312787719790144)),
-    ((fp_QP_t)(-0.53499761988709704230)),
-    ((fp_QP_t)(-0.53758707629564561614)),
-    ((fp_QP_t)(-0.54017147272989285423)),
-    ((fp_QP_t)(-0.54275078486451577842)),
-    ((fp_QP_t)(-0.54532498842204624179)),
-    ((fp_QP_t)(-0.54789405917310018967)),
-    ((fp_QP_t)(-0.55045797293660470029)),
-    ((fp_QP_t)(-0.55301670558002735678)),
-    ((fp_QP_t)(-0.55557023301960195560)),
-    ((fp_QP_t)(-0.55811853122055610221)),
-    ((fp_QP_t)(-0.56066157619733592021)),
-    ((fp_QP_t)(-0.56319934401383398015)),
-    ((fp_QP_t)(-0.56573181078361323149)),
-    ((fp_QP_t)(-0.56825895267013148970)),
-    ((fp_QP_t)(-0.57078074588696714464)),
-    ((fp_QP_t)(-0.57329716669804198226)),
-    ((fp_QP_t)(-0.57580819141784533866)),
-    ((fp_QP_t)(-0.57831379641165547856)),
-    ((fp_QP_t)(-0.58081395809576441547)),
-    ((fp_QP_t)(-0.58330865293769840196)),
-    ((fp_QP_t)(-0.58579785745643886408)),
-    ((fp_QP_t)(-0.58828154822264522306)),
-    ((fp_QP_t)(-0.59075970185887405339)),
-    ((fp_QP_t)(-0.59323229503979990618)),
-    ((fp_QP_t)(-0.59569930449243335691)),
-    ((fp_QP_t)(-0.59816070699634216190)),
-    ((fp_QP_t)(-0.60061647938386875101)),
-    ((fp_QP_t)(-0.60306659854034827539)),
-    ((fp_QP_t)(-0.60551104140432543410)),
-    ((fp_QP_t)(-0.60794978496777352106)),
-    ((fp_QP_t)(-0.61038280627630958630)),
-    ((fp_QP_t)(-0.61281008242940970820)),
-    ((fp_QP_t)(-0.61523159058062670823)),
-    ((fp_QP_t)(-0.61764730793780375784)),
-    ((fp_QP_t)(-0.62005721176328920663)),
-    ((fp_QP_t)(-0.62246127937414996723)),
-    ((fp_QP_t)(-0.62485948814238623239)),
-    ((fp_QP_t)(-0.62725181549514386070)),
-    ((fp_QP_t)(-0.62963823891492709528)),
-    ((fp_QP_t)(-0.63201873593980895105)),
-    ((fp_QP_t)(-0.63439328416364537677)),
-    ((fp_QP_t)(-0.63676186123628431002)),
-    ((fp_QP_t)(-0.63912444486377573138)),
-    ((fp_QP_t)(-0.64148101280858305095)),
-    ((fp_QP_t)(-0.64383154288979127511)),
-    ((fp_QP_t)(-0.64617601298331639459)),
-    ((fp_QP_t)(-0.64851440102211244110)),
-    ((fp_QP_t)(-0.65084668499638076433)),
-    ((fp_QP_t)(-0.65317284295377653347)),
-    ((fp_QP_t)(-0.65549285299961546070)),
-    ((fp_QP_t)(-0.65780669329707863735)),
-    ((fp_QP_t)(-0.66011434206742036768)),
-    ((fp_QP_t)(-0.66241577759017189475)),
-    ((fp_QP_t)(-0.66471097820334490436)),
-    ((fp_QP_t)(-0.66699992230363736034)),
-    ((fp_QP_t)(-0.66928258834663589827)),
-    ((fp_QP_t)(-0.67155895484701844111)),
-    ((fp_QP_t)(-0.67382900037875603783)),
-    ((fp_QP_t)(-0.67609270357531581208)),
-    ((fp_QP_t)(-0.67835004312986124653)),
-    ((fp_QP_t)(-0.68060099779545302212)),
-    ((fp_QP_t)(-0.68284554638524797010)),
-    ((fp_QP_t)(-0.68508366777270024439)),
-    ((fp_QP_t)(-0.68731534089175916336)),
-    ((fp_QP_t)(-0.68954054473706694051)),
-    ((fp_QP_t)(-0.69175925836415763648)),
-    ((fp_QP_t)(-0.69397146088965377952)),
-    ((fp_QP_t)(-0.69617713149146298601)),
-    ((fp_QP_t)(-0.69837624940897280457)),
-    ((fp_QP_t)(-0.70056879394324822474)),
-    ((fp_QP_t)(-0.70275474445722507788)),
-    ((fp_QP_t)(-0.70493408037590488124)),
-    ((fp_QP_t)(-0.70710678118654746172)),
-    ((fp_QP_t)(-0.70927282643886546687)),
-    ((fp_QP_t)(-0.71143219574521654458)),
-    ((fp_QP_t)(-0.71358486878079363525)),
-    ((fp_QP_t)(-0.71573082528381859468)),
-    ((fp_QP_t)(-0.71787004505573159818)),
-    ((fp_QP_t)(-0.72000250796138165477)),
-    ((fp_QP_t)(-0.72212819392921523409)),
-    ((fp_QP_t)(-0.72424708295146678072)),
-    ((fp_QP_t)(-0.72635915508434578669)),
-    ((fp_QP_t)(-0.72846439044822519637)),
-    ((fp_QP_t)(-0.73056276922782747985)),
-    ((fp_QP_t)(-0.73265427167241270467)),
-    ((fp_QP_t)(-0.73473887809596349907)),
-    ((fp_QP_t)(-0.73681656887736990402)),
-    ((fp_QP_t)(-0.73888732446061500259)),
-    ((fp_QP_t)(-0.74095112535495888384)),
-    ((fp_QP_t)(-0.74300795213512171866)),
-    ((fp_QP_t)(-0.74505778544146594733)),
-    ((fp_QP_t)(-0.74710060598018002143)),
-    ((fp_QP_t)(-0.74913639452345914815)),
-    ((fp_QP_t)(-0.75116513190968647873)),
-    ((fp_QP_t)(-0.75318679904361240940)),
-    ((fp_QP_t)(-0.75520137689653643598)),
-    ((fp_QP_t)(-0.75720884650648456748)),
-    ((fp_QP_t)(-0.75920918897838807204)),
-    ((fp_QP_t)(-0.76120238548426166769)),
-    ((fp_QP_t)(-0.76318841726338104703)),
-    ((fp_QP_t)(-0.76516726562245895860)),
-    ((fp_QP_t)(-0.76713891193582028905)),
-    ((fp_QP_t)(-0.76910333764557947678)),
-    ((fp_QP_t)(-0.77106052426181359571)),
-    ((fp_QP_t)(-0.77301045336273699338)),
-    ((fp_QP_t)(-0.77495310659487381955)),
-    ((fp_QP_t)(-0.77688846567323233128)),
-    ((fp_QP_t)(-0.77881651238147597827)),
-    ((fp_QP_t)(-0.78073722857209448822)),
-    ((fp_QP_t)(-0.78265059616657561836)),
-    ((fp_QP_t)(-0.78455659715557501954)),
-    ((fp_QP_t)(-0.78645521359908576731)),
-    ((fp_QP_t)(-0.78834642762660622761)),
-    ((fp_QP_t)(-0.79023022143730992095)),
-    ((fp_QP_t)(-0.79210657730021216683)),
-    ((fp_QP_t)(-0.79397547755433717231)),
-    ((fp_QP_t)(-0.79583690460888345530)),
-    ((fp_QP_t)(-0.79769084094339093305)),
-    ((fp_QP_t)(-0.79953726910790512417)),
-    ((fp_QP_t)(-0.80137617172314024039)),
-    ((fp_QP_t)(-0.80320753148064483184)),
-    ((fp_QP_t)(-0.80503133114296343553)),
-    ((fp_QP_t)(-0.80684755354379933401)),
-    ((fp_QP_t)(-0.80865618158817498262)),
-    ((fp_QP_t)(-0.81045719825259465718)),
-    ((fp_QP_t)(-0.81225058658520377097)),
-    ((fp_QP_t)(-0.81403632970594841378)),
-    ((fp_QP_t)(-0.81581441080673366972)),
-    ((fp_QP_t)(-0.81758481315158360037)),
-    ((fp_QP_t)(-0.81934752007679700903)),
-    ((fp_QP_t)(-0.82110251499110464835)),
-    ((fp_QP_t)(-0.82284978137582620583)),
-    ((fp_QP_t)(-0.82458930278502506894)),
-    ((fp_QP_t)(-0.82632106284566353427)),
-    ((fp_QP_t)(-0.82804504525775568524)),
-    ((fp_QP_t)(-0.82976123379452293438)),
-    ((fp_QP_t)(-0.83146961230254534669)),
-    ((fp_QP_t)(-0.83317016470191318511)),
-    ((fp_QP_t)(-0.83486287498638001026)),
-    ((fp_QP_t)(-0.83654772722351189440)),
-    ((fp_QP_t)(-0.83822470555483807875)),
-    ((fp_QP_t)(-0.83989379419599952126)),
-    ((fp_QP_t)(-0.84155497743689833268)),
-    ((fp_QP_t)(-0.84320823964184532517)),
-    ((fp_QP_t)(-0.84485356524970711689)),
-    ((fp_QP_t)(-0.84649093877405201525)),
-    ((fp_QP_t)(-0.84812034480329712149)),
-    ((fp_QP_t)(-0.84974176800085254868)),
-    ((fp_QP_t)(-0.85135519310526519554)),
-    ((fp_QP_t)(-0.85296060493036363059)),
-    ((fp_QP_t)(-0.85455798836540042274)),
-    ((fp_QP_t)(-0.85614732837519447184)),
-    ((fp_QP_t)(-0.85772861000027200706)),
-    ((fp_QP_t)(-0.85930181835700836235)),
-    ((fp_QP_t)(-0.86086693863776708735)),
-    ((fp_QP_t)(-0.86242395611104050168)),
-    ((fp_QP_t)(-0.86397285612158669643)),
-    ((fp_QP_t)(-0.86551362409056897818)),
-    ((fp_QP_t)(-0.86704624551569275948)),
-    ((fp_QP_t)(-0.86857070597134089507)),
-    ((fp_QP_t)(-0.87008699110871134952)),
-    ((fp_QP_t)(-0.87159508665595086807)),
-    ((fp_QP_t)(-0.87309497841829009079)),
-    ((fp_QP_t)(-0.87458665227817611321)),
-    ((fp_QP_t)(-0.87607009419540649020)),
-    ((fp_QP_t)(-0.87754529020726113053)),
-    ((fp_QP_t)(-0.87901222642863352519)),
-    ((fp_QP_t)(-0.88047088905216075450)),
-    ((fp_QP_t)(-0.88192126434835493853)),
-    ((fp_QP_t)(-0.88336333866573168994)),
-    ((fp_QP_t)(-0.88479709843093778954)),
-    ((fp_QP_t)(-0.88622253014888052736)),
-    ((fp_QP_t)(-0.88763962040285382393)),
-    ((fp_QP_t)(-0.88904835585466457371)),
-    ((fp_QP_t)(-0.89044872324475787817)),
-    ((fp_QP_t)(-0.89184070939234261211)),
-    ((fp_QP_t)(-0.89322430119551521344)),
-    ((fp_QP_t)(-0.89459948563138269595)),
-    ((fp_QP_t)(-0.89596624975618510689)),
-    ((fp_QP_t)(-0.89732458070541820661)),
-    ((fp_QP_t)(-0.89867446569395392775)),
-    ((fp_QP_t)(-0.90001589201616016833)),
-    ((fp_QP_t)(-0.90134884704602191707)),
-    ((fp_QP_t)(-0.90267331823725871498)),
-    ((fp_QP_t)(-0.90398929312344333820)),
-    ((fp_QP_t)(-0.90529675931811870448)),
-    ((fp_QP_t)(-0.90659570451491533483)),
-    ((fp_QP_t)(-0.90788611648766603945)),
-    ((fp_QP_t)(-0.90916798309052238025)),
-    ((fp_QP_t)(-0.91044129225806713634)),
-    ((fp_QP_t)(-0.91170603200542976730)),
-    ((fp_QP_t)(-0.91296219042839821256)),
-    ((fp_QP_t)(-0.91420975570353069095)),
-    ((fp_QP_t)(-0.91544871608826772214)),
-    ((fp_QP_t)(-0.91667905992104259383)),
-    ((fp_QP_t)(-0.91790077562139049672)),
-    ((fp_QP_t)(-0.91911385169005777040)),
-    ((fp_QP_t)(-0.92031827670911048322)),
-    ((fp_QP_t)(-0.92151403934204179080)),
-    ((fp_QP_t)(-0.92270112833387862850)),
-    ((fp_QP_t)(-0.92387953251128673848)),
-    ((fp_QP_t)(-0.92504924078267747323)),
-    ((fp_QP_t)(-0.92621024213831137928)),
-    ((fp_QP_t)(-0.92736252565040111495)),
-    ((fp_QP_t)(-0.92850608047321547822)),
-    ((fp_QP_t)(-0.92964089584318121418)),
-    ((fp_QP_t)(-0.93076696107898371224)),
-    ((fp_QP_t)(-0.93188426558166803648)),
-    ((fp_QP_t)(-0.93299279883473884567)),
-    ((fp_QP_t)(-0.93409255040425875904)),
-    ((fp_QP_t)(-0.93518350993894761025)),
-    ((fp_QP_t)(-0.93626566717027825959)),
-    ((fp_QP_t)(-0.93733901191257484875)),
-    ((fp_QP_t)(-0.93840353406310816897)),
-    ((fp_QP_t)(-0.93945922360218991898)),
-    ((fp_QP_t)(-0.94050607059326829518)),
-    ((fp_QP_t)(-0.94154406518302069529)),
-    ((fp_QP_t)(-0.94257319760144686605)),
-    ((fp_QP_t)(-0.94359345816196038559)),
-    ((fp_QP_t)(-0.94460483726148014583)),
-    ((fp_QP_t)(-0.94560732538052116869)),
-    ((fp_QP_t)(-0.94660091308328353499)),
-    ((fp_QP_t)(-0.94758559101774109124)),
-    ((fp_QP_t)(-0.94856134991573026749)),
-    ((fp_QP_t)(-0.94952818059303667475)),
-    ((fp_QP_t)(-0.95048607394948170235)),
-    ((fp_QP_t)(-0.95143502096900833820)),
-    ((fp_QP_t)(-0.95237501271976576778)),
-    ((fp_QP_t)(-0.95330604035419386211)),
-    ((fp_QP_t)(-0.95422809510910555630)),
-    ((fp_QP_t)(-0.95514116830577067141)),
-    ((fp_QP_t)(-0.95604525134999629454)),
-    ((fp_QP_t)(-0.95694033573220882438)),
-    ((fp_QP_t)(-0.95782641302753290802)),
-    ((fp_QP_t)(-0.95870347489587148804)),
-    ((fp_QP_t)(-0.95957151308198451733)),
-    ((fp_QP_t)(-0.96043051941556578655)),
-    ((fp_QP_t)(-0.96128048581132063966)),
-    ((fp_QP_t)(-0.96212140426904146917)),
-    ((fp_QP_t)(-0.96295326687368387741)),
-    ((fp_QP_t)(-0.96377606579543984022)),
-    ((fp_QP_t)(-0.96458979328981264700)),
-    ((fp_QP_t)(-0.96539444169768928727)),
-    ((fp_QP_t)(-0.96619000344541250413)),
-    ((fp_QP_t)(-0.96697647104485207059)),
-    ((fp_QP_t)(-0.96775383709347539973)),
-    ((fp_QP_t)(-0.96852209427441737777)),
-    ((fp_QP_t)(-0.96928123535654842069)),
-    ((fp_QP_t)(-0.97003125319454397424)),
-    ((fp_QP_t)(-0.97077214072895023911)),
-    ((fp_QP_t)(-0.97150389098625178352)),
-    ((fp_QP_t)(-0.97222649707893626925)),
-    ((fp_QP_t)(-0.97293995220556006576)),
-    ((fp_QP_t)(-0.97364424965081186603)),
-    ((fp_QP_t)(-0.97433938278557585821)),
-    ((fp_QP_t)(-0.97502534506699412020)),
-    ((fp_QP_t)(-0.97570213003852845901)),
-    ((fp_QP_t)(-0.97636973133002114000)),
-    ((fp_QP_t)(-0.97702814265775439484)),
-    ((fp_QP_t)(-0.97767735782450992943)),
-    ((fp_QP_t)(-0.97831737071962754371)),
-    ((fp_QP_t)(-0.97894817531906219710)),
-    ((fp_QP_t)(-0.97956976568544051887)),
-    ((fp_QP_t)(-0.98018213596811731847)),
-    ((fp_QP_t)(-0.98078528040323043058)),
-    ((fp_QP_t)(-0.98137919331375456089)),
-    ((fp_QP_t)(-0.98196386910955524296)),
-    ((fp_QP_t)(-0.98253930228744124076)),
-    ((fp_QP_t)(-0.98310548743121628501)),
-    ((fp_QP_t)(-0.98366241921173025453)),
-    ((fp_QP_t)(-0.98421009238692902521)),
-    ((fp_QP_t)(-0.98474850180190420801)),
-    ((fp_QP_t)(-0.98527764238894122162)),
-    ((fp_QP_t)(-0.98579750916756736512)),
-    ((fp_QP_t)(-0.98630809724459855836)),
-    ((fp_QP_t)(-0.98680940181418552726)),
-    ((fp_QP_t)(-0.98730141815785843473)),
-    ((fp_QP_t)(-0.98778414164457217783)),
-    ((fp_QP_t)(-0.98825756773074946437)),
-    ((fp_QP_t)(-0.98872169196032377858)),
-    ((fp_QP_t)(-0.98917650996478101444)),
-    ((fp_QP_t)(-0.98962201746320077600)),
-    ((fp_QP_t)(-0.99005821026229701154)),
-    ((fp_QP_t)(-0.99048508425645709341)),
-    ((fp_QP_t)(-0.99090263542778000971)),
-    ((fp_QP_t)(-0.99131085984611544415)),
-    ((fp_QP_t)(-0.99170975366909952520)),
-    ((fp_QP_t)(-0.99209931314219179654)),
-    ((fp_QP_t)(-0.99247953459870996706)),
-    ((fp_QP_t)(-0.99285041445986510489)),
-    ((fp_QP_t)(-0.99321194923479450001)),
-    ((fp_QP_t)(-0.99356413552059530403)),
-    ((fp_QP_t)(-0.99390697000235606051)),
-    ((fp_QP_t)(-0.99424044945318790223)),
-    ((fp_QP_t)(-0.99456457073425541537)),
-    ((fp_QP_t)(-0.99487933079480561638)),
-    ((fp_QP_t)(-0.99518472667219681771)),
-    ((fp_QP_t)(-0.99548075549192693856)),
-    ((fp_QP_t)(-0.99576741446765981713)),
-    ((fp_QP_t)(-0.99604470090125196702)),
-    ((fp_QP_t)(-0.99631261218277800129)),
-    ((fp_QP_t)(-0.99657114579055483539)),
-    ((fp_QP_t)(-0.99682029929116566791)),
-    ((fp_QP_t)(-0.99706007033948296225)),
-    ((fp_QP_t)(-0.99729045667869020697)),
-    ((fp_QP_t)(-0.99751145614030345410)),
-    ((fp_QP_t)(-0.99772306664419163624)),
-    ((fp_QP_t)(-0.99792528619859599548)),
-    ((fp_QP_t)(-0.99811811290014917919)),
-    ((fp_QP_t)(-0.99830154493389289261)),
-    ((fp_QP_t)(-0.99847558057329477421)),
-    ((fp_QP_t)(-0.99864021818026516009)),
-    ((fp_QP_t)(-0.99879545620517240501)),
-    ((fp_QP_t)(-0.99894129318685687124)),
-    ((fp_QP_t)(-0.99907772775264536147)),
-    ((fp_QP_t)(-0.99920475861836388631)),
-    ((fp_QP_t)(-0.99932238458834954375)),
-    ((fp_QP_t)(-0.99943060455546173237)),
-    ((fp_QP_t)(-0.99952941750109314256)),
-    ((fp_QP_t)(-0.99961882249517863830)),
-    ((fp_QP_t)(-0.99969881869620424997)),
-    ((fp_QP_t)(-0.99976940535121527898)),
-    ((fp_QP_t)(-0.99983058179582340319)),
-    ((fp_QP_t)(-0.99988234745421256111)),
-    ((fp_QP_t)(-0.99992470183914450299)),
-    ((fp_QP_t)(-0.99995764455196389786)),
-    ((fp_QP_t)(-0.99998117528260110909)),
-    ((fp_QP_t)(-0.99999529380957619118)),
-    ((fp_QP_t)(-1.00000000000000000000)),
-};
+
+
+
 
 static const fp_QP_t atan_lut[1025] = {
     ((fp_QP_t)(0.00000000000000000000)),
@@ -58437,264 +56403,531 @@ static const fp_QP_t atan_lut[1025] = {
 };
 
 
+
+
+
 static const int32_t recip_lut[257] = {
-    524288,
-    522247,
-    520223,
-    518215,
-    516222,
-    514244,
-    512281,
-    510333,
-    508400,
-    506481,
-    504577,
-    502688,
-    500812,
-    498950,
-    497102,
-    495268,
-    493447,
-    491640,
-    489845,
-    488064,
-    486296,
-    484540,
-    482797,
-    481067,
-    479349,
-    477643,
-    475949,
-    474267,
-    472597,
-    470939,
-    469292,
-    467657,
-    466033,
-    464421,
-    462819,
-    461229,
-    459649,
-    458080,
-    456522,
-    454975,
-    453438,
-    451911,
-    450395,
-    448888,
-    447392,
-    445906,
-    444429,
-    442962,
-    441505,
-    440058,
-    438620,
-    437191,
-    435771,
-    434361,
-    432960,
-    431568,
-    430185,
-    428810,
-    427444,
-    426088,
-    424739,
-    423399,
-    422068,
-    420745,
-    419430,
-    418123,
-    416825,
-    415534,
-    414252,
-    412977,
-    411710,
-    410451,
-    409200,
-    407956,
-    406720,
-    405491,
-    404270,
-    403056,
-    401849,
-    400649,
-    399457,
-    398272,
-    397093,
-    395922,
-    394758,
-    393600,
-    392449,
-    391305,
-    390167,
-    389036,
-    387912,
-    386794,
-    385683,
-    384578,
-    383479,
-    382386,
-    381300,
-    380220,
-    379146,
-    378078,
-    377016,
-    375960,
-    374909,
-    373865,
-    372827,
-    371794,
-    370767,
-    369745,
-    368730,
-    367719,
-    366715,
-    365715,
-    364722,
-    363733,
-    362750,
-    361772,
-    360800,
-    359833,
-    358870,
-    357913,
-    356962,
-    356015,
-    355073,
-    354136,
-    353204,
-    352277,
-    351355,
-    350437,
-    349525,
-    348617,
-    347714,
-    346815,
-    345921,
-    345032,
-    344148,
-    343267,
-    342392,
-    341520,
-    340654,
-    339791,
-    338933,
-    338079,
-    337230,
-    336385,
-    335544,
-    334707,
-    333874,
-    333046,
-    332222,
-    331401,
-    330585,
-    329773,
-    328965,
-    328160,
-    327360,
-    326563,
-    325771,
-    324982,
-    324197,
-    323416,
-    322638,
-    321865,
-    321095,
-    320328,
-    319566,
-    318806,
-    318051,
-    317299,
-    316551,
-    315806,
-    315065,
-    314327,
-    313592,
-    312861,
-    312134,
-    311410,
-    310689,
-    309971,
-    309257,
-    308546,
-    307838,
-    307134,
-    306433,
-    305735,
-    305040,
-    304348,
-    303660,
-    302974,
-    302292,
-    301612,
-    300936,
-    300263,
-    299593,
-    298925,
-    298261,
-    297600,
-    296941,
-    296286,
-    295633,
-    294984,
-    294337,
-    293693,
-    293051,
-    292413,
-    291777,
-    291144,
-    290514,
-    289887,
-    289262,
-    288640,
-    288020,
-    287404,
-    286790,
-    286178,
-    285569,
-    284963,
-    284359,
-    283758,
-    283159,
-    282563,
-    281970,
-    281378,
-    280790,
-    280204,
-    279620,
-    279038,
-    278460,
-    277883,
-    277309,
-    276737,
-    276168,
-    275601,
-    275036,
-    274473,
-    273913,
-    273355,
-    272800,
-    272246,
-    271695,
-    271146,
-    270600,
-    270055,
-    269513,
-    268973,
-    268435,
-    267899,
-    267365,
-    266834,
-    266305,
-    265777,
-    265252,
-    264729,
-    264208,
-    263689,
-    263172,
-    262657,
-    262144,
+    32768,
+    32640,
+    32513,
+    32388,
+    32263,
+    32140,
+    32017,
+    31895,
+    31775,
+    31655,
+    31536,
+    31418,
+    31300,
+    31184,
+    31068,
+    30954,
+    30840,
+    30727,
+    30615,
+    30504,
+    30393,
+    30283,
+    30174,
+    30066,
+    29959,
+    29852,
+    29746,
+    29641,
+    29537,
+    29433,
+    29330,
+    29228,
+    29127,
+    29026,
+    28926,
+    28826,
+    28728,
+    28630,
+    28532,
+    28435,
+    28339,
+    28244,
+    28149,
+    28055,
+    27962,
+    27869,
+    27776,
+    27685,
+    27594,
+    27503,
+    27413,
+    27324,
+    27235,
+    27147,
+    27060,
+    26973,
+    26886,
+    26800,
+    26715,
+    26630,
+    26546,
+    26462,
+    26379,
+    26296,
+    26214,
+    26132,
+    26051,
+    25970,
+    25890,
+    25811,
+    25731,
+    25653,
+    25575,
+    25497,
+    25420,
+    25343,
+    25266,
+    25191,
+    25115,
+    25040,
+    24966,
+    24892,
+    24818,
+    24745,
+    24672,
+    24600,
+    24528,
+    24456,
+    24385,
+    24314,
+    24244,
+    24174,
+    24105,
+    24036,
+    23967,
+    23899,
+    23831,
+    23763,
+    23696,
+    23629,
+    23563,
+    23497,
+    23431,
+    23366,
+    23301,
+    23237,
+    23172,
+    23109,
+    23045,
+    22982,
+    22919,
+    22857,
+    22795,
+    22733,
+    22671,
+    22610,
+    22550,
+    22489,
+    22429,
+    22369,
+    22310,
+    22250,
+    22192,
+    22133,
+    22075,
+    22017,
+    21959,
+    21902,
+    21845,
+    21788,
+    21732,
+    21675,
+    21620,
+    21564,
+    21509,
+    21454,
+    21399,
+    21345,
+    21290,
+    21236,
+    21183,
+    21129,
+    21076,
+    21024,
+    20971,
+    20919,
+    20867,
+    20815,
+    20763,
+    20712,
+    20661,
+    20610,
+    20560,
+    20510,
+    20460,
+    20410,
+    20360,
+    20311,
+    20262,
+    20213,
+    20164,
+    20116,
+    20068,
+    20020,
+    19972,
+    19925,
+    19878,
+    19831,
+    19784,
+    19737,
+    19691,
+    19645,
+    19599,
+    19553,
+    19508,
+    19463,
+    19418,
+    19373,
+    19328,
+    19284,
+    19239,
+    19195,
+    19152,
+    19108,
+    19065,
+    19021,
+    18978,
+    18935,
+    18893,
+    18850,
+    18808,
+    18766,
+    18724,
+    18682,
+    18641,
+    18600,
+    18558,
+    18517,
+    18477,
+    18436,
+    18396,
+    18355,
+    18315,
+    18275,
+    18236,
+    18196,
+    18157,
+    18117,
+    18078,
+    18040,
+    18001,
+    17962,
+    17924,
+    17886,
+    17848,
+    17810,
+    17772,
+    17734,
+    17697,
+    17660,
+    17623,
+    17586,
+    17549,
+    17512,
+    17476,
+    17439,
+    17403,
+    17367,
+    17331,
+    17296,
+    17260,
+    17225,
+    17189,
+    17154,
+    17119,
+    17084,
+    17050,
+    17015,
+    16980,
+    16946,
+    16912,
+    16878,
+    16844,
+    16810,
+    16777,
+    16743,
+    16710,
+    16677,
+    16644,
+    16611,
+    16578,
+    16545,
+    16513,
+    16480,
+    16448,
+    16416,
+    16384,
+};
+
+
+
+
+
+
+static const int32_t slope_lut[256] = {
+    -128,
+    -127,
+    -125,
+    -125,
+    -123,
+    -123,
+    -122,
+    -120,
+    -120,
+    -119,
+    -118,
+    -118,
+    -116,
+    -116,
+    -114,
+    -114,
+    -113,
+    -112,
+    -111,
+    -111,
+    -110,
+    -109,
+    -108,
+    -107,
+    -107,
+    -106,
+    -105,
+    -104,
+    -104,
+    -103,
+    -102,
+    -101,
+    -101,
+    -100,
+    -100,
+    -98,
+    -98,
+    -98,
+    -97,
+    -96,
+    -95,
+    -95,
+    -94,
+    -93,
+    -93,
+    -93,
+    -91,
+    -91,
+    -91,
+    -90,
+    -89,
+    -89,
+    -88,
+    -87,
+    -87,
+    -87,
+    -86,
+    -85,
+    -85,
+    -84,
+    -84,
+    -83,
+    -83,
+    -82,
+    -82,
+    -81,
+    -81,
+    -80,
+    -79,
+    -80,
+    -78,
+    -78,
+    -78,
+    -77,
+    -77,
+    -77,
+    -75,
+    -76,
+    -75,
+    -74,
+    -74,
+    -74,
+    -73,
+    -73,
+    -72,
+    -72,
+    -72,
+    -71,
+    -71,
+    -70,
+    -70,
+    -69,
+    -69,
+    -69,
+    -68,
+    -68,
+    -68,
+    -67,
+    -67,
+    -66,
+    -66,
+    -66,
+    -65,
+    -65,
+    -64,
+    -65,
+    -63,
+    -64,
+    -63,
+    -63,
+    -62,
+    -62,
+    -62,
+    -62,
+    -61,
+    -60,
+    -61,
+    -60,
+    -60,
+    -59,
+    -60,
+    -58,
+    -59,
+    -58,
+    -58,
+    -58,
+    -57,
+    -57,
+    -57,
+    -56,
+    -57,
+    -55,
+    -56,
+    -55,
+    -55,
+    -55,
+    -54,
+    -55,
+    -54,
+    -53,
+    -54,
+    -53,
+    -52,
+    -53,
+    -52,
+    -52,
+    -52,
+    -52,
+    -51,
+    -51,
+    -51,
+    -50,
+    -50,
+    -50,
+    -50,
+    -50,
+    -49,
+    -49,
+    -49,
+    -49,
+    -48,
+    -48,
+    -48,
+    -48,
+    -47,
+    -47,
+    -47,
+    -47,
+    -47,
+    -46,
+    -46,
+    -46,
+    -46,
+    -45,
+    -45,
+    -45,
+    -45,
+    -45,
+    -44,
+    -45,
+    -44,
+    -43,
+    -44,
+    -43,
+    -44,
+    -43,
+    -43,
+    -42,
+    -43,
+    -42,
+    -42,
+    -42,
+    -42,
+    -41,
+    -41,
+    -42,
+    -41,
+    -40,
+    -41,
+    -40,
+    -41,
+    -40,
+    -40,
+    -39,
+    -40,
+    -39,
+    -40,
+    -39,
+    -38,
+    -39,
+    -39,
+    -38,
+    -38,
+    -38,
+    -38,
+    -38,
+    -38,
+    -37,
+    -37,
+    -37,
+    -37,
+    -37,
+    -37,
+    -36,
+    -37,
+    -36,
+    -36,
+    -36,
+    -35,
+    -36,
+    -35,
+    -36,
+    -35,
+    -35,
+    -35,
+    -34,
+    -35,
+    -35,
+    -34,
+    -34,
+    -34,
+    -34,
+    -34,
+    -33,
+    -34,
+    -33,
+    -33,
+    -33,
+    -33,
+    -33,
+    -33,
+    -32,
+    -33,
+    -32,
+    -32,
+    -32,
 };
 # 12 "../src/fp_math_hls.cpp" 2
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/climits" 1 3
@@ -58704,7 +56937,7 @@ static const int32_t recip_lut[257] = {
 # 1 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/cstdio" 1 3
 # 40 "/home/akselmo/Vivado_program/2025.2/Vitis/tps/lnx64/gcc-8.3.0/lib/gcc/x86_64-pc-linux-gnu/8.3.0/../../../../include/c++/8.3.0/cstdio" 3
 # 15 "../src/fp_math_hls.cpp" 2
-# 140 "../src/fp_math_hls.cpp"
+# 137 "../src/fp_math_hls.cpp"
 extern "C" void fp_cast_audit_reset(void) {}
 extern "C" unsigned long long fp_cast_audit_get_count(int id) {
   (void)id;
@@ -58723,24 +56956,24 @@ extern "C" void fp_cast_audit_print_summary(void) {}
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_155_1: do { (void)(FP_WP_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = (((((26)) < ((26)) ? ((26)) : ((26))) <= 18 && (((26)) > ((26)) ? ((26)) : ((26))) <= 27) ? 1 : 2)
   return product;
 }
 
 static inline fp_QP_raw_t fp_mul_QP_raw_q(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
-  return fp_shift_right_cast_to_qp_site(product, ((32 - 14)),
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = (((((26)) < ((26)) ? ((26)) : ((26))) <= 18 && (((26)) > ((26)) ? ((26)) : ((26))) <= 27) ? 1 : 2)
+  return fp_shift_right_cast_to_qp_site(product, ((26 - 12)),
                                         FP_CAST_SITE_MUL_FP_MUL_QP_RAW_Q);
 }
 
 static inline fp_QP_raw_t fp_shift_qp_raw_sel(fp_QP_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_QP_raw_t shifted = value;
-  VITIS_LOOP_175_1: for (int s = 1; s < 32 - 1; ++s) {
+  VITIS_LOOP_172_1: for (int s = 1; s < 26 - 1; ++s) {
 #pragma HLS UNROLL
     if (shift == s)
       shifted = (fp_QP_raw_t)(value >> s);
@@ -58753,14 +56986,14 @@ static inline fp_QP_raw_t fp_shift_qp_raw_sel(fp_QP_raw_t value, int shift) {
 static inline fp_QP_raw_t fp_shift_qp_raw_cast_sel(fp_QP_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_QP_recip_shift_t shifted = (fp_QP_recip_shift_t)value;
-  VITIS_LOOP_188_1: for (int s = 1; s < 32 - 1; ++s) {
+  VITIS_LOOP_185_1: for (int s = 1; s < 26 - 1; ++s) {
 #pragma HLS UNROLL
     if (shift == s)
       shifted = (fp_QP_recip_shift_t)(value >> s);
     if (shift == -s)
       shifted = ((fp_QP_recip_shift_t)value) << s;
   }
-  ((void)0);
+  VITIS_LOOP_192_2: do { (void)(FP_WP_QP_RECIP_SHIFT); (void)(shifted.to_int64()); } while (0);
   return (fp_QP_raw_t)shifted;
 }
 
@@ -58775,16 +57008,16 @@ static inline fp_QP_raw_t fp_lerp_qp_raw(fp_QP_raw_t v0_raw,
 
 static inline fp_fn_raw_t fp_mul_fn_raw_q(fp_fn_raw_t a, fp_fn_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_207_1: do { (void)(FP_WP_FN_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_fn_accum_t product = (fp_fn_accum_t)a * (fp_fn_accum_t)b;
-#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = 3
-  return (fp_fn_raw_t)(product >> ((((26) + 0) - 9)));
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = (((((((21) + 0))) < ((((21) + 0))) ? ((((21) + 0))) : ((((21) + 0)))) <= 18 && (((((21) + 0))) > ((((21) + 0))) ? ((((21) + 0))) : ((((21) + 0)))) <= 27) ? 1 : 2)
+  return (fp_fn_raw_t)(product >> ((((21) + 0) - (((21) + 0) - 12))));
 }
 
 static inline fp_fn_raw_t fp_shift_fn_raw_sel(fp_fn_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_fn_raw_t shifted = value;
-  VITIS_LOOP_219_1: for (int s = 1; s < ((26) + 0) - 1; ++s) {
+  VITIS_LOOP_216_1: for (int s = 1; s < ((21) + 0) - 1; ++s) {
 #pragma HLS UNROLL
     if (shift == s)
       shifted = (fp_fn_raw_t)(value >> s);
@@ -58797,14 +57030,14 @@ static inline fp_fn_raw_t fp_shift_fn_raw_sel(fp_fn_raw_t value, int shift) {
 static inline fp_fn_raw_t fp_shift_fn_raw_cast_sel(fp_fn_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_FN_recip_shift_t shifted = (fp_FN_recip_shift_t)value;
-  VITIS_LOOP_232_1: for (int s = 1; s < ((26) + 0) - 1; ++s) {
+  VITIS_LOOP_229_1: for (int s = 1; s < ((21) + 0) - 1; ++s) {
 #pragma HLS UNROLL
     if (shift == s)
       shifted = (fp_FN_recip_shift_t)(value >> s);
     if (shift == -s)
       shifted = ((fp_FN_recip_shift_t)value) << s;
   }
-  ((void)0);
+  VITIS_LOOP_236_2: do { (void)(FP_WP_FN_RECIP_SHIFT); (void)(shifted.to_int64()); } while (0);
   return (fp_fn_raw_t)shifted;
 }
 
@@ -58823,63 +57056,63 @@ static inline fp_fn_raw_t fp_lerp_fn_raw(fp_fn_raw_t v0_raw,
 
 fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_255_1: do { (void)(FP_WP_P_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = ((((((21 + 6))) < ((26)) ? (((21 + 6))) : ((26))) <= 18 && ((((21 + 6))) > ((26)) ? (((21 + 6))) : ((26))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_263_1: do { (void)(FP_WP_P_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = (((((26)) < (((21 + 6))) ? ((26)) : (((21 + 6)))) <= 18 && (((26)) > (((21 + 6))) ? ((26)) : (((21 + 6)))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_MG_QP_mul_t fp_mul_MG_QP(fp_MG_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_271_1: do { (void)(FP_WP_MG_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = ((((((15 + 3))) < ((26)) ? (((15 + 3))) : ((26))) <= 18 && ((((15 + 3))) > ((26)) ? (((15 + 3))) : ((26))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_279_1: do { (void)(FP_WP_MG_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = (((((26)) < (((15 + 3))) ? ((26)) : (((15 + 3)))) <= 18 && (((26)) > (((15 + 3))) ? ((26)) : (((15 + 3)))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_287_1: do { (void)(FP_WP_MG_K_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = ((((((15 + 3))) < (((9 + 8))) ? (((15 + 3))) : (((9 + 8)))) <= 18 && ((((15 + 3))) > (((9 + 8))) ? (((15 + 3))) : (((9 + 8)))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_MG_K_mul_t fp_mul_K_MG(fp_K_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = ((((((9 + 8))) < (((15 + 3))) ? (((9 + 8))) : (((15 + 3)))) <= 18 && ((((9 + 8))) > (((15 + 3))) ? (((9 + 8))) : (((15 + 3)))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_302_1: do { (void)(FP_WP_K_QP_MUL); (void)((__int128)a.to_int64() * (__int128)b.to_int64()); } while (0);
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = ((((((9 + 8))) < ((26)) ? (((9 + 8))) : ((26))) <= 18 && ((((9 + 8))) > ((26)) ? (((9 + 8))) : ((26))) <= 27) ? 1 : 2)
   return product;
 }
 
 fp_K_QP_mul_t fp_mul_QP_K(fp_QP_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = 3
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = (((((26)) < (((9 + 8))) ? ((26)) : (((9 + 8)))) <= 18 && (((26)) > (((9 + 8))) ? ((26)) : (((9 + 8)))) <= 27) ? 1 : 2)
   return product;
 }
 
@@ -58892,24 +57125,7 @@ fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id) {
   fp_QP_mul_t product = fp_mul_QP_raw(fp_qp_raw_from_QP(a),
                                       fp_qp_raw_from_QP(b));
   fp_QP_raw_t product_q = fp_shift_right_cast_to_qp_site(
-      product, ((32 - 14)), site_id);
-  return fp_QP_from_qp_raw(product_q);
-}
-
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  return fp_mul_site(a, b, FP_CAST_SITE_MUL_FP_MUL);
-}
-
-
-
-
-fp_QP_t fp_sq(fp_QP_t x) {
-#pragma HLS INLINE off
-  fp_QP_mul_t product = fp_mul_QP_raw(fp_qp_raw_from_QP(x),
-                                      fp_qp_raw_from_QP(x));
-  fp_QP_raw_t product_q =
-      fp_shift_right_cast_to_qp_site(product, ((32 - 14)), FP_CAST_SITE_MUL_FP_SQ);
+      product, ((26 - 12)), site_id);
   return fp_QP_from_qp_raw(product_q);
 }
 
@@ -58917,35 +57133,35 @@ fp_QP_t fp_sq(fp_QP_t x) {
 
 
 
-static inline ap_uint<32 - 1> abs_qp_raw_u(fp_QP_raw_t v) {
+static inline ap_uint<26 - 1> abs_qp_raw_u(fp_QP_raw_t v) {
 #pragma HLS INLINE
-  return (v < 0) ? (ap_uint<32 - 1>)(-v)
-                 : (ap_uint<32 - 1>)v;
+  return (v < 0) ? (ap_uint<26 - 1>)(-v)
+                 : (ap_uint<26 - 1>)v;
 }
 
 int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]) {
 #pragma HLS INLINE off
 
-  ap_uint<32 - 1> max_abs = abs_qp_raw_u(S[0][0]);
+  ap_uint<26 - 1> max_abs = abs_qp_raw_u(S[0][0]);
   {
-    ap_uint<32 - 1> t = abs_qp_raw_u(S[0][1]);
+    ap_uint<26 - 1> t = abs_qp_raw_u(S[0][1]);
     if (t > max_abs)
       max_abs = t;
   }
   {
-    ap_uint<32 - 1> t = abs_qp_raw_u(S[1][0]);
+    ap_uint<26 - 1> t = abs_qp_raw_u(S[1][0]);
     if (t > max_abs)
       max_abs = t;
   }
   {
-    ap_uint<32 - 1> t = abs_qp_raw_u(S[1][1]);
+    ap_uint<26 - 1> t = abs_qp_raw_u(S[1][1]);
     if (t > max_abs)
       max_abs = t;
   }
 
-  const int target_magnitude_bit = ((32 - 14)) + 6;
+  const int target_magnitude_bit = ((26 - 12)) + 6;
   int scale_shift = 0;
-  VITIS_LOOP_380_1: for (int b = 32 - 2; b > target_magnitude_bit; --b) {
+  VITIS_LOOP_360_1: for (int b = 26 - 2; b > target_magnitude_bit; --b) {
 #pragma HLS UNROLL
     if (max_abs[b]) {
       scale_shift = b - target_magnitude_bit;
@@ -58960,11 +57176,11 @@ int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]) {
 
   const fp_QP_mul_t p00_raw = fp_mul_QP_raw(s00_sc, s11_sc);
   const fp_QP_mul_t p01_raw = fp_mul_QP_raw(s01_sc, s10_sc);
-  ((void)0);
+  VITIS_LOOP_375_2: do { (void)(FP_WP_QP_DET_MUL); (void)((__int128)p00_raw.to_int64() - (__int128)p01_raw.to_int64()); } while (0);
 
   const fp_QP_det_mul_t det_mul_raw =
       (fp_QP_det_mul_t)p00_raw - (fp_QP_det_mul_t)p01_raw;
-  const fp_QP_raw_t det_raw = (fp_QP_raw_t)(det_mul_raw >> ((32 - 14)));
+  const fp_QP_raw_t det_raw = (fp_QP_raw_t)(det_mul_raw >> ((26 - 12)));
 
   const fp_QP_raw_t det_eps_raw =
       fp_qp_raw_from_neg_pow2(12);
@@ -58975,15 +57191,15 @@ int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]) {
   const fp_QP_raw_t inv_det_raw = fp_qp_raw_from_QP(inv_det);
 
   const fp_QP_raw_t si00_sc =
-      (fp_QP_raw_t)(fp_mul_QP_raw(s11_sc, inv_det_raw) >> ((32 - 14)));
+      (fp_QP_raw_t)(fp_mul_QP_raw(s11_sc, inv_det_raw) >> ((26 - 12)));
   const fp_QP_raw_t si01_sc = (fp_QP_raw_t)(fp_mul_QP_raw((fp_QP_raw_t)(-s01_sc),
                                                            inv_det_raw) >>
-                                            ((32 - 14)));
+                                            ((26 - 12)));
   const fp_QP_raw_t si10_sc = (fp_QP_raw_t)(fp_mul_QP_raw((fp_QP_raw_t)(-s10_sc),
                                                            inv_det_raw) >>
-                                            ((32 - 14)));
+                                            ((26 - 12)));
   const fp_QP_raw_t si11_sc =
-      (fp_QP_raw_t)(fp_mul_QP_raw(s00_sc, inv_det_raw) >> ((32 - 14)));
+      (fp_QP_raw_t)(fp_mul_QP_raw(s00_sc, inv_det_raw) >> ((26 - 12)));
 
   Si[0][0] = (fp_QP_raw_t)(si00_sc >> scale_shift);
   Si[0][1] = (fp_QP_raw_t)(si01_sc >> scale_shift);
@@ -58998,7 +57214,7 @@ int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]) {
 
 fp_QP_t fp_normalize_angle(fp_QP_t angle) {
 #pragma HLS INLINE
-  VITIS_LOOP_433_1: for (int i = 0; i < 2; i++) {
+  VITIS_LOOP_413_1: for (int i = 0; i < 2; i++) {
 #pragma HLS UNROLL
     if (angle > ((fp_QP_t)(3.14159265358979323846)))
       angle = angle - ((fp_QP_t)(6.28318530717958647693));
@@ -59011,7 +57227,7 @@ fp_QP_t fp_normalize_angle(fp_QP_t angle) {
 
 static inline fp_FN_t fp_normalize_angle_fn(fp_FN_t angle) {
 #pragma HLS INLINE
-  VITIS_LOOP_446_1: for (int i = 0; i < 2; i++) {
+  VITIS_LOOP_426_1: for (int i = 0; i < 2; i++) {
 #pragma HLS UNROLL
     if (angle > ((fp_FN_t)(3.14159265358979323846)))
       angle = angle - ((fp_FN_t)(6.28318530717958647693));
@@ -59024,12 +57240,12 @@ static inline fp_FN_t fp_normalize_angle_fn(fp_FN_t angle) {
 
 static inline int32_t fp_fn_trig_lut_pos_raw(fp_FN_t angle) {
 #pragma HLS INLINE
-  typedef ap_int<(((26) + 0) + 27)> fp_fn_lut_mul_t;
+  typedef ap_int<(((21) + 0) + 27)> fp_fn_lut_mul_t;
   const fp_fn_lut_mul_t lut_scaled_raw =
       (fp_fn_lut_mul_t)fp_fn_raw_from_FN(angle) *
-      (fp_fn_lut_mul_t)((int32_t)42722830);
-#pragma HLS BIND_OP variable = lut_scaled_raw op = mul impl = dsp latency = 3
-  return (int32_t)(lut_scaled_raw >> ((((26) + 0) - 9)));
+      (fp_fn_lut_mul_t)((int32_t)1335088);
+#pragma HLS BIND_OP variable = lut_scaled_raw op = mul impl = dsp latency = 2
+  return (int32_t)(lut_scaled_raw >> ((((21) + 0) - (((21) + 0) - 12))));
 }
 
 
@@ -59051,14 +57267,14 @@ fp_QP_t fp_recip(fp_QP_t x) {
   const bool neg = (x < 0);
   const fp_QP_raw_t x_raw = fp_qp_raw_from_QP(x);
   const fp_QP_raw_t abs_raw_signed = neg ? (fp_QP_raw_t)(-x_raw) : x_raw;
-  const ap_uint<32> abs_raw = (ap_uint<32>)abs_raw_signed;
+  const ap_uint<26> abs_raw = (ap_uint<26>)abs_raw_signed;
 
-  const int one_bit = ((32 - 14));
-  const int half_bit = ((32 - 14)) - 1;
+  const int one_bit = ((26 - 12));
+  const int half_bit = ((26 - 12)) - 1;
   int shift = 0;
 
   const int clz = (int)abs_raw.countLeadingZeros();
-  const int msb = (32 - 1) - clz;
+  const int msb = (26 - 1) - clz;
 
   if (msb > one_bit) {
     shift = msb - one_bit;
@@ -59067,51 +57283,42 @@ fp_QP_t fp_recip(fp_QP_t x) {
   }
 
   if (shift >= 0) {
-    ap_uint<32> right_norm = abs_raw;
-    VITIS_LOOP_503_1: for (int s = 1; s < 32 - 1; ++s) {
+    ap_uint<26> right_norm = abs_raw;
+    VITIS_LOOP_483_1: for (int s = 1; s < 26 - 1; ++s) {
 #pragma HLS UNROLL
       if (shift == s)
         right_norm = abs_raw >> s;
     }
 
-    const ap_uint<32> one_raw =
-        ((ap_uint<32>)1) << ((32 - 14));
-    if (right_norm >= one_raw && shift < (32 - 2)) {
+    const ap_uint<26> one_raw =
+        ((ap_uint<26>)1) << ((26 - 12));
+    if (right_norm >= one_raw && shift < (26 - 2)) {
       shift++;
     }
   }
 
-  if (shift > (32 - 2))
-    shift = (32 - 2);
-  if (shift < -(32 - 2))
-    shift = -(32 - 2);
+  if (shift > (26 - 2))
+    shift = (26 - 2);
+  if (shift < -(26 - 2))
+    shift = -(26 - 2);
 
   const fp_QP_raw_t x_norm_raw = fp_shift_qp_raw_sel(abs_raw_signed, shift);
 
-
-
-
-
 #pragma HLS BIND_STORAGE variable = recip_lut type = rom_2p impl = bram
-  const ap_uint<32> norm_raw_u = (ap_uint<32>)x_norm_raw;
-  const int lut_hi = ((32 - 14)) - 2;
-  const int lut_lo = ((32 - 14)) - (8 + 1);
+  const ap_uint<26> norm_raw_u = (ap_uint<26>)x_norm_raw;
+  const int lut_hi = ((26 - 12)) - 2;
+  const int lut_lo = ((26 - 12)) - (8 + 1);
   int lut_idx = (int)(norm_raw_u.range(lut_hi, lut_lo));
   if (lut_idx < 0)
     lut_idx = 0;
   if (lut_idx > ((1 << 8) - 1))
     lut_idx = (1 << 8) - 1;
-
-
-
-
-
-
+# 526 "../src/fp_math_hls.cpp"
   const int frac = (int)(norm_raw_u.range(lut_lo - 1, 0));
   const fp_QP_raw_t v0 = (fp_QP_raw_t)recip_lut[lut_idx];
-  const fp_QP_raw_t v1 = (fp_QP_raw_t)recip_lut[lut_idx + 1];
-  const fp_QP_raw_t est_raw =
-      (fp_QP_raw_t)(v0 + ((((long long)(v1 - v0)) * (long long)frac) >> lut_lo));
+  long long lerp_prod = (long long)slope_lut[lut_idx] * (long long)frac;
+#pragma HLS BIND_OP variable = lerp_prod op = mul impl = dsp latency = 1
+  const fp_QP_raw_t est_raw = (fp_QP_raw_t)(v0 + (lerp_prod >> lut_lo));
 
   const fp_QP_raw_t est_denorm_raw = fp_shift_qp_raw_cast_sel(est_raw, shift);
   return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-est_denorm_raw))
@@ -59122,102 +57329,21 @@ fp_QP_t fp_recip(fp_QP_t x) {
 
 
 
-fp_QP_t fp_sin(fp_QP_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const bool neg = (angle_n < 0);
-  const fp_QP_t angle_u = neg ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(((fp_QP_t)(325.94932345220166780564))));
-  int idx = (int)(lut_pos_raw >> ((32 - 14)));
-  if (idx >= 1024)
-    idx = 1024 - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << ((32 - 14)));
-  const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(sin_lut[idx]);
-  const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(sin_lut[idx_next]);
-  const fp_QP_raw_t sin_raw = fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw);
-  return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-sin_raw))
-             : fp_QP_from_qp_raw(sin_raw);
-}
-
-fp_QP_t fp_cos(fp_QP_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = cos_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const fp_QP_t angle_u = (angle_n < 0) ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(((fp_QP_t)(325.94932345220166780564))));
-  int idx = (int)(lut_pos_raw >> ((32 - 14)));
-  if (idx >= 1024)
-    idx = 1024 - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << ((32 - 14)));
-  const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(cos_lut[idx]);
-  const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(cos_lut[idx_next]);
-  return fp_QP_from_qp_raw(fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw));
-}
-
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut type = rom_2p impl = bram
-#pragma HLS BIND_STORAGE variable = cos_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const bool neg = (angle_n < 0);
-  const fp_QP_t angle_u = neg ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(((fp_QP_t)(325.94932345220166780564))));
-  int idx = (int)(lut_pos_raw >> ((32 - 14)));
-  if (idx >= 1024)
-    idx = 1024 - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << ((32 - 14)));
-
-  const fp_QP_raw_t sin_v0_raw = fp_qp_raw_from_QP(sin_lut[idx]);
-  const fp_QP_raw_t sin_v1_raw = fp_qp_raw_from_QP(sin_lut[idx_next]);
-  const fp_QP_raw_t sin_raw = fp_lerp_qp_raw(sin_v0_raw, sin_v1_raw, frac_raw);
-  *sin_out = neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-sin_raw))
-                 : fp_QP_from_qp_raw(sin_raw);
-
-  const fp_QP_raw_t cos_v0_raw = fp_qp_raw_from_QP(cos_lut[idx]);
-  const fp_QP_raw_t cos_v1_raw = fp_qp_raw_from_QP(cos_lut[idx_next]);
-  *cos_out = fp_QP_from_qp_raw(fp_lerp_qp_raw(cos_v0_raw, cos_v1_raw, frac_raw));
-}
-
 fp_QP_t fp_atan_lut(fp_QP_t x) {
 #pragma HLS INLINE off
 #pragma HLS BIND_STORAGE variable = atan_lut type = rom_2p impl = bram
-
-
-
-
-
-
   const bool neg = (x < 0);
   const fp_QP_t abs_x = fp_abs(x);
   const fp_QP_raw_t y_raw = fp_qp_raw_from_QP(abs_x);
   const fp_QP_mul_t lut_pos_wide =
       (((fp_QP_mul_t)y_raw) << 10) >> 3;
-  int idx = (int)(lut_pos_wide >> ((32 - 14)));
+  int idx = (int)(lut_pos_wide >> ((26 - 12)));
   if (idx < 0)
     idx = 0;
   if (idx > 1023)
     idx = 1023;
   const fp_QP_raw_t frac_raw =
-      (fp_QP_raw_t)(lut_pos_wide - (((fp_QP_mul_t)idx) << ((32 - 14))));
+      (fp_QP_raw_t)(lut_pos_wide - (((fp_QP_mul_t)idx) << ((26 - 12))));
   const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(atan_lut[idx]);
   const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(atan_lut[idx + 1]);
   const fp_QP_raw_t atan_y_raw = fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw);
@@ -62319,332 +60445,292 @@ static const fp_FN_t atan_lut_fn[1025] = {
 
 
 static const int32_t recip_lut_fn[257] = {
-    262144,
-    261123,
-    260111,
-    259107,
-    258111,
-    257122,
-    256140,
-    255166,
-    254200,
-    253240,
-    252288,
-    251344,
-    250406,
-    249475,
-    248551,
-    247634,
-    246723,
-    245820,
-    244922,
-    244032,
-    243148,
-    242270,
-    241398,
-    240533,
-    239674,
-    238821,
-    237974,
-    237133,
-    236298,
-    235469,
-    234646,
-    233828,
-    233016,
-    232210,
-    231409,
-    230614,
-    229824,
-    229040,
-    228261,
-    227487,
-    226719,
-    225955,
-    225197,
-    224444,
-    223696,
-    222953,
-    222214,
-    221481,
-    220752,
-    220029,
-    219310,
-    218595,
-    217885,
-    217180,
-    216480,
-    215784,
-    215092,
-    214405,
-    213722,
-    213044,
-    212369,
-    211699,
-    211034,
-    210372,
-    209715,
-    209061,
-    208412,
-    207767,
-    207126,
-    206488,
-    205855,
-    205225,
-    204600,
-    203978,
-    203360,
-    202745,
-    202135,
-    201528,
-    200924,
-    200324,
-    199728,
-    199136,
-    198546,
-    197961,
-    197379,
-    196800,
-    196224,
-    195652,
-    195083,
-    194518,
-    193956,
-    193397,
-    192841,
-    192289,
-    191739,
-    191193,
-    190650,
-    190110,
-    189573,
-    189039,
-    188508,
-    187980,
-    187454,
-    186932,
-    186413,
-    185897,
-    185383,
-    184872,
-    184365,
-    183859,
-    183357,
-    182857,
-    182361,
-    181866,
-    181375,
-    180886,
-    180400,
-    179916,
-    179435,
-    178956,
-    178481,
-    178007,
-    177536,
-    177068,
-    176602,
-    176138,
-    175677,
-    175218,
-    174762,
-    174308,
-    173857,
-    173407,
-    172960,
-    172516,
-    172074,
-    171633,
-    171196,
-    170760,
-    170327,
-    169895,
-    169466,
-    169039,
-    168615,
-    168192,
-    167772,
-    167353,
-    166937,
-    166523,
-    166111,
-    165700,
-    165292,
-    164886,
-    164482,
-    164080,
-    163680,
-    163281,
-    162885,
-    162491,
-    162098,
-    161708,
-    161319,
-    160932,
-    160547,
-    160164,
-    159783,
-    159403,
-    159025,
-    158649,
-    158275,
-    157903,
-    157532,
-    157163,
-    156796,
-    156430,
-    156067,
-    155705,
-    155344,
-    154985,
-    154628,
-    154273,
-    153919,
-    153567,
-    153216,
-    152867,
-    152520,
-    152174,
-    151830,
-    151487,
-    151146,
-    150806,
-    150468,
-    150131,
-    149796,
-    149462,
-    149130,
-    148800,
-    148470,
-    148143,
-    147816,
-    147492,
-    147168,
-    146846,
-    146525,
-    146206,
-    145888,
-    145572,
-    145257,
-    144943,
-    144631,
-    144320,
-    144010,
-    143702,
-    143395,
-    143089,
-    142784,
-    142481,
-    142179,
-    141879,
-    141579,
-    141281,
-    140985,
-    140689,
-    140395,
-    140102,
-    139810,
-    139519,
-    139230,
-    138941,
-    138654,
-    138368,
-    138084,
-    137800,
-    137518,
-    137236,
-    136956,
-    136677,
-    136400,
-    136123,
-    135847,
-    135573,
-    135300,
-    135027,
-    134756,
-    134486,
-    134217,
-    133949,
-    133682,
-    133417,
-    133152,
-    132888,
-    132626,
-    132364,
-    132104,
-    131844,
-    131586,
-    131328,
-    131072,
+    8192,
+    8160,
+    8128,
+    8097,
+    8065,
+    8035,
+    8004,
+    7973,
+    7943,
+    7913,
+    7884,
+    7854,
+    7825,
+    7796,
+    7767,
+    7738,
+    7710,
+    7681,
+    7653,
+    7626,
+    7598,
+    7570,
+    7543,
+    7516,
+    7489,
+    7463,
+    7436,
+    7410,
+    7384,
+    7358,
+    7332,
+    7307,
+    7281,
+    7256,
+    7231,
+    7206,
+    7182,
+    7157,
+    7133,
+    7108,
+    7084,
+    7061,
+    7037,
+    7013,
+    6990,
+    6967,
+    6944,
+    6921,
+    6898,
+    6875,
+    6853,
+    6831,
+    6808,
+    6786,
+    6765,
+    6743,
+    6721,
+    6700,
+    6678,
+    6657,
+    6636,
+    6615,
+    6594,
+    6574,
+    6553,
+    6533,
+    6512,
+    6492,
+    6472,
+    6452,
+    6432,
+    6413,
+    6393,
+    6374,
+    6355,
+    6335,
+    6316,
+    6297,
+    6278,
+    6260,
+    6241,
+    6223,
+    6204,
+    6186,
+    6168,
+    6150,
+    6132,
+    6114,
+    6096,
+    6078,
+    6061,
+    6043,
+    6026,
+    6009,
+    5991,
+    5974,
+    5957,
+    5940,
+    5924,
+    5907,
+    5890,
+    5874,
+    5857,
+    5841,
+    5825,
+    5809,
+    5793,
+    5777,
+    5761,
+    5745,
+    5729,
+    5714,
+    5698,
+    5683,
+    5667,
+    5652,
+    5637,
+    5622,
+    5607,
+    5592,
+    5577,
+    5562,
+    5548,
+    5533,
+    5518,
+    5504,
+    5489,
+    5475,
+    5461,
+    5447,
+    5433,
+    5418,
+    5405,
+    5391,
+    5377,
+    5363,
+    5349,
+    5336,
+    5322,
+    5309,
+    5295,
+    5282,
+    5269,
+    5256,
+    5242,
+    5229,
+    5216,
+    5203,
+    5190,
+    5178,
+    5165,
+    5152,
+    5140,
+    5127,
+    5115,
+    5102,
+    5090,
+    5077,
+    5065,
+    5053,
+    5041,
+    5029,
+    5017,
+    5005,
+    4993,
+    4981,
+    4969,
+    4957,
+    4946,
+    4934,
+    4922,
+    4911,
+    4899,
+    4888,
+    4877,
+    4865,
+    4854,
+    4843,
+    4832,
+    4821,
+    4809,
+    4798,
+    4788,
+    4777,
+    4766,
+    4755,
+    4744,
+    4733,
+    4723,
+    4712,
+    4702,
+    4691,
+    4681,
+    4670,
+    4660,
+    4650,
+    4639,
+    4629,
+    4619,
+    4609,
+    4599,
+    4588,
+    4578,
+    4568,
+    4559,
+    4549,
+    4539,
+    4529,
+    4519,
+    4510,
+    4500,
+    4490,
+    4481,
+    4471,
+    4462,
+    4452,
+    4443,
+    4433,
+    4424,
+    4415,
+    4405,
+    4396,
+    4387,
+    4378,
+    4369,
+    4359,
+    4350,
+    4341,
+    4332,
+    4324,
+    4315,
+    4306,
+    4297,
+    4288,
+    4279,
+    4271,
+    4262,
+    4253,
+    4245,
+    4236,
+    4228,
+    4219,
+    4211,
+    4202,
+    4194,
+    4185,
+    4177,
+    4169,
+    4161,
+    4152,
+    4144,
+    4136,
+    4128,
+    4120,
+    4112,
+    4104,
+    4096,
 };
-# 665 "../src/fp_math_hls.cpp" 2
+# 568 "../src/fp_math_hls.cpp" 2
 
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_571_1: do { (void)(FP_WP_FN_MUL); (void)((__int128)fp_fn_raw_from_FN(a).to_int64() * (__int128)fp_fn_raw_from_FN(b).to_int64()); } while (0);
 
 
   fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
                           (fp_fn_accum_t)fp_fn_raw_from_FN(b);
-#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = 3
-  fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> ((((26) + 0) - 9)));
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = (((((((21) + 0))) < ((((21) + 0))) ? ((((21) + 0))) : ((((21) + 0)))) <= 18 && (((((21) + 0))) > ((((21) + 0))) ? ((((21) + 0))) : ((((21) + 0)))) <= 27) ? 1 : 2)
+  fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> ((((21) + 0) - (((21) + 0) - 12))));
   return fp_FN_from_fn_raw(product_q);
 }
 
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b) {
+
+
+
+
+
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b) {
 #pragma HLS INLINE
-  ((void)0);
+  VITIS_LOOP_588_1: do { (void)(FP_WP_FN_MUL); (void)((__int128)fp_fn_raw_from_FN(a).to_int64() * (__int128)fp_fn_raw_from_FN(b).to_int64()); } while (0);
 
 
   fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
                           (fp_fn_accum_t)fp_fn_raw_from_FN(b);
-#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = 3
-  return product;
-}
-
-fp_FN_t fp_sin_fn(fp_FN_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut_fn type = rom_2p impl = bram
-  const fp_FN_t angle_n = fp_normalize_angle_fn(angle);
-  const bool neg = (angle_n < ((fp_FN_t)(0.0)));
-  const fp_FN_t angle_u = neg ? fp_FN_t(-angle_n) : angle_n;
-
-  const int32_t lut_pos_raw = fp_fn_trig_lut_pos_raw(angle_u);
-  int idx = (int)(lut_pos_raw >> ((((26) + 0) - 9)));
-  if (idx >= 1024)
-    idx = 1024 - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << ((((26) + 0) - 9))));
-  const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(sin_lut_fn[idx]);
-  const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(sin_lut_fn[idx_next]);
-  const fp_fn_raw_t sin_raw = fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw);
-  return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-sin_raw))
-             : fp_FN_from_fn_raw(sin_raw);
-}
-
-fp_FN_t fp_cos_fn(fp_FN_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = cos_lut_fn type = rom_2p impl = bram
-  const fp_FN_t angle_n = fp_normalize_angle_fn(angle);
-  const fp_FN_t angle_u = (angle_n < ((fp_FN_t)(0.0))) ? fp_FN_t(-angle_n) : angle_n;
-
-  const int32_t lut_pos_raw = fp_fn_trig_lut_pos_raw(angle_u);
-  int idx = (int)(lut_pos_raw >> ((((26) + 0) - 9)));
-  if (idx >= 1024)
-    idx = 1024 - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << ((((26) + 0) - 9))));
-  const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(cos_lut_fn[idx]);
-  const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(cos_lut_fn[idx_next]);
-  return fp_FN_from_fn_raw(fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw));
+  fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> ((((21) + 0) - (((21) + 0) - 12))));
+  return fp_FN_from_fn_raw(product_q);
 }
 
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out) {
@@ -62656,7 +60742,7 @@ void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out) {
   const fp_FN_t angle_u = neg ? fp_FN_t(-angle_n) : angle_n;
 
   const int32_t lut_pos_raw = fp_fn_trig_lut_pos_raw(angle_u);
-  int idx = (int)(lut_pos_raw >> ((((26) + 0) - 9)));
+  int idx = (int)(lut_pos_raw >> ((((21) + 0) - (((21) + 0) - 12))));
   if (idx >= 1024)
     idx = 1024 - 1;
   if (idx < 0)
@@ -62664,7 +60750,7 @@ void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out) {
 
   const int idx_next = idx + 1;
   const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << ((((26) + 0) - 9))));
+      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << ((((21) + 0) - (((21) + 0) - 12)))));
 
   const fp_fn_raw_t sin_v0_raw = fp_fn_raw_from_FN(sin_lut_fn[idx]);
   const fp_fn_raw_t sin_v1_raw = fp_fn_raw_from_FN(sin_lut_fn[idx_next]);
@@ -62692,14 +60778,14 @@ fp_FN_t fp_atan_lut_fn(fp_FN_t x) {
 
   const long long scaled =
       (((long long)y_raw) << 10) >> 3;
-  int idx = (int)(scaled >> ((((26) + 0) - 9)));
+  int idx = (int)(scaled >> ((((21) + 0) - (((21) + 0) - 12))));
   if (idx < 0)
     idx = 0;
   if (idx > 1023)
     idx = 1023;
 
   const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(scaled - (((long long)idx) << ((((26) + 0) - 9))));
+      (fp_fn_raw_t)(scaled - (((long long)idx) << ((((21) + 0) - (((21) + 0) - 12)))));
   const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(atan_lut_fn[idx]);
   const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(atan_lut_fn[idx + 1]);
   const fp_fn_raw_t atan_y_raw = fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw);
@@ -62723,14 +60809,14 @@ fp_FN_t fp_recip_fn(fp_FN_t x) {
   const bool neg = (x < 0);
   const fp_fn_raw_t x_raw = fp_fn_raw_from_FN(x);
   const fp_fn_raw_t abs_raw_signed = neg ? (fp_fn_raw_t)(-x_raw) : x_raw;
-  const ap_uint<((26) + 0)> abs_raw = (ap_uint<((26) + 0)>)abs_raw_signed;
+  const ap_uint<((21) + 0)> abs_raw = (ap_uint<((21) + 0)>)abs_raw_signed;
 
-  const int one_bit = ((((26) + 0) - 9));
-  const int half_bit = ((((26) + 0) - 9)) - 1;
+  const int one_bit = ((((21) + 0) - (((21) + 0) - 12)));
+  const int half_bit = ((((21) + 0) - (((21) + 0) - 12))) - 1;
   int shift = 0;
 
   const int clz = (int)abs_raw.countLeadingZeros();
-  const int msb = (((26) + 0) - 1) - clz;
+  const int msb = (((21) + 0) - 1) - clz;
 
   if (msb > one_bit) {
     shift = msb - one_bit;
@@ -62739,28 +60825,28 @@ fp_FN_t fp_recip_fn(fp_FN_t x) {
   }
 
   if (shift >= 0) {
-    ap_uint<((26) + 0)> right_norm = abs_raw;
-    VITIS_LOOP_827_1: for (int s = 1; s < ((26) + 0) - 1; ++s) {
+    ap_uint<((21) + 0)> right_norm = abs_raw;
+    VITIS_LOOP_690_1: for (int s = 1; s < ((21) + 0) - 1; ++s) {
 #pragma HLS UNROLL
       if (shift == s)
         right_norm = abs_raw >> s;
     }
-    const ap_uint<((26) + 0)> one_raw =
-        ((ap_uint<((26) + 0)>)1) << ((((26) + 0) - 9));
-    if (right_norm >= one_raw && shift < (((26) + 0) - 2)) {
+    const ap_uint<((21) + 0)> one_raw =
+        ((ap_uint<((21) + 0)>)1) << ((((21) + 0) - (((21) + 0) - 12)));
+    if (right_norm >= one_raw && shift < (((21) + 0) - 2)) {
       shift++;
     }
   }
 
-  if (shift > (((26) + 0) - 2))
-    shift = (((26) + 0) - 2);
-  if (shift < -(((26) + 0) - 2))
-    shift = -(((26) + 0) - 2);
+  if (shift > (((21) + 0) - 2))
+    shift = (((21) + 0) - 2);
+  if (shift < -(((21) + 0) - 2))
+    shift = -(((21) + 0) - 2);
 
   const fp_fn_raw_t x_norm_raw = fp_shift_fn_raw_sel(abs_raw_signed, shift);
-  const ap_uint<((26) + 0)> norm_raw_u = (ap_uint<((26) + 0)>)x_norm_raw;
-  const int lut_hi = ((((26) + 0) - 9)) - 2;
-  const int lut_lo = ((((26) + 0) - 9)) - (8 + 1);
+  const ap_uint<((21) + 0)> norm_raw_u = (ap_uint<((21) + 0)>)x_norm_raw;
+  const int lut_hi = ((((21) + 0) - (((21) + 0) - 12))) - 2;
+  const int lut_lo = ((((21) + 0) - (((21) + 0) - 12))) - (8 + 1);
   int lut_idx = (int)(norm_raw_u.range(lut_hi, lut_lo));
   if (lut_idx < 0)
     lut_idx = 0;

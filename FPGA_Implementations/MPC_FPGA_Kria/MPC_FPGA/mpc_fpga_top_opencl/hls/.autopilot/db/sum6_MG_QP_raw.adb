@@ -7,7 +7,7 @@
     <cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
       <name>sum6_MG_QP_raw</name>
       <module_structure>Pipeline</module_structure>
-      <ret_bitwidth>52</ret_bitwidth>
+      <ret_bitwidth>32</ret_bitwidth>
       <ports class_id="2" tracking_level="0" version="0">
         <count>6</count>
         <item_version>0</item_version>
@@ -37,7 +37,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -73,7 +73,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -109,7 +109,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -145,7 +145,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -181,7 +181,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -217,7 +217,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -235,11 +235,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>14</id>
+              <id>8</id>
               <name>a5_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -255,7 +255,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -271,13 +271,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>28</item>
-            <item>29</item>
+            <item>22</item>
+            <item>23</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -292,11 +292,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>15</id>
+              <id>9</id>
               <name>a4_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -312,7 +312,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -328,13 +328,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>30</item>
-            <item>31</item>
+            <item>24</item>
+            <item>25</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -349,11 +349,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>16</id>
+              <id>10</id>
               <name>a3_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -369,7 +369,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -385,13 +385,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>32</item>
-            <item>33</item>
+            <item>26</item>
+            <item>27</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -406,11 +406,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>17</id>
+              <id>11</id>
               <name>a2_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -426,7 +426,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -442,13 +442,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>34</item>
-            <item>35</item>
+            <item>28</item>
+            <item>29</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -463,11 +463,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>18</id>
+              <id>12</id>
               <name>a1_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -483,7 +483,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -499,13 +499,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>36</item>
-            <item>37</item>
+            <item>30</item>
+            <item>31</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -520,11 +520,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>19</id>
+              <id>13</id>
               <name>a0_read</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>285</lineNumber>
+              <lineNumber>300</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -540,7 +540,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>285</second>
+                      <second>300</second>
                     </item>
                   </second>
                 </item>
@@ -556,13 +556,13 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>38</item>
-            <item>39</item>
+            <item>32</item>
+            <item>33</item>
           </oprand_edges>
           <opcode>read</opcode>
           <m_Display>0</m_Display>
@@ -577,11 +577,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>20</id>
-              <name>add_ln297</name>
+              <id>14</id>
+              <name>add_ln312</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>297</lineNumber>
+              <lineNumber>312</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -597,13 +597,13 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>297</second>
+                      <second>312</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>add_ln297_fu_68_p2</rtlName>
+              <rtlName>add_ln312_fu_60_p2</rtlName>
               <control>auto</control>
               <opType>add</opType>
               <implIndex>fabric</implIndex>
@@ -613,20 +613,20 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>40</item>
-            <item>41</item>
+            <item>34</item>
+            <item>35</item>
           </oprand_edges>
           <opcode>add</opcode>
           <m_Display>0</m_Display>
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.10</m_delay>
+          <m_delay>1.01</m_delay>
           <m_topoIndex>7</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -634,11 +634,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>21</id>
-              <name>add_ln297_1</name>
+              <id>15</id>
+              <name>add_ln312_1</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>297</lineNumber>
+              <lineNumber>312</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -654,13 +654,13 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>297</second>
+                      <second>312</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>add_ln297_1_fu_74_p2</rtlName>
+              <rtlName>add_ln312_1_fu_66_p2</rtlName>
               <control>auto</control>
               <opType>all</opType>
               <implIndex>tadder</implIndex>
@@ -670,13 +670,13 @@
               <coreId>10</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>42</item>
-            <item>43</item>
+            <item>36</item>
+            <item>37</item>
           </oprand_edges>
           <opcode>add</opcode>
           <m_Display>0</m_Display>
@@ -691,11 +691,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>22</id>
-              <name>add_ln297_2</name>
+              <id>16</id>
+              <name>add_ln312_2</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>297</lineNumber>
+              <lineNumber>312</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -711,13 +711,13 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>297</second>
+                      <second>312</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>add_ln297_2_fu_80_p2</rtlName>
+              <rtlName>add_ln312_2_fu_72_p2</rtlName>
               <control>auto</control>
               <opType>all</opType>
               <implIndex>tadder</implIndex>
@@ -727,13 +727,13 @@
               <coreId>10</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>44</item>
-            <item>45</item>
+            <item>38</item>
+            <item>39</item>
           </oprand_edges>
           <opcode>add</opcode>
           <m_Display>0</m_Display>
@@ -748,11 +748,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>23</id>
-              <name>add_ln297_3</name>
+              <id>17</id>
+              <name>add_ln312_3</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>297</lineNumber>
+              <lineNumber>312</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -768,13 +768,13 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>297</second>
+                      <second>312</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>add_ln297_3_fu_86_p2</rtlName>
+              <rtlName>add_ln312_3_fu_78_p2</rtlName>
               <control>auto</control>
               <opType>all</opType>
               <implIndex>tadder</implIndex>
@@ -784,20 +784,20 @@
               <coreId>10</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>46</item>
-            <item>47</item>
+            <item>40</item>
+            <item>41</item>
           </oprand_edges>
           <opcode>add</opcode>
           <m_Display>0</m_Display>
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.78</m_delay>
+          <m_delay>0.73</m_delay>
           <m_topoIndex>10</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -805,11 +805,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>24</id>
-              <name>add_ln298</name>
+              <id>18</id>
+              <name>add_ln313</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>298</lineNumber>
+              <lineNumber>313</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -825,7 +825,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>298</second>
+                      <second>313</second>
                     </item>
                   </second>
                 </item>
@@ -841,20 +841,20 @@
               <coreId>10</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>52</bitwidth>
+            <bitwidth>32</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>48</item>
-            <item>49</item>
+            <item>42</item>
+            <item>43</item>
           </oprand_edges>
           <opcode>add</opcode>
           <m_Display>0</m_Display>
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.78</m_delay>
+          <m_delay>0.73</m_delay>
           <m_topoIndex>11</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -862,11 +862,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>25</id>
-              <name>_ln298</name>
+              <id>19</id>
+              <name>_ln313</name>
               <fileName>include/fp_math_hls.h</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>298</lineNumber>
+              <lineNumber>313</lineNumber>
               <contextFuncName>sum6_MG_QP_raw</contextFuncName>
               <contextNormFuncName>sum6_MG_QP_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -882,7 +882,7 @@
                         <first>include/fp_math_hls.h</first>
                         <second>sum6_MG_QP_raw</second>
                       </first>
-                      <second>298</second>
+                      <second>313</second>
                     </item>
                   </second>
                 </item>
@@ -903,7 +903,7 @@
           <oprand_edges>
             <count>1</count>
             <item_version>0</item_version>
-            <item>50</item>
+            <item>44</item>
           </oprand_edges>
           <opcode>ret</opcode>
           <m_Display>0</m_Display>
@@ -925,7 +925,7 @@
         <item class_id="17" tracking_level="1" version="0" object_id="_19">
           <Obj>
             <type>3</type>
-            <id>26</id>
+            <id>20</id>
             <name>sum6_MG_QP_raw</name>
             <fileName></fileName>
             <fileDirectory></fileDirectory>
@@ -950,18 +950,18 @@
           <node_objs>
             <count>12</count>
             <item_version>0</item_version>
+            <item>8</item>
+            <item>9</item>
+            <item>10</item>
+            <item>11</item>
+            <item>12</item>
+            <item>13</item>
             <item>14</item>
             <item>15</item>
             <item>16</item>
             <item>17</item>
             <item>18</item>
             <item>19</item>
-            <item>20</item>
-            <item>21</item>
-            <item>22</item>
-            <item>23</item>
-            <item>24</item>
-            <item>25</item>
           </node_objs>
         </item>
       </blocks>
@@ -969,122 +969,122 @@
         <count>17</count>
         <item_version>0</item_version>
         <item class_id="19" tracking_level="1" version="0" object_id="_20">
-          <id>29</id>
+          <id>23</id>
           <edge_type>1</edge_type>
           <source_obj>6</source_obj>
-          <sink_obj>14</sink_obj>
+          <sink_obj>8</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_21">
-          <id>31</id>
+          <id>25</id>
           <edge_type>1</edge_type>
           <source_obj>5</source_obj>
-          <sink_obj>15</sink_obj>
+          <sink_obj>9</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_22">
-          <id>33</id>
+          <id>27</id>
           <edge_type>1</edge_type>
           <source_obj>4</source_obj>
-          <sink_obj>16</sink_obj>
+          <sink_obj>10</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_23">
-          <id>35</id>
+          <id>29</id>
           <edge_type>1</edge_type>
           <source_obj>3</source_obj>
-          <sink_obj>17</sink_obj>
+          <sink_obj>11</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_24">
-          <id>37</id>
+          <id>31</id>
           <edge_type>1</edge_type>
           <source_obj>2</source_obj>
-          <sink_obj>18</sink_obj>
+          <sink_obj>12</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_25">
-          <id>39</id>
+          <id>33</id>
           <edge_type>1</edge_type>
           <source_obj>1</source_obj>
-          <sink_obj>19</sink_obj>
+          <sink_obj>13</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_26">
-          <id>40</id>
+          <id>34</id>
           <edge_type>1</edge_type>
-          <source_obj>19</source_obj>
-          <sink_obj>20</sink_obj>
+          <source_obj>13</source_obj>
+          <sink_obj>14</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_27">
-          <id>41</id>
+          <id>35</id>
           <edge_type>1</edge_type>
-          <source_obj>17</source_obj>
-          <sink_obj>20</sink_obj>
+          <source_obj>11</source_obj>
+          <sink_obj>14</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_28">
-          <id>42</id>
+          <id>36</id>
           <edge_type>1</edge_type>
-          <source_obj>20</source_obj>
-          <sink_obj>21</sink_obj>
+          <source_obj>14</source_obj>
+          <sink_obj>15</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_29">
-          <id>43</id>
+          <id>37</id>
           <edge_type>1</edge_type>
-          <source_obj>18</source_obj>
-          <sink_obj>21</sink_obj>
+          <source_obj>12</source_obj>
+          <sink_obj>15</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_30">
-          <id>44</id>
+          <id>38</id>
           <edge_type>1</edge_type>
-          <source_obj>15</source_obj>
-          <sink_obj>22</sink_obj>
+          <source_obj>9</source_obj>
+          <sink_obj>16</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_31">
-          <id>45</id>
+          <id>39</id>
           <edge_type>1</edge_type>
-          <source_obj>14</source_obj>
-          <sink_obj>22</sink_obj>
+          <source_obj>8</source_obj>
+          <sink_obj>16</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_32">
-          <id>46</id>
+          <id>40</id>
           <edge_type>1</edge_type>
-          <source_obj>22</source_obj>
-          <sink_obj>23</sink_obj>
+          <source_obj>16</source_obj>
+          <sink_obj>17</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_33">
-          <id>47</id>
+          <id>41</id>
           <edge_type>1</edge_type>
-          <source_obj>16</source_obj>
-          <sink_obj>23</sink_obj>
+          <source_obj>10</source_obj>
+          <sink_obj>17</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_34">
-          <id>48</id>
+          <id>42</id>
           <edge_type>1</edge_type>
-          <source_obj>23</source_obj>
-          <sink_obj>24</sink_obj>
+          <source_obj>17</source_obj>
+          <sink_obj>18</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_35">
-          <id>49</id>
+          <id>43</id>
           <edge_type>1</edge_type>
-          <source_obj>21</source_obj>
-          <sink_obj>24</sink_obj>
+          <source_obj>15</source_obj>
+          <sink_obj>18</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
         <item class_id_reference="19" object_id="_36">
-          <id>50</id>
+          <id>44</id>
           <edge_type>1</edge_type>
-          <source_obj>24</source_obj>
-          <sink_obj>25</sink_obj>
+          <source_obj>18</source_obj>
+          <sink_obj>19</sink_obj>
           <is_back_edge>0</is_back_edge>
         </item>
       </edges>
@@ -1104,7 +1104,7 @@
         <basic_blocks>
           <count>1</count>
           <item_version>0</item_version>
-          <item>26</item>
+          <item>20</item>
         </basic_blocks>
         <mII>1</mII>
         <mDepth>1</mDepth>
@@ -1123,7 +1123,7 @@
         <item class_id="25" tracking_level="1" version="0" object_id="_39">
           <id>1</id>
           <operations class_id="26" tracking_level="0" version="0">
-            <count>19</count>
+            <count>13</count>
             <item_version>0</item_version>
             <item class_id="27" tracking_level="1" version="0" object_id="_40">
               <id>7</id>
@@ -1190,36 +1190,6 @@
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="27" object_id="_53">
-              <id>20</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="27" object_id="_54">
-              <id>21</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="27" object_id="_55">
-              <id>22</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="27" object_id="_56">
-              <id>23</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="27" object_id="_57">
-              <id>24</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="27" object_id="_58">
-              <id>25</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
           </operations>
         </item>
       </states>
@@ -1228,7 +1198,7 @@
         <item_version>0</item_version>
       </transitions>
     </fsm>
-    <res class_id="29" tracking_level="1" version="0" object_id="_59">
+    <res class_id="29" tracking_level="1" version="0" object_id="_53">
       <dp_component_resource class_id="30" tracking_level="0" version="0">
         <count>0</count>
         <item_version>0</item_version>
@@ -1237,17 +1207,17 @@
         <count>5</count>
         <item_version>0</item_version>
         <item class_id="31" tracking_level="0" version="0">
-          <first>add_ln297_1_fu_74_p2 ( + ) </first>
+          <first>add_ln312_1_fu_66_p2 ( + ) </first>
           <second class_id="32" tracking_level="0" version="0">
             <count>4</count>
             <item_version>0</item_version>
             <item class_id="33" tracking_level="0" version="0">
               <first>(0P0)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>FF</first>
@@ -1255,22 +1225,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>52</second>
+              <second>32</second>
             </item>
           </second>
         </item>
         <item>
-          <first>add_ln297_2_fu_80_p2 ( + ) </first>
+          <first>add_ln312_2_fu_72_p2 ( + ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>FF</first>
@@ -1278,22 +1248,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>52</second>
+              <second>32</second>
             </item>
           </second>
         </item>
         <item>
-          <first>add_ln297_3_fu_86_p2 ( + ) </first>
+          <first>add_ln312_3_fu_78_p2 ( + ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>FF</first>
@@ -1301,22 +1271,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>52</second>
+              <second>32</second>
             </item>
           </second>
         </item>
         <item>
-          <first>add_ln297_fu_68_p2 ( + ) </first>
+          <first>add_ln312_fu_60_p2 ( + ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>FF</first>
@@ -1324,7 +1294,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>59</second>
+              <second>39</second>
             </item>
           </second>
         </item>
@@ -1335,11 +1305,11 @@
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>52</second>
+              <second>32</second>
             </item>
             <item>
               <first>FF</first>
@@ -1347,7 +1317,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>52</second>
+              <second>32</second>
             </item>
           </second>
         </item>
@@ -1380,35 +1350,35 @@
         <count>5</count>
         <item_version>0</item_version>
         <item class_id="35" tracking_level="0" version="0">
-          <first>add_ln297_1_fu_74_p2 ( + ) </first>
+          <first>add_ln312_1_fu_66_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>21</item>
+            <item>15</item>
           </second>
         </item>
         <item>
-          <first>add_ln297_2_fu_80_p2 ( + ) </first>
+          <first>add_ln312_2_fu_72_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>22</item>
+            <item>16</item>
           </second>
         </item>
         <item>
-          <first>add_ln297_3_fu_86_p2 ( + ) </first>
+          <first>add_ln312_3_fu_78_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>23</item>
+            <item>17</item>
           </second>
         </item>
         <item>
-          <first>add_ln297_fu_68_p2 ( + ) </first>
+          <first>add_ln312_fu_60_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>20</item>
+            <item>14</item>
           </second>
         </item>
         <item>
@@ -1416,7 +1386,7 @@
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>24</item>
+            <item>18</item>
           </second>
         </item>
       </dp_expression_map>
@@ -1433,8 +1403,50 @@
       <count>12</count>
       <item_version>0</item_version>
       <item class_id="37" tracking_level="0" version="0">
-        <first>14</first>
+        <first>8</first>
         <second class_id="38" tracking_level="0" version="0">
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>9</first>
+        <second>
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>10</first>
+        <second>
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>11</first>
+        <second>
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>12</first>
+        <second>
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>13</first>
+        <second>
+          <first>0</first>
+          <second>0</second>
+        </second>
+      </item>
+      <item>
+        <first>14</first>
+        <second>
           <first>0</first>
           <second>0</second>
         </second>
@@ -1474,54 +1486,12 @@
           <second>0</second>
         </second>
       </item>
-      <item>
-        <first>20</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
-      <item>
-        <first>21</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
-      <item>
-        <first>22</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
-      <item>
-        <first>23</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
-      <item>
-        <first>24</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
-      <item>
-        <first>25</first>
-        <second>
-          <first>0</first>
-          <second>0</second>
-        </second>
-      </item>
     </node_label_latency>
     <bblk_ent_exit class_id="39" tracking_level="0" version="0">
       <count>1</count>
       <item_version>0</item_version>
       <item class_id="40" tracking_level="0" version="0">
-        <first>26</first>
+        <first>20</first>
         <second class_id="41" tracking_level="0" version="0">
           <first>0</first>
           <second>0</second>
@@ -1531,12 +1501,12 @@
     <regions class_id="42" tracking_level="0" version="0">
       <count>1</count>
       <item_version>0</item_version>
-      <item class_id="43" tracking_level="1" version="0" object_id="_60">
+      <item class_id="43" tracking_level="1" version="0" object_id="_54">
         <region_name>sum6_MG_QP_raw</region_name>
         <basic_blocks>
           <count>1</count>
           <item_version>0</item_version>
-          <item>26</item>
+          <item>20</item>
         </basic_blocks>
         <nodes>
           <count>0</count>
@@ -1556,7 +1526,55 @@
       <count>11</count>
       <item_version>0</item_version>
       <item class_id="46" tracking_level="0" version="0">
-        <first>32</first>
+        <first>24</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>8</item>
+        </second>
+      </item>
+      <item>
+        <first>30</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>9</item>
+        </second>
+      </item>
+      <item>
+        <first>36</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>10</item>
+        </second>
+      </item>
+      <item>
+        <first>42</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>11</item>
+        </second>
+      </item>
+      <item>
+        <first>48</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>12</item>
+        </second>
+      </item>
+      <item>
+        <first>54</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>13</item>
+        </second>
+      </item>
+      <item>
+        <first>60</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -1564,7 +1582,7 @@
         </second>
       </item>
       <item>
-        <first>38</first>
+        <first>66</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -1572,7 +1590,7 @@
         </second>
       </item>
       <item>
-        <first>44</first>
+        <first>72</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -1580,7 +1598,7 @@
         </second>
       </item>
       <item>
-        <first>50</first>
+        <first>78</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -1588,59 +1606,11 @@
         </second>
       </item>
       <item>
-        <first>56</first>
+        <first>84</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
           <item>18</item>
-        </second>
-      </item>
-      <item>
-        <first>62</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>19</item>
-        </second>
-      </item>
-      <item>
-        <first>68</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>20</item>
-        </second>
-      </item>
-      <item>
-        <first>74</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>21</item>
-        </second>
-      </item>
-      <item>
-        <first>80</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>22</item>
-        </second>
-      </item>
-      <item>
-        <first>86</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>23</item>
-        </second>
-      </item>
-      <item>
-        <first>92</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>24</item>
         </second>
       </item>
     </dp_fu_nodes>
@@ -1648,43 +1618,43 @@
       <count>5</count>
       <item_version>0</item_version>
       <item class_id="49" tracking_level="0" version="0">
-        <first>add_ln297_1_fu_74</first>
+        <first>add_ln312_1_fu_66</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>21</item>
+          <item>15</item>
         </second>
       </item>
       <item>
-        <first>add_ln297_2_fu_80</first>
+        <first>add_ln312_2_fu_72</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>22</item>
+          <item>16</item>
         </second>
       </item>
       <item>
-        <first>add_ln297_3_fu_86</first>
+        <first>add_ln312_3_fu_78</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>23</item>
+          <item>17</item>
         </second>
       </item>
       <item>
-        <first>add_ln297_fu_68</first>
+        <first>add_ln312_fu_60</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>20</item>
+          <item>14</item>
         </second>
       </item>
       <item>
-        <first>add_ln298_fu_92</first>
+        <first>add_ln313_fu_84</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>24</item>
+          <item>18</item>
         </second>
       </item>
     </dp_fu_nodes_expression>
@@ -1696,51 +1666,51 @@
       <count>6</count>
       <item_version>0</item_version>
       <item>
-        <first>a0_read_read_fu_62</first>
+        <first>a0_read_read_fu_54</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>19</item>
+          <item>13</item>
         </second>
       </item>
       <item>
-        <first>a1_read_read_fu_56</first>
+        <first>a1_read_read_fu_48</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>18</item>
+          <item>12</item>
         </second>
       </item>
       <item>
-        <first>a2_read_read_fu_50</first>
+        <first>a2_read_read_fu_42</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>17</item>
+          <item>11</item>
         </second>
       </item>
       <item>
-        <first>a3_read_read_fu_44</first>
+        <first>a3_read_read_fu_36</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>16</item>
+          <item>10</item>
         </second>
       </item>
       <item>
-        <first>a4_read_read_fu_38</first>
+        <first>a4_read_read_fu_30</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>15</item>
+          <item>9</item>
         </second>
       </item>
       <item>
-        <first>a5_read_read_fu_32</first>
+        <first>a5_read_read_fu_24</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>14</item>
+          <item>8</item>
         </second>
       </item>
     </dp_fu_nodes_io>
@@ -1752,7 +1722,7 @@
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>25</item>
+          <item>19</item>
         </second>
       </item>
     </return_ports>
@@ -1789,7 +1759,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>19</item>
+              <item>13</item>
             </second>
           </item>
         </second>
@@ -1804,7 +1774,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>18</item>
+              <item>12</item>
             </second>
           </item>
         </second>
@@ -1819,7 +1789,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>17</item>
+              <item>11</item>
             </second>
           </item>
         </second>
@@ -1834,7 +1804,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>16</item>
+              <item>10</item>
             </second>
           </item>
         </second>
@@ -1849,7 +1819,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>15</item>
+              <item>9</item>
             </second>
           </item>
         </second>
@@ -1864,7 +1834,7 @@
             <second>
               <count>1</count>
               <item_version>0</item_version>
-              <item>14</item>
+              <item>8</item>
             </second>
           </item>
         </second>
@@ -1878,42 +1848,42 @@
       <count>5</count>
       <item_version>0</item_version>
       <item>
-        <first>20</first>
+        <first>14</first>
         <second>
           <first>8</first>
           <second>4</second>
         </second>
       </item>
       <item>
-        <first>21</first>
+        <first>15</first>
         <second>
           <first>777</first>
           <second>156</second>
         </second>
       </item>
       <item>
-        <first>22</first>
+        <first>16</first>
         <second>
           <first>777</first>
           <second>156</second>
         </second>
       </item>
       <item>
-        <first>23</first>
+        <first>17</first>
         <second>
           <first>777</first>
           <second>156</second>
         </second>
       </item>
       <item>
-        <first>24</first>
+        <first>18</first>
         <second>
           <first>777</first>
           <second>156</second>
         </second>
       </item>
     </node2core>
-    <sched_res class_id="53" tracking_level="1" version="0" object_id="_61">
+    <sched_res class_id="53" tracking_level="1" version="0" object_id="_55">
       <ResourceTableActual class_id="54" tracking_level="0" version="0">
         <II>1</II>
       </ResourceTableActual>

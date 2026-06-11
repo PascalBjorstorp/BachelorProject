@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'fp_front_force_jacobians_fn'
 ================================================================
-* Date:           Thu May 21 15:23:03 2026
+* Date:           Thu Jun 11 16:06:48 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  4.433 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  3.300 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -29,7 +29,7 @@
     |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
     |   min   |   max   |    min    |    max    | min | max |   Type  |
     +---------+---------+-----------+-----------+-----+-----+---------+
-    |        9|        9|  45.000 ns|  45.000 ns|   10|   10|      yes|
+    |        7|        7|  35.000 ns|  35.000 ns|    8|    8|      yes|
     +---------+---------+-----------+-----------+-----+-----+---------+
 
     + Detail: 
@@ -62,15 +62,15 @@ HasImplIP: 0
 IsGatedGlobalClock: 0
 
 + Individual pipeline summary: 
-  * Pipeline-0: initiation interval (II) = 10, depth = 10
+  * Pipeline-0: initiation interval (II) = 8, depth = 8
 
 
 ============================================================
 + Verbose Summary: Schedule
 ============================================================
-* Number of FSM states : 10
+* Number of FSM states : 8
 * Pipeline : 1
-  Pipeline-0 : II = 10, D = 10, States = { 1 2 3 4 5 6 7 8 9 10 }
+  Pipeline-0 : II = 8, D = 8, States = { 1 2 3 4 5 6 7 8 }
 * Dataflow Pipeline: 0
 
 * FSM state transitions: 
@@ -81,108 +81,90 @@ IsGatedGlobalClock: 0
 5 --> 6 
 6 --> 7 
 7 --> 8 
-8 --> 9 
-9 --> 10 
-10 --> 
+8 --> 
 
 * FSM state operations: 
 
-State 1 <SV = 0> <Delay = 1.69>
-ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%vx_safe_read = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %vx_safe" [../src/vehicle_model_hls.cpp:139]   --->   Operation 11 'read' 'vx_safe_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%zext_ln671 = zext i25 %vx_safe_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 12 'zext' 'zext_ln671' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 13 [4/4] (1.69ns)   --->   "%product = mul i40 %zext_ln671, i40 21757" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 13 'mul' 'product' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 1 <SV = 0> <Delay = 2.59>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%inv_D_f_read = read i20 @_ssdm_op_Read.ap_auto.i20, i20 %inv_D_f" [../src/vehicle_model_hls.cpp:139]   --->   Operation 9 'read' 'inv_D_f_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%vx_safe_read = read i20 @_ssdm_op_Read.ap_auto.i20, i20 %vx_safe" [../src/vehicle_model_hls.cpp:139]   --->   Operation 10 'read' 'vx_safe_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%zext_ln761 = zext i20 %vx_safe_read" [include/fp_types_hls.hpp:761->../src/fp_math_hls.cpp:575->../src/vehicle_model_hls.cpp:140]   --->   Operation 11 'zext' 'zext_ln761' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%zext_ln574 = zext i20 %vx_safe_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 12 'zext' 'zext_ln574' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%sext_ln574_32 = sext i20 %inv_D_f_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 13 'sext' 'sext_ln574_32' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 14 [3/3] (1.59ns)   --->   "%mul_ln574 = mul i40 %sext_ln574_32, i40 %zext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 14 'mul' 'mul_ln574' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 15 [1/1] (2.59ns)   --->   "%product = mul i30 %zext_ln761, i30 679" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:143]   --->   Operation 15 'mul' 'product' <Predicate = true> <Delay = 2.59> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 16 [1/1] (0.00ns)   --->   "%product_q_s = partselect i18 @_ssdm_op_PartSelect.i18.i30.i32.i32, i30 %product, i32 12, i32 29" [../src/fp_math_hls.cpp:593->../src/vehicle_model_hls.cpp:143]   --->   Operation 16 'partselect' 'product_q_s' <Predicate = true> <Delay = 0.00>
 
-State 2 <SV = 1> <Delay = 1.69>
-ST_2 : Operation 14 [1/1] (0.00ns)   --->   "%inv_D_f_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %inv_D_f" [../src/vehicle_model_hls.cpp:139]   --->   Operation 14 'read' 'inv_D_f_read' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 15 [1/1] (0.00ns)   --->   "%zext_ln671_1 = zext i25 %vx_safe_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 15 'zext' 'zext_ln671_1' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 16 [1/1] (0.00ns)   --->   "%sext_ln671_39 = sext i23 %inv_D_f_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 16 'sext' 'sext_ln671_39' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 17 [4/4] (1.69ns)   --->   "%mul_ln671 = mul i48 %sext_ln671_39, i48 %zext_ln671_1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 17 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_2 : Operation 18 [3/4] (1.69ns)   --->   "%product = mul i40 %zext_ln671, i40 21757" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 18 'mul' 'product' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 2 <SV = 1> <Delay = 1.64>
+ST_2 : Operation 17 [1/1] (0.00ns)   --->   "%front_num_read = read i21 @_ssdm_op_Read.ap_auto.i21, i21 %front_num" [../src/vehicle_model_hls.cpp:139]   --->   Operation 17 'read' 'front_num_read' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 18 [1/1] (0.00ns)   --->   "%sext_ln574_31 = sext i20 %inv_D_f_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 18 'sext' 'sext_ln574_31' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 19 [2/3] (1.59ns)   --->   "%mul_ln574 = mul i40 %sext_ln574_32, i40 %zext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 19 'mul' 'mul_ln574' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 20 [1/1] (0.00ns)   --->   "%sext_ln574_33 = sext i21 %front_num_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 20 'sext' 'sext_ln574_33' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 21 [3/3] (1.64ns)   --->   "%mul_ln574_23 = mul i41 %sext_ln574_33, i41 %sext_ln574_31" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 21 'mul' 'mul_ln574_23' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 3 <SV = 2> <Delay = 1.78>
-ST_3 : Operation 19 [1/1] (0.00ns)   --->   "%front_num_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %front_num" [../src/vehicle_model_hls.cpp:139]   --->   Operation 19 'read' 'front_num_read' <Predicate = true> <Delay = 0.00>
-ST_3 : Operation 20 [1/1] (0.00ns)   --->   "%sext_ln671_38 = sext i23 %inv_D_f_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 20 'sext' 'sext_ln671_38' <Predicate = true> <Delay = 0.00>
-ST_3 : Operation 21 [3/4] (1.69ns)   --->   "%mul_ln671 = mul i48 %sext_ln671_39, i48 %zext_ln671_1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 21 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_3 : Operation 22 [1/1] (0.00ns)   --->   "%sext_ln671_40 = sext i26 %front_num_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 22 'sext' 'sext_ln671_40' <Predicate = true> <Delay = 0.00>
-ST_3 : Operation 23 [4/4] (1.78ns)   --->   "%mul_ln671_24 = mul i49 %sext_ln671_40, i49 %sext_ln671_38" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 23 'mul' 'mul_ln671_24' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_3 : Operation 24 [2/4] (1.69ns)   --->   "%product = mul i40 %zext_ln671, i40 21757" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 24 'mul' 'product' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 3 <SV = 2> <Delay = 1.64>
+ST_3 : Operation 22 [1/1] (0.00ns)   --->   "%sext_ln574 = sext i20 %inv_D_f_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 22 'sext' 'sext_ln574' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 23 [1/3] (1.59ns)   --->   "%mul_ln574 = mul i40 %sext_ln574_32, i40 %zext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 23 'mul' 'mul_ln574' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 24 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i40 %mul_ln574, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:140]   --->   Operation 24 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 25 [1/1] (0.00ns)   --->   "%product_q = partselect i21 @_ssdm_op_PartSelect.i21.i40.i32.i32, i40 %mul_ln574, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:140]   --->   Operation 25 'partselect' 'product_q' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 26 [2/3] (1.64ns)   --->   "%mul_ln574_23 = mul i41 %sext_ln574_33, i41 %sext_ln574_31" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 26 'mul' 'mul_ln574_23' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 27 [1/1] (0.00ns)   --->   "%zext_ln574_1 = zext i18 %product_q_s" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 27 'zext' 'zext_ln574_1' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 28 [3/3] (1.59ns)   --->   "%mul_ln574_24 = mul i38 %zext_ln574_1, i38 %sext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 28 'mul' 'mul_ln574_24' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 4 <SV = 3> <Delay = 3.22>
-ST_4 : Operation 25 [1/1] (0.00ns)   --->   "%sext_ln671 = sext i23 %inv_D_f_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 25 'sext' 'sext_ln671' <Predicate = true> <Delay = 0.00>
-ST_4 : Operation 26 [2/4] (1.69ns)   --->   "%mul_ln671 = mul i48 %sext_ln671_39, i48 %zext_ln671_1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 26 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_4 : Operation 27 [3/4] (1.78ns)   --->   "%mul_ln671_24 = mul i49 %sext_ln671_40, i49 %sext_ln671_38" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 27 'mul' 'mul_ln671_24' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_4 : Operation 28 [1/4] (1.69ns)   --->   "%product = mul i40 %zext_ln671, i40 21757" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 28 'mul' 'product' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_4 : Operation 29 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i40 %product, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:143]   --->   Operation 29 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_4 : Operation 30 [1/1] (0.00ns)   --->   "%product_q_s = partselect i23 @_ssdm_op_PartSelect.i23.i40.i32.i32, i40 %product, i32 17, i32 39" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:143]   --->   Operation 30 'partselect' 'product_q_s' <Predicate = true> <Delay = 0.00>
-ST_4 : Operation 31 [1/1] (0.00ns)   --->   "%zext_ln671_2 = zext i23 %product_q_s" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 31 'zext' 'zext_ln671_2' <Predicate = true> <Delay = 0.00>
-ST_4 : Operation 32 [4/4] (1.52ns)   --->   "%mul_ln671_26 = mul i46 %zext_ln671_2, i46 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 32 'mul' 'mul_ln671_26' <Predicate = true> <Delay = 1.52> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.52> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 4 <SV = 3> <Delay = 3.29>
+ST_4 : Operation 29 [1/1] (0.00ns)   --->   "%C_eff_f_read = read i21 @_ssdm_op_Read.ap_auto.i21, i21 %C_eff_f" [../src/vehicle_model_hls.cpp:139]   --->   Operation 29 'read' 'C_eff_f_read' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 30 [1/3] (1.64ns)   --->   "%mul_ln574_23 = mul i41 %sext_ln574_33, i41 %sext_ln574_31" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 30 'mul' 'mul_ln574_23' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 31 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i41 %mul_ln574_23, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:141]   --->   Operation 31 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 32 [1/1] (0.00ns)   --->   "%product_q_50 = partselect i21 @_ssdm_op_PartSelect.i21.i41.i32.i32, i41 %mul_ln574_23, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:141]   --->   Operation 32 'partselect' 'product_q_50' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 33 [2/3] (1.59ns)   --->   "%mul_ln574_24 = mul i38 %zext_ln574_1, i38 %sext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 33 'mul' 'mul_ln574_24' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 34 [1/1] (0.00ns)   --->   "%sext_ln574_34 = sext i21 %C_eff_f_read" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 34 'sext' 'sext_ln574_34' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 35 [1/1] (0.00ns)   --->   "%sext_ln574_35 = sext i21 %product_q_50" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 35 'sext' 'sext_ln574_35' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 36 [3/3] (1.64ns)   --->   "%mul_ln574_25 = mul i42 %sext_ln574_35, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 36 'mul' 'mul_ln574_25' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 5 <SV = 4> <Delay = 4.43>
-ST_5 : Operation 33 [1/1] (0.00ns)   --->   "%C_eff_f_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %C_eff_f" [../src/vehicle_model_hls.cpp:139]   --->   Operation 33 'read' 'C_eff_f_read' <Predicate = true> <Delay = 0.00>
-ST_5 : Operation 34 [1/4] (1.69ns)   --->   "%mul_ln671 = mul i48 %sext_ln671_39, i48 %zext_ln671_1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 34 'mul' 'mul_ln671' <Predicate = true> <Delay = 1.69> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.69> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_5 : Operation 35 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i48 %mul_ln671, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:140]   --->   Operation 35 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_5 : Operation 36 [1/1] (0.00ns)   --->   "%product_q = partselect i26 @_ssdm_op_PartSelect.i26.i48.i32.i32, i48 %mul_ln671, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:140]   --->   Operation 36 'partselect' 'product_q' <Predicate = true> <Delay = 0.00>
-ST_5 : Operation 37 [2/4] (1.78ns)   --->   "%mul_ln671_24 = mul i49 %sext_ln671_40, i49 %sext_ln671_38" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 37 'mul' 'mul_ln671_24' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_5 : Operation 38 [1/1] (0.95ns)   --->   "%daf_dvy = sub i26 0, i26 %product_q" [../src/vehicle_model_hls.cpp:142]   --->   Operation 38 'sub' 'daf_dvy' <Predicate = true> <Delay = 0.95> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.95> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
-ST_5 : Operation 39 [3/4] (1.52ns)   --->   "%mul_ln671_26 = mul i46 %zext_ln671_2, i46 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 39 'mul' 'mul_ln671_26' <Predicate = true> <Delay = 1.52> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.52> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_5 : Operation 40 [1/1] (0.00ns)   --->   "%sext_ln671_41 = sext i26 %C_eff_f_read" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 40 'sext' 'sext_ln671_41' <Predicate = true> <Delay = 0.00>
-ST_5 : Operation 41 [1/1] (0.00ns)   --->   "%sext_ln671_43 = sext i26 %daf_dvy" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 41 'sext' 'sext_ln671_43' <Predicate = true> <Delay = 0.00>
-ST_5 : Operation 42 [4/4] (1.78ns)   --->   "%product_250 = mul i43 %sext_ln671_43, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 42 'mul' 'product_250' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 5 <SV = 4> <Delay = 2.55>
+ST_5 : Operation 37 [1/1] (0.90ns)   --->   "%daf_dvy = sub i21 0, i21 %product_q" [../src/vehicle_model_hls.cpp:142]   --->   Operation 37 'sub' 'daf_dvy' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 38 [1/3] (1.59ns)   --->   "%mul_ln574_24 = mul i38 %zext_ln574_1, i38 %sext_ln574" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 38 'mul' 'mul_ln574_24' <Predicate = true> <Delay = 1.59> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.59> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 39 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i38 %mul_ln574_24, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:144]   --->   Operation 39 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 40 [1/1] (0.00ns)   --->   "%product_q_51 = partselect i21 @_ssdm_op_PartSelect.i21.i38.i32.i32, i38 %mul_ln574_24, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:144]   --->   Operation 40 'partselect' 'product_q_51' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 41 [2/3] (1.64ns)   --->   "%mul_ln574_25 = mul i42 %sext_ln574_35, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 41 'mul' 'mul_ln574_25' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 42 [1/1] (0.00ns)   --->   "%sext_ln574_36 = sext i21 %daf_dvy" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 42 'sext' 'sext_ln574_36' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 43 [3/3] (1.64ns)   --->   "%mul_ln574_26 = mul i42 %sext_ln574_36, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 43 'mul' 'mul_ln574_26' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 6 <SV = 5> <Delay = 3.56>
-ST_6 : Operation 43 [1/4] (1.78ns)   --->   "%mul_ln671_24 = mul i49 %sext_ln671_40, i49 %sext_ln671_38" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 43 'mul' 'mul_ln671_24' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_6 : Operation 44 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i49 %mul_ln671_24, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:141]   --->   Operation 44 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_6 : Operation 45 [1/1] (0.00ns)   --->   "%product_q_52 = partselect i26 @_ssdm_op_PartSelect.i26.i49.i32.i32, i49 %mul_ln671_24, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:141]   --->   Operation 45 'partselect' 'product_q_52' <Predicate = true> <Delay = 0.00>
-ST_6 : Operation 46 [2/4] (1.52ns)   --->   "%mul_ln671_26 = mul i46 %zext_ln671_2, i46 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 46 'mul' 'mul_ln671_26' <Predicate = true> <Delay = 1.52> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.52> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_6 : Operation 47 [1/1] (0.00ns)   --->   "%sext_ln671_42 = sext i26 %product_q_52" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 47 'sext' 'sext_ln671_42' <Predicate = true> <Delay = 0.00>
-ST_6 : Operation 48 [4/4] (1.78ns)   --->   "%product_249 = mul i43 %sext_ln671_42, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 48 'mul' 'product_249' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_6 : Operation 49 [3/4] (1.78ns)   --->   "%product_250 = mul i43 %sext_ln671_43, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 49 'mul' 'product_250' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 6 <SV = 5> <Delay = 2.55>
+ST_6 : Operation 44 [1/1] (0.90ns)   --->   "%daf_dom = sub i21 0, i21 %product_q_51" [../src/vehicle_model_hls.cpp:144]   --->   Operation 44 'sub' 'daf_dom' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_6 : Operation 45 [1/3] (1.64ns)   --->   "%mul_ln574_25 = mul i42 %sext_ln574_35, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 45 'mul' 'mul_ln574_25' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_6 : Operation 46 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i42 %mul_ln574_25, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:145]   --->   Operation 46 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_6 : Operation 47 [1/1] (0.00ns)   --->   "%product_q_52 = partselect i21 @_ssdm_op_PartSelect.i21.i42.i32.i32, i42 %mul_ln574_25, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:145]   --->   Operation 47 'partselect' 'product_q_52' <Predicate = true> <Delay = 0.00>
+ST_6 : Operation 48 [2/3] (1.64ns)   --->   "%mul_ln574_26 = mul i42 %sext_ln574_36, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 48 'mul' 'mul_ln574_26' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_6 : Operation 49 [1/1] (0.00ns)   --->   "%sext_ln574_37 = sext i21 %daf_dom" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 49 'sext' 'sext_ln574_37' <Predicate = true> <Delay = 0.00>
+ST_6 : Operation 50 [3/3] (1.64ns)   --->   "%mul_ln574_27 = mul i42 %sext_ln574_37, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 50 'mul' 'mul_ln574_27' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 7 <SV = 6> <Delay = 4.26>
-ST_7 : Operation 50 [1/4] (1.52ns)   --->   "%mul_ln671_26 = mul i46 %zext_ln671_2, i46 %sext_ln671" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 50 'mul' 'mul_ln671_26' <Predicate = true> <Delay = 1.52> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.52> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_7 : Operation 51 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i46 %mul_ln671_26, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:144]   --->   Operation 51 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_7 : Operation 52 [1/1] (0.00ns)   --->   "%product_q_53 = partselect i26 @_ssdm_op_PartSelect.i26.i46.i32.i32, i46 %mul_ln671_26, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:144]   --->   Operation 52 'partselect' 'product_q_53' <Predicate = true> <Delay = 0.00>
-ST_7 : Operation 53 [1/1] (0.95ns)   --->   "%daf_dom = sub i26 0, i26 %product_q_53" [../src/vehicle_model_hls.cpp:144]   --->   Operation 53 'sub' 'daf_dom' <Predicate = true> <Delay = 0.95> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.95> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
-ST_7 : Operation 54 [3/4] (1.78ns)   --->   "%product_249 = mul i43 %sext_ln671_42, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 54 'mul' 'product_249' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_7 : Operation 55 [2/4] (1.78ns)   --->   "%product_250 = mul i43 %sext_ln671_43, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 55 'mul' 'product_250' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_7 : Operation 56 [1/1] (0.00ns)   --->   "%sext_ln671_44 = sext i26 %daf_dom" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 56 'sext' 'sext_ln671_44' <Predicate = true> <Delay = 0.00>
-ST_7 : Operation 57 [4/4] (1.78ns)   --->   "%product_251 = mul i43 %sext_ln671_44, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 57 'mul' 'product_251' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+State 7 <SV = 6> <Delay = 1.64>
+ST_7 : Operation 51 [1/3] (1.64ns)   --->   "%mul_ln574_26 = mul i42 %sext_ln574_36, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 51 'mul' 'mul_ln574_26' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_7 : Operation 52 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i42 %mul_ln574_26, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:146]   --->   Operation 52 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 53 [1/1] (0.00ns)   --->   "%product_q_53 = partselect i21 @_ssdm_op_PartSelect.i21.i42.i32.i32, i42 %mul_ln574_26, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:146]   --->   Operation 53 'partselect' 'product_q_53' <Predicate = true> <Delay = 0.00>
+ST_7 : Operation 54 [2/3] (1.64ns)   --->   "%mul_ln574_27 = mul i42 %sext_ln574_37, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 54 'mul' 'mul_ln574_27' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 
-State 8 <SV = 7> <Delay = 1.78>
-ST_8 : Operation 58 [2/4] (1.78ns)   --->   "%product_249 = mul i43 %sext_ln671_42, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 58 'mul' 'product_249' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_8 : Operation 59 [1/4] (1.78ns)   --->   "%product_250 = mul i43 %sext_ln671_43, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 59 'mul' 'product_250' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_8 : Operation 60 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_250, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:146]   --->   Operation 60 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_8 : Operation 61 [1/1] (0.00ns)   --->   "%product_q_55 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_250, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:146]   --->   Operation 61 'partselect' 'product_q_55' <Predicate = true> <Delay = 0.00>
-ST_8 : Operation 62 [3/4] (1.78ns)   --->   "%product_251 = mul i43 %sext_ln671_44, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 62 'mul' 'product_251' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-
-State 9 <SV = 8> <Delay = 1.78>
-ST_9 : Operation 63 [1/4] (1.78ns)   --->   "%product_249 = mul i43 %sext_ln671_42, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 63 'mul' 'product_249' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_9 : Operation 64 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_249, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:145]   --->   Operation 64 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_9 : Operation 65 [1/1] (0.00ns)   --->   "%product_q_54 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_249, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:145]   --->   Operation 65 'partselect' 'product_q_54' <Predicate = true> <Delay = 0.00>
-ST_9 : Operation 66 [2/4] (1.78ns)   --->   "%product_251 = mul i43 %sext_ln671_44, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 66 'mul' 'product_251' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-
-State 10 <SV = 9> <Delay = 1.78>
-ST_10 : Operation 67 [1/1] (0.00ns)   --->   "%rbegin11 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_92" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 67 'specregionbegin' 'rbegin11' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 68 [1/1] (0.00ns)   --->   "%rend12 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_92, i32 %rbegin11" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140]   --->   Operation 68 'specregionend' 'rend12' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 69 [1/1] (0.00ns)   --->   "%rbegin9 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_91" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 69 'specregionbegin' 'rbegin9' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 70 [1/1] (0.00ns)   --->   "%rend10 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_91, i32 %rbegin9" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141]   --->   Operation 70 'specregionend' 'rend10' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 71 [1/1] (0.00ns)   --->   "%rbegin7 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_90" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 71 'specregionbegin' 'rbegin7' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 72 [1/1] (0.00ns)   --->   "%rend8 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_90, i32 %rbegin7" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143]   --->   Operation 72 'specregionend' 'rend8' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 73 [1/1] (0.00ns)   --->   "%rbegin5 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_75" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 73 'specregionbegin' 'rbegin5' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 74 [1/1] (0.00ns)   --->   "%rend6 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_75, i32 %rbegin5" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144]   --->   Operation 74 'specregionend' 'rend6' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 75 [1/1] (0.00ns)   --->   "%rbegin3 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_78" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 75 'specregionbegin' 'rbegin3' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 76 [1/1] (0.00ns)   --->   "%rend4 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_78, i32 %rbegin3" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145]   --->   Operation 76 'specregionend' 'rend4' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 77 [1/1] (0.00ns)   --->   "%rbegin1 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_76" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 77 'specregionbegin' 'rbegin1' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 78 [1/1] (0.00ns)   --->   "%rend2 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_76, i32 %rbegin1" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146]   --->   Operation 78 'specregionend' 'rend2' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 79 [1/1] (0.00ns)   --->   "%rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_418" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 79 'specregionbegin' 'rbegin' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 80 [1/4] (1.78ns)   --->   "%product_251 = mul i43 %sext_ln671_44, i43 %sext_ln671_41" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 80 'mul' 'product_251' <Predicate = true> <Delay = 1.78> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 3> <II = 1> <Delay = 1.78> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
-ST_10 : Operation 81 [1/1] (0.00ns)   --->   "%specfucore_ln673 = specfucore void @_ssdm_op_SpecFUCore, i43 %product_251, i64 12, i64 3, i64 3, i1 0" [../src/fp_math_hls.cpp:673->../src/vehicle_model_hls.cpp:147]   --->   Operation 81 'specfucore' 'specfucore_ln673' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 82 [1/1] (0.00ns)   --->   "%rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_418, i32 %rbegin" [../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147]   --->   Operation 82 'specregionend' 'rend' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 83 [1/1] (0.00ns)   --->   "%product_q_56 = partselect i26 @_ssdm_op_PartSelect.i26.i43.i32.i32, i43 %product_251, i32 17, i32 42" [../src/fp_math_hls.cpp:674->../src/vehicle_model_hls.cpp:147]   --->   Operation 83 'partselect' 'product_q_56' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 84 [1/1] (0.00ns)   --->   "%mrv = insertvalue i78 <undef>, i26 %product_q_54" [../src/vehicle_model_hls.cpp:148]   --->   Operation 84 'insertvalue' 'mrv' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 85 [1/1] (0.00ns)   --->   "%mrv_1 = insertvalue i78 %mrv, i26 %product_q_55" [../src/vehicle_model_hls.cpp:148]   --->   Operation 85 'insertvalue' 'mrv_1' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 86 [1/1] (0.00ns)   --->   "%mrv_2 = insertvalue i78 %mrv_1, i26 %product_q_56" [../src/vehicle_model_hls.cpp:148]   --->   Operation 86 'insertvalue' 'mrv_2' <Predicate = true> <Delay = 0.00>
-ST_10 : Operation 87 [1/1] (0.00ns)   --->   "%ret_ln148 = ret i78 %mrv_2" [../src/vehicle_model_hls.cpp:148]   --->   Operation 87 'ret' 'ret_ln148' <Predicate = true> <Delay = 0.00>
+State 8 <SV = 7> <Delay = 1.64>
+ST_8 : Operation 55 [1/1] (0.00ns)   --->   "%rbegin10 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_76" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 55 'specregionbegin' 'rbegin10' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 56 [1/1] (0.00ns)   --->   "%rend11 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_76, i32 %rbegin10" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:140]   --->   Operation 56 'specregionend' 'rend11' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 57 [1/1] (0.00ns)   --->   "%rbegin8 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_77" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 57 'specregionbegin' 'rbegin8' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 58 [1/1] (0.00ns)   --->   "%rend9 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_77, i32 %rbegin8" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141]   --->   Operation 58 'specregionend' 'rend9' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 59 [1/1] (0.00ns)   --->   "%rbegin6 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_269" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 59 'specregionbegin' 'rbegin6' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 60 [1/1] (0.00ns)   --->   "%rend7 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_269, i32 %rbegin6" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:144]   --->   Operation 60 'specregionend' 'rend7' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 61 [1/1] (0.00ns)   --->   "%rbegin4 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_102" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 61 'specregionbegin' 'rbegin4' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 62 [1/1] (0.00ns)   --->   "%rend5 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_102, i32 %rbegin4" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145]   --->   Operation 62 'specregionend' 'rend5' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 63 [1/1] (0.00ns)   --->   "%rbegin2 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_38" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 63 'specregionbegin' 'rbegin2' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 64 [1/1] (0.00ns)   --->   "%rend3 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_38, i32 %rbegin2" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146]   --->   Operation 64 'specregionend' 'rend3' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 65 [1/1] (0.00ns)   --->   "%rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_63" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 65 'specregionbegin' 'rbegin' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 66 [1/3] (1.64ns)   --->   "%mul_ln574_27 = mul i42 %sext_ln574_37, i42 %sext_ln574_34" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 66 'mul' 'mul_ln574_27' <Predicate = true> <Delay = 1.64> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.64> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_8 : Operation 67 [1/1] (0.00ns)   --->   "%specfucore_ln576 = specfucore void @_ssdm_op_SpecFUCore, i42 %mul_ln574_27, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:576->../src/vehicle_model_hls.cpp:147]   --->   Operation 67 'specfucore' 'specfucore_ln576' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 68 [1/1] (0.00ns)   --->   "%rend = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_63, i32 %rbegin" [../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147]   --->   Operation 68 'specregionend' 'rend' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 69 [1/1] (0.00ns)   --->   "%product_q_54 = partselect i21 @_ssdm_op_PartSelect.i21.i42.i32.i32, i42 %mul_ln574_27, i32 12, i32 32" [../src/fp_math_hls.cpp:577->../src/vehicle_model_hls.cpp:147]   --->   Operation 69 'partselect' 'product_q_54' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 70 [1/1] (0.00ns)   --->   "%mrv = insertvalue i63 <undef>, i21 %product_q_52" [../src/vehicle_model_hls.cpp:148]   --->   Operation 70 'insertvalue' 'mrv' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 71 [1/1] (0.00ns)   --->   "%mrv_1 = insertvalue i63 %mrv, i21 %product_q_53" [../src/vehicle_model_hls.cpp:148]   --->   Operation 71 'insertvalue' 'mrv_1' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 72 [1/1] (0.00ns)   --->   "%mrv_2 = insertvalue i63 %mrv_1, i21 %product_q_54" [../src/vehicle_model_hls.cpp:148]   --->   Operation 72 'insertvalue' 'mrv_2' <Predicate = true> <Delay = 0.00>
+ST_8 : Operation 73 [1/1] (0.00ns)   --->   "%ret_ln148 = ret i63 %mrv_2" [../src/vehicle_model_hls.cpp:148]   --->   Operation 73 'ret' 'ret_ln148' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================
@@ -190,54 +172,42 @@ ST_10 : Operation 87 [1/1] (0.00ns)   --->   "%ret_ln148 = ret i78 %mrv_2" [../s
 ============================================================
 Target clock period: 5.000ns, clock uncertainty: 0.500ns.
 
- <State 1>: 1.696ns
+ <State 1>: 2.590ns
 The critical path consists of the following:
 	wire read operation ('vx_safe_read', ../src/vehicle_model_hls.cpp:139) on port 'vx_safe' (../src/vehicle_model_hls.cpp:139) [6]  (0.000 ns)
-	'mul' operation 40 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143) [27]  (1.696 ns)
+	'mul' operation 30 bit ('product', ../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:143) [26]  (2.590 ns)
 
- <State 2>: 1.696ns
-The critical path consists of the following:
-	wire read operation ('inv_D_f_read', ../src/vehicle_model_hls.cpp:139) on port 'inv_D_f' (../src/vehicle_model_hls.cpp:139) [5]  (0.000 ns)
-	'mul' operation 48 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140) [15]  (1.696 ns)
-
- <State 3>: 1.781ns
+ <State 2>: 1.650ns
 The critical path consists of the following:
 	wire read operation ('front_num_read', ../src/vehicle_model_hls.cpp:139) on port 'front_num' (../src/vehicle_model_hls.cpp:139) [7]  (0.000 ns)
-	'mul' operation 49 bit ('mul_ln671_24', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141) [21]  (1.781 ns)
+	'mul' operation 41 bit ('mul_ln574_23', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141) [21]  (1.650 ns)
 
- <State 4>: 3.223ns
+ <State 3>: 1.650ns
 The critical path consists of the following:
-	'mul' operation 40 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:143) [27]  (1.696 ns)
-	'mul' operation 46 bit ('mul_ln671_26', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144) [33]  (1.527 ns)
+	'mul' operation 41 bit ('mul_ln574_23', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141) [21]  (1.650 ns)
 
- <State 5>: 4.433ns
+ <State 4>: 3.300ns
 The critical path consists of the following:
-	'mul' operation 48 bit ('mul_ln671', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:140) [15]  (1.696 ns)
-	'sub' operation 26 bit ('daf_dvy', ../src/vehicle_model_hls.cpp:142) [25]  (0.955 ns)
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:146) [47]  (1.781 ns)
+	'mul' operation 41 bit ('mul_ln574_23', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:141) [21]  (1.650 ns)
+	'mul' operation 42 bit ('mul_ln574_25', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:145) [38]  (1.650 ns)
 
- <State 6>: 3.563ns
+ <State 5>: 2.554ns
 The critical path consists of the following:
-	'mul' operation 49 bit ('mul_ln671_24', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:141) [21]  (1.781 ns)
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145) [41]  (1.781 ns)
+	'sub' operation 21 bit ('daf_dvy', ../src/vehicle_model_hls.cpp:142) [25]  (0.904 ns)
+	'mul' operation 42 bit ('mul_ln574_26', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146) [44]  (1.650 ns)
 
- <State 7>: 4.263ns
+ <State 6>: 2.554ns
 The critical path consists of the following:
-	'mul' operation 46 bit ('mul_ln671_26', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:144) [33]  (1.527 ns)
-	'sub' operation 26 bit ('daf_dom', ../src/vehicle_model_hls.cpp:144) [37]  (0.955 ns)
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147) [53]  (1.781 ns)
+	'sub' operation 21 bit ('daf_dom', ../src/vehicle_model_hls.cpp:144) [34]  (0.904 ns)
+	'mul' operation 42 bit ('mul_ln574_27', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147) [50]  (1.650 ns)
 
- <State 8>: 1.781ns
+ <State 7>: 1.650ns
 The critical path consists of the following:
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145) [41]  (1.781 ns)
+	'mul' operation 42 bit ('mul_ln574_26', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:146) [44]  (1.650 ns)
 
- <State 9>: 1.781ns
+ <State 8>: 1.650ns
 The critical path consists of the following:
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:145) [41]  (1.781 ns)
-
- <State 10>: 1.781ns
-The critical path consists of the following:
-	'mul' operation 43 bit ('product', ../src/fp_math_hls.cpp:671->../src/vehicle_model_hls.cpp:147) [53]  (1.781 ns)
+	'mul' operation 42 bit ('mul_ln574_27', ../src/fp_math_hls.cpp:574->../src/vehicle_model_hls.cpp:147) [50]  (1.650 ns)
 
 
 ============================================================
@@ -256,8 +226,6 @@ N/A
 	State 6
 	State 7
 	State 8
-	State 9
-	State 10
 
 
 ============================================================

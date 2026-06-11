@@ -11,7 +11,7 @@
 <TopModelName>fp_frenet_recip</TopModelName>
 <TargetClockPeriod>5.00</TargetClockPeriod>
 <ClockUncertainty>0.50</ClockUncertainty>
-<TargetInitiationInterval>100</TargetInitiationInterval>
+<TargetInitiationInterval>74</TargetInitiationInterval>
 <FlowTarget>vitis</FlowTarget>
 </UserAssignments>
 
@@ -19,20 +19,20 @@
 <PipelineType>yes</PipelineType>
 <SummaryOfTimingAnalysis>
 <unit>ns</unit>
-<EstimatedClockPeriod>4.351</EstimatedClockPeriod>
+<EstimatedClockPeriod>4.376</EstimatedClockPeriod>
 </SummaryOfTimingAnalysis>
 <SummaryOfOverallLatency>
 <unit>clock cycles</unit>
-<Best-caseLatency>12</Best-caseLatency>
-<Average-caseLatency>12</Average-caseLatency>
-<Worst-caseLatency>12</Worst-caseLatency>
-<Best-caseRealTimeLatency>60.000 ns</Best-caseRealTimeLatency>
-<Average-caseRealTimeLatency>60.000 ns</Average-caseRealTimeLatency>
-<Worst-caseRealTimeLatency>60.000 ns</Worst-caseRealTimeLatency>
-<PipelineInitiationInterval>13</PipelineInitiationInterval>
-<PipelineDepth>13</PipelineDepth>
-<Interval-min>13</Interval-min>
-<Interval-max>13</Interval-max>
+<Best-caseLatency>9</Best-caseLatency>
+<Average-caseLatency>9</Average-caseLatency>
+<Worst-caseLatency>9</Worst-caseLatency>
+<Best-caseRealTimeLatency>45.000 ns</Best-caseRealTimeLatency>
+<Average-caseRealTimeLatency>45.000 ns</Average-caseRealTimeLatency>
+<Worst-caseRealTimeLatency>45.000 ns</Worst-caseRealTimeLatency>
+<PipelineInitiationInterval>10</PipelineInitiationInterval>
+<PipelineDepth>10</PipelineDepth>
+<Interval-min>10</Interval-min>
+<Interval-max>10</Interval-max>
 <PerformancePragma>-</PerformancePragma>
 </SummaryOfOverallLatency>
 <SummaryOfViolations>
@@ -45,9 +45,9 @@
 <AreaEstimates>
 <Resources>
 <BRAM_18K>1</BRAM_18K>
-<DSP>3</DSP>
-<FF>2159</FF>
-<LUT>2964</LUT>
+<DSP>2</DSP>
+<FF>1616</FF>
+<LUT>2258</LUT>
 <URAM>0</URAM>
 </Resources>
 <AvailableResources>
@@ -134,7 +134,7 @@
 <IOProtocol>ap_ctrl_hs</IOProtocol>
 <IOConfig></IOConfig>
 <Dir>out</Dir>
-<Bits>23</Bits>
+<Bits>20</Bits>
 <Attribute>data</Attribute>
 </RtlPorts>
 <RtlPorts>
@@ -145,7 +145,7 @@
 <IOProtocol>ap_none</IOProtocol>
 <IOConfig></IOConfig>
 <Dir>in</Dir>
-<Bits>26</Bits>
+<Bits>21</Bits>
 <Attribute>data</Attribute>
 </RtlPorts>
 <RtlPorts>
@@ -156,7 +156,7 @@
 <IOProtocol>ap_none</IOProtocol>
 <IOConfig></IOConfig>
 <Dir>in</Dir>
-<Bits>26</Bits>
+<Bits>21</Bits>
 <Attribute>data</Attribute>
 </RtlPorts>
 </InterfaceSummary>

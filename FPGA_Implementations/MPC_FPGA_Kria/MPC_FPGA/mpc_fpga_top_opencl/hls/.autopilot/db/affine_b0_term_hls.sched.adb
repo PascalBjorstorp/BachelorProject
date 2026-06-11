@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>affine_b0_term_hls</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>25</ret_bitwidth>
+		<ret_bitwidth>23</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>2</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -95,7 +95,7 @@
 						<name>lin_delta_k_raw_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>127</lineNumber>
+						<lineNumber>125</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -111,7 +111,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>127</second>
+										<second>125</second>
 									</item>
 								</second>
 							</item>
@@ -127,7 +127,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -152,7 +152,7 @@
 						<name>b0_coeff_raw_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>127</lineNumber>
+						<lineNumber>125</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -168,7 +168,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>127</second>
+										<second>125</second>
 									</item>
 								</second>
 							</item>
@@ -184,7 +184,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -206,10 +206,10 @@
 					<Obj>
 						<type>0</type>
 						<id>6</id>
-						<name>sext_ln159</name>
+						<name>sext_ln156</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -225,14 +225,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -248,7 +248,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -269,10 +269,10 @@
 					<Obj>
 						<type>0</type>
 						<id>7</id>
-						<name>sext_ln159_71</name>
+						<name>sext_ln156_75</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -288,14 +288,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -311,7 +311,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -332,10 +332,10 @@
 					<Obj>
 						<type>0</type>
 						<id>8</id>
-						<name>mul_ln159</name>
+						<name>mul_ln156</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -351,14 +351,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -374,7 +374,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -387,7 +387,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>2.29</m_delay>
+				<m_delay>1.94</m_delay>
 				<m_topoIndex>5</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -399,7 +399,7 @@
 						<name>trunc_ln</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>128</lineNumber>
+						<lineNumber>126</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -415,7 +415,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>128</second>
+										<second>126</second>
 									</item>
 								</second>
 							</item>
@@ -431,7 +431,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>25</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>4</count>
@@ -455,10 +455,10 @@
 					<Obj>
 						<type>0</type>
 						<id>12</id>
-						<name>_ln128</name>
+						<name>_ln126</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>128</lineNumber>
+						<lineNumber>126</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -474,7 +474,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>128</second>
+										<second>126</second>
 									</item>
 								</second>
 							</item>
@@ -539,7 +539,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>18</content>
+				<content>14</content>
 			</item>
 			<item class_id_reference="16" object_id="_11">
 				<Value>
@@ -570,7 +570,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>42</content>
+				<content>36</content>
 			</item>
 		</consts>
 		<blocks class_id="17" tracking_level="0" version="0">
@@ -706,12 +706,12 @@
 				<item_version>0</item_version>
 				<item>13</item>
 			</basic_blocks>
-			<mII>4</mII>
-			<mDepth>4</mDepth>
+			<mII>2</mII>
+			<mDepth>3</mDepth>
 			<mMinTripCount>-1</mMinTripCount>
 			<mMaxTripCount>-1</mMaxTripCount>
-			<mMinLatency>3</mMinLatency>
-			<mMaxLatency>3</mMaxLatency>
+			<mMinLatency>2</mMinLatency>
+			<mMaxLatency>2</mMaxLatency>
 			<mIsDfPipe>0</mIsDfPipe>
 			<mDfPipe class_id="-1"></mDfPipe>
 		</item>
@@ -753,20 +753,20 @@
 			<first>8</first>
 			<second>
 				<first>0</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 		<item>
 			<first>11</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>12</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -778,7 +778,7 @@
 			<first>13</first>
 			<second class_id="31" tracking_level="0" version="0">
 				<first>0</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 	</bblk_ent_exit>
@@ -798,8 +798,8 @@
 			</nodes>
 			<anchor_node>-1</anchor_node>
 			<region_type>8</region_type>
-			<interval>4</interval>
-			<pipe_depth>4</pipe_depth>
+			<interval>2</interval>
+			<pipe_depth>3</pipe_depth>
 			<mDBIIViolationVec class_id="34" tracking_level="0" version="0">
 				<count>0</count>
 				<item_version>0</item_version>
@@ -860,7 +860,7 @@
 	</node2core>
 	<sched_res class_id="39" tracking_level="1" version="0" object_id="_25">
 		<ResourceTableActual class_id="40" tracking_level="0" version="0">
-			<II>20</II>
+			<II>2</II>
 		</ResourceTableActual>
 		<ResourceTableFailed class_id="41" tracking_level="0" version="0">
 			<II>-1</II>

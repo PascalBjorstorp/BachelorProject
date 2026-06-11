@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>affine_b0_term_hls</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>25</ret_bitwidth>
+		<ret_bitwidth>23</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>2</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -95,7 +95,7 @@
 						<name>lin_delta_k_raw_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>127</lineNumber>
+						<lineNumber>125</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -111,7 +111,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>127</second>
+										<second>125</second>
 									</item>
 								</second>
 							</item>
@@ -127,7 +127,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -152,7 +152,7 @@
 						<name>b0_coeff_raw_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>127</lineNumber>
+						<lineNumber>125</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -168,7 +168,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>127</second>
+										<second>125</second>
 									</item>
 								</second>
 							</item>
@@ -184,7 +184,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -206,10 +206,10 @@
 					<Obj>
 						<type>0</type>
 						<id>6</id>
-						<name>sext_ln159</name>
+						<name>sext_ln156</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -225,14 +225,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -248,7 +248,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -269,10 +269,10 @@
 					<Obj>
 						<type>0</type>
 						<id>7</id>
-						<name>sext_ln159_71</name>
+						<name>sext_ln156_75</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -288,14 +288,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -311,7 +311,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -332,10 +332,10 @@
 					<Obj>
 						<type>0</type>
 						<id>8</id>
-						<name>mul_ln159</name>
+						<name>mul_ln156</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>159</lineNumber>
+						<lineNumber>156</lineNumber>
 						<contextFuncName>fp_mul_QP_raw</contextFuncName>
 						<contextNormFuncName>fp_mul_QP_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -351,14 +351,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_QP_raw</second>
 										</first>
-										<second>159</second>
+										<second>156</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>129</second>
+										<second>127</second>
 									</item>
 								</second>
 							</item>
@@ -374,7 +374,7 @@
 						<coreId>5</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>50</bitwidth>
+					<bitwidth>40</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -387,7 +387,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>2.29</m_delay>
+				<m_delay>1.94</m_delay>
 				<m_topoIndex>5</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -399,7 +399,7 @@
 						<name>trunc_ln</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>128</lineNumber>
+						<lineNumber>126</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -415,7 +415,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>128</second>
+										<second>126</second>
 									</item>
 								</second>
 							</item>
@@ -431,7 +431,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>25</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>4</count>
@@ -455,10 +455,10 @@
 					<Obj>
 						<type>0</type>
 						<id>12</id>
-						<name>_ln128</name>
+						<name>_ln126</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>128</lineNumber>
+						<lineNumber>126</lineNumber>
 						<contextFuncName>affine_b0_term_hls</contextFuncName>
 						<contextNormFuncName>affine_b0_term_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -474,7 +474,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>affine_b0_term_hls</second>
 										</first>
-										<second>128</second>
+										<second>126</second>
 									</item>
 								</second>
 							</item>
@@ -539,7 +539,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>18</content>
+				<content>14</content>
 			</item>
 			<item class_id_reference="16" object_id="_11">
 				<Value>
@@ -570,7 +570,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>42</content>
+				<content>36</content>
 			</item>
 		</consts>
 		<blocks class_id="17" tracking_level="0" version="0">
@@ -706,19 +706,19 @@
 				<item_version>0</item_version>
 				<item>13</item>
 			</basic_blocks>
-			<mII>4</mII>
-			<mDepth>4</mDepth>
+			<mII>2</mII>
+			<mDepth>3</mDepth>
 			<mMinTripCount>-1</mMinTripCount>
 			<mMaxTripCount>-1</mMaxTripCount>
-			<mMinLatency>3</mMinLatency>
-			<mMaxLatency>3</mMaxLatency>
+			<mMinLatency>2</mMinLatency>
+			<mMaxLatency>2</mMaxLatency>
 			<mIsDfPipe>0</mIsDfPipe>
 			<mDfPipe class_id="-1"></mDfPipe>
 		</item>
 	</cdfg_regions>
 	<fsm class_id="24" tracking_level="1" version="0" object_id="_24">
 		<states class_id="25" tracking_level="0" version="0">
-			<count>4</count>
+			<count>3</count>
 			<item_version>0</item_version>
 			<item class_id="26" tracking_level="1" version="0" object_id="_25">
 				<id>1</id>
@@ -747,8 +747,8 @@
 					</item>
 					<item class_id_reference="28" object_id="_30">
 						<id>8</id>
-						<stage>4</stage>
-						<latency>4</latency>
+						<stage>3</stage>
+						<latency>3</latency>
 					</item>
 				</operations>
 			</item>
@@ -759,54 +759,42 @@
 					<item_version>0</item_version>
 					<item class_id_reference="28" object_id="_32">
 						<id>8</id>
-						<stage>3</stage>
-						<latency>4</latency>
+						<stage>2</stage>
+						<latency>3</latency>
 					</item>
 				</operations>
 			</item>
 			<item class_id_reference="26" object_id="_33">
 				<id>3</id>
 				<operations>
-					<count>1</count>
-					<item_version>0</item_version>
-					<item class_id_reference="28" object_id="_34">
-						<id>8</id>
-						<stage>2</stage>
-						<latency>4</latency>
-					</item>
-				</operations>
-			</item>
-			<item class_id_reference="26" object_id="_35">
-				<id>4</id>
-				<operations>
 					<count>6</count>
 					<item_version>0</item_version>
-					<item class_id_reference="28" object_id="_36">
+					<item class_id_reference="28" object_id="_34">
 						<id>5</id>
 						<stage>1</stage>
 						<latency>1</latency>
 					</item>
-					<item class_id_reference="28" object_id="_37">
+					<item class_id_reference="28" object_id="_35">
 						<id>8</id>
 						<stage>1</stage>
-						<latency>4</latency>
+						<latency>3</latency>
 					</item>
-					<item class_id_reference="28" object_id="_38">
+					<item class_id_reference="28" object_id="_36">
 						<id>9</id>
 						<stage>1</stage>
 						<latency>1</latency>
 					</item>
-					<item class_id_reference="28" object_id="_39">
+					<item class_id_reference="28" object_id="_37">
 						<id>10</id>
 						<stage>1</stage>
 						<latency>1</latency>
 					</item>
-					<item class_id_reference="28" object_id="_40">
+					<item class_id_reference="28" object_id="_38">
 						<id>11</id>
 						<stage>1</stage>
 						<latency>1</latency>
 					</item>
-					<item class_id_reference="28" object_id="_41">
+					<item class_id_reference="28" object_id="_39">
 						<id>12</id>
 						<stage>1</stage>
 						<latency>1</latency>
@@ -815,9 +803,9 @@
 			</item>
 		</states>
 		<transitions class_id="29" tracking_level="0" version="0">
-			<count>3</count>
+			<count>2</count>
 			<item_version>0</item_version>
-			<item class_id="30" tracking_level="1" version="0" object_id="_42">
+			<item class_id="30" tracking_level="1" version="0" object_id="_40">
 				<inState>1</inState>
 				<outState>2</outState>
 				<condition class_id="31" tracking_level="0" version="0">
@@ -832,24 +820,9 @@
 					</sop>
 				</condition>
 			</item>
-			<item class_id_reference="30" object_id="_43">
+			<item class_id_reference="30" object_id="_41">
 				<inState>2</inState>
 				<outState>3</outState>
-				<condition>
-					<id>-1</id>
-					<sop>
-						<count>1</count>
-						<item_version>0</item_version>
-						<item>
-							<count>0</count>
-							<item_version>0</item_version>
-						</item>
-					</sop>
-				</condition>
-			</item>
-			<item class_id_reference="30" object_id="_44">
-				<inState>3</inState>
-				<outState>4</outState>
 				<condition>
 					<id>-1</id>
 					<sop>
@@ -900,20 +873,20 @@
 			<first>8</first>
 			<second>
 				<first>0</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 		<item>
 			<first>11</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>12</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -925,14 +898,14 @@
 			<first>13</first>
 			<second class_id="40" tracking_level="0" version="0">
 				<first>0</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 	</bblk_ent_exit>
 	<regions class_id="41" tracking_level="0" version="0">
 		<count>1</count>
 		<item_version>0</item_version>
-		<item class_id="42" tracking_level="1" version="0" object_id="_45">
+		<item class_id="42" tracking_level="1" version="0" object_id="_42">
 			<region_name>affine_b0_term_hls</region_name>
 			<basic_blocks>
 				<count>1</count>
@@ -945,8 +918,8 @@
 			</nodes>
 			<anchor_node>-1</anchor_node>
 			<region_type>8</region_type>
-			<interval>4</interval>
-			<pipe_depth>4</pipe_depth>
+			<interval>2</interval>
+			<pipe_depth>3</pipe_depth>
 			<mDBIIViolationVec class_id="43" tracking_level="0" version="0">
 				<count>0</count>
 				<item_version>0</item_version>
@@ -957,7 +930,7 @@
 		<count>6</count>
 		<item_version>0</item_version>
 		<item class_id="45" tracking_level="0" version="0">
-			<first>28</first>
+			<first>30</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -965,7 +938,7 @@
 			</second>
 		</item>
 		<item>
-			<first>34</first>
+			<first>36</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -973,18 +946,7 @@
 			</second>
 		</item>
 		<item>
-			<first>40</first>
-			<second>
-				<count>4</count>
-				<item_version>0</item_version>
-				<item>8</item>
-				<item>8</item>
-				<item>8</item>
-				<item>8</item>
-			</second>
-		</item>
-		<item>
-			<first>44</first>
+			<first>42</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -992,7 +954,7 @@
 			</second>
 		</item>
 		<item>
-			<first>49</first>
+			<first>46</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1000,7 +962,17 @@
 			</second>
 		</item>
 		<item>
-			<first>54</first>
+			<first>50</first>
+			<second>
+				<count>3</count>
+				<item_version>0</item_version>
+				<item>8</item>
+				<item>8</item>
+				<item>8</item>
+			</second>
+		</item>
+		<item>
+			<first>56</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1012,7 +984,7 @@
 		<count>3</count>
 		<item_version>0</item_version>
 		<item class_id="48" tracking_level="0" version="0">
-			<first>sext_ln159_71_fu_49</first>
+			<first>sext_ln156_75_fu_46</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1020,7 +992,7 @@
 			</second>
 		</item>
 		<item>
-			<first>sext_ln159_fu_44</first>
+			<first>sext_ln156_fu_42</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1028,7 +1000,7 @@
 			</second>
 		</item>
 		<item>
-			<first>trunc_ln_fu_54</first>
+			<first>trunc_ln_fu_56</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1040,11 +1012,10 @@
 		<count>1</count>
 		<item_version>0</item_version>
 		<item>
-			<first>grp_fu_40</first>
+			<first>grp_fu_50</first>
 			<second>
-				<count>4</count>
+				<count>3</count>
 				<item_version>0</item_version>
-				<item>8</item>
 				<item>8</item>
 				<item>8</item>
 				<item>8</item>
@@ -1055,7 +1026,7 @@
 		<count>2</count>
 		<item_version>0</item_version>
 		<item>
-			<first>b0_coeff_raw_read_read_fu_34</first>
+			<first>b0_coeff_raw_read_read_fu_36</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1063,7 +1034,7 @@
 			</second>
 		</item>
 		<item>
-			<first>lin_delta_k_raw_read_read_fu_28</first>
+			<first>lin_delta_k_raw_read_read_fu_30</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1083,7 +1054,7 @@
 		<count>2</count>
 		<item_version>0</item_version>
 		<item>
-			<first>64</first>
+			<first>66</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1091,7 +1062,7 @@
 			</second>
 		</item>
 		<item>
-			<first>69</first>
+			<first>71</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1103,7 +1074,7 @@
 		<count>2</count>
 		<item_version>0</item_version>
 		<item>
-			<first>sext_ln159_71_reg_69</first>
+			<first>sext_ln156_75_reg_71</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1111,7 +1082,7 @@
 			</second>
 		</item>
 		<item>
-			<first>sext_ln159_reg_64</first>
+			<first>sext_ln156_reg_66</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1176,9 +1147,9 @@
 			</second>
 		</item>
 	</node2core>
-	<sched_res class_id="52" tracking_level="1" version="0" object_id="_46">
+	<sched_res class_id="52" tracking_level="1" version="0" object_id="_43">
 		<ResourceTableActual class_id="53" tracking_level="0" version="0">
-			<II>20</II>
+			<II>2</II>
 		</ResourceTableActual>
 		<ResourceTableFailed class_id="54" tracking_level="0" version="0">
 			<II>-1</II>

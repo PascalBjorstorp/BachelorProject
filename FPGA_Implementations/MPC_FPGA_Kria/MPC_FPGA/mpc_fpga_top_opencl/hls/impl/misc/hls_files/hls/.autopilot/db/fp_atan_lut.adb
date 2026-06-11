@@ -7,7 +7,7 @@
     <cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
       <name>fp_atan_lut</name>
       <module_structure>Pipeline</module_structure>
-      <ret_bitwidth>32</ret_bitwidth>
+      <ret_bitwidth>26</ret_bitwidth>
       <ports class_id="2" tracking_level="0" version="0">
         <count>1</count>
         <item_version>0</item_version>
@@ -37,7 +37,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -59,7 +59,7 @@
               <name>x_read</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>632</lineNumber>
+              <lineNumber>541</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -75,7 +75,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>632</second>
+                      <second>541</second>
                     </item>
                   </second>
                 </item>
@@ -91,7 +91,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -116,7 +116,7 @@
               <name>neg</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>641</lineNumber>
+              <lineNumber>544</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -132,13 +132,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>641</second>
+                      <second>544</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>neg</originalName>
-              <rtlName>neg_reg_270</rtlName>
+              <rtlName>neg_reg_274</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -174,7 +174,7 @@
               <name>abs_x</name>
               <fileName>../src/../include/fp_math_hls.h</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>118</lineNumber>
+              <lineNumber>133</lineNumber>
               <contextFuncName>fp_abs</contextFuncName>
               <contextNormFuncName>fp_abs</contextNormFuncName>
               <inlineStackInfo>
@@ -190,20 +190,20 @@
                         <first>../src/../include/fp_math_hls.h</first>
                         <second>fp_abs</second>
                       </first>
-                      <second>118</second>
+                      <second>133</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>642</second>
+                      <second>545</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>abs_x</originalName>
-              <rtlName>abs_x_fu_107_p2</rtlName>
+              <rtlName>abs_x_fu_105_p2</rtlName>
               <control>auto</control>
               <opType>sub</opType>
               <implIndex>fabric</implIndex>
@@ -213,7 +213,7 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -226,7 +226,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>3</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -238,7 +238,7 @@
               <name>abs_x_4</name>
               <fileName>../src/../include/fp_math_hls.h</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>118</lineNumber>
+              <lineNumber>133</lineNumber>
               <contextFuncName>fp_abs</contextFuncName>
               <contextNormFuncName>fp_abs</contextNormFuncName>
               <inlineStackInfo>
@@ -254,20 +254,20 @@
                         <first>../src/../include/fp_math_hls.h</first>
                         <second>fp_abs</second>
                       </first>
-                      <second>118</second>
+                      <second>133</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>642</second>
+                      <second>545</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>abs_x</originalName>
-              <rtlName>abs_x_4_fu_113_p3</rtlName>
+              <rtlName>abs_x_4_fu_111_p3</rtlName>
               <control>auto</control>
               <opType>select</opType>
               <implIndex>auto_sel</implIndex>
@@ -277,7 +277,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -291,7 +291,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>4</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -300,10 +300,10 @@
             <Obj>
               <type>0</type>
               <id>8</id>
-              <name>shl_ln645</name>
+              <name>shl_ln548</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>645</lineNumber>
+              <lineNumber>548</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -319,13 +319,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>645</second>
+                      <second>548</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>shl_ln645_fu_121_p2</rtlName>
+              <rtlName>shl_ln548_fu_119_p2</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -335,7 +335,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -357,10 +357,10 @@
             <Obj>
               <type>0</type>
               <id>9</id>
-              <name>trunc_ln646_1</name>
+              <name>trunc_ln549_1</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>646</lineNumber>
+              <lineNumber>549</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -376,13 +376,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>646</second>
+                      <second>549</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>trunc_ln646_1_fu_127_p4</rtlName>
+              <rtlName>trunc_ln549_1_fu_125_p4</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -392,7 +392,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>18</bitwidth>
           </Value>
           <oprand_edges>
             <count>4</count>
@@ -419,7 +419,7 @@
               <name>tmp</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>647</lineNumber>
+              <lineNumber>550</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -435,13 +435,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>647</second>
+                      <second>550</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>tmp_fu_137_p3</rtlName>
+              <rtlName>tmp_fu_135_p3</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -477,7 +477,7 @@
               <name>idx</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>647</lineNumber>
+              <lineNumber>550</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -493,13 +493,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>647</second>
+                      <second>550</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>idx</originalName>
-              <rtlName>idx_fu_145_p3</rtlName>
+              <rtlName>idx_fu_143_p3</rtlName>
               <control>auto</control>
               <opType>select</opType>
               <implIndex>auto_sel</implIndex>
@@ -509,7 +509,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>18</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -532,10 +532,10 @@
             <Obj>
               <type>0</type>
               <id>12</id>
-              <name>trunc_ln646</name>
+              <name>trunc_ln549</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>646</lineNumber>
+              <lineNumber>549</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -551,13 +551,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>646</second>
+                      <second>549</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>trunc_ln646_fu_153_p1</rtlName>
+              <rtlName>trunc_ln549_fu_151_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -591,7 +591,7 @@
               <name>tmp_106</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>649</lineNumber>
+              <lineNumber>552</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -607,13 +607,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>649</second>
+                      <second>552</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>tmp_106_fu_157_p4</rtlName>
+              <rtlName>tmp_106_fu_155_p4</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -623,7 +623,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>10</bitwidth>
+            <bitwidth>8</bitwidth>
           </Value>
           <oprand_edges>
             <count>4</count>
@@ -647,10 +647,10 @@
             <Obj>
               <type>0</type>
               <id>14</id>
-              <name>icmp_ln649</name>
+              <name>icmp_ln552</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>649</lineNumber>
+              <lineNumber>552</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -666,13 +666,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>649</second>
+                      <second>552</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln649_fu_167_p2</rtlName>
+              <rtlName>icmp_ln552_fu_165_p2</rtlName>
               <control>auto</control>
               <opType>setne</opType>
               <implIndex>auto</implIndex>
@@ -695,7 +695,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.78</m_delay>
+          <m_delay>0.76</m_delay>
           <m_topoIndex>11</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -704,10 +704,10 @@
             <Obj>
               <type>0</type>
               <id>15</id>
-              <name>idx_4</name>
+              <name>idx_2</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>649</lineNumber>
+              <lineNumber>552</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -723,13 +723,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>649</second>
+                      <second>552</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>idx</originalName>
-              <rtlName>idx_4_fu_173_p3</rtlName>
+              <rtlName>idx_2_fu_171_p3</rtlName>
               <control>auto</control>
               <opType>select</opType>
               <implIndex>auto_sel</implIndex>
@@ -762,10 +762,10 @@
             <Obj>
               <type>0</type>
               <id>16</id>
-              <name>zext_ln646</name>
+              <name>zext_ln549</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>646</lineNumber>
+              <lineNumber>549</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -781,13 +781,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>646</second>
+                      <second>549</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln646_fu_204_p1</rtlName>
+              <rtlName>zext_ln549_fu_202_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -818,10 +818,10 @@
             <Obj>
               <type>0</type>
               <id>17</id>
-              <name>shl_ln6</name>
+              <name>shl_ln7</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>652</lineNumber>
+              <lineNumber>555</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -837,13 +837,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>652</second>
+                      <second>555</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>shl_ln6_fu_181_p3</rtlName>
+              <rtlName>shl_ln7_fu_179_p3</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -853,7 +853,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>28</bitwidth>
+            <bitwidth>24</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -876,10 +876,10 @@
             <Obj>
               <type>0</type>
               <id>18</id>
-              <name>zext_ln652</name>
+              <name>zext_ln555</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>652</lineNumber>
+              <lineNumber>555</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -895,13 +895,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>652</second>
+                      <second>555</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln652_fu_189_p1</rtlName>
+              <rtlName>zext_ln555_fu_187_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -911,7 +911,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -935,7 +935,7 @@
               <name>frac_raw</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>652</lineNumber>
+              <lineNumber>555</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -951,13 +951,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>652</second>
+                      <second>555</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>frac_raw</originalName>
-              <rtlName>frac_raw_fu_193_p2</rtlName>
+              <rtlName>frac_raw_fu_191_p2</rtlName>
               <control>auto</control>
               <opType>sub</opType>
               <implIndex>fabric</implIndex>
@@ -967,7 +967,7 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -980,7 +980,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>15</m_topoIndex>
           <m_clusterGroupNumber>1</m_clusterGroupNumber>
         </item>
@@ -989,10 +989,10 @@
             <Obj>
               <type>0</type>
               <id>20</id>
-              <name>zext_ln653</name>
+              <name>zext_ln556</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>653</lineNumber>
+              <lineNumber>556</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1008,13 +1008,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>653</second>
+                      <second>556</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln653_fu_199_p1</rtlName>
+              <rtlName>zext_ln556_fu_197_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1048,7 +1048,7 @@
               <name>atan_lut_addr</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>653</lineNumber>
+              <lineNumber>556</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1064,7 +1064,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>653</second>
+                      <second>556</second>
                     </item>
                   </second>
                 </item>
@@ -1106,7 +1106,7 @@
               <name>value</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>653</lineNumber>
+              <lineNumber>556</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1122,7 +1122,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>653</second>
+                      <second>556</second>
                     </item>
                   </second>
                 </item>
@@ -1138,7 +1138,7 @@
               <coreId>106</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>19</bitwidth>
+            <bitwidth>15</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1159,10 +1159,10 @@
             <Obj>
               <type>0</type>
               <id>23</id>
-              <name>zext_ln523</name>
+              <name>zext_ln594</name>
               <fileName>include/fp_types_hls.hpp</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>523</lineNumber>
+              <lineNumber>594</lineNumber>
               <contextFuncName>fp_qp_raw_from_QP</contextFuncName>
               <contextNormFuncName>fp_qp_raw_from_QP</contextNormFuncName>
               <inlineStackInfo>
@@ -1178,7 +1178,7 @@
                         <first>include/fp_types_hls.hpp</first>
                         <second>fp_qp_raw_from_QP</second>
                       </first>
-                      <second>523</second>
+                      <second>594</second>
                     </item>
                   </second>
                 </item>
@@ -1192,13 +1192,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>653</second>
+                      <second>556</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln523_fu_240_p1</rtlName>
+              <rtlName>zext_ln594_fu_242_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1208,7 +1208,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1229,10 +1229,10 @@
             <Obj>
               <type>0</type>
               <id>24</id>
-              <name>zext_ln523_1</name>
+              <name>zext_ln594_1</name>
               <fileName>include/fp_types_hls.hpp</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>523</lineNumber>
+              <lineNumber>594</lineNumber>
               <contextFuncName>fp_qp_raw_from_QP</contextFuncName>
               <contextNormFuncName>fp_qp_raw_from_QP</contextNormFuncName>
               <inlineStackInfo>
@@ -1248,7 +1248,7 @@
                         <first>include/fp_types_hls.hpp</first>
                         <second>fp_qp_raw_from_QP</second>
                       </first>
-                      <second>523</second>
+                      <second>594</second>
                     </item>
                   </second>
                 </item>
@@ -1262,13 +1262,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>653</second>
+                      <second>556</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln523_1_fu_218_p1</rtlName>
+              <rtlName>zext_ln594_1_fu_216_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1278,7 +1278,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>16</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1299,10 +1299,10 @@
             <Obj>
               <type>0</type>
               <id>25</id>
-              <name>add_ln654</name>
+              <name>add_ln557</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>654</lineNumber>
+              <lineNumber>557</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1318,13 +1318,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>654</second>
+                      <second>557</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>add_ln654_fu_207_p2</rtlName>
+              <rtlName>add_ln557_fu_205_p2</rtlName>
               <control>auto</control>
               <opType>add</opType>
               <implIndex>fabric</implIndex>
@@ -1356,10 +1356,10 @@
             <Obj>
               <type>0</type>
               <id>26</id>
-              <name>zext_ln654</name>
+              <name>zext_ln557</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>654</lineNumber>
+              <lineNumber>557</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1375,13 +1375,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>654</second>
+                      <second>557</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln654_fu_213_p1</rtlName>
+              <rtlName>zext_ln557_fu_211_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1415,7 +1415,7 @@
               <name>atan_lut_addr_1</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>654</lineNumber>
+              <lineNumber>557</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1431,7 +1431,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>654</second>
+                      <second>557</second>
                     </item>
                   </second>
                 </item>
@@ -1470,10 +1470,10 @@
             <Obj>
               <type>0</type>
               <id>28</id>
-              <name>value_203</name>
+              <name>value_171</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>654</lineNumber>
+              <lineNumber>557</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -1489,7 +1489,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>654</second>
+                      <second>557</second>
                     </item>
                   </second>
                 </item>
@@ -1505,7 +1505,7 @@
               <coreId>106</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>19</bitwidth>
+            <bitwidth>15</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1526,10 +1526,10 @@
             <Obj>
               <type>0</type>
               <id>29</id>
-              <name>zext_ln523_2</name>
+              <name>zext_ln594_2</name>
               <fileName>include/fp_types_hls.hpp</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>523</lineNumber>
+              <lineNumber>594</lineNumber>
               <contextFuncName>fp_qp_raw_from_QP</contextFuncName>
               <contextNormFuncName>fp_qp_raw_from_QP</contextNormFuncName>
               <inlineStackInfo>
@@ -1545,7 +1545,7 @@
                         <first>include/fp_types_hls.hpp</first>
                         <second>fp_qp_raw_from_QP</second>
                       </first>
-                      <second>523</second>
+                      <second>594</second>
                     </item>
                   </second>
                 </item>
@@ -1559,13 +1559,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>654</second>
+                      <second>557</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln523_2_fu_221_p1</rtlName>
+              <rtlName>zext_ln594_2_fu_219_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1575,7 +1575,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>16</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1599,7 +1599,7 @@
               <name>dv_raw</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>203</lineNumber>
+              <lineNumber>200</lineNumber>
               <contextFuncName>fp_lerp_qp_raw</contextFuncName>
               <contextNormFuncName>fp_lerp_qp_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -1615,20 +1615,20 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>203</second>
+                      <second>200</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>dv_raw</originalName>
-              <rtlName>dv_raw_fu_225_p2</rtlName>
+              <rtlName>dv_raw_fu_223_p2</rtlName>
               <control>auto</control>
               <opType>sub</opType>
               <implIndex>fabric</implIndex>
@@ -1638,7 +1638,7 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>16</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1651,7 +1651,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.88</m_delay>
+          <m_delay>0.84</m_delay>
           <m_topoIndex>26</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -1660,10 +1660,10 @@
             <Obj>
               <type>0</type>
               <id>32</id>
-              <name>sext_ln166</name>
+              <name>sext_ln163</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>166</lineNumber>
+              <lineNumber>163</lineNumber>
               <contextFuncName>fp_mul_QP_raw_q</contextFuncName>
               <contextNormFuncName>fp_mul_QP_raw_q</contextNormFuncName>
               <inlineStackInfo>
@@ -1679,21 +1679,21 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>204</second>
+                      <second>201</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_mul_QP_raw_q</second>
                       </first>
-                      <second>166</second>
+                      <second>163</second>
                     </item>
                   </second>
                 </item>
@@ -1709,7 +1709,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>51</bitwidth>
+            <bitwidth>42</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1730,10 +1730,10 @@
             <Obj>
               <type>0</type>
               <id>33</id>
-              <name>sext_ln166_1</name>
+              <name>sext_ln163_1</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>166</lineNumber>
+              <lineNumber>163</lineNumber>
               <contextFuncName>fp_mul_QP_raw_q</contextFuncName>
               <contextNormFuncName>fp_mul_QP_raw_q</contextNormFuncName>
               <inlineStackInfo>
@@ -1749,21 +1749,21 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>204</second>
+                      <second>201</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_mul_QP_raw_q</second>
                       </first>
-                      <second>166</second>
+                      <second>163</second>
                     </item>
                   </second>
                 </item>
@@ -1779,7 +1779,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>51</bitwidth>
+            <bitwidth>42</bitwidth>
           </Value>
           <oprand_edges>
             <count>1</count>
@@ -1800,10 +1800,10 @@
             <Obj>
               <type>0</type>
               <id>34</id>
-              <name>mul_ln166</name>
+              <name>mul_ln163</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>166</lineNumber>
+              <lineNumber>163</lineNumber>
               <contextFuncName>fp_mul_QP_raw_q</contextFuncName>
               <contextNormFuncName>fp_mul_QP_raw_q</contextNormFuncName>
               <inlineStackInfo>
@@ -1819,27 +1819,27 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>204</second>
+                      <second>201</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_mul_QP_raw_q</second>
                       </first>
-                      <second>166</second>
+                      <second>163</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>mul_32s_20s_51_4_1_U298</rtlName>
+              <rtlName>mul_26s_16s_42_3_1_U298</rtlName>
               <control>pragma</control>
               <opType>mul</opType>
               <implIndex>dsp</implIndex>
@@ -1849,7 +1849,7 @@
               <coreId>5</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>51</bitwidth>
+            <bitwidth>42</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1862,7 +1862,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>2.29</m_delay>
+          <m_delay>1.94</m_delay>
           <m_topoIndex>29</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -1874,7 +1874,7 @@
               <name>interp_raw</name>
               <fileName>include/fp_types_hls.hpp</fileName>
               <fileDirectory>../../.</fileDirectory>
-              <lineNumber>650</lineNumber>
+              <lineNumber>752</lineNumber>
               <contextFuncName>fp_shift_right_cast_to_qp_site</contextFuncName>
               <contextNormFuncName>fp_shift_right_cast_to_qp_site</contextNormFuncName>
               <inlineStackInfo>
@@ -1890,7 +1890,7 @@
                         <first>include/fp_types_hls.hpp</first>
                         <second>fp_shift_right_cast_to_qp_site</second>
                       </first>
-                      <second>650</second>
+                      <second>752</second>
                     </item>
                   </second>
                 </item>
@@ -1904,27 +1904,27 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>204</second>
+                      <second>201</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_mul_QP_raw_q</second>
                       </first>
-                      <second>168</second>
+                      <second>165</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>interp_raw</originalName>
-              <rtlName>interp_raw_fu_243_p4</rtlName>
+              <rtlName>interp_raw_fu_245_p4</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -1934,7 +1934,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>4</count>
@@ -1958,10 +1958,10 @@
             <Obj>
               <type>0</type>
               <id>38</id>
-              <name>raw_33</name>
+              <name>raw_37</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>205</lineNumber>
+              <lineNumber>202</lineNumber>
               <contextFuncName>fp_lerp_qp_raw</contextFuncName>
               <contextNormFuncName>fp_lerp_qp_raw</contextNormFuncName>
               <inlineStackInfo>
@@ -1977,20 +1977,20 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>655</second>
+                      <second>558</second>
                     </item>
                     <item>
                       <first>
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_lerp_qp_raw</second>
                       </first>
-                      <second>205</second>
+                      <second>202</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>raw</originalName>
-              <rtlName>raw_33_fu_253_p2</rtlName>
+              <rtlName>raw_37_fu_255_p2</rtlName>
               <control>auto</control>
               <opType>add</opType>
               <implIndex>fabric</implIndex>
@@ -2000,7 +2000,7 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -2013,7 +2013,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>32</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -2025,7 +2025,7 @@
               <name>raw</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>656</lineNumber>
+              <lineNumber>559</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -2041,13 +2041,13 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>656</second>
+                      <second>559</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>raw</originalName>
-              <rtlName>raw_fu_259_p2</rtlName>
+              <rtlName>raw_fu_261_p2</rtlName>
               <control>auto</control>
               <opType>sub</opType>
               <implIndex>fabric</implIndex>
@@ -2057,7 +2057,7 @@
               <coreId>1</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -2070,7 +2070,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>33</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -2079,10 +2079,10 @@
             <Obj>
               <type>0</type>
               <id>40</id>
-              <name>raw_34</name>
+              <name>raw_38</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>656</lineNumber>
+              <lineNumber>559</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -2098,7 +2098,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>656</second>
+                      <second>559</second>
                     </item>
                   </second>
                 </item>
@@ -2114,7 +2114,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -2128,7 +2128,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>34</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -2137,10 +2137,10 @@
             <Obj>
               <type>0</type>
               <id>41</id>
-              <name>_ln658</name>
+              <name>_ln561</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>658</lineNumber>
+              <lineNumber>561</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -2156,7 +2156,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>658</second>
+                      <second>561</second>
                     </item>
                   </second>
                 </item>
@@ -2192,11 +2192,11 @@
           <Value>
             <Obj>
               <type>0</type>
-              <id>164</id>
+              <id>165</id>
               <name>atan_lut</name>
               <fileName>../src/fp_math_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>634</lineNumber>
+              <lineNumber>543</lineNumber>
               <contextFuncName>fp_atan_lut</contextFuncName>
               <contextNormFuncName>fp_atan_lut</contextNormFuncName>
               <inlineStackInfo>
@@ -2212,7 +2212,7 @@
                         <first>../src/fp_math_hls.cpp</first>
                         <second>fp_atan_lut</second>
                       </first>
-                      <second>634</second>
+                      <second>543</second>
                     </item>
                   </second>
                 </item>
@@ -2276,7 +2276,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>31</content>
+          <content>25</content>
         </item>
         <item class_id_reference="16" object_id="_39">
           <Value>
@@ -2304,7 +2304,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <const_type>0</const_type>
           <content>0</content>
@@ -2335,7 +2335,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <const_type>0</const_type>
           <content>7</content>
@@ -2369,7 +2369,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>11</content>
+          <content>7</content>
         </item>
         <item class_id_reference="16" object_id="_42">
           <Value>
@@ -2400,7 +2400,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>30</content>
+          <content>24</content>
         </item>
         <item class_id_reference="16" object_id="_43">
           <Value>
@@ -2428,7 +2428,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>20</bitwidth>
+            <bitwidth>18</bitwidth>
           </Value>
           <const_type>0</const_type>
           <content>0</content>
@@ -2493,7 +2493,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>19</content>
+          <content>17</content>
         </item>
         <item class_id_reference="16" object_id="_46">
           <Value>
@@ -2521,7 +2521,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>10</bitwidth>
+            <bitwidth>8</bitwidth>
           </Value>
           <const_type>0</const_type>
           <content>0</content>
@@ -2583,7 +2583,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>18</bitwidth>
+            <bitwidth>14</bitwidth>
           </Value>
           <const_type>0</const_type>
           <content>0</content>
@@ -2679,7 +2679,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>18</content>
+          <content>14</content>
         </item>
         <item class_id_reference="16" object_id="_52">
           <Value>
@@ -2710,7 +2710,7 @@
             <bitwidth>32</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>49</content>
+          <content>39</content>
         </item>
       </consts>
       <blocks class_id="17" tracking_level="0" version="0">
@@ -3259,19 +3259,19 @@
           <item_version>0</item_version>
           <item>42</item>
         </basic_blocks>
-        <mII>7</mII>
-        <mDepth>7</mDepth>
+        <mII>5</mII>
+        <mDepth>5</mDepth>
         <mMinTripCount>-1</mMinTripCount>
         <mMaxTripCount>-1</mMaxTripCount>
-        <mMinLatency>6</mMinLatency>
-        <mMaxLatency>6</mMaxLatency>
+        <mMinLatency>4</mMinLatency>
+        <mMaxLatency>4</mMaxLatency>
         <mIsDfPipe>0</mIsDfPipe>
         <mDfPipe class_id="-1"></mDfPipe>
       </item>
     </cdfg_regions>
     <fsm class_id="24" tracking_level="1" version="0" object_id="_120">
       <states class_id="25" tracking_level="0" version="0">
-        <count>7</count>
+        <count>5</count>
         <item_version>0</item_version>
         <item class_id="26" tracking_level="1" version="0" object_id="_121">
           <id>1</id>
@@ -3444,8 +3444,8 @@
             </item>
             <item class_id_reference="28" object_id="_154">
               <id>34</id>
-              <stage>4</stage>
-              <latency>4</latency>
+              <stage>3</stage>
+              <latency>3</latency>
             </item>
           </operations>
         </item>
@@ -3456,37 +3456,35 @@
             <item_version>0</item_version>
             <item class_id_reference="28" object_id="_156">
               <id>34</id>
-              <stage>3</stage>
-              <latency>4</latency>
+              <stage>2</stage>
+              <latency>3</latency>
             </item>
           </operations>
         </item>
         <item class_id_reference="26" object_id="_157">
           <id>5</id>
           <operations>
-            <count>1</count>
+            <count>11</count>
             <item_version>0</item_version>
             <item class_id_reference="28" object_id="_158">
-              <id>34</id>
-              <stage>2</stage>
-              <latency>4</latency>
+              <id>4</id>
+              <stage>1</stage>
+              <latency>1</latency>
             </item>
-          </operations>
-        </item>
-        <item class_id_reference="26" object_id="_159">
-          <id>6</id>
-          <operations>
-            <count>5</count>
-            <item_version>0</item_version>
-            <item class_id_reference="28" object_id="_160">
+            <item class_id_reference="28" object_id="_159">
               <id>23</id>
+              <stage>1</stage>
+              <latency>1</latency>
+            </item>
+            <item class_id_reference="28" object_id="_160">
+              <id>31</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
             <item class_id_reference="28" object_id="_161">
               <id>34</id>
               <stage>1</stage>
-              <latency>4</latency>
+              <latency>3</latency>
             </item>
             <item class_id_reference="28" object_id="_162">
               <id>35</id>
@@ -3494,48 +3492,31 @@
               <latency>1</latency>
             </item>
             <item class_id_reference="28" object_id="_163">
-              <id>37</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="28" object_id="_164">
-              <id>38</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-          </operations>
-        </item>
-        <item class_id_reference="26" object_id="_165">
-          <id>7</id>
-          <operations>
-            <count>6</count>
-            <item_version>0</item_version>
-            <item class_id_reference="28" object_id="_166">
-              <id>4</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="28" object_id="_167">
-              <id>31</id>
-              <stage>1</stage>
-              <latency>1</latency>
-            </item>
-            <item class_id_reference="28" object_id="_168">
               <id>36</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_169">
+            <item class_id_reference="28" object_id="_164">
+              <id>37</id>
+              <stage>1</stage>
+              <latency>1</latency>
+            </item>
+            <item class_id_reference="28" object_id="_165">
+              <id>38</id>
+              <stage>1</stage>
+              <latency>1</latency>
+            </item>
+            <item class_id_reference="28" object_id="_166">
               <id>39</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_170">
+            <item class_id_reference="28" object_id="_167">
               <id>40</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_171">
+            <item class_id_reference="28" object_id="_168">
               <id>41</id>
               <stage>1</stage>
               <latency>1</latency>
@@ -3544,9 +3525,9 @@
         </item>
       </states>
       <transitions class_id="29" tracking_level="0" version="0">
-        <count>6</count>
+        <count>4</count>
         <item_version>0</item_version>
-        <item class_id="30" tracking_level="1" version="0" object_id="_172">
+        <item class_id="30" tracking_level="1" version="0" object_id="_169">
           <inState>1</inState>
           <outState>2</outState>
           <condition class_id="31" tracking_level="0" version="0">
@@ -3561,7 +3542,7 @@
             </sop>
           </condition>
         </item>
-        <item class_id_reference="30" object_id="_173">
+        <item class_id_reference="30" object_id="_170">
           <inState>2</inState>
           <outState>3</outState>
           <condition>
@@ -3576,7 +3557,7 @@
             </sop>
           </condition>
         </item>
-        <item class_id_reference="30" object_id="_174">
+        <item class_id_reference="30" object_id="_171">
           <inState>3</inState>
           <outState>4</outState>
           <condition>
@@ -3591,7 +3572,7 @@
             </sop>
           </condition>
         </item>
-        <item class_id_reference="30" object_id="_175">
+        <item class_id_reference="30" object_id="_172">
           <inState>4</inState>
           <outState>5</outState>
           <condition>
@@ -3606,58 +3587,28 @@
             </sop>
           </condition>
         </item>
-        <item class_id_reference="30" object_id="_176">
-          <inState>5</inState>
-          <outState>6</outState>
-          <condition>
-            <id>-1</id>
-            <sop>
-              <count>1</count>
-              <item_version>0</item_version>
-              <item>
-                <count>0</count>
-                <item_version>0</item_version>
-              </item>
-            </sop>
-          </condition>
-        </item>
-        <item class_id_reference="30" object_id="_177">
-          <inState>6</inState>
-          <outState>7</outState>
-          <condition>
-            <id>-1</id>
-            <sop>
-              <count>1</count>
-              <item_version>0</item_version>
-              <item>
-                <count>0</count>
-                <item_version>0</item_version>
-              </item>
-            </sop>
-          </condition>
-        </item>
       </transitions>
     </fsm>
-    <res class_id="34" tracking_level="1" version="0" object_id="_178">
+    <res class_id="34" tracking_level="1" version="0" object_id="_173">
       <dp_component_resource class_id="35" tracking_level="0" version="0">
         <count>1</count>
         <item_version>0</item_version>
         <item class_id="36" tracking_level="0" version="0">
-          <first>mul_32s_20s_51_4_1_U298 (mul_32s_20s_51_4_1)</first>
+          <first>mul_26s_16s_42_3_1_U298 (mul_26s_16s_42_3_1)</first>
           <second class_id="37" tracking_level="0" version="0">
             <count>3</count>
             <item_version>0</item_version>
             <item class_id="38" tracking_level="0" version="0">
               <first>DSP</first>
-              <second>2</second>
+              <second>1</second>
             </item>
             <item>
               <first>FF</first>
-              <second>98</second>
+              <second>21</second>
             </item>
             <item>
               <first>LUT</first>
-              <second>47</second>
+              <second>29</second>
             </item>
           </second>
         </item>
@@ -3666,7 +3617,7 @@
         <count>11</count>
         <item_version>0</item_version>
         <item>
-          <first>abs_x_4_fu_113_p3 ( select ) </first>
+          <first>abs_x_4_fu_111_p3 ( select ) </first>
           <second>
             <count>5</count>
             <item_version>0</item_version>
@@ -3676,11 +3627,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3688,12 +3639,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>abs_x_fu_107_p2 ( - ) </first>
+          <first>abs_x_fu_105_p2 ( - ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -3703,7 +3654,7 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3711,12 +3662,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>add_ln654_fu_207_p2 ( + ) </first>
+          <first>add_ln557_fu_205_p2 ( + ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -3749,11 +3700,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3761,22 +3712,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>dv_raw_fu_225_p2 ( - ) </first>
+          <first>dv_raw_fu_223_p2 ( - ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>20</second>
+              <second>16</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>20</second>
+              <second>16</second>
             </item>
             <item>
               <first>FF</first>
@@ -3784,22 +3735,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>27</second>
+              <second>23</second>
             </item>
           </second>
         </item>
         <item>
-          <first>frac_raw_fu_193_p2 ( - ) </first>
+          <first>frac_raw_fu_191_p2 ( - ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3807,18 +3758,18 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln649_fu_167_p2 ( icmp ) </first>
+          <first>icmp_ln552_fu_165_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>10</second>
+              <second>8</second>
             </item>
             <item>
               <first>(1P1)</first>
@@ -3830,12 +3781,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>17</second>
+              <second>15</second>
             </item>
           </second>
         </item>
         <item>
-          <first>idx_4_fu_173_p3 ( select ) </first>
+          <first>idx_2_fu_171_p3 ( select ) </first>
           <second>
             <count>5</count>
             <item_version>0</item_version>
@@ -3862,7 +3813,7 @@
           </second>
         </item>
         <item>
-          <first>idx_fu_145_p3 ( select ) </first>
+          <first>idx_fu_143_p3 ( select ) </first>
           <second>
             <count>5</count>
             <item_version>0</item_version>
@@ -3876,7 +3827,7 @@
             </item>
             <item>
               <first>(2P2)</first>
-              <second>20</second>
+              <second>18</second>
             </item>
             <item>
               <first>FF</first>
@@ -3884,22 +3835,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>19</second>
+              <second>17</second>
             </item>
           </second>
         </item>
         <item>
-          <first>raw_33_fu_253_p2 ( + ) </first>
+          <first>raw_37_fu_255_p2 ( + ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3907,12 +3858,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>raw_fu_259_p2 ( - ) </first>
+          <first>raw_fu_261_p2 ( - ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -3922,7 +3873,7 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -3930,7 +3881,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
@@ -3953,7 +3904,7 @@
             </item>
             <item>
               <first>(1Bits)</first>
-              <second>19</second>
+              <second>15</second>
             </item>
             <item>
               <first>(2Banks)</first>
@@ -3961,11 +3912,11 @@
             </item>
             <item>
               <first>(3W*Bits*Banks)</first>
-              <second>19475</second>
+              <second>15375</second>
             </item>
             <item>
               <first>BRAM</first>
-              <second>3</second>
+              <second>2</second>
             </item>
             <item>
               <first>FF</first>
@@ -3988,7 +3939,7 @@
             <item_version>0</item_version>
             <item>
               <first>(0Size)</first>
-              <second>8</second>
+              <second>6</second>
             </item>
             <item>
               <first>(1Bits)</first>
@@ -3996,7 +3947,7 @@
             </item>
             <item>
               <first>(2Count)</first>
-              <second>8</second>
+              <second>6</second>
             </item>
             <item>
               <first>FF</first>
@@ -4004,7 +3955,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>43</second>
+              <second>31</second>
             </item>
           </second>
         </item>
@@ -4037,7 +3988,7 @@
         </item>
       </dp_multiplexer_resource>
       <dp_register_resource>
-        <count>6</count>
+        <count>5</count>
         <item_version>0</item_version>
         <item>
           <first>ap_CS_fsm</first>
@@ -4046,7 +3997,7 @@
             <item_version>0</item_version>
             <item>
               <first>(Bits)</first>
-              <second>7</second>
+              <second>5</second>
             </item>
             <item>
               <first>(Consts)</first>
@@ -4054,18 +4005,18 @@
             </item>
             <item>
               <first>FF</first>
-              <second>7</second>
+              <second>5</second>
             </item>
           </second>
         </item>
         <item>
-          <first>frac_raw_reg_280</first>
+          <first>frac_raw_reg_284</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
             <item>
               <first>(Bits)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(Consts)</first>
@@ -4073,12 +4024,12 @@
             </item>
             <item>
               <first>FF</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>idx_4_reg_275</first>
+          <first>idx_2_reg_279</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
@@ -4097,7 +4048,7 @@
           </second>
         </item>
         <item>
-          <first>neg_reg_270</first>
+          <first>neg_reg_274</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
@@ -4116,13 +4067,13 @@
           </second>
         </item>
         <item>
-          <first>raw_33_reg_311</first>
+          <first>value_reg_294</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
             <item>
               <first>(Bits)</first>
-              <second>32</second>
+              <second>15</second>
             </item>
             <item>
               <first>(Consts)</first>
@@ -4130,26 +4081,7 @@
             </item>
             <item>
               <first>FF</first>
-              <second>32</second>
-            </item>
-          </second>
-        </item>
-        <item>
-          <first>value_reg_290</first>
-          <second>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(Bits)</first>
-              <second>19</second>
-            </item>
-            <item>
-              <first>(Consts)</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>19</second>
+              <second>15</second>
             </item>
           </second>
         </item>
@@ -4158,7 +4090,7 @@
         <count>1</count>
         <item_version>0</item_version>
         <item>
-          <first>mul_32s_20s_51_4_1_U298</first>
+          <first>mul_26s_16s_42_3_1_U298</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
@@ -4169,7 +4101,7 @@
         <count>1</count>
         <item_version>0</item_version>
         <item class_id="40" tracking_level="0" version="0">
-          <first>mul_32s_20s_51_4_1_U298 (mul_32s_20s_51_4_1)</first>
+          <first>mul_26s_16s_42_3_1_U298 (mul_26s_16s_42_3_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4181,7 +4113,7 @@
         <count>11</count>
         <item_version>0</item_version>
         <item>
-          <first>abs_x_4_fu_113_p3 ( select ) </first>
+          <first>abs_x_4_fu_111_p3 ( select ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4189,7 +4121,7 @@
           </second>
         </item>
         <item>
-          <first>abs_x_fu_107_p2 ( - ) </first>
+          <first>abs_x_fu_105_p2 ( - ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4197,7 +4129,7 @@
           </second>
         </item>
         <item>
-          <first>add_ln654_fu_207_p2 ( + ) </first>
+          <first>add_ln557_fu_205_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4213,7 +4145,7 @@
           </second>
         </item>
         <item>
-          <first>dv_raw_fu_225_p2 ( - ) </first>
+          <first>dv_raw_fu_223_p2 ( - ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4221,7 +4153,7 @@
           </second>
         </item>
         <item>
-          <first>frac_raw_fu_193_p2 ( - ) </first>
+          <first>frac_raw_fu_191_p2 ( - ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4229,7 +4161,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln649_fu_167_p2 ( icmp ) </first>
+          <first>icmp_ln552_fu_165_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4237,7 +4169,7 @@
           </second>
         </item>
         <item>
-          <first>idx_4_fu_173_p3 ( select ) </first>
+          <first>idx_2_fu_171_p3 ( select ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4245,7 +4177,7 @@
           </second>
         </item>
         <item>
-          <first>idx_fu_145_p3 ( select ) </first>
+          <first>idx_fu_143_p3 ( select ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4253,7 +4185,7 @@
           </second>
         </item>
         <item>
-          <first>raw_33_fu_253_p2 ( + ) </first>
+          <first>raw_37_fu_255_p2 ( + ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4261,7 +4193,7 @@
           </second>
         </item>
         <item>
-          <first>raw_fu_259_p2 ( - ) </first>
+          <first>raw_fu_261_p2 ( - ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -4281,7 +4213,7 @@
           <second>
             <count>1</count>
             <item_version>0</item_version>
-            <item>29</item>
+            <item>27</item>
           </second>
         </item>
       </dp_memory_map>
@@ -4425,7 +4357,7 @@
       <item>
         <first>23</first>
         <second>
-          <first>5</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
@@ -4496,46 +4428,46 @@
         <first>34</first>
         <second>
           <first>2</first>
-          <second>3</second>
+          <second>2</second>
         </second>
       </item>
       <item>
         <first>37</first>
         <second>
-          <first>5</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>38</first>
         <second>
-          <first>5</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>39</first>
         <second>
-          <first>6</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>40</first>
         <second>
-          <first>6</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>41</first>
         <second>
-          <first>6</first>
+          <first>4</first>
           <second>0</second>
         </second>
       </item>
       <item>
-        <first>164</first>
+        <first>165</first>
         <second>
           <first>0</first>
           <second>2</second>
@@ -4549,14 +4481,14 @@
         <first>42</first>
         <second class_id="46" tracking_level="0" version="0">
           <first>0</first>
-          <second>6</second>
+          <second>4</second>
         </second>
       </item>
     </bblk_ent_exit>
     <regions class_id="47" tracking_level="0" version="0">
       <count>1</count>
       <item_version>0</item_version>
-      <item class_id="48" tracking_level="1" version="0" object_id="_179">
+      <item class_id="48" tracking_level="1" version="0" object_id="_174">
         <region_name>fp_atan_lut</region_name>
         <basic_blocks>
           <count>1</count>
@@ -4569,8 +4501,8 @@
         </nodes>
         <anchor_node>-1</anchor_node>
         <region_type>8</region_type>
-        <interval>7</interval>
-        <pipe_depth>7</pipe_depth>
+        <interval>5</interval>
+        <pipe_depth>5</pipe_depth>
         <mDBIIViolationVec class_id="49" tracking_level="0" version="0">
           <count>0</count>
           <item_version>0</item_version>
@@ -4581,7 +4513,7 @@
       <count>33</count>
       <item_version>0</item_version>
       <item class_id="51" tracking_level="0" version="0">
-        <first>68</first>
+        <first>70</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4589,7 +4521,7 @@
         </second>
       </item>
       <item>
-        <first>74</first>
+        <first>76</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4597,7 +4529,7 @@
         </second>
       </item>
       <item>
-        <first>81</first>
+        <first>83</first>
         <second>
           <count>4</count>
           <item_version>0</item_version>
@@ -4608,7 +4540,7 @@
         </second>
       </item>
       <item>
-        <first>87</first>
+        <first>89</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4616,18 +4548,7 @@
         </second>
       </item>
       <item>
-        <first>95</first>
-        <second>
-          <count>4</count>
-          <item_version>0</item_version>
-          <item>34</item>
-          <item>34</item>
-          <item>34</item>
-          <item>34</item>
-        </second>
-      </item>
-      <item>
-        <first>99</first>
+        <first>97</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4635,7 +4556,7 @@
         </second>
       </item>
       <item>
-        <first>107</first>
+        <first>105</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4643,7 +4564,7 @@
         </second>
       </item>
       <item>
-        <first>113</first>
+        <first>111</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4651,7 +4572,7 @@
         </second>
       </item>
       <item>
-        <first>121</first>
+        <first>119</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4659,7 +4580,7 @@
         </second>
       </item>
       <item>
-        <first>127</first>
+        <first>125</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4667,7 +4588,7 @@
         </second>
       </item>
       <item>
-        <first>137</first>
+        <first>135</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4675,7 +4596,7 @@
         </second>
       </item>
       <item>
-        <first>145</first>
+        <first>143</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4683,7 +4604,7 @@
         </second>
       </item>
       <item>
-        <first>153</first>
+        <first>151</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4691,7 +4612,7 @@
         </second>
       </item>
       <item>
-        <first>157</first>
+        <first>155</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4699,7 +4620,7 @@
         </second>
       </item>
       <item>
-        <first>167</first>
+        <first>165</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4707,7 +4628,7 @@
         </second>
       </item>
       <item>
-        <first>173</first>
+        <first>171</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4715,7 +4636,7 @@
         </second>
       </item>
       <item>
-        <first>181</first>
+        <first>179</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4723,7 +4644,7 @@
         </second>
       </item>
       <item>
-        <first>189</first>
+        <first>187</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4731,7 +4652,7 @@
         </second>
       </item>
       <item>
-        <first>193</first>
+        <first>191</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4739,7 +4660,7 @@
         </second>
       </item>
       <item>
-        <first>199</first>
+        <first>197</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4747,7 +4668,7 @@
         </second>
       </item>
       <item>
-        <first>204</first>
+        <first>202</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4755,7 +4676,7 @@
         </second>
       </item>
       <item>
-        <first>207</first>
+        <first>205</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4763,7 +4684,7 @@
         </second>
       </item>
       <item>
-        <first>213</first>
+        <first>211</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4771,7 +4692,7 @@
         </second>
       </item>
       <item>
-        <first>218</first>
+        <first>216</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4779,7 +4700,7 @@
         </second>
       </item>
       <item>
-        <first>221</first>
+        <first>219</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4787,7 +4708,7 @@
         </second>
       </item>
       <item>
-        <first>225</first>
+        <first>223</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4795,7 +4716,7 @@
         </second>
       </item>
       <item>
-        <first>231</first>
+        <first>229</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4803,7 +4724,7 @@
         </second>
       </item>
       <item>
-        <first>235</first>
+        <first>232</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4811,7 +4732,17 @@
         </second>
       </item>
       <item>
-        <first>240</first>
+        <first>236</first>
+        <second>
+          <count>3</count>
+          <item_version>0</item_version>
+          <item>34</item>
+          <item>34</item>
+          <item>34</item>
+        </second>
+      </item>
+      <item>
+        <first>242</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4819,7 +4750,7 @@
         </second>
       </item>
       <item>
-        <first>243</first>
+        <first>245</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4827,7 +4758,7 @@
         </second>
       </item>
       <item>
-        <first>253</first>
+        <first>255</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4835,7 +4766,7 @@
         </second>
       </item>
       <item>
-        <first>259</first>
+        <first>261</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4843,7 +4774,7 @@
         </second>
       </item>
       <item>
-        <first>264</first>
+        <first>267</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4855,7 +4786,7 @@
       <count>30</count>
       <item_version>0</item_version>
       <item class_id="54" tracking_level="0" version="0">
-        <first>abs_x_4_fu_113</first>
+        <first>abs_x_4_fu_111</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4863,7 +4794,7 @@
         </second>
       </item>
       <item>
-        <first>abs_x_fu_107</first>
+        <first>abs_x_fu_105</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4871,7 +4802,7 @@
         </second>
       </item>
       <item>
-        <first>add_ln654_fu_207</first>
+        <first>add_ln557_fu_205</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4879,7 +4810,7 @@
         </second>
       </item>
       <item>
-        <first>atan_lut_addr_1_gep_fu_87</first>
+        <first>atan_lut_addr_1_gep_fu_89</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4887,7 +4818,7 @@
         </second>
       </item>
       <item>
-        <first>atan_lut_addr_gep_fu_74</first>
+        <first>atan_lut_addr_gep_fu_76</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4895,7 +4826,7 @@
         </second>
       </item>
       <item>
-        <first>dv_raw_fu_225</first>
+        <first>dv_raw_fu_223</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4903,7 +4834,7 @@
         </second>
       </item>
       <item>
-        <first>frac_raw_fu_193</first>
+        <first>frac_raw_fu_191</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4911,7 +4842,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln649_fu_167</first>
+        <first>icmp_ln552_fu_165</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4919,7 +4850,7 @@
         </second>
       </item>
       <item>
-        <first>idx_4_fu_173</first>
+        <first>idx_2_fu_171</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4927,7 +4858,7 @@
         </second>
       </item>
       <item>
-        <first>idx_fu_145</first>
+        <first>idx_fu_143</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4935,7 +4866,7 @@
         </second>
       </item>
       <item>
-        <first>interp_raw_fu_243</first>
+        <first>interp_raw_fu_245</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4943,7 +4874,7 @@
         </second>
       </item>
       <item>
-        <first>neg_fu_99</first>
+        <first>neg_fu_97</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4951,7 +4882,7 @@
         </second>
       </item>
       <item>
-        <first>raw_33_fu_253</first>
+        <first>raw_37_fu_255</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4959,7 +4890,7 @@
         </second>
       </item>
       <item>
-        <first>raw_34_fu_264</first>
+        <first>raw_38_fu_267</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4967,7 +4898,7 @@
         </second>
       </item>
       <item>
-        <first>raw_fu_259</first>
+        <first>raw_fu_261</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4975,7 +4906,7 @@
         </second>
       </item>
       <item>
-        <first>sext_ln166_1_fu_235</first>
+        <first>sext_ln163_1_fu_232</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4983,7 +4914,7 @@
         </second>
       </item>
       <item>
-        <first>sext_ln166_fu_231</first>
+        <first>sext_ln163_fu_229</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4991,7 +4922,7 @@
         </second>
       </item>
       <item>
-        <first>shl_ln645_fu_121</first>
+        <first>shl_ln548_fu_119</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -4999,7 +4930,7 @@
         </second>
       </item>
       <item>
-        <first>shl_ln6_fu_181</first>
+        <first>shl_ln7_fu_179</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5007,7 +4938,7 @@
         </second>
       </item>
       <item>
-        <first>tmp_106_fu_157</first>
+        <first>tmp_106_fu_155</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5015,7 +4946,7 @@
         </second>
       </item>
       <item>
-        <first>tmp_fu_137</first>
+        <first>tmp_fu_135</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5023,7 +4954,7 @@
         </second>
       </item>
       <item>
-        <first>trunc_ln646_1_fu_127</first>
+        <first>trunc_ln549_1_fu_125</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5031,7 +4962,7 @@
         </second>
       </item>
       <item>
-        <first>trunc_ln646_fu_153</first>
+        <first>trunc_ln549_fu_151</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5039,31 +4970,7 @@
         </second>
       </item>
       <item>
-        <first>zext_ln523_1_fu_218</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>24</item>
-        </second>
-      </item>
-      <item>
-        <first>zext_ln523_2_fu_221</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>29</item>
-        </second>
-      </item>
-      <item>
-        <first>zext_ln523_fu_240</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>23</item>
-        </second>
-      </item>
-      <item>
-        <first>zext_ln646_fu_204</first>
+        <first>zext_ln549_fu_202</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5071,7 +4978,7 @@
         </second>
       </item>
       <item>
-        <first>zext_ln652_fu_189</first>
+        <first>zext_ln555_fu_187</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5079,7 +4986,7 @@
         </second>
       </item>
       <item>
-        <first>zext_ln653_fu_199</first>
+        <first>zext_ln556_fu_197</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5087,11 +4994,35 @@
         </second>
       </item>
       <item>
-        <first>zext_ln654_fu_213</first>
+        <first>zext_ln557_fu_211</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
           <item>26</item>
+        </second>
+      </item>
+      <item>
+        <first>zext_ln594_1_fu_216</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>24</item>
+        </second>
+      </item>
+      <item>
+        <first>zext_ln594_2_fu_219</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>29</item>
+        </second>
+      </item>
+      <item>
+        <first>zext_ln594_fu_242</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>23</item>
         </second>
       </item>
     </dp_fu_nodes_expression>
@@ -5099,11 +5030,10 @@
       <count>1</count>
       <item_version>0</item_version>
       <item>
-        <first>grp_fu_95</first>
+        <first>grp_fu_236</first>
         <second>
-          <count>4</count>
+          <count>3</count>
           <item_version>0</item_version>
-          <item>34</item>
           <item>34</item>
           <item>34</item>
           <item>34</item>
@@ -5114,7 +5044,7 @@
       <count>1</count>
       <item_version>0</item_version>
       <item>
-        <first>x_read_read_fu_68</first>
+        <first>x_read_read_fu_70</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5153,10 +5083,10 @@
       </item>
     </dp_mem_port_nodes>
     <dp_reg_nodes>
-      <count>9</count>
+      <count>8</count>
       <item_version>0</item_version>
       <item>
-        <first>270</first>
+        <first>274</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5164,7 +5094,7 @@
         </second>
       </item>
       <item>
-        <first>275</first>
+        <first>279</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5172,7 +5102,7 @@
         </second>
       </item>
       <item>
-        <first>280</first>
+        <first>284</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5180,7 +5110,7 @@
         </second>
       </item>
       <item>
-        <first>285</first>
+        <first>289</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5188,7 +5118,7 @@
         </second>
       </item>
       <item>
-        <first>290</first>
+        <first>294</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5196,7 +5126,7 @@
         </second>
       </item>
       <item>
-        <first>296</first>
+        <first>300</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5204,7 +5134,7 @@
         </second>
       </item>
       <item>
-        <first>301</first>
+        <first>305</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5212,27 +5142,19 @@
         </second>
       </item>
       <item>
-        <first>306</first>
+        <first>310</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
           <item>33</item>
         </second>
       </item>
-      <item>
-        <first>311</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>38</item>
-        </second>
-      </item>
     </dp_reg_nodes>
     <dp_regname_nodes>
-      <count>9</count>
+      <count>8</count>
       <item_version>0</item_version>
       <item>
-        <first>atan_lut_addr_1_reg_296</first>
+        <first>atan_lut_addr_1_reg_300</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5240,7 +5162,7 @@
         </second>
       </item>
       <item>
-        <first>atan_lut_addr_reg_285</first>
+        <first>atan_lut_addr_reg_289</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5248,7 +5170,7 @@
         </second>
       </item>
       <item>
-        <first>frac_raw_reg_280</first>
+        <first>frac_raw_reg_284</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5256,7 +5178,7 @@
         </second>
       </item>
       <item>
-        <first>idx_4_reg_275</first>
+        <first>idx_2_reg_279</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5264,7 +5186,7 @@
         </second>
       </item>
       <item>
-        <first>neg_reg_270</first>
+        <first>neg_reg_274</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5272,15 +5194,7 @@
         </second>
       </item>
       <item>
-        <first>raw_33_reg_311</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>38</item>
-        </second>
-      </item>
-      <item>
-        <first>sext_ln166_1_reg_306</first>
+        <first>sext_ln163_1_reg_310</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5288,7 +5202,7 @@
         </second>
       </item>
       <item>
-        <first>sext_ln166_reg_301</first>
+        <first>sext_ln163_reg_305</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5296,7 +5210,7 @@
         </second>
       </item>
       <item>
-        <first>value_reg_290</first>
+        <first>value_reg_294</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -5437,9 +5351,9 @@
         </second>
       </item>
     </node2core>
-    <sched_res class_id="60" tracking_level="1" version="0" object_id="_180">
+    <sched_res class_id="60" tracking_level="1" version="0" object_id="_175">
       <ResourceTableActual class_id="61" tracking_level="0" version="0">
-        <II>100</II>
+        <II>74</II>
       </ResourceTableActual>
       <ResourceTableFailed class_id="62" tracking_level="0" version="0">
         <II>-1</II>

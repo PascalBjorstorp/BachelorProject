@@ -1,0 +1,139 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20'" level="0">
+<item name = "Date">Thu Jun 11 16:07:07 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 1.643 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">23, 23, 0.115 us, 0.115 us, 0, 0, loop pipeline stp</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+<column name="- VITIS_LOOP_1531_20">21, 21, 2, 1, 1, 21, yes</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Utilization Estimates" level="0">
+<item name = "Summary"><table name="" hasTotal="1">
+<keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="DSP">-, -, -, -, -</column>
+<column name="Expression">-, -, 0, 28, -</column>
+<column name="FIFO">-, -, -, -, -</column>
+<column name="Instance">-, -, -, -, -</column>
+<column name="Memory">-, -, -, -, -</column>
+<column name="Multiplexer">-, -, 0, 64, -</column>
+<column name="Register">-, -, 19, -, -</column>
+<specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
+<specialColumn name="Utilization (%)">0, 0, ~0, ~0, 0</specialColumn>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="1">
+<keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
+</table>
+</item>
+<item name = "DSP"><table name="" hasTotal="0">
+<keys size="3">Instance, Module, Expression</keys>
+</table>
+</item>
+<item name = "Memory"><table name="" hasTotal="1">
+<keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+</table>
+</item>
+<item name = "FIFO"><table name="" hasTotal="1">
+<keys size="8">Name, BRAM_18K, FF, LUT, URAM, Depth, Bits, Size:D*B</keys>
+</table>
+</item>
+<item name = "Expression"><table name="" hasTotal="1">
+<keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
+<column name="add_ln1531_fu_118_p2">+, 0, 0, 12, 5, 1</column>
+<column name="ap_condition_227">and, 0, 0, 2, 1, 1</column>
+<column name="icmp_ln1531_fu_112_p2">icmp, 0, 0, 12, 5, 5</column>
+<column name="ap_enable_pp0">xor, 0, 0, 2, 1, 2</column>
+</table>
+</item>
+<item name = "Multiplexer"><table name="" hasTotal="1">
+<keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
+<column name="ap_done_int">9, 2, 1, 2</column>
+<column name="ap_enable_reg_pp0_iter1">9, 2, 1, 2</column>
+<column name="ap_phi_mux_storemerge382_phi_fu_97_p4">14, 3, 26, 78</column>
+<column name="ap_sig_allocacmp_k_8">9, 2, 5, 10</column>
+<column name="k_fu_50">9, 2, 5, 10</column>
+<column name="y_x_d1_local">14, 3, 26, 78</column>
+</table>
+</item>
+<item name = "Register"><table name="" hasTotal="1">
+<keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
+<column name="ap_CS_fsm">1, 0, 1, 0</column>
+<column name="ap_done_reg">1, 0, 1, 0</column>
+<column name="ap_enable_reg_pp0_iter1">1, 0, 1, 0</column>
+<column name="icmp_ln1531_reg_190">1, 0, 1, 0</column>
+<column name="k_fu_50">5, 0, 5, 0</column>
+<column name="y_x_5_addr_reg_200">5, 0, 5, 0</column>
+<column name="y_x_addr_reg_194">5, 0, 5, 0</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Interface" level="0">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
+<column name="ap_clk">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="ap_rst">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="ap_start">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="ap_done">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="ap_idle">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="ap_ready">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20, return value</column>
+<column name="y_x_5_address0">out, 5, ap_memory, y_x_5, array</column>
+<column name="y_x_5_ce0">out, 1, ap_memory, y_x_5, array</column>
+<column name="y_x_5_q0">in, 26, ap_memory, y_x_5, array</column>
+<column name="y_x_5_address1">out, 5, ap_memory, y_x_5, array</column>
+<column name="y_x_5_ce1">out, 1, ap_memory, y_x_5, array</column>
+<column name="y_x_5_we1">out, 1, ap_memory, y_x_5, array</column>
+<column name="y_x_5_d1">out, 26, ap_memory, y_x_5, array</column>
+<column name="y_x_address0">out, 5, ap_memory, y_x, array</column>
+<column name="y_x_ce0">out, 1, ap_memory, y_x, array</column>
+<column name="y_x_q0">in, 26, ap_memory, y_x, array</column>
+<column name="y_x_address1">out, 5, ap_memory, y_x, array</column>
+<column name="y_x_ce1">out, 1, ap_memory, y_x, array</column>
+<column name="y_x_we1">out, 1, ap_memory, y_x, array</column>
+<column name="y_x_d1">out, 26, ap_memory, y_x, array</column>
+<column name="scale_rho_up">in, 1, ap_none, scale_rho_up, scalar</column>
+</table>
+</item>
+</section>
+</profile>

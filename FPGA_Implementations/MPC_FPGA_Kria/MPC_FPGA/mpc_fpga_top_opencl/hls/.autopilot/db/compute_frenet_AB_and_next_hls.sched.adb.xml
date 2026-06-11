@@ -3,595 +3,433 @@
 
 <trans_list>
 
-<trans id="310" from="1" to="2">
+<trans id="229" from="1" to="2">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="311" from="2" to="3">
+<trans id="230" from="2" to="3">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="312" from="3" to="4">
+<trans id="231" from="3" to="4">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="313" from="4" to="5">
+<trans id="232" from="4" to="5">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="314" from="5" to="6">
+<trans id="233" from="5" to="6">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="315" from="6" to="7">
+<trans id="234" from="6" to="7">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="316" from="7" to="8">
+<trans id="235" from="7" to="8">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="317" from="8" to="9">
+<trans id="236" from="8" to="9">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="318" from="9" to="10">
+<trans id="237" from="9" to="10">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="319" from="10" to="11">
+<trans id="238" from="10" to="11">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="320" from="11" to="12">
+<trans id="239" from="11" to="12">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="321" from="12" to="13">
+<trans id="240" from="12" to="13">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="322" from="13" to="14">
+<trans id="241" from="13" to="14">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="323" from="14" to="15">
+<trans id="242" from="14" to="15">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="324" from="15" to="16">
+<trans id="243" from="15" to="16">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="325" from="16" to="17">
+<trans id="244" from="16" to="17">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="326" from="17" to="18">
+<trans id="245" from="17" to="18">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="327" from="18" to="19">
+<trans id="246" from="18" to="19">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="328" from="19" to="20">
+<trans id="247" from="19" to="20">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="329" from="20" to="21">
+<trans id="248" from="20" to="21">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="330" from="21" to="22">
+<trans id="249" from="21" to="22">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="331" from="22" to="23">
+<trans id="250" from="22" to="23">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="332" from="23" to="24">
+<trans id="251" from="23" to="24">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="333" from="24" to="25">
+<trans id="252" from="24" to="25">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="334" from="25" to="26">
+<trans id="253" from="25" to="26">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="335" from="26" to="27">
+<trans id="254" from="26" to="27">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="336" from="27" to="28">
+<trans id="255" from="27" to="28">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="337" from="28" to="29">
+<trans id="256" from="28" to="29">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="338" from="29" to="30">
+<trans id="257" from="29" to="30">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="339" from="30" to="31">
+<trans id="258" from="30" to="31">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="340" from="31" to="32">
+<trans id="259" from="31" to="32">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="341" from="32" to="33">
+<trans id="260" from="32" to="33">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="342" from="33" to="34">
+<trans id="261" from="33" to="34">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="343" from="34" to="35">
+<trans id="262" from="34" to="35">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="344" from="35" to="36">
+<trans id="263" from="35" to="36">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="345" from="36" to="37">
+<trans id="264" from="36" to="37">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="346" from="37" to="38">
+<trans id="265" from="37" to="38">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="347" from="38" to="39">
+<trans id="266" from="38" to="39">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="348" from="39" to="40">
+<trans id="267" from="39" to="40">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="349" from="40" to="41">
+<trans id="268" from="40" to="41">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="350" from="41" to="42">
+<trans id="269" from="41" to="42">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="351" from="42" to="43">
+<trans id="270" from="42" to="43">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="352" from="43" to="44">
+<trans id="271" from="43" to="44">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="353" from="44" to="45">
+<trans id="272" from="44" to="45">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="354" from="45" to="46">
+<trans id="273" from="45" to="46">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="355" from="46" to="47">
+<trans id="274" from="46" to="47">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="356" from="47" to="48">
+<trans id="275" from="47" to="48">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="357" from="48" to="49">
+<trans id="276" from="48" to="49">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="358" from="49" to="50">
+<trans id="277" from="49" to="50">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="359" from="50" to="51">
+<trans id="278" from="50" to="51">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="360" from="51" to="52">
+<trans id="279" from="51" to="52">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="361" from="52" to="53">
+<trans id="280" from="52" to="53">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="362" from="53" to="54">
+<trans id="281" from="53" to="54">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="363" from="54" to="55">
+<trans id="282" from="54" to="55">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="364" from="55" to="56">
+<trans id="283" from="55" to="56">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="365" from="56" to="57">
+<trans id="284" from="56" to="57">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="366" from="57" to="58">
+<trans id="285" from="57" to="58">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="367" from="58" to="59">
+<trans id="286" from="58" to="59">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="368" from="59" to="60">
+<trans id="287" from="59" to="60">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="369" from="60" to="61">
+<trans id="288" from="60" to="61">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="370" from="61" to="62">
+<trans id="289" from="61" to="62">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="371" from="62" to="63">
+<trans id="290" from="62" to="63">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="372" from="63" to="64">
+<trans id="291" from="63" to="64">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="373" from="64" to="65">
+<trans id="292" from="64" to="65">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="374" from="65" to="66">
+<trans id="293" from="65" to="66">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="375" from="66" to="67">
+<trans id="294" from="66" to="67">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="376" from="67" to="68">
+<trans id="295" from="67" to="68">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="377" from="68" to="69">
+<trans id="296" from="68" to="69">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="378" from="69" to="70">
+<trans id="297" from="69" to="70">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="379" from="70" to="71">
+<trans id="298" from="70" to="71">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="380" from="71" to="72">
+<trans id="299" from="71" to="72">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 </trans>
 
-<trans id="381" from="72" to="73">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="382" from="73" to="74">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="383" from="74" to="75">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="384" from="75" to="76">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="385" from="76" to="77">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="386" from="77" to="78">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="387" from="78" to="79">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="388" from="79" to="80">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="389" from="80" to="81">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="390" from="81" to="82">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="391" from="82" to="83">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="392" from="83" to="84">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="393" from="84" to="85">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="394" from="85" to="86">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="395" from="86" to="87">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="396" from="87" to="88">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="397" from="88" to="89">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="398" from="89" to="90">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="399" from="90" to="91">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="400" from="91" to="92">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="401" from="92" to="93">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="402" from="93" to="94">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="403" from="94" to="95">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="404" from="95" to="96">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="405" from="96" to="97">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="406" from="97" to="98">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="407" from="98" to="99">
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-</trans>
-
-<trans id="408" from="99" to="100">
+<trans id="300" from="72" to="73">
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
@@ -604,136 +442,136 @@
 
 <state id="1" st_id="1">
 
-<operation id="101" st_id="1" stage="1" lat="1">
+<operation id="74" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="13" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="13" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:0 %kappa_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %kappa
+entry:0 %kappa_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %kappa
 
 ]]></Node>
 <StgValue><ssdm name="kappa_read"/></StgValue>
 </operation>
 
-<operation id="102" st_id="1" stage="1" lat="1">
+<operation id="75" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="14" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="14" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:1 %a_cmd_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %a_cmd
+entry:1 %a_cmd_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %a_cmd
 
 ]]></Node>
 <StgValue><ssdm name="a_cmd_read"/></StgValue>
 </operation>
 
-<operation id="103" st_id="1" stage="1" lat="1">
+<operation id="76" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="15" bw="18" op_0_bw="18" op_1_bw="18">
+<Node id="15" bw="14" op_0_bw="14" op_1_bw="14">
 <![CDATA[
-entry:2 %delta_read = read i18 @_ssdm_op_Read.ap_auto.i18, i18 %delta
+entry:2 %delta_read = read i14 @_ssdm_op_Read.ap_auto.i14, i14 %delta
 
 ]]></Node>
 <StgValue><ssdm name="delta_read"/></StgValue>
 </operation>
 
-<operation id="104" st_id="1" stage="1" lat="1">
+<operation id="77" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="16" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="16" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:3 %omega_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %omega
+entry:3 %omega_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %omega
 
 ]]></Node>
 <StgValue><ssdm name="omega_read"/></StgValue>
 </operation>
 
-<operation id="105" st_id="1" stage="1" lat="1">
+<operation id="78" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="17" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="17" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:4 %vy_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %vy
+entry:4 %vy_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %vy
 
 ]]></Node>
 <StgValue><ssdm name="vy_read"/></StgValue>
 </operation>
 
-<operation id="106" st_id="1" stage="1" lat="1">
+<operation id="79" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="18" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="18" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:5 %vx_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %vx
+entry:5 %vx_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %vx
 
 ]]></Node>
 <StgValue><ssdm name="vx_read"/></StgValue>
 </operation>
 
-<operation id="107" st_id="1" stage="1" lat="1">
+<operation id="80" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="19" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="19" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:6 %epsi_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %epsi
+entry:6 %epsi_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %epsi
 
 ]]></Node>
 <StgValue><ssdm name="epsi_read"/></StgValue>
 </operation>
 
-<operation id="108" st_id="1" stage="1" lat="1">
+<operation id="81" st_id="1" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="20" bw="27" op_0_bw="27" op_1_bw="27">
+<Node id="20" bw="23" op_0_bw="23" op_1_bw="23">
 <![CDATA[
-entry:7 %ey_read = read i27 @_ssdm_op_Read.ap_auto.i27, i27 %ey
+entry:7 %ey_read = read i23 @_ssdm_op_Read.ap_auto.i23, i23 %ey
 
 ]]></Node>
 <StgValue><ssdm name="ey_read"/></StgValue>
 </operation>
 
-<operation id="109" st_id="1" stage="100" lat="100">
+<operation id="82" st_id="1" stage="73" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -742,16 +580,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="2" st_id="2">
 
-<operation id="110" st_id="2" stage="99" lat="100">
+<operation id="83" st_id="2" stage="72" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -760,16 +598,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="3" st_id="3">
 
-<operation id="111" st_id="3" stage="98" lat="100">
+<operation id="84" st_id="3" stage="71" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -778,16 +616,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="4" st_id="4">
 
-<operation id="112" st_id="4" stage="97" lat="100">
+<operation id="85" st_id="4" stage="70" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -796,16 +634,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="5" st_id="5">
 
-<operation id="113" st_id="5" stage="96" lat="100">
+<operation id="86" st_id="5" stage="69" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -814,16 +652,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="6" st_id="6">
 
-<operation id="114" st_id="6" stage="95" lat="100">
+<operation id="87" st_id="6" stage="68" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -832,16 +670,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="7" st_id="7">
 
-<operation id="115" st_id="7" stage="94" lat="100">
+<operation id="88" st_id="7" stage="67" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -850,16 +688,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="8" st_id="8">
 
-<operation id="116" st_id="8" stage="93" lat="100">
+<operation id="89" st_id="8" stage="66" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -868,16 +706,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="9" st_id="9">
 
-<operation id="117" st_id="9" stage="92" lat="100">
+<operation id="90" st_id="9" stage="65" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -886,16 +724,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="10" st_id="10">
 
-<operation id="118" st_id="10" stage="91" lat="100">
+<operation id="91" st_id="10" stage="64" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -904,16 +742,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="11" st_id="11">
 
-<operation id="119" st_id="11" stage="90" lat="100">
+<operation id="92" st_id="11" stage="63" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -922,16 +760,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="12" st_id="12">
 
-<operation id="120" st_id="12" stage="89" lat="100">
+<operation id="93" st_id="12" stage="62" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -940,16 +778,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="13" st_id="13">
 
-<operation id="121" st_id="13" stage="88" lat="100">
+<operation id="94" st_id="13" stage="61" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -958,16 +796,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="14" st_id="14">
 
-<operation id="122" st_id="14" stage="87" lat="100">
+<operation id="95" st_id="14" stage="60" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -976,16 +814,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="15" st_id="15">
 
-<operation id="123" st_id="15" stage="86" lat="100">
+<operation id="96" st_id="15" stage="59" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -994,16 +832,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="16" st_id="16">
 
-<operation id="124" st_id="16" stage="85" lat="100">
+<operation id="97" st_id="16" stage="58" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1012,16 +850,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="17" st_id="17">
 
-<operation id="125" st_id="17" stage="84" lat="100">
+<operation id="98" st_id="17" stage="57" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1030,16 +868,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="18" st_id="18">
 
-<operation id="126" st_id="18" stage="83" lat="100">
+<operation id="99" st_id="18" stage="56" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1048,16 +886,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="19" st_id="19">
 
-<operation id="127" st_id="19" stage="82" lat="100">
+<operation id="100" st_id="19" stage="55" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1066,16 +904,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="20" st_id="20">
 
-<operation id="128" st_id="20" stage="81" lat="100">
+<operation id="101" st_id="20" stage="54" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1084,16 +922,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="21" st_id="21">
 
-<operation id="129" st_id="21" stage="80" lat="100">
+<operation id="102" st_id="21" stage="53" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1102,16 +940,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="22" st_id="22">
 
-<operation id="130" st_id="22" stage="79" lat="100">
+<operation id="103" st_id="22" stage="52" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1120,16 +958,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="23" st_id="23">
 
-<operation id="131" st_id="23" stage="78" lat="100">
+<operation id="104" st_id="23" stage="51" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1138,16 +976,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="24" st_id="24">
 
-<operation id="132" st_id="24" stage="77" lat="100">
+<operation id="105" st_id="24" stage="50" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1156,16 +994,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="25" st_id="25">
 
-<operation id="133" st_id="25" stage="76" lat="100">
+<operation id="106" st_id="25" stage="49" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1174,16 +1012,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="26" st_id="26">
 
-<operation id="134" st_id="26" stage="75" lat="100">
+<operation id="107" st_id="26" stage="48" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1192,16 +1030,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="27" st_id="27">
 
-<operation id="135" st_id="27" stage="74" lat="100">
+<operation id="108" st_id="27" stage="47" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1210,16 +1048,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="28" st_id="28">
 
-<operation id="136" st_id="28" stage="73" lat="100">
+<operation id="109" st_id="28" stage="46" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1228,16 +1066,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="29" st_id="29">
 
-<operation id="137" st_id="29" stage="72" lat="100">
+<operation id="110" st_id="29" stage="45" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1246,16 +1084,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="30" st_id="30">
 
-<operation id="138" st_id="30" stage="71" lat="100">
+<operation id="111" st_id="30" stage="44" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1264,16 +1102,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="31" st_id="31">
 
-<operation id="139" st_id="31" stage="70" lat="100">
+<operation id="112" st_id="31" stage="43" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1282,16 +1120,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="32" st_id="32">
 
-<operation id="140" st_id="32" stage="69" lat="100">
+<operation id="113" st_id="32" stage="42" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1300,16 +1138,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="33" st_id="33">
 
-<operation id="141" st_id="33" stage="68" lat="100">
+<operation id="114" st_id="33" stage="41" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1318,16 +1156,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="34" st_id="34">
 
-<operation id="142" st_id="34" stage="67" lat="100">
+<operation id="115" st_id="34" stage="40" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1336,16 +1174,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="35" st_id="35">
 
-<operation id="143" st_id="35" stage="66" lat="100">
+<operation id="116" st_id="35" stage="39" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1354,16 +1192,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="36" st_id="36">
 
-<operation id="144" st_id="36" stage="65" lat="100">
+<operation id="117" st_id="36" stage="38" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1372,16 +1210,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="37" st_id="37">
 
-<operation id="145" st_id="37" stage="64" lat="100">
+<operation id="118" st_id="37" stage="37" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1390,16 +1228,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="38" st_id="38">
 
-<operation id="146" st_id="38" stage="63" lat="100">
+<operation id="119" st_id="38" stage="36" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1408,16 +1246,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="39" st_id="39">
 
-<operation id="147" st_id="39" stage="62" lat="100">
+<operation id="120" st_id="39" stage="35" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1426,16 +1264,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="40" st_id="40">
 
-<operation id="148" st_id="40" stage="61" lat="100">
+<operation id="121" st_id="40" stage="34" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1444,16 +1282,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="41" st_id="41">
 
-<operation id="149" st_id="41" stage="60" lat="100">
+<operation id="122" st_id="41" stage="33" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1462,16 +1300,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="42" st_id="42">
 
-<operation id="150" st_id="42" stage="59" lat="100">
+<operation id="123" st_id="42" stage="32" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1480,16 +1318,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="43" st_id="43">
 
-<operation id="151" st_id="43" stage="58" lat="100">
+<operation id="124" st_id="43" stage="31" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1498,16 +1336,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="44" st_id="44">
 
-<operation id="152" st_id="44" stage="57" lat="100">
+<operation id="125" st_id="44" stage="30" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1516,16 +1354,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="45" st_id="45">
 
-<operation id="153" st_id="45" stage="56" lat="100">
+<operation id="126" st_id="45" stage="29" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1534,16 +1372,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="46" st_id="46">
 
-<operation id="154" st_id="46" stage="55" lat="100">
+<operation id="127" st_id="46" stage="28" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1552,16 +1390,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="47" st_id="47">
 
-<operation id="155" st_id="47" stage="54" lat="100">
+<operation id="128" st_id="47" stage="27" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1570,16 +1408,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="48" st_id="48">
 
-<operation id="156" st_id="48" stage="53" lat="100">
+<operation id="129" st_id="48" stage="26" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1588,16 +1426,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="49" st_id="49">
 
-<operation id="157" st_id="49" stage="52" lat="100">
+<operation id="130" st_id="49" stage="25" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1606,16 +1444,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="50" st_id="50">
 
-<operation id="158" st_id="50" stage="51" lat="100">
+<operation id="131" st_id="50" stage="24" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1624,16 +1462,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="51" st_id="51">
 
-<operation id="159" st_id="51" stage="50" lat="100">
+<operation id="132" st_id="51" stage="23" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1642,16 +1480,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="52" st_id="52">
 
-<operation id="160" st_id="52" stage="49" lat="100">
+<operation id="133" st_id="52" stage="22" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1660,16 +1498,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="53" st_id="53">
 
-<operation id="161" st_id="53" stage="48" lat="100">
+<operation id="134" st_id="53" stage="21" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1678,16 +1516,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="54" st_id="54">
 
-<operation id="162" st_id="54" stage="47" lat="100">
+<operation id="135" st_id="54" stage="20" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1696,16 +1534,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="55" st_id="55">
 
-<operation id="163" st_id="55" stage="46" lat="100">
+<operation id="136" st_id="55" stage="19" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1714,16 +1552,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="56" st_id="56">
 
-<operation id="164" st_id="56" stage="45" lat="100">
+<operation id="137" st_id="56" stage="18" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1732,16 +1570,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="57" st_id="57">
 
-<operation id="165" st_id="57" stage="44" lat="100">
+<operation id="138" st_id="57" stage="17" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1750,16 +1588,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="58" st_id="58">
 
-<operation id="166" st_id="58" stage="43" lat="100">
+<operation id="139" st_id="58" stage="16" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1768,16 +1606,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="59" st_id="59">
 
-<operation id="167" st_id="59" stage="42" lat="100">
+<operation id="140" st_id="59" stage="15" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1786,16 +1624,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="60" st_id="60">
 
-<operation id="168" st_id="60" stage="41" lat="100">
+<operation id="141" st_id="60" stage="14" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1804,16 +1642,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="61" st_id="61">
 
-<operation id="169" st_id="61" stage="40" lat="100">
+<operation id="142" st_id="61" stage="13" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1822,16 +1660,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="62" st_id="62">
 
-<operation id="170" st_id="62" stage="39" lat="100">
+<operation id="143" st_id="62" stage="12" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1840,16 +1678,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="63" st_id="63">
 
-<operation id="171" st_id="63" stage="38" lat="100">
+<operation id="144" st_id="63" stage="11" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1858,16 +1696,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="64" st_id="64">
 
-<operation id="172" st_id="64" stage="37" lat="100">
+<operation id="145" st_id="64" stage="10" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1876,16 +1714,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="65" st_id="65">
 
-<operation id="173" st_id="65" stage="36" lat="100">
+<operation id="146" st_id="65" stage="9" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1894,16 +1732,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="66" st_id="66">
 
-<operation id="174" st_id="66" stage="35" lat="100">
+<operation id="147" st_id="66" stage="8" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1912,16 +1750,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="67" st_id="67">
 
-<operation id="175" st_id="67" stage="34" lat="100">
+<operation id="148" st_id="67" stage="7" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1930,16 +1768,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="68" st_id="68">
 
-<operation id="176" st_id="68" stage="33" lat="100">
+<operation id="149" st_id="68" stage="6" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1948,16 +1786,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="69" st_id="69">
 
-<operation id="177" st_id="69" stage="32" lat="100">
+<operation id="150" st_id="69" stage="5" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1966,16 +1804,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="70" st_id="70">
 
-<operation id="178" st_id="70" stage="31" lat="100">
+<operation id="151" st_id="70" stage="4" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -1984,16 +1822,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="71" st_id="71">
 
-<operation id="179" st_id="71" stage="30" lat="100">
+<operation id="152" st_id="71" stage="3" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -2002,16 +1840,16 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="72" st_id="72">
 
-<operation id="180" st_id="72" stage="29" lat="100">
+<operation id="153" st_id="72" stage="2" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
@@ -2020,517 +1858,31 @@ entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_r
 
 <state id="73" st_id="73">
 
-<operation id="181" st_id="73" stage="28" lat="100">
+<operation id="154" st_id="73" stage="1" lat="73">
 <core></core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
+<Node id="21" bw="1040" op_0_bw="1040" op_1_bw="23" op_2_bw="23" op_3_bw="23" op_4_bw="23" op_5_bw="23" op_6_bw="14" op_7_bw="23" op_8_bw="23" op_9_bw="14" op_10_bw="13" op_11_bw="14" op_12_bw="13">
 <![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="74" st_id="74">
-
-<operation id="182" st_id="74" stage="27" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="75" st_id="75">
-
-<operation id="183" st_id="75" stage="26" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="76" st_id="76">
-
-<operation id="184" st_id="76" stage="25" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="77" st_id="77">
-
-<operation id="185" st_id="77" stage="24" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="78" st_id="78">
-
-<operation id="186" st_id="78" stage="23" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="79" st_id="79">
-
-<operation id="187" st_id="79" stage="22" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="80" st_id="80">
-
-<operation id="188" st_id="80" stage="21" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="81" st_id="81">
-
-<operation id="189" st_id="81" stage="20" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="82" st_id="82">
-
-<operation id="190" st_id="82" stage="19" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="83" st_id="83">
-
-<operation id="191" st_id="83" stage="18" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="84" st_id="84">
-
-<operation id="192" st_id="84" stage="17" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="85" st_id="85">
-
-<operation id="193" st_id="85" stage="16" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="86" st_id="86">
-
-<operation id="194" st_id="86" stage="15" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="87" st_id="87">
-
-<operation id="195" st_id="87" stage="14" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="88" st_id="88">
-
-<operation id="196" st_id="88" stage="13" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="89" st_id="89">
-
-<operation id="197" st_id="89" stage="12" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="90" st_id="90">
-
-<operation id="198" st_id="90" stage="11" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="91" st_id="91">
-
-<operation id="199" st_id="91" stage="10" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="92" st_id="92">
-
-<operation id="200" st_id="92" stage="9" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="93" st_id="93">
-
-<operation id="201" st_id="93" stage="8" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="94" st_id="94">
-
-<operation id="202" st_id="94" stage="7" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="95" st_id="95">
-
-<operation id="203" st_id="95" stage="6" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="96" st_id="96">
-
-<operation id="204" st_id="96" stage="5" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="97" st_id="97">
-
-<operation id="205" st_id="97" stage="4" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="98" st_id="98">
-
-<operation id="206" st_id="98" stage="3" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="99" st_id="99">
-
-<operation id="207" st_id="99" stage="2" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
-
-]]></Node>
-<StgValue><ssdm name="call_ret"/></StgValue>
-</operation>
-</state>
-
-<state id="100" st_id="100">
-
-<operation id="208" st_id="100" stage="1" lat="100">
-<core></core>
-<MemPortIdVec></MemPortIdVec>
-<condition id="-1">
-<or_exp><and_exp></and_exp></or_exp>
-</condition>
-
-<Node id="21" bw="1280" op_0_bw="1280" op_1_bw="27" op_2_bw="27" op_3_bw="27" op_4_bw="27" op_5_bw="27" op_6_bw="18" op_7_bw="27" op_8_bw="27" op_9_bw="19" op_10_bw="18" op_11_bw="19" op_12_bw="18">
-<![CDATA[
-entry:8 %call_ret = call i1280 @compute_frenet_AB_hls, i27 %ey_read, i27 %epsi_read, i27 %vx_read, i27 %vy_read, i27 %omega_read, i18 %delta_read, i27 %a_cmd_read, i27 %kappa_read, i19 %recip_lut_fn, i18 %sin_lut_fn, i19 %cos_lut_fn, i18 %atan_lut_fn
+entry:8 %call_ret = call i1040 @compute_frenet_AB_hls, i23 %ey_read, i23 %epsi_read, i23 %vx_read, i23 %vy_read, i23 %omega_read, i14 %delta_read, i23 %a_cmd_read, i23 %kappa_read, i14 %recip_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i13 %atan_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret"/></StgValue>
 </operation>
 
-<operation id="209" st_id="100" stage="1" lat="1">
+<operation id="155" st_id="73" stage="1" lat="1">
 <core>NULL</core>
 <MemPortIdVec></MemPortIdVec>
 <condition id="-1">
 <or_exp><and_exp></and_exp></or_exp>
 </condition>
 
-<Node id="22" bw="0" op_0_bw="1280">
+<Node id="22" bw="0" op_0_bw="1040">
 <![CDATA[
-entry:9 %ret_ln761 = ret i1280 %call_ret
+entry:9 %ret_ln761 = ret i1040 %call_ret
 
 ]]></Node>
 <StgValue><ssdm name="ret_ln761"/></StgValue>

@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'mpc_fpga_top_opencl'" level="0">
-<item name = "Date">Thu May 21 15:23:07 2026
+<item name = "Date">Thu Jun 11 16:06:56 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">161, 151272, 0.805 us, 0.756 ms, 162, 151273, no</column>
+<column name="">161, 101605, 0.805 us, 0.508 ms, 162, 101606, no</column>
 </table>
 </item>
 <item name = "Detail">

@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'reset_admm_state_hls'
 ================================================================
-* Date:           Thu May 21 15:23:10 2026
+* Date:           Thu Jun 11 16:07:02 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -38,8 +38,8 @@
         |                                                          |                                                |  Latency (cycles) |  Latency (absolute) |  Interval |      Pipeline     |
         |                         Instance                         |                     Module                     |   min   |   max   |    min   |    max   | min | max |        Type       |
         +----------------------------------------------------------+------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
-        |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54  |reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
-        |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90  |reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
+        |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54  |reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
+        |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90  |reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
         +----------------------------------------------------------+------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
 
         * Loop: 
@@ -74,8 +74,8 @@
     +----------------------------------------------------------+------------------------------------------------+---------+----+---+----+-----+
     |                         Instance                         |                     Module                     | BRAM_18K| DSP| FF| LUT| URAM|
     +----------------------------------------------------------+------------------------------------------------+---------+----+---+----+-----+
-    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54  |reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1  |        0|   0|  7|  51|    0|
-    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90  |reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3  |        0|   0|  7|  51|    0|
+    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54  |reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1  |        0|   0|  7|  51|    0|
+    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90  |reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3  |        0|   0|  7|  51|    0|
     +----------------------------------------------------------+------------------------------------------------+---------+----+---+----+-----+
     |Total                                                     |                                                |        0|   0| 14| 102|    0|
     +----------------------------------------------------------+------------------------------------------------+---------+----+---+----+-----+
@@ -112,8 +112,8 @@
     |                                  Name                                 | FF| LUT| Bits| Const Bits|
     +-----------------------------------------------------------------------+---+----+-----+-----------+
     |ap_CS_fsm                                                              |  2|   0|    2|          0|
-    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_ap_start_reg  |  1|   0|    1|          0|
-    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_ap_start_reg  |  1|   0|    1|          0|
+    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54_ap_start_reg  |  1|   0|    1|          0|
+    |grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90_ap_start_reg  |  1|   0|    1|          0|
     +-----------------------------------------------------------------------+---+----+-----+-----------+
     |Total                                                                  |  4|   0|    4|          0|
     +-----------------------------------------------------------------------+---+----+-----+-----------+
@@ -136,86 +136,86 @@
 |p_anonymous_namespace_g_core_state_admm_z_x_0_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_0_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_0_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_0_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_0_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_1_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_1_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_2_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_2_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_3_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_3_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_4_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_4_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_5_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_5_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_6_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_6_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_7_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_7_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_0_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_0_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_1_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_1_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_2_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_2_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_3_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_3_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_4_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_4_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_5_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_5_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_6_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_6_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_7_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_7_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
-|p_anonymous_namespace_g_core_state_admm_z_u_0_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
+|p_anonymous_namespace_g_core_state_admm_z_u_0_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_z_u_1_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
+|p_anonymous_namespace_g_core_state_admm_z_u_1_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
-|p_anonymous_namespace_g_core_state_admm_y_u_0_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
+|p_anonymous_namespace_g_core_state_admm_y_u_0_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_address0      |  out|    5|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_ce0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_we0           |  out|    1|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_y_u_1_d0            |  out|   32|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_rho                 |  out|   32|      ap_vld|          p_anonymous_namespace_g_core_state_admm_rho|       pointer|
+|p_anonymous_namespace_g_core_state_admm_y_u_1_d0            |  out|   26|   ap_memory|        p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
+|p_anonymous_namespace_g_core_state_admm_rho                 |  out|   26|      ap_vld|          p_anonymous_namespace_g_core_state_admm_rho|       pointer|
 |p_anonymous_namespace_g_core_state_admm_rho_ap_vld          |  out|    1|      ap_vld|          p_anonymous_namespace_g_core_state_admm_rho|       pointer|
-|p_anonymous_namespace_g_core_state_admm_rho_u               |  out|   32|      ap_vld|        p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
+|p_anonymous_namespace_g_core_state_admm_rho_u               |  out|   26|      ap_vld|        p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
 |p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld        |  out|    1|      ap_vld|        p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
 |p_anonymous_namespace_g_core_state_admm_initialized         |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_admm_initialized|       pointer|
 |p_anonymous_namespace_g_core_state_admm_initialized_ap_vld  |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_admm_initialized|       pointer|
@@ -258,16 +258,16 @@ IsGatedGlobalClock: 0
 * FSM state operations: 
 
 State 1 <SV = 0> <Delay = 0.00>
-ST_1 : Operation 3 [2/2] (0.00ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 3 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
-ST_1 : Operation 4 [2/2] (0.00ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 4 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
+ST_1 : Operation 3 [2/2] (0.00ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_0, i26 %p_anonymous_namespace_g_core_state_admm_z_x_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_2, i26 %p_anonymous_namespace_g_core_state_admm_z_x_3, i26 %p_anonymous_namespace_g_core_state_admm_z_x_4, i26 %p_anonymous_namespace_g_core_state_admm_z_x_5, i26 %p_anonymous_namespace_g_core_state_admm_z_x_6, i26 %p_anonymous_namespace_g_core_state_admm_z_x_7, i26 %p_anonymous_namespace_g_core_state_admm_y_x_0, i26 %p_anonymous_namespace_g_core_state_admm_y_x_1, i26 %p_anonymous_namespace_g_core_state_admm_y_x_2, i26 %p_anonymous_namespace_g_core_state_admm_y_x_3, i26 %p_anonymous_namespace_g_core_state_admm_y_x_4, i26 %p_anonymous_namespace_g_core_state_admm_y_x_5, i26 %p_anonymous_namespace_g_core_state_admm_y_x_6, i26 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 3 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
+ST_1 : Operation 4 [2/2] (0.00ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3, i26 %p_anonymous_namespace_g_core_state_admm_z_u_0, i26 %p_anonymous_namespace_g_core_state_admm_z_u_1, i26 %p_anonymous_namespace_g_core_state_admm_y_u_0, i26 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 4 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
 
 State 2 <SV = 1> <Delay = 1.64>
-ST_2 : Operation 5 [1/2] (1.64ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 5 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
-ST_2 : Operation 6 [1/2] (1.64ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 6 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
-ST_2 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln380 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho" [include/mpc_fpga_types.h:380->../src/mpc_riccati_hls.cpp:114]   --->   Operation 7 'store' 'store_ln380' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln381 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho_u" [include/mpc_fpga_types.h:381->../src/mpc_riccati_hls.cpp:114]   --->   Operation 8 'store' 'store_ln381' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln382 = store i1 0, i1 %p_anonymous_namespace_g_core_state_admm_initialized" [include/mpc_fpga_types.h:382->../src/mpc_riccati_hls.cpp:114]   --->   Operation 9 'store' 'store_ln382' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln115 = ret" [../src/mpc_riccati_hls.cpp:115]   --->   Operation 10 'ret' 'ret_ln115' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 5 [1/2] (1.64ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_0, i26 %p_anonymous_namespace_g_core_state_admm_z_x_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_2, i26 %p_anonymous_namespace_g_core_state_admm_z_x_3, i26 %p_anonymous_namespace_g_core_state_admm_z_x_4, i26 %p_anonymous_namespace_g_core_state_admm_z_x_5, i26 %p_anonymous_namespace_g_core_state_admm_z_x_6, i26 %p_anonymous_namespace_g_core_state_admm_z_x_7, i26 %p_anonymous_namespace_g_core_state_admm_y_x_0, i26 %p_anonymous_namespace_g_core_state_admm_y_x_1, i26 %p_anonymous_namespace_g_core_state_admm_y_x_2, i26 %p_anonymous_namespace_g_core_state_admm_y_x_3, i26 %p_anonymous_namespace_g_core_state_admm_y_x_4, i26 %p_anonymous_namespace_g_core_state_admm_y_x_5, i26 %p_anonymous_namespace_g_core_state_admm_y_x_6, i26 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 5 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
+ST_2 : Operation 6 [1/2] (1.64ns)   --->   "%call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3, i26 %p_anonymous_namespace_g_core_state_admm_z_u_0, i26 %p_anonymous_namespace_g_core_state_admm_z_u_1, i26 %p_anonymous_namespace_g_core_state_admm_y_u_0, i26 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 6 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
+ST_2 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln338 = store i26 0, i26 %p_anonymous_namespace_g_core_state_admm_rho" [include/mpc_fpga_types.h:338->../src/mpc_riccati_hls.cpp:112]   --->   Operation 7 'store' 'store_ln338' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln339 = store i26 0, i26 %p_anonymous_namespace_g_core_state_admm_rho_u" [include/mpc_fpga_types.h:339->../src/mpc_riccati_hls.cpp:112]   --->   Operation 8 'store' 'store_ln339' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln340 = store i1 0, i1 %p_anonymous_namespace_g_core_state_admm_initialized" [include/mpc_fpga_types.h:340->../src/mpc_riccati_hls.cpp:112]   --->   Operation 9 'store' 'store_ln340' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln113 = ret" [../src/mpc_riccati_hls.cpp:113]   --->   Operation 10 'ret' 'ret_ln113' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================
@@ -312,10 +312,10 @@ Port [ p_anonymous_namespace_g_core_state_admm_initialized]:  wired=1; compound=
 <method=bitvector/>
 call_ln0    (call ) [ 000]
 call_ln0    (call ) [ 000]
-store_ln380 (store) [ 000]
-store_ln381 (store) [ 000]
-store_ln382 (store) [ 000]
-ret_ln115   (ret  ) [ 000]
+store_ln338 (store) [ 000]
+store_ln339 (store) [ 000]
+store_ln340 (store) [ 000]
+ret_ln113   (ret  ) [ 000]
 </LifeTime>
 
 <model>
@@ -553,7 +553,7 @@ ret_ln115   (ret  ) [ 000]
 <pin id="47" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1"/></StgValue>
+<StgValue><ssdm name="reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1"/></StgValue>
 </bind>
 </comp>
 
@@ -562,7 +562,7 @@ ret_ln115   (ret  ) [ 000]
 <pin id="49" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3"/></StgValue>
+<StgValue><ssdm name="reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3"/></StgValue>
 </bind>
 </comp>
 
@@ -584,25 +584,25 @@ ret_ln115   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="54" class="1004" name="grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54">
+<comp id="54" class="1004" name="grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54">
 <pin_list>
 <pin id="55" dir="0" index="0" bw="0" slack="0"/>
-<pin id="56" dir="0" index="1" bw="32" slack="0"/>
-<pin id="57" dir="0" index="2" bw="32" slack="0"/>
-<pin id="58" dir="0" index="3" bw="32" slack="0"/>
-<pin id="59" dir="0" index="4" bw="32" slack="0"/>
-<pin id="60" dir="0" index="5" bw="32" slack="0"/>
-<pin id="61" dir="0" index="6" bw="32" slack="0"/>
-<pin id="62" dir="0" index="7" bw="32" slack="0"/>
-<pin id="63" dir="0" index="8" bw="32" slack="0"/>
-<pin id="64" dir="0" index="9" bw="32" slack="0"/>
-<pin id="65" dir="0" index="10" bw="32" slack="0"/>
-<pin id="66" dir="0" index="11" bw="32" slack="0"/>
-<pin id="67" dir="0" index="12" bw="32" slack="0"/>
-<pin id="68" dir="0" index="13" bw="32" slack="0"/>
-<pin id="69" dir="0" index="14" bw="32" slack="0"/>
-<pin id="70" dir="0" index="15" bw="32" slack="0"/>
-<pin id="71" dir="0" index="16" bw="32" slack="0"/>
+<pin id="56" dir="0" index="1" bw="26" slack="0"/>
+<pin id="57" dir="0" index="2" bw="26" slack="0"/>
+<pin id="58" dir="0" index="3" bw="26" slack="0"/>
+<pin id="59" dir="0" index="4" bw="26" slack="0"/>
+<pin id="60" dir="0" index="5" bw="26" slack="0"/>
+<pin id="61" dir="0" index="6" bw="26" slack="0"/>
+<pin id="62" dir="0" index="7" bw="26" slack="0"/>
+<pin id="63" dir="0" index="8" bw="26" slack="0"/>
+<pin id="64" dir="0" index="9" bw="26" slack="0"/>
+<pin id="65" dir="0" index="10" bw="26" slack="0"/>
+<pin id="66" dir="0" index="11" bw="26" slack="0"/>
+<pin id="67" dir="0" index="12" bw="26" slack="0"/>
+<pin id="68" dir="0" index="13" bw="26" slack="0"/>
+<pin id="69" dir="0" index="14" bw="26" slack="0"/>
+<pin id="70" dir="0" index="15" bw="26" slack="0"/>
+<pin id="71" dir="0" index="16" bw="26" slack="0"/>
 <pin id="72" dir="1" index="17" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
@@ -611,13 +611,13 @@ ret_ln115   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="90" class="1004" name="grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90">
+<comp id="90" class="1004" name="grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90">
 <pin_list>
 <pin id="91" dir="0" index="0" bw="0" slack="0"/>
-<pin id="92" dir="0" index="1" bw="32" slack="0"/>
-<pin id="93" dir="0" index="2" bw="32" slack="0"/>
-<pin id="94" dir="0" index="3" bw="32" slack="0"/>
-<pin id="95" dir="0" index="4" bw="32" slack="0"/>
+<pin id="92" dir="0" index="1" bw="26" slack="0"/>
+<pin id="93" dir="0" index="2" bw="26" slack="0"/>
+<pin id="94" dir="0" index="3" bw="26" slack="0"/>
+<pin id="95" dir="0" index="4" bw="26" slack="0"/>
 <pin id="96" dir="1" index="5" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
@@ -626,31 +626,31 @@ ret_ln115   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="102" class="1004" name="store_ln380_store_fu_102">
+<comp id="102" class="1004" name="store_ln338_store_fu_102">
 <pin_list>
 <pin id="103" dir="0" index="0" bw="1" slack="0"/>
-<pin id="104" dir="0" index="1" bw="32" slack="0"/>
+<pin id="104" dir="0" index="1" bw="26" slack="0"/>
 <pin id="105" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln380/2 "/>
+<opset="store_ln338/2 "/>
 </bind>
 </comp>
 
-<comp id="108" class="1004" name="store_ln381_store_fu_108">
+<comp id="108" class="1004" name="store_ln339_store_fu_108">
 <pin_list>
 <pin id="109" dir="0" index="0" bw="1" slack="0"/>
-<pin id="110" dir="0" index="1" bw="32" slack="0"/>
+<pin id="110" dir="0" index="1" bw="26" slack="0"/>
 <pin id="111" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln381/2 "/>
+<opset="store_ln339/2 "/>
 </bind>
 </comp>
 
-<comp id="114" class="1004" name="store_ln382_store_fu_114">
+<comp id="114" class="1004" name="store_ln340_store_fu_114">
 <pin_list>
 <pin id="115" dir="0" index="0" bw="1" slack="0"/>
 <pin id="116" dir="0" index="1" bw="1" slack="0"/>
@@ -658,7 +658,7 @@ ret_ln115   (ret  ) [ 000]
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln382/2 "/>
+<opset="store_ln340/2 "/>
 </bind>
 </comp>
 
@@ -788,8 +788,8 @@ ret_ln115   (ret  ) [ 000]
 |----------|----------------------------------------------------------|---------|---------|
 | Operation|                      Functional Unit                     |    FF   |   LUT   |
 |----------|----------------------------------------------------------|---------|---------|
-|   call   | grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54 |    5    |    24   |
-|          | grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90 |    5    |    24   |
+|   call   | grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_322_1_fu_54 |    5    |    24   |
+|          | grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_330_3_fu_90 |    5    |    24   |
 |----------|----------------------------------------------------------|---------|---------|
 |   Total  |                                                          |    10   |    48   |
 |----------|----------------------------------------------------------|---------|---------|

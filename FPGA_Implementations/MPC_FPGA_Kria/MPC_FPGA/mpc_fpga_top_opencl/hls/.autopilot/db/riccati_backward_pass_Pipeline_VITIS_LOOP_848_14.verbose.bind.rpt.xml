@@ -1,0 +1,51 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'riccati_backward_pass_Pipeline_VITIS_LOOP_848_14'" level="0">
+<item name = "Date">Thu Jun 11 16:06:52 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 4.222 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">10, 10, 50.000 ns, 50.000 ns, 0, 0, loop pipeline stp</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+<column name="sum_sum6_P_QP_raw_fu_1092">sum6_P_QP_raw, 0, 0, 0 ns, 0 ns, 1, 1, yes</column>
+<column name="sum_7_sum6_P_QP_raw_fu_1102">sum6_P_QP_raw, 0, 0, 0 ns, 0 ns, 1, 1, yes</column>
+<column name="sum_8_sum6_P_QP_raw_fu_1112">sum6_P_QP_raw, 0, 0, 0 ns, 0 ns, 1, 1, yes</column>
+<column name="sum_9_sum6_P_QP_raw_fu_1122">sum6_P_QP_raw, 0, 0, 0 ns, 0 ns, 1, 1, yes</column>
+<column name="sum_10_sum6_P_QP_raw_fu_1132">sum6_P_QP_raw, 0, 0, 0 ns, 0 ns, 1, 1, yes</column>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+<column name="- VITIS_LOOP_848_14">8, 8, 4, 1, 1, 6, yes</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+</profile>

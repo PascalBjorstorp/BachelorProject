@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>fp_atan_lut_fn</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>26</ret_bitwidth>
+		<ret_bitwidth>21</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>1</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -59,7 +59,7 @@
 						<name>x_read</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>764</lineNumber>
+						<lineNumber>627</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -75,7 +75,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>764</second>
+										<second>627</second>
 									</item>
 								</second>
 							</item>
@@ -91,7 +91,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -116,7 +116,7 @@
 						<name>neg</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>773</lineNumber>
+						<lineNumber>636</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -132,7 +132,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>773</second>
+										<second>636</second>
 									</item>
 								</second>
 							</item>
@@ -174,7 +174,7 @@
 						<name>abs_x</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>774</lineNumber>
+						<lineNumber>637</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -190,7 +190,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>774</second>
+										<second>637</second>
 									</item>
 								</second>
 							</item>
@@ -206,7 +206,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -219,7 +219,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.95</m_delay>
+				<m_delay>0.90</m_delay>
 				<m_topoIndex>3</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -231,7 +231,7 @@
 						<name>abs_x_2</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>774</lineNumber>
+						<lineNumber>637</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -247,7 +247,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>774</second>
+										<second>637</second>
 									</item>
 								</second>
 							</item>
@@ -263,7 +263,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
@@ -277,7 +277,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.32</m_delay>
+				<m_delay>0.35</m_delay>
 				<m_topoIndex>4</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -289,7 +289,7 @@
 						<name>scaled</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>778</lineNumber>
+						<lineNumber>641</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -305,7 +305,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>778</second>
+										<second>641</second>
 									</item>
 								</second>
 							</item>
@@ -321,7 +321,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -343,10 +343,10 @@
 					<Obj>
 						<type>0</type>
 						<id>9</id>
-						<name>trunc_ln779_1</name>
+						<name>trunc_ln642_1</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>779</lineNumber>
+						<lineNumber>642</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -362,7 +362,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>779</second>
+										<second>642</second>
 									</item>
 								</second>
 							</item>
@@ -405,7 +405,7 @@
 						<name>tmp</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>780</lineNumber>
+						<lineNumber>643</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -421,7 +421,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>780</second>
+										<second>643</second>
 									</item>
 								</second>
 							</item>
@@ -463,7 +463,7 @@
 						<name>idx</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>780</lineNumber>
+						<lineNumber>643</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -479,7 +479,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>780</second>
+										<second>643</second>
 									</item>
 								</second>
 							</item>
@@ -518,10 +518,10 @@
 					<Obj>
 						<type>0</type>
 						<id>12</id>
-						<name>trunc_ln779</name>
+						<name>trunc_ln642</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>779</lineNumber>
+						<lineNumber>642</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -537,7 +537,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>779</second>
+										<second>642</second>
 									</item>
 								</second>
 							</item>
@@ -577,7 +577,7 @@
 						<name>tmp_105</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>782</lineNumber>
+						<lineNumber>645</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -593,7 +593,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>782</second>
+										<second>645</second>
 									</item>
 								</second>
 							</item>
@@ -616,8 +616,8 @@
 					<item_version>0</item_version>
 					<item>76</item>
 					<item>77</item>
-					<item>78</item>
-					<item>80</item>
+					<item>79</item>
+					<item>81</item>
 				</oprand_edges>
 				<opcode>partselect</opcode>
 				<m_Display>0</m_Display>
@@ -633,10 +633,10 @@
 					<Obj>
 						<type>0</type>
 						<id>14</id>
-						<name>icmp_ln782</name>
+						<name>icmp_ln645</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>782</lineNumber>
+						<lineNumber>645</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -652,7 +652,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>782</second>
+										<second>645</second>
 									</item>
 								</second>
 							</item>
@@ -673,8 +673,8 @@
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>81</item>
-					<item>83</item>
+					<item>82</item>
+					<item>84</item>
 				</oprand_edges>
 				<opcode>icmp</opcode>
 				<m_Display>0</m_Display>
@@ -690,10 +690,10 @@
 					<Obj>
 						<type>0</type>
 						<id>15</id>
-						<name>idx_3</name>
+						<name>idx_1</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>782</lineNumber>
+						<lineNumber>645</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -709,7 +709,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>782</second>
+										<second>645</second>
 									</item>
 								</second>
 							</item>
@@ -730,9 +730,9 @@
 				<oprand_edges>
 					<count>3</count>
 					<item_version>0</item_version>
-					<item>84</item>
-					<item>86</item>
+					<item>85</item>
 					<item>87</item>
+					<item>88</item>
 				</oprand_edges>
 				<opcode>select</opcode>
 				<m_Display>0</m_Display>
@@ -748,10 +748,10 @@
 					<Obj>
 						<type>0</type>
 						<id>16</id>
-						<name>zext_ln779</name>
+						<name>zext_ln642</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>779</lineNumber>
+						<lineNumber>642</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -767,7 +767,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>779</second>
+										<second>642</second>
 									</item>
 								</second>
 							</item>
@@ -788,7 +788,7 @@
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>88</item>
+					<item>89</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -804,10 +804,10 @@
 					<Obj>
 						<type>0</type>
 						<id>17</id>
-						<name>zext_ln786</name>
+						<name>zext_ln649</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>786</lineNumber>
+						<lineNumber>649</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -823,7 +823,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>786</second>
+										<second>649</second>
 									</item>
 								</second>
 							</item>
@@ -844,7 +844,7 @@
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>89</item>
+					<item>90</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -860,10 +860,10 @@
 					<Obj>
 						<type>0</type>
 						<id>18</id>
-						<name>trunc_ln786</name>
+						<name>trunc_ln649</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>786</lineNumber>
+						<lineNumber>649</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -879,7 +879,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>786</second>
+										<second>649</second>
 									</item>
 								</second>
 							</item>
@@ -900,7 +900,7 @@
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>90</item>
+					<item>91</item>
 				</oprand_edges>
 				<opcode>trunc</opcode>
 				<m_Display>0</m_Display>
@@ -919,7 +919,7 @@
 						<name>shl_ln</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>786</lineNumber>
+						<lineNumber>649</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -935,7 +935,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>786</second>
+										<second>649</second>
 									</item>
 								</second>
 							</item>
@@ -951,14 +951,14 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
 					<item_version>0</item_version>
-					<item>92</item>
 					<item>93</item>
-					<item>95</item>
+					<item>94</item>
+					<item>96</item>
 				</oprand_edges>
 				<opcode>bitconcatenate</opcode>
 				<m_Display>0</m_Display>
@@ -977,7 +977,7 @@
 						<name>frac_raw</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>786</lineNumber>
+						<lineNumber>649</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -993,7 +993,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>786</second>
+										<second>649</second>
 									</item>
 								</second>
 							</item>
@@ -1009,20 +1009,20 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>96</item>
 					<item>97</item>
+					<item>98</item>
 				</oprand_edges>
 				<opcode>sub</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.95</m_delay>
+				<m_delay>0.90</m_delay>
 				<m_topoIndex>16</m_topoIndex>
 				<m_clusterGroupNumber>1</m_clusterGroupNumber>
 			</item>
@@ -1034,7 +1034,7 @@
 						<name>atan_lut_fn_addr</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>787</lineNumber>
+						<lineNumber>650</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1050,7 +1050,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>787</second>
+										<second>650</second>
 									</item>
 								</second>
 							</item>
@@ -1071,9 +1071,9 @@
 				<oprand_edges>
 					<count>3</count>
 					<item_version>0</item_version>
-					<item>98</item>
-					<item>100</item>
+					<item>99</item>
 					<item>101</item>
+					<item>102</item>
 				</oprand_edges>
 				<opcode>getelementptr</opcode>
 				<m_Display>0</m_Display>
@@ -1092,7 +1092,7 @@
 						<name>value</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>787</lineNumber>
+						<lineNumber>650</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1108,7 +1108,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>787</second>
+										<second>650</second>
 									</item>
 								</second>
 							</item>
@@ -1124,12 +1124,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>13</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>102</item>
+					<item>103</item>
 				</oprand_edges>
 				<opcode>load</opcode>
 				<m_Display>0</m_Display>
@@ -1145,10 +1145,10 @@
 					<Obj>
 						<type>0</type>
 						<id>23</id>
-						<name>zext_ln663</name>
+						<name>zext_ln759</name>
 						<fileName>include/fp_types_hls.hpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>663</lineNumber>
+						<lineNumber>759</lineNumber>
 						<contextFuncName>fp_fn_raw_from_FN</contextFuncName>
 						<contextNormFuncName>fp_fn_raw_from_FN</contextNormFuncName>
 						<inlineStackInfo>
@@ -1164,7 +1164,7 @@
 											<first>include/fp_types_hls.hpp</first>
 											<second>fp_fn_raw_from_FN</second>
 										</first>
-										<second>663</second>
+										<second>759</second>
 									</item>
 								</second>
 							</item>
@@ -1178,7 +1178,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>787</second>
+										<second>650</second>
 									</item>
 								</second>
 							</item>
@@ -1194,12 +1194,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>103</item>
+					<item>104</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -1215,10 +1215,10 @@
 					<Obj>
 						<type>0</type>
 						<id>24</id>
-						<name>zext_ln663_3</name>
+						<name>zext_ln759_3</name>
 						<fileName>include/fp_types_hls.hpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>663</lineNumber>
+						<lineNumber>759</lineNumber>
 						<contextFuncName>fp_fn_raw_from_FN</contextFuncName>
 						<contextNormFuncName>fp_fn_raw_from_FN</contextNormFuncName>
 						<inlineStackInfo>
@@ -1234,7 +1234,7 @@
 											<first>include/fp_types_hls.hpp</first>
 											<second>fp_fn_raw_from_FN</second>
 										</first>
-										<second>663</second>
+										<second>759</second>
 									</item>
 								</second>
 							</item>
@@ -1248,7 +1248,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>787</second>
+										<second>650</second>
 									</item>
 								</second>
 							</item>
@@ -1264,12 +1264,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>19</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>104</item>
+					<item>105</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -1285,10 +1285,10 @@
 					<Obj>
 						<type>0</type>
 						<id>25</id>
-						<name>add_ln788</name>
+						<name>add_ln651</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>788</lineNumber>
+						<lineNumber>651</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1304,7 +1304,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>788</second>
+										<second>651</second>
 									</item>
 								</second>
 							</item>
@@ -1325,8 +1325,8 @@
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>105</item>
-					<item>107</item>
+					<item>106</item>
+					<item>108</item>
 				</oprand_edges>
 				<opcode>add</opcode>
 				<m_Display>0</m_Display>
@@ -1342,10 +1342,10 @@
 					<Obj>
 						<type>0</type>
 						<id>26</id>
-						<name>zext_ln788</name>
+						<name>zext_ln651</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>788</lineNumber>
+						<lineNumber>651</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1361,7 +1361,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>788</second>
+										<second>651</second>
 									</item>
 								</second>
 							</item>
@@ -1382,7 +1382,7 @@
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>108</item>
+					<item>109</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -1401,7 +1401,7 @@
 						<name>atan_lut_fn_addr_1</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>788</lineNumber>
+						<lineNumber>651</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1417,7 +1417,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>788</second>
+										<second>651</second>
 									</item>
 								</second>
 							</item>
@@ -1438,9 +1438,9 @@
 				<oprand_edges>
 					<count>3</count>
 					<item_version>0</item_version>
-					<item>109</item>
 					<item>110</item>
 					<item>111</item>
+					<item>112</item>
 				</oprand_edges>
 				<opcode>getelementptr</opcode>
 				<m_Display>0</m_Display>
@@ -1456,10 +1456,10 @@
 					<Obj>
 						<type>0</type>
 						<id>28</id>
-						<name>value_201</name>
+						<name>value_169</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>788</lineNumber>
+						<lineNumber>651</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -1475,7 +1475,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>788</second>
+										<second>651</second>
 									</item>
 								</second>
 							</item>
@@ -1491,12 +1491,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>13</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>112</item>
+					<item>113</item>
 				</oprand_edges>
 				<opcode>load</opcode>
 				<m_Display>0</m_Display>
@@ -1512,10 +1512,10 @@
 					<Obj>
 						<type>0</type>
 						<id>29</id>
-						<name>zext_ln663_4</name>
+						<name>zext_ln759_4</name>
 						<fileName>include/fp_types_hls.hpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria</fileDirectory>
-						<lineNumber>663</lineNumber>
+						<lineNumber>759</lineNumber>
 						<contextFuncName>fp_fn_raw_from_FN</contextFuncName>
 						<contextNormFuncName>fp_fn_raw_from_FN</contextNormFuncName>
 						<inlineStackInfo>
@@ -1531,7 +1531,7 @@
 											<first>include/fp_types_hls.hpp</first>
 											<second>fp_fn_raw_from_FN</second>
 										</first>
-										<second>663</second>
+										<second>759</second>
 									</item>
 								</second>
 							</item>
@@ -1545,7 +1545,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>788</second>
+										<second>651</second>
 									</item>
 								</second>
 							</item>
@@ -1561,12 +1561,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>19</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>113</item>
+					<item>114</item>
 				</oprand_edges>
 				<opcode>zext</opcode>
 				<m_Display>0</m_Display>
@@ -1585,7 +1585,7 @@
 						<name>dv_raw</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>247</lineNumber>
+						<lineNumber>244</lineNumber>
 						<contextFuncName>fp_lerp_fn_raw</contextFuncName>
 						<contextNormFuncName>fp_lerp_fn_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -1601,14 +1601,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>247</second>
+										<second>244</second>
 									</item>
 								</second>
 							</item>
@@ -1624,20 +1624,20 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>19</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>114</item>
 					<item>115</item>
+					<item>116</item>
 				</oprand_edges>
 				<opcode>sub</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.87</m_delay>
+				<m_delay>0.82</m_delay>
 				<m_topoIndex>26</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -1646,10 +1646,10 @@
 					<Obj>
 						<type>0</type>
 						<id>32</id>
-						<name>sext_ln211</name>
+						<name>sext_ln208</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>211</lineNumber>
+						<lineNumber>208</lineNumber>
 						<contextFuncName>fp_mul_fn_raw_q</contextFuncName>
 						<contextNormFuncName>fp_mul_fn_raw_q</contextNormFuncName>
 						<inlineStackInfo>
@@ -1665,21 +1665,21 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>248</second>
+										<second>245</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn_raw_q</second>
 										</first>
-										<second>211</second>
+										<second>208</second>
 									</item>
 								</second>
 							</item>
@@ -1695,12 +1695,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>45</bitwidth>
+					<bitwidth>35</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>116</item>
+					<item>117</item>
 				</oprand_edges>
 				<opcode>sext</opcode>
 				<m_Display>0</m_Display>
@@ -1716,10 +1716,10 @@
 					<Obj>
 						<type>0</type>
 						<id>33</id>
-						<name>sext_ln211_4</name>
+						<name>sext_ln208_4</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>211</lineNumber>
+						<lineNumber>208</lineNumber>
 						<contextFuncName>fp_mul_fn_raw_q</contextFuncName>
 						<contextNormFuncName>fp_mul_fn_raw_q</contextNormFuncName>
 						<inlineStackInfo>
@@ -1735,21 +1735,21 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>248</second>
+										<second>245</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn_raw_q</second>
 										</first>
-										<second>211</second>
+										<second>208</second>
 									</item>
 								</second>
 							</item>
@@ -1765,12 +1765,12 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>45</bitwidth>
+					<bitwidth>35</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>117</item>
+					<item>118</item>
 				</oprand_edges>
 				<opcode>sext</opcode>
 				<m_Display>0</m_Display>
@@ -1786,10 +1786,10 @@
 					<Obj>
 						<type>0</type>
 						<id>34</id>
-						<name>mul_ln211</name>
+						<name>mul_ln208</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>211</lineNumber>
+						<lineNumber>208</lineNumber>
 						<contextFuncName>fp_mul_fn_raw_q</contextFuncName>
 						<contextNormFuncName>fp_mul_fn_raw_q</contextNormFuncName>
 						<inlineStackInfo>
@@ -1805,21 +1805,21 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>248</second>
+										<second>245</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn_raw_q</second>
 										</first>
-										<second>211</second>
+										<second>208</second>
 									</item>
 								</second>
 							</item>
@@ -1835,20 +1835,20 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>45</bitwidth>
+					<bitwidth>35</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>118</item>
 					<item>119</item>
+					<item>120</item>
 				</oprand_edges>
 				<opcode>mul</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.78</m_delay>
+				<m_delay>1.64</m_delay>
 				<m_topoIndex>29</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -1860,7 +1860,7 @@
 						<name>interp_raw</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>213</lineNumber>
+						<lineNumber>210</lineNumber>
 						<contextFuncName>fp_mul_fn_raw_q</contextFuncName>
 						<contextNormFuncName>fp_mul_fn_raw_q</contextNormFuncName>
 						<inlineStackInfo>
@@ -1876,21 +1876,21 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>248</second>
+										<second>245</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn_raw_q</second>
 										</first>
-										<second>213</second>
+										<second>210</second>
 									</item>
 								</second>
 							</item>
@@ -1906,15 +1906,15 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>4</count>
 					<item_version>0</item_version>
-					<item>121</item>
 					<item>122</item>
-					<item>124</item>
-					<item>126</item>
+					<item>123</item>
+					<item>125</item>
+					<item>127</item>
 				</oprand_edges>
 				<opcode>partselect</opcode>
 				<m_Display>0</m_Display>
@@ -1930,10 +1930,10 @@
 					<Obj>
 						<type>0</type>
 						<id>38</id>
-						<name>raw_29</name>
+						<name>raw_33</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>249</lineNumber>
+						<lineNumber>246</lineNumber>
 						<contextFuncName>fp_lerp_fn_raw</contextFuncName>
 						<contextNormFuncName>fp_lerp_fn_raw</contextNormFuncName>
 						<inlineStackInfo>
@@ -1949,14 +1949,14 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>789</second>
+										<second>652</second>
 									</item>
 									<item>
 										<first>
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_lerp_fn_raw</second>
 										</first>
-										<second>249</second>
+										<second>246</second>
 									</item>
 								</second>
 							</item>
@@ -1972,20 +1972,20 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>127</item>
 					<item>128</item>
+					<item>129</item>
 				</oprand_edges>
 				<opcode>add</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.95</m_delay>
+				<m_delay>0.90</m_delay>
 				<m_topoIndex>32</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -1997,7 +1997,7 @@
 						<name>raw</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>790</lineNumber>
+						<lineNumber>653</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -2013,7 +2013,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>790</second>
+										<second>653</second>
 									</item>
 								</second>
 							</item>
@@ -2029,20 +2029,20 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>129</item>
 					<item>130</item>
+					<item>131</item>
 				</oprand_edges>
 				<opcode>sub</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.95</m_delay>
+				<m_delay>0.90</m_delay>
 				<m_topoIndex>33</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -2051,10 +2051,10 @@
 					<Obj>
 						<type>0</type>
 						<id>40</id>
-						<name>raw_30</name>
+						<name>raw_34</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>790</lineNumber>
+						<lineNumber>653</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -2070,7 +2070,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>790</second>
+										<second>653</second>
 									</item>
 								</second>
 							</item>
@@ -2086,21 +2086,21 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>3</count>
 					<item_version>0</item_version>
-					<item>131</item>
 					<item>132</item>
 					<item>133</item>
+					<item>134</item>
 				</oprand_edges>
 				<opcode>select</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.32</m_delay>
+				<m_delay>0.35</m_delay>
 				<m_topoIndex>34</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -2109,10 +2109,10 @@
 					<Obj>
 						<type>0</type>
 						<id>41</id>
-						<name>_ln792</name>
+						<name>_ln655</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>792</lineNumber>
+						<lineNumber>655</lineNumber>
 						<contextFuncName>fp_atan_lut_fn</contextFuncName>
 						<contextNormFuncName>fp_atan_lut_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -2128,7 +2128,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_atan_lut_fn</second>
 										</first>
-										<second>792</second>
+										<second>655</second>
 									</item>
 								</second>
 							</item>
@@ -2149,7 +2149,7 @@
 				<oprand_edges>
 					<count>1</count>
 					<item_version>0</item_version>
-					<item>134</item>
+					<item>135</item>
 				</oprand_edges>
 				<opcode>ret</opcode>
 				<m_Display>0</m_Display>
@@ -2162,7 +2162,7 @@
 			</item>
 		</nodes>
 		<consts class_id="15" tracking_level="0" version="0">
-			<count>14</count>
+			<count>15</count>
 			<item_version>0</item_version>
 			<item class_id="16" tracking_level="1" version="0" object_id="_37">
 				<Value>
@@ -2193,7 +2193,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>25</content>
+				<content>20</content>
 			</item>
 			<item class_id_reference="16" object_id="_38">
 				<Value>
@@ -2221,7 +2221,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<const_type>0</const_type>
 				<content>0</content>
@@ -2252,7 +2252,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<const_type>0</const_type>
 				<content>7</content>
@@ -2286,7 +2286,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>10</content>
+				<content>5</content>
 			</item>
 			<item class_id_reference="16" object_id="_41">
 				<Value>
@@ -2317,7 +2317,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>24</content>
+				<content>19</content>
 			</item>
 			<item class_id_reference="16" object_id="_42">
 				<Value>
@@ -2354,7 +2354,38 @@
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>79</id>
+						<id>78</id>
+						<name>empty</name>
+						<fileName></fileName>
+						<fileDirectory></fileDirectory>
+						<lineNumber>0</lineNumber>
+						<contextFuncName></contextFuncName>
+						<contextNormFuncName></contextNormFuncName>
+						<inlineStackInfo>
+							<count>0</count>
+							<item_version>0</item_version>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>32</bitwidth>
+				</Value>
+				<const_type>0</const_type>
+				<content>10</content>
+			</item>
+			<item class_id_reference="16" object_id="_44">
+				<Value>
+					<Obj>
+						<type>2</type>
+						<id>80</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2381,11 +2412,11 @@
 				<const_type>0</const_type>
 				<content>14</content>
 			</item>
-			<item class_id_reference="16" object_id="_44">
+			<item class_id_reference="16" object_id="_45">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>82</id>
+						<id>83</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2412,11 +2443,11 @@
 				<const_type>0</const_type>
 				<content>0</content>
 			</item>
-			<item class_id_reference="16" object_id="_45">
+			<item class_id_reference="16" object_id="_46">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>85</id>
+						<id>86</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2443,11 +2474,11 @@
 				<const_type>0</const_type>
 				<content>1023</content>
 			</item>
-			<item class_id_reference="16" object_id="_46">
+			<item class_id_reference="16" object_id="_47">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>94</id>
+						<id>95</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2469,16 +2500,16 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>17</bitwidth>
+					<bitwidth>12</bitwidth>
 				</Value>
 				<const_type>0</const_type>
 				<content>0</content>
 			</item>
-			<item class_id_reference="16" object_id="_47">
+			<item class_id_reference="16" object_id="_48">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>99</id>
+						<id>100</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2505,11 +2536,11 @@
 				<const_type>0</const_type>
 				<content>0</content>
 			</item>
-			<item class_id_reference="16" object_id="_48">
+			<item class_id_reference="16" object_id="_49">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>106</id>
+						<id>107</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2536,42 +2567,11 @@
 				<const_type>0</const_type>
 				<content>1</content>
 			</item>
-			<item class_id_reference="16" object_id="_49">
-				<Value>
-					<Obj>
-						<type>2</type>
-						<id>123</id>
-						<name>empty</name>
-						<fileName></fileName>
-						<fileDirectory></fileDirectory>
-						<lineNumber>0</lineNumber>
-						<contextFuncName></contextFuncName>
-						<contextNormFuncName></contextNormFuncName>
-						<inlineStackInfo>
-							<count>0</count>
-							<item_version>0</item_version>
-						</inlineStackInfo>
-						<originalName></originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>32</bitwidth>
-				</Value>
-				<const_type>0</const_type>
-				<content>17</content>
-			</item>
 			<item class_id_reference="16" object_id="_50">
 				<Value>
 					<Obj>
 						<type>2</type>
-						<id>125</id>
+						<id>124</id>
 						<name>empty</name>
 						<fileName></fileName>
 						<fileDirectory></fileDirectory>
@@ -2596,13 +2596,44 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>42</content>
+				<content>12</content>
+			</item>
+			<item class_id_reference="16" object_id="_51">
+				<Value>
+					<Obj>
+						<type>2</type>
+						<id>126</id>
+						<name>empty</name>
+						<fileName></fileName>
+						<fileDirectory></fileDirectory>
+						<lineNumber>0</lineNumber>
+						<contextFuncName></contextFuncName>
+						<contextNormFuncName></contextNormFuncName>
+						<inlineStackInfo>
+							<count>0</count>
+							<item_version>0</item_version>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>32</bitwidth>
+				</Value>
+				<const_type>0</const_type>
+				<content>32</content>
 			</item>
 		</consts>
 		<blocks class_id="17" tracking_level="0" version="0">
 			<count>1</count>
 			<item_version>0</item_version>
-			<item class_id="18" tracking_level="1" version="0" object_id="_51">
+			<item class_id="18" tracking_level="1" version="0" object_id="_52">
 				<Obj>
 					<type>3</type>
 					<id>42</id>
@@ -2671,456 +2702,456 @@
 		<edges class_id="19" tracking_level="0" version="0">
 			<count>65</count>
 			<item_version>0</item_version>
-			<item class_id="20" tracking_level="1" version="0" object_id="_52">
+			<item class_id="20" tracking_level="1" version="0" object_id="_53">
 				<id>45</id>
 				<edge_type>1</edge_type>
 				<source_obj>1</source_obj>
 				<sink_obj>3</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_53">
+			<item class_id_reference="20" object_id="_54">
 				<id>48</id>
 				<edge_type>1</edge_type>
 				<source_obj>3</source_obj>
 				<sink_obj>5</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_54">
+			<item class_id_reference="20" object_id="_55">
 				<id>50</id>
 				<edge_type>1</edge_type>
 				<source_obj>49</source_obj>
 				<sink_obj>5</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_55">
+			<item class_id_reference="20" object_id="_56">
 				<id>52</id>
 				<edge_type>1</edge_type>
 				<source_obj>51</source_obj>
 				<sink_obj>6</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_56">
+			<item class_id_reference="20" object_id="_57">
 				<id>53</id>
 				<edge_type>1</edge_type>
 				<source_obj>3</source_obj>
 				<sink_obj>6</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_57">
+			<item class_id_reference="20" object_id="_58">
 				<id>54</id>
 				<edge_type>1</edge_type>
 				<source_obj>5</source_obj>
 				<sink_obj>7</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_58">
+			<item class_id_reference="20" object_id="_59">
 				<id>55</id>
 				<edge_type>1</edge_type>
 				<source_obj>6</source_obj>
 				<sink_obj>7</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_59">
+			<item class_id_reference="20" object_id="_60">
 				<id>56</id>
 				<edge_type>1</edge_type>
 				<source_obj>3</source_obj>
 				<sink_obj>7</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_60">
+			<item class_id_reference="20" object_id="_61">
 				<id>57</id>
 				<edge_type>1</edge_type>
 				<source_obj>7</source_obj>
 				<sink_obj>8</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_61">
+			<item class_id_reference="20" object_id="_62">
 				<id>59</id>
 				<edge_type>1</edge_type>
 				<source_obj>58</source_obj>
 				<sink_obj>8</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_62">
+			<item class_id_reference="20" object_id="_63">
 				<id>62</id>
 				<edge_type>1</edge_type>
 				<source_obj>7</source_obj>
 				<sink_obj>9</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_63">
+			<item class_id_reference="20" object_id="_64">
 				<id>64</id>
 				<edge_type>1</edge_type>
 				<source_obj>63</source_obj>
 				<sink_obj>9</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_64">
+			<item class_id_reference="20" object_id="_65">
 				<id>66</id>
 				<edge_type>1</edge_type>
 				<source_obj>65</source_obj>
 				<sink_obj>9</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_65">
+			<item class_id_reference="20" object_id="_66">
 				<id>68</id>
 				<edge_type>1</edge_type>
 				<source_obj>7</source_obj>
 				<sink_obj>10</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_66">
+			<item class_id_reference="20" object_id="_67">
 				<id>69</id>
 				<edge_type>1</edge_type>
 				<source_obj>49</source_obj>
 				<sink_obj>10</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_67">
+			<item class_id_reference="20" object_id="_68">
 				<id>70</id>
 				<edge_type>1</edge_type>
 				<source_obj>10</source_obj>
 				<sink_obj>11</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_68">
+			<item class_id_reference="20" object_id="_69">
 				<id>72</id>
 				<edge_type>1</edge_type>
 				<source_obj>71</source_obj>
 				<sink_obj>11</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_69">
+			<item class_id_reference="20" object_id="_70">
 				<id>73</id>
 				<edge_type>1</edge_type>
 				<source_obj>9</source_obj>
 				<sink_obj>11</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_70">
+			<item class_id_reference="20" object_id="_71">
 				<id>74</id>
 				<edge_type>1</edge_type>
 				<source_obj>11</source_obj>
 				<sink_obj>12</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_71">
+			<item class_id_reference="20" object_id="_72">
 				<id>77</id>
 				<edge_type>1</edge_type>
 				<source_obj>11</source_obj>
 				<sink_obj>13</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_72">
-				<id>78</id>
-				<edge_type>1</edge_type>
-				<source_obj>63</source_obj>
-				<sink_obj>13</sink_obj>
-				<is_back_edge>0</is_back_edge>
-			</item>
 			<item class_id_reference="20" object_id="_73">
-				<id>80</id>
+				<id>79</id>
 				<edge_type>1</edge_type>
-				<source_obj>79</source_obj>
+				<source_obj>78</source_obj>
 				<sink_obj>13</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_74">
 				<id>81</id>
 				<edge_type>1</edge_type>
-				<source_obj>13</source_obj>
-				<sink_obj>14</sink_obj>
+				<source_obj>80</source_obj>
+				<sink_obj>13</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_75">
-				<id>83</id>
+				<id>82</id>
 				<edge_type>1</edge_type>
-				<source_obj>82</source_obj>
+				<source_obj>13</source_obj>
 				<sink_obj>14</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_76">
 				<id>84</id>
 				<edge_type>1</edge_type>
-				<source_obj>14</source_obj>
-				<sink_obj>15</sink_obj>
+				<source_obj>83</source_obj>
+				<sink_obj>14</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_77">
-				<id>86</id>
+				<id>85</id>
 				<edge_type>1</edge_type>
-				<source_obj>85</source_obj>
+				<source_obj>14</source_obj>
 				<sink_obj>15</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_78">
 				<id>87</id>
 				<edge_type>1</edge_type>
-				<source_obj>12</source_obj>
+				<source_obj>86</source_obj>
 				<sink_obj>15</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_79">
 				<id>88</id>
 				<edge_type>1</edge_type>
-				<source_obj>15</source_obj>
-				<sink_obj>16</sink_obj>
+				<source_obj>12</source_obj>
+				<sink_obj>15</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_80">
 				<id>89</id>
 				<edge_type>1</edge_type>
 				<source_obj>15</source_obj>
-				<sink_obj>17</sink_obj>
+				<sink_obj>16</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_81">
 				<id>90</id>
 				<edge_type>1</edge_type>
 				<source_obj>15</source_obj>
-				<sink_obj>18</sink_obj>
+				<sink_obj>17</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_82">
-				<id>93</id>
+				<id>91</id>
 				<edge_type>1</edge_type>
-				<source_obj>18</source_obj>
-				<sink_obj>19</sink_obj>
+				<source_obj>15</source_obj>
+				<sink_obj>18</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_83">
-				<id>95</id>
+				<id>94</id>
 				<edge_type>1</edge_type>
-				<source_obj>94</source_obj>
+				<source_obj>18</source_obj>
 				<sink_obj>19</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_84">
 				<id>96</id>
 				<edge_type>1</edge_type>
-				<source_obj>8</source_obj>
-				<sink_obj>20</sink_obj>
+				<source_obj>95</source_obj>
+				<sink_obj>19</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_85">
 				<id>97</id>
 				<edge_type>1</edge_type>
-				<source_obj>19</source_obj>
+				<source_obj>8</source_obj>
 				<sink_obj>20</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_86">
 				<id>98</id>
 				<edge_type>1</edge_type>
-				<source_obj>2</source_obj>
-				<sink_obj>21</sink_obj>
+				<source_obj>19</source_obj>
+				<sink_obj>20</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_87">
-				<id>100</id>
+				<id>99</id>
 				<edge_type>1</edge_type>
-				<source_obj>99</source_obj>
+				<source_obj>2</source_obj>
 				<sink_obj>21</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_88">
 				<id>101</id>
 				<edge_type>1</edge_type>
-				<source_obj>17</source_obj>
+				<source_obj>100</source_obj>
 				<sink_obj>21</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_89">
 				<id>102</id>
 				<edge_type>1</edge_type>
-				<source_obj>21</source_obj>
-				<sink_obj>22</sink_obj>
+				<source_obj>17</source_obj>
+				<sink_obj>21</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_90">
 				<id>103</id>
 				<edge_type>1</edge_type>
-				<source_obj>22</source_obj>
-				<sink_obj>23</sink_obj>
+				<source_obj>21</source_obj>
+				<sink_obj>22</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_91">
 				<id>104</id>
 				<edge_type>1</edge_type>
 				<source_obj>22</source_obj>
-				<sink_obj>24</sink_obj>
+				<sink_obj>23</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_92">
 				<id>105</id>
 				<edge_type>1</edge_type>
-				<source_obj>16</source_obj>
-				<sink_obj>25</sink_obj>
+				<source_obj>22</source_obj>
+				<sink_obj>24</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_93">
-				<id>107</id>
+				<id>106</id>
 				<edge_type>1</edge_type>
-				<source_obj>106</source_obj>
+				<source_obj>16</source_obj>
 				<sink_obj>25</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_94">
 				<id>108</id>
 				<edge_type>1</edge_type>
-				<source_obj>25</source_obj>
-				<sink_obj>26</sink_obj>
+				<source_obj>107</source_obj>
+				<sink_obj>25</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_95">
 				<id>109</id>
 				<edge_type>1</edge_type>
-				<source_obj>2</source_obj>
-				<sink_obj>27</sink_obj>
+				<source_obj>25</source_obj>
+				<sink_obj>26</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_96">
 				<id>110</id>
 				<edge_type>1</edge_type>
-				<source_obj>99</source_obj>
+				<source_obj>2</source_obj>
 				<sink_obj>27</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_97">
 				<id>111</id>
 				<edge_type>1</edge_type>
-				<source_obj>26</source_obj>
+				<source_obj>100</source_obj>
 				<sink_obj>27</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_98">
 				<id>112</id>
 				<edge_type>1</edge_type>
-				<source_obj>27</source_obj>
-				<sink_obj>28</sink_obj>
+				<source_obj>26</source_obj>
+				<sink_obj>27</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_99">
 				<id>113</id>
 				<edge_type>1</edge_type>
-				<source_obj>28</source_obj>
-				<sink_obj>29</sink_obj>
+				<source_obj>27</source_obj>
+				<sink_obj>28</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_100">
 				<id>114</id>
 				<edge_type>1</edge_type>
-				<source_obj>29</source_obj>
-				<sink_obj>30</sink_obj>
+				<source_obj>28</source_obj>
+				<sink_obj>29</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_101">
 				<id>115</id>
 				<edge_type>1</edge_type>
-				<source_obj>24</source_obj>
+				<source_obj>29</source_obj>
 				<sink_obj>30</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_102">
 				<id>116</id>
 				<edge_type>1</edge_type>
-				<source_obj>20</source_obj>
-				<sink_obj>32</sink_obj>
+				<source_obj>24</source_obj>
+				<sink_obj>30</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_103">
 				<id>117</id>
 				<edge_type>1</edge_type>
-				<source_obj>30</source_obj>
-				<sink_obj>33</sink_obj>
+				<source_obj>20</source_obj>
+				<sink_obj>32</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_104">
 				<id>118</id>
 				<edge_type>1</edge_type>
-				<source_obj>32</source_obj>
-				<sink_obj>34</sink_obj>
+				<source_obj>30</source_obj>
+				<sink_obj>33</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_105">
 				<id>119</id>
 				<edge_type>1</edge_type>
-				<source_obj>33</source_obj>
+				<source_obj>32</source_obj>
 				<sink_obj>34</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_106">
-				<id>122</id>
+				<id>120</id>
+				<edge_type>1</edge_type>
+				<source_obj>33</source_obj>
+				<sink_obj>34</sink_obj>
+				<is_back_edge>0</is_back_edge>
+			</item>
+			<item class_id_reference="20" object_id="_107">
+				<id>123</id>
 				<edge_type>1</edge_type>
 				<source_obj>34</source_obj>
 				<sink_obj>37</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
-			<item class_id_reference="20" object_id="_107">
-				<id>124</id>
-				<edge_type>1</edge_type>
-				<source_obj>123</source_obj>
-				<sink_obj>37</sink_obj>
-				<is_back_edge>0</is_back_edge>
-			</item>
 			<item class_id_reference="20" object_id="_108">
-				<id>126</id>
+				<id>125</id>
 				<edge_type>1</edge_type>
-				<source_obj>125</source_obj>
+				<source_obj>124</source_obj>
 				<sink_obj>37</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_109">
 				<id>127</id>
 				<edge_type>1</edge_type>
-				<source_obj>23</source_obj>
-				<sink_obj>38</sink_obj>
+				<source_obj>126</source_obj>
+				<sink_obj>37</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_110">
 				<id>128</id>
 				<edge_type>1</edge_type>
-				<source_obj>37</source_obj>
+				<source_obj>23</source_obj>
 				<sink_obj>38</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_111">
 				<id>129</id>
 				<edge_type>1</edge_type>
-				<source_obj>51</source_obj>
-				<sink_obj>39</sink_obj>
+				<source_obj>37</source_obj>
+				<sink_obj>38</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_112">
 				<id>130</id>
 				<edge_type>1</edge_type>
-				<source_obj>38</source_obj>
+				<source_obj>51</source_obj>
 				<sink_obj>39</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_113">
 				<id>131</id>
 				<edge_type>1</edge_type>
-				<source_obj>5</source_obj>
-				<sink_obj>40</sink_obj>
+				<source_obj>38</source_obj>
+				<sink_obj>39</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_114">
 				<id>132</id>
 				<edge_type>1</edge_type>
-				<source_obj>39</source_obj>
+				<source_obj>5</source_obj>
 				<sink_obj>40</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_115">
 				<id>133</id>
 				<edge_type>1</edge_type>
-				<source_obj>38</source_obj>
+				<source_obj>39</source_obj>
 				<sink_obj>40</sink_obj>
 				<is_back_edge>0</is_back_edge>
 			</item>
 			<item class_id_reference="20" object_id="_116">
 				<id>134</id>
+				<edge_type>1</edge_type>
+				<source_obj>38</source_obj>
+				<sink_obj>40</sink_obj>
+				<is_back_edge>0</is_back_edge>
+			</item>
+			<item class_id_reference="20" object_id="_117">
+				<id>135</id>
 				<edge_type>1</edge_type>
 				<source_obj>40</source_obj>
 				<sink_obj>41</sink_obj>
@@ -3131,7 +3162,7 @@
 	<cdfg_regions class_id="21" tracking_level="0" version="0">
 		<count>1</count>
 		<item_version>0</item_version>
-		<item class_id="22" tracking_level="1" version="0" object_id="_117">
+		<item class_id="22" tracking_level="1" version="0" object_id="_118">
 			<mId>1</mId>
 			<mTag>fp_atan_lut_fn</mTag>
 			<mNormTag>fp_atan_lut_fn</mNormTag>
@@ -3145,12 +3176,12 @@
 				<item_version>0</item_version>
 				<item>42</item>
 			</basic_blocks>
-			<mII>6</mII>
-			<mDepth>6</mDepth>
+			<mII>5</mII>
+			<mDepth>5</mDepth>
 			<mMinTripCount>-1</mMinTripCount>
 			<mMaxTripCount>-1</mMaxTripCount>
-			<mMinLatency>5</mMinLatency>
-			<mMaxLatency>5</mMaxLatency>
+			<mMinLatency>4</mMinLatency>
+			<mMaxLatency>4</mMaxLatency>
 			<mIsDfPipe>0</mIsDfPipe>
 			<mDfPipe class_id="-1"></mDfPipe>
 		</item>
@@ -3296,7 +3327,7 @@
 		<item>
 			<first>23</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -3367,41 +3398,41 @@
 			<first>34</first>
 			<second>
 				<first>2</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 		<item>
 			<first>37</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>38</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>39</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>40</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>41</first>
 			<second>
-				<first>5</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -3413,14 +3444,14 @@
 			<first>42</first>
 			<second class_id="31" tracking_level="0" version="0">
 				<first>0</first>
-				<second>5</second>
+				<second>4</second>
 			</second>
 		</item>
 	</bblk_ent_exit>
 	<regions class_id="32" tracking_level="0" version="0">
 		<count>1</count>
 		<item_version>0</item_version>
-		<item class_id="33" tracking_level="1" version="0" object_id="_118">
+		<item class_id="33" tracking_level="1" version="0" object_id="_119">
 			<region_name>fp_atan_lut_fn</region_name>
 			<basic_blocks>
 				<count>1</count>
@@ -3433,8 +3464,8 @@
 			</nodes>
 			<anchor_node>-1</anchor_node>
 			<region_type>8</region_type>
-			<interval>6</interval>
-			<pipe_depth>6</pipe_depth>
+			<interval>5</interval>
+			<pipe_depth>5</pipe_depth>
 			<mDBIIViolationVec class_id="34" tracking_level="0" version="0">
 				<count>0</count>
 				<item_version>0</item_version>
@@ -3493,9 +3524,9 @@
 		<count>0</count>
 		<item_version>0</item_version>
 	</node2core>
-	<sched_res class_id="39" tracking_level="1" version="0" object_id="_119">
+	<sched_res class_id="39" tracking_level="1" version="0" object_id="_120">
 		<ResourceTableActual class_id="40" tracking_level="0" version="0">
-			<II>50</II>
+			<II>37</II>
 		</ResourceTableActual>
 		<ResourceTableFailed class_id="41" tracking_level="0" version="0">
 			<II>-1</II>

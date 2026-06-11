@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>fp_pacejka_ceff</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>26</ret_bitwidth>
+		<ret_bitwidth>21</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>3</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>23</bitwidth>
+					<bitwidth>20</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -109,7 +109,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -163,7 +163,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -220,7 +220,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>23</bitwidth>
+					<bitwidth>20</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -277,7 +277,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -299,10 +299,10 @@
 					<Obj>
 						<type>0</type>
 						<id>8</id>
-						<name>sext_ln671</name>
+						<name>sext_ln574</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -318,7 +318,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -341,7 +341,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>49</bitwidth>
+					<bitwidth>41</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -362,10 +362,10 @@
 					<Obj>
 						<type>0</type>
 						<id>9</id>
-						<name>sext_ln671_35</name>
+						<name>sext_ln574_28</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -381,7 +381,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -404,7 +404,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>49</bitwidth>
+					<bitwidth>41</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -425,10 +425,10 @@
 					<Obj>
 						<type>0</type>
 						<id>10</id>
-						<name>mul_ln671</name>
+						<name>mul_ln574</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -444,7 +444,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -467,7 +467,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>49</bitwidth>
+					<bitwidth>41</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -480,7 +480,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.78</m_delay>
+				<m_delay>1.64</m_delay>
 				<m_topoIndex>5</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -492,7 +492,7 @@
 						<name>product_q</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>674</lineNumber>
+						<lineNumber>577</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -508,7 +508,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>674</second>
+										<second>577</second>
 									</item>
 									<item>
 										<first>
@@ -531,7 +531,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>4</count>
@@ -555,10 +555,10 @@
 					<Obj>
 						<type>0</type>
 						<id>15</id>
-						<name>sext_ln671_36</name>
+						<name>sext_ln574_29</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -574,7 +574,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -597,7 +597,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>43</bitwidth>
+					<bitwidth>42</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -618,10 +618,10 @@
 					<Obj>
 						<type>0</type>
 						<id>16</id>
-						<name>sext_ln671_37</name>
+						<name>sext_ln574_30</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -637,7 +637,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -660,7 +660,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>43</bitwidth>
+					<bitwidth>42</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>1</count>
@@ -681,10 +681,10 @@
 					<Obj>
 						<type>0</type>
 						<id>17</id>
-						<name>product</name>
+						<name>mul_ln574_22</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>671</lineNumber>
+						<lineNumber>574</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -700,7 +700,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>671</second>
+										<second>574</second>
 									</item>
 									<item>
 										<first>
@@ -712,7 +712,7 @@
 								</second>
 							</item>
 						</inlineStackInfo>
-						<originalName>product</originalName>
+						<originalName></originalName>
 						<rtlName></rtlName>
 						<control></control>
 						<opType></opType>
@@ -723,7 +723,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>43</bitwidth>
+					<bitwidth>42</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -736,7 +736,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>1.78</m_delay>
+				<m_delay>1.64</m_delay>
 				<m_topoIndex>10</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -745,10 +745,10 @@
 					<Obj>
 						<type>0</type>
 						<id>20</id>
-						<name>product_q_51</name>
+						<name>product_q_49</name>
 						<fileName>../src/fp_math_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>674</lineNumber>
+						<lineNumber>577</lineNumber>
 						<contextFuncName>fp_mul_fn</contextFuncName>
 						<contextNormFuncName>fp_mul_fn</contextNormFuncName>
 						<inlineStackInfo>
@@ -764,7 +764,7 @@
 											<first>../src/fp_math_hls.cpp</first>
 											<second>fp_mul_fn</second>
 										</first>
-										<second>674</second>
+										<second>577</second>
 									</item>
 									<item>
 										<first>
@@ -787,7 +787,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>26</bitwidth>
+					<bitwidth>21</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>4</count>
@@ -895,7 +895,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>17</content>
+				<content>12</content>
 			</item>
 			<item class_id_reference="16" object_id="_17">
 				<Value>
@@ -926,7 +926,7 @@
 					<bitwidth>32</bitwidth>
 				</Value>
 				<const_type>0</const_type>
-				<content>42</content>
+				<content>32</content>
 			</item>
 		</consts>
 		<blocks class_id="17" tracking_level="0" version="0">
@@ -1123,12 +1123,12 @@
 				<item_version>0</item_version>
 				<item>22</item>
 			</basic_blocks>
-			<mII>7</mII>
-			<mDepth>7</mDepth>
+			<mII>5</mII>
+			<mDepth>5</mDepth>
 			<mMinTripCount>-1</mMinTripCount>
 			<mMaxTripCount>-1</mMaxTripCount>
-			<mMinLatency>6</mMinLatency>
-			<mMaxLatency>6</mMaxLatency>
+			<mMinLatency>4</mMinLatency>
+			<mMaxLatency>4</mMaxLatency>
 			<mIsDfPipe>0</mIsDfPipe>
 			<mDfPipe class_id="-1"></mDfPipe>
 		</item>
@@ -1141,7 +1141,7 @@
 		<item class_id="27" tracking_level="0" version="0">
 			<first>4</first>
 			<second class_id="28" tracking_level="0" version="0">
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -1177,48 +1177,48 @@
 			<first>10</first>
 			<second>
 				<first>0</first>
-				<second>3</second>
+				<second>2</second>
 			</second>
 		</item>
 		<item>
 			<first>13</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>15</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>16</first>
 			<second>
-				<first>3</first>
+				<first>2</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>17</first>
 			<second>
-				<first>3</first>
-				<second>3</second>
+				<first>2</first>
+				<second>2</second>
 			</second>
 		</item>
 		<item>
 			<first>20</first>
 			<second>
-				<first>6</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
 		<item>
 			<first>21</first>
 			<second>
-				<first>6</first>
+				<first>4</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -1230,7 +1230,7 @@
 			<first>22</first>
 			<second class_id="31" tracking_level="0" version="0">
 				<first>0</first>
-				<second>6</second>
+				<second>4</second>
 			</second>
 		</item>
 	</bblk_ent_exit>
@@ -1250,8 +1250,8 @@
 			</nodes>
 			<anchor_node>-1</anchor_node>
 			<region_type>8</region_type>
-			<interval>7</interval>
-			<pipe_depth>7</pipe_depth>
+			<interval>5</interval>
+			<pipe_depth>5</pipe_depth>
 			<mDBIIViolationVec class_id="34" tracking_level="0" version="0">
 				<count>0</count>
 				<item_version>0</item_version>
@@ -1312,7 +1312,7 @@
 	</node2core>
 	<sched_res class_id="39" tracking_level="1" version="0" object_id="_39">
 		<ResourceTableActual class_id="40" tracking_level="0" version="0">
-			<II>100</II>
+			<II>74</II>
 		</ResourceTableActual>
 		<ResourceTableFailed class_id="41" tracking_level="0" version="0">
 			<II>-1</II>

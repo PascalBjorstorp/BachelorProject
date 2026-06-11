@@ -1,0 +1,245 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_354_1'" level="0">
+<item name = "Date">Thu Jun 11 16:06:58 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 1.643 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">22, 22, 0.110 us, 0.110 us, 0, 0, loop pipeline stp</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+<column name="- VITIS_LOOP_354_1">20, 20, 2, 1, 1, 20, yes</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Utilization Estimates" level="0">
+<item name = "Summary"><table name="" hasTotal="1">
+<keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="DSP">-, -, -, -, -</column>
+<column name="Expression">-, -, 0, 26, -</column>
+<column name="FIFO">-, -, -, -, -</column>
+<column name="Instance">-, -, -, -, -</column>
+<column name="Memory">-, -, -, -, -</column>
+<column name="Multiplexer">-, -, 0, 36, -</column>
+<column name="Register">-, -, 1053, -, -</column>
+<specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
+<specialColumn name="Utilization (%)">0, 0, ~0, ~0, 0</specialColumn>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="1">
+<keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
+</table>
+</item>
+<item name = "DSP"><table name="" hasTotal="0">
+<keys size="3">Instance, Module, Expression</keys>
+</table>
+</item>
+<item name = "Memory"><table name="" hasTotal="1">
+<keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+</table>
+</item>
+<item name = "FIFO"><table name="" hasTotal="1">
+<keys size="8">Name, BRAM_18K, FF, LUT, URAM, Depth, Bits, Size:D*B</keys>
+</table>
+</item>
+<item name = "Expression"><table name="" hasTotal="1">
+<keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
+<column name="add_ln354_fu_630_p2">+, 0, 0, 12, 5, 1</column>
+<column name="icmp_ln354_fu_624_p2">icmp, 0, 0, 12, 5, 5</column>
+<column name="ap_enable_pp0">xor, 0, 0, 2, 1, 2</column>
+</table>
+</item>
+<item name = "Multiplexer"><table name="" hasTotal="1">
+<keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
+<column name="ap_done_int">9, 2, 1, 2</column>
+<column name="ap_enable_reg_pp0_iter1">9, 2, 1, 2</column>
+<column name="ap_sig_allocacmp_k_4">9, 2, 5, 10</column>
+<column name="k_fu_146">9, 2, 5, 10</column>
+</table>
+</item>
+<item name = "Register"><table name="" hasTotal="1">
+<keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
+<column name="ap_CS_fsm">1, 0, 1, 0</column>
+<column name="ap_done_reg">1, 0, 1, 0</column>
+<column name="ap_enable_reg_pp0_iter1">1, 0, 1, 0</column>
+<column name="k_4_reg_1296">5, 0, 5, 0</column>
+<column name="k_fu_146">5, 0, 5, 0</column>
+<column name="p_0_0_010170103_fu_170">26, 0, 26, 0</column>
+<column name="p_0_0_010170107_fu_178">26, 0, 26, 0</column>
+<column name="p_0_0_010170111_fu_186">26, 0, 26, 0</column>
+<column name="p_0_0_010170115_fu_194">26, 0, 26, 0</column>
+<column name="p_0_0_010170119_fu_202">26, 0, 26, 0</column>
+<column name="p_0_0_010170123_fu_210">26, 0, 26, 0</column>
+<column name="p_0_0_010170127_fu_218">26, 0, 26, 0</column>
+<column name="p_0_0_010170131_fu_226">26, 0, 26, 0</column>
+<column name="p_0_0_010170135_fu_234">26, 0, 26, 0</column>
+<column name="p_0_0_010170139_fu_242">26, 0, 26, 0</column>
+<column name="p_0_0_010170143_fu_250">26, 0, 26, 0</column>
+<column name="p_0_0_010170147_fu_258">26, 0, 26, 0</column>
+<column name="p_0_0_010170151_fu_266">26, 0, 26, 0</column>
+<column name="p_0_0_010170155_fu_274">26, 0, 26, 0</column>
+<column name="p_0_0_010170159_fu_282">26, 0, 26, 0</column>
+<column name="p_0_0_010170163_fu_290">26, 0, 26, 0</column>
+<column name="p_0_0_010170167_fu_298">26, 0, 26, 0</column>
+<column name="p_0_0_010170171_fu_306">26, 0, 26, 0</column>
+<column name="p_0_0_01017095_fu_154">26, 0, 26, 0</column>
+<column name="p_0_0_01017099_fu_162">26, 0, 26, 0</column>
+<column name="p_0_0_010171101_fu_166">26, 0, 26, 0</column>
+<column name="p_0_0_010171105_fu_174">26, 0, 26, 0</column>
+<column name="p_0_0_010171109_fu_182">26, 0, 26, 0</column>
+<column name="p_0_0_010171113_fu_190">26, 0, 26, 0</column>
+<column name="p_0_0_010171117_fu_198">26, 0, 26, 0</column>
+<column name="p_0_0_010171121_fu_206">26, 0, 26, 0</column>
+<column name="p_0_0_010171125_fu_214">26, 0, 26, 0</column>
+<column name="p_0_0_010171129_fu_222">26, 0, 26, 0</column>
+<column name="p_0_0_010171133_fu_230">26, 0, 26, 0</column>
+<column name="p_0_0_010171137_fu_238">26, 0, 26, 0</column>
+<column name="p_0_0_010171141_fu_246">26, 0, 26, 0</column>
+<column name="p_0_0_010171145_fu_254">26, 0, 26, 0</column>
+<column name="p_0_0_010171149_fu_262">26, 0, 26, 0</column>
+<column name="p_0_0_010171153_fu_270">26, 0, 26, 0</column>
+<column name="p_0_0_010171157_fu_278">26, 0, 26, 0</column>
+<column name="p_0_0_010171161_fu_286">26, 0, 26, 0</column>
+<column name="p_0_0_010171165_fu_294">26, 0, 26, 0</column>
+<column name="p_0_0_010171169_fu_302">26, 0, 26, 0</column>
+<column name="p_0_0_01017193_fu_150">26, 0, 26, 0</column>
+<column name="p_0_0_01017197_fu_158">26, 0, 26, 0</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Interface" level="0">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
+<column name="ap_clk">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ap_rst">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ap_start">in, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ap_done">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ap_idle">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ap_ready">out, 1, ap_ctrl_hs, mpc_compute_hls_Pipeline_VITIS_LOOP_354_1, return value</column>
+<column name="ref_left_wall_bound_address0">out, 5, ap_memory, ref_left_wall_bound, array</column>
+<column name="ref_left_wall_bound_ce0">out, 1, ap_memory, ref_left_wall_bound, array</column>
+<column name="ref_left_wall_bound_q0">in, 26, ap_memory, ref_left_wall_bound, array</column>
+<column name="ref_right_wall_bound_address0">out, 5, ap_memory, ref_right_wall_bound, array</column>
+<column name="ref_right_wall_bound_ce0">out, 1, ap_memory, ref_right_wall_bound, array</column>
+<column name="ref_right_wall_bound_q0">in, 26, ap_memory, ref_right_wall_bound, array</column>
+<column name="p_0_0_010170171_out">out, 26, ap_vld, p_0_0_010170171_out, pointer</column>
+<column name="p_0_0_010170171_out_ap_vld">out, 1, ap_vld, p_0_0_010170171_out, pointer</column>
+<column name="p_0_0_010171169_out">out, 26, ap_vld, p_0_0_010171169_out, pointer</column>
+<column name="p_0_0_010171169_out_ap_vld">out, 1, ap_vld, p_0_0_010171169_out, pointer</column>
+<column name="p_0_0_010170167_out">out, 26, ap_vld, p_0_0_010170167_out, pointer</column>
+<column name="p_0_0_010170167_out_ap_vld">out, 1, ap_vld, p_0_0_010170167_out, pointer</column>
+<column name="p_0_0_010171165_out">out, 26, ap_vld, p_0_0_010171165_out, pointer</column>
+<column name="p_0_0_010171165_out_ap_vld">out, 1, ap_vld, p_0_0_010171165_out, pointer</column>
+<column name="p_0_0_010170163_out">out, 26, ap_vld, p_0_0_010170163_out, pointer</column>
+<column name="p_0_0_010170163_out_ap_vld">out, 1, ap_vld, p_0_0_010170163_out, pointer</column>
+<column name="p_0_0_010171161_out">out, 26, ap_vld, p_0_0_010171161_out, pointer</column>
+<column name="p_0_0_010171161_out_ap_vld">out, 1, ap_vld, p_0_0_010171161_out, pointer</column>
+<column name="p_0_0_010170159_out">out, 26, ap_vld, p_0_0_010170159_out, pointer</column>
+<column name="p_0_0_010170159_out_ap_vld">out, 1, ap_vld, p_0_0_010170159_out, pointer</column>
+<column name="p_0_0_010171157_out">out, 26, ap_vld, p_0_0_010171157_out, pointer</column>
+<column name="p_0_0_010171157_out_ap_vld">out, 1, ap_vld, p_0_0_010171157_out, pointer</column>
+<column name="p_0_0_010170155_out">out, 26, ap_vld, p_0_0_010170155_out, pointer</column>
+<column name="p_0_0_010170155_out_ap_vld">out, 1, ap_vld, p_0_0_010170155_out, pointer</column>
+<column name="p_0_0_010171153_out">out, 26, ap_vld, p_0_0_010171153_out, pointer</column>
+<column name="p_0_0_010171153_out_ap_vld">out, 1, ap_vld, p_0_0_010171153_out, pointer</column>
+<column name="p_0_0_010170151_out">out, 26, ap_vld, p_0_0_010170151_out, pointer</column>
+<column name="p_0_0_010170151_out_ap_vld">out, 1, ap_vld, p_0_0_010170151_out, pointer</column>
+<column name="p_0_0_010171149_out">out, 26, ap_vld, p_0_0_010171149_out, pointer</column>
+<column name="p_0_0_010171149_out_ap_vld">out, 1, ap_vld, p_0_0_010171149_out, pointer</column>
+<column name="p_0_0_010170147_out">out, 26, ap_vld, p_0_0_010170147_out, pointer</column>
+<column name="p_0_0_010170147_out_ap_vld">out, 1, ap_vld, p_0_0_010170147_out, pointer</column>
+<column name="p_0_0_010171145_out">out, 26, ap_vld, p_0_0_010171145_out, pointer</column>
+<column name="p_0_0_010171145_out_ap_vld">out, 1, ap_vld, p_0_0_010171145_out, pointer</column>
+<column name="p_0_0_010170143_out">out, 26, ap_vld, p_0_0_010170143_out, pointer</column>
+<column name="p_0_0_010170143_out_ap_vld">out, 1, ap_vld, p_0_0_010170143_out, pointer</column>
+<column name="p_0_0_010171141_out">out, 26, ap_vld, p_0_0_010171141_out, pointer</column>
+<column name="p_0_0_010171141_out_ap_vld">out, 1, ap_vld, p_0_0_010171141_out, pointer</column>
+<column name="p_0_0_010170139_out">out, 26, ap_vld, p_0_0_010170139_out, pointer</column>
+<column name="p_0_0_010170139_out_ap_vld">out, 1, ap_vld, p_0_0_010170139_out, pointer</column>
+<column name="p_0_0_010171137_out">out, 26, ap_vld, p_0_0_010171137_out, pointer</column>
+<column name="p_0_0_010171137_out_ap_vld">out, 1, ap_vld, p_0_0_010171137_out, pointer</column>
+<column name="p_0_0_010170135_out">out, 26, ap_vld, p_0_0_010170135_out, pointer</column>
+<column name="p_0_0_010170135_out_ap_vld">out, 1, ap_vld, p_0_0_010170135_out, pointer</column>
+<column name="p_0_0_010171133_out">out, 26, ap_vld, p_0_0_010171133_out, pointer</column>
+<column name="p_0_0_010171133_out_ap_vld">out, 1, ap_vld, p_0_0_010171133_out, pointer</column>
+<column name="p_0_0_010170131_out">out, 26, ap_vld, p_0_0_010170131_out, pointer</column>
+<column name="p_0_0_010170131_out_ap_vld">out, 1, ap_vld, p_0_0_010170131_out, pointer</column>
+<column name="p_0_0_010171129_out">out, 26, ap_vld, p_0_0_010171129_out, pointer</column>
+<column name="p_0_0_010171129_out_ap_vld">out, 1, ap_vld, p_0_0_010171129_out, pointer</column>
+<column name="p_0_0_010170127_out">out, 26, ap_vld, p_0_0_010170127_out, pointer</column>
+<column name="p_0_0_010170127_out_ap_vld">out, 1, ap_vld, p_0_0_010170127_out, pointer</column>
+<column name="p_0_0_010171125_out">out, 26, ap_vld, p_0_0_010171125_out, pointer</column>
+<column name="p_0_0_010171125_out_ap_vld">out, 1, ap_vld, p_0_0_010171125_out, pointer</column>
+<column name="p_0_0_010170123_out">out, 26, ap_vld, p_0_0_010170123_out, pointer</column>
+<column name="p_0_0_010170123_out_ap_vld">out, 1, ap_vld, p_0_0_010170123_out, pointer</column>
+<column name="p_0_0_010171121_out">out, 26, ap_vld, p_0_0_010171121_out, pointer</column>
+<column name="p_0_0_010171121_out_ap_vld">out, 1, ap_vld, p_0_0_010171121_out, pointer</column>
+<column name="p_0_0_010170119_out">out, 26, ap_vld, p_0_0_010170119_out, pointer</column>
+<column name="p_0_0_010170119_out_ap_vld">out, 1, ap_vld, p_0_0_010170119_out, pointer</column>
+<column name="p_0_0_010171117_out">out, 26, ap_vld, p_0_0_010171117_out, pointer</column>
+<column name="p_0_0_010171117_out_ap_vld">out, 1, ap_vld, p_0_0_010171117_out, pointer</column>
+<column name="p_0_0_010170115_out">out, 26, ap_vld, p_0_0_010170115_out, pointer</column>
+<column name="p_0_0_010170115_out_ap_vld">out, 1, ap_vld, p_0_0_010170115_out, pointer</column>
+<column name="p_0_0_010171113_out">out, 26, ap_vld, p_0_0_010171113_out, pointer</column>
+<column name="p_0_0_010171113_out_ap_vld">out, 1, ap_vld, p_0_0_010171113_out, pointer</column>
+<column name="p_0_0_010170111_out">out, 26, ap_vld, p_0_0_010170111_out, pointer</column>
+<column name="p_0_0_010170111_out_ap_vld">out, 1, ap_vld, p_0_0_010170111_out, pointer</column>
+<column name="p_0_0_010171109_out">out, 26, ap_vld, p_0_0_010171109_out, pointer</column>
+<column name="p_0_0_010171109_out_ap_vld">out, 1, ap_vld, p_0_0_010171109_out, pointer</column>
+<column name="p_0_0_010170107_out">out, 26, ap_vld, p_0_0_010170107_out, pointer</column>
+<column name="p_0_0_010170107_out_ap_vld">out, 1, ap_vld, p_0_0_010170107_out, pointer</column>
+<column name="p_0_0_010171105_out">out, 26, ap_vld, p_0_0_010171105_out, pointer</column>
+<column name="p_0_0_010171105_out_ap_vld">out, 1, ap_vld, p_0_0_010171105_out, pointer</column>
+<column name="p_0_0_010170103_out">out, 26, ap_vld, p_0_0_010170103_out, pointer</column>
+<column name="p_0_0_010170103_out_ap_vld">out, 1, ap_vld, p_0_0_010170103_out, pointer</column>
+<column name="p_0_0_010171101_out">out, 26, ap_vld, p_0_0_010171101_out, pointer</column>
+<column name="p_0_0_010171101_out_ap_vld">out, 1, ap_vld, p_0_0_010171101_out, pointer</column>
+<column name="p_0_0_01017099_out">out, 26, ap_vld, p_0_0_01017099_out, pointer</column>
+<column name="p_0_0_01017099_out_ap_vld">out, 1, ap_vld, p_0_0_01017099_out, pointer</column>
+<column name="p_0_0_01017197_out">out, 26, ap_vld, p_0_0_01017197_out, pointer</column>
+<column name="p_0_0_01017197_out_ap_vld">out, 1, ap_vld, p_0_0_01017197_out, pointer</column>
+<column name="p_0_0_01017095_out">out, 26, ap_vld, p_0_0_01017095_out, pointer</column>
+<column name="p_0_0_01017095_out_ap_vld">out, 1, ap_vld, p_0_0_01017095_out, pointer</column>
+<column name="p_0_0_01017193_out">out, 26, ap_vld, p_0_0_01017193_out, pointer</column>
+<column name="p_0_0_01017193_out_ap_vld">out, 1, ap_vld, p_0_0_01017193_out, pointer</column>
+</table>
+</item>
+</section>
+</profile>

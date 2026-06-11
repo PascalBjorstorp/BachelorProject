@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'sum6_P_QP_raw'
 ================================================================
-* Date:           Thu May 21 15:23:05 2026
+* Date:           Thu Jun 11 16:06:51 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  1.893 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  1.796 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -78,26 +78,20 @@ IsGatedGlobalClock: 0
 
 * FSM state operations: 
 
-State 1 <SV = 0> <Delay = 1.89>
-ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a5, i64 12, i64 3, i64 3, i1 0"   --->   Operation 2 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a4, i64 12, i64 3, i64 3, i1 0"   --->   Operation 3 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a3, i64 12, i64 3, i64 3, i1 0"   --->   Operation 4 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a2, i64 12, i64 3, i64 3, i1 0"   --->   Operation 5 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a1, i64 12, i64 3, i64 3, i1 0"   --->   Operation 6 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%specfucore_ln0 = specfucore void @_ssdm_op_SpecFUCore, i58 %a0, i64 12, i64 3, i64 3, i1 0"   --->   Operation 7 'specfucore' 'specfucore_ln0' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%specpipeline_ln177 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, i32 4294967295, void @empty_485" [include/fp_math_hls.h:177]   --->   Operation 8 'specpipeline' 'specpipeline_ln177' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%a5_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a5" [include/fp_math_hls.h:175]   --->   Operation 9 'read' 'a5_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%a4_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a4" [include/fp_math_hls.h:175]   --->   Operation 10 'read' 'a4_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%a3_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a3" [include/fp_math_hls.h:175]   --->   Operation 11 'read' 'a3_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%a2_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a2" [include/fp_math_hls.h:175]   --->   Operation 12 'read' 'a2_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%a1_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a1" [include/fp_math_hls.h:175]   --->   Operation 13 'read' 'a1_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 14 [1/1] (0.00ns)   --->   "%a0_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %a0" [include/fp_math_hls.h:175]   --->   Operation 14 'read' 'a0_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 15 [1/1] (1.09ns)   --->   "%add_ln187 = add i58 %a0_read, i58 %a2_read" [include/fp_math_hls.h:187]   --->   Operation 15 'add' 'add_ln187' <Predicate = true> <Delay = 1.09> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.09> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
-ST_1 : Operation 16 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln187_1 = add i58 %add_ln187, i58 %a1_read" [include/fp_math_hls.h:187]   --->   Operation 16 'add' 'add_ln187_1' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.40> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_1 : Operation 17 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln187_2 = add i58 %a4_read, i58 %a5_read" [include/fp_math_hls.h:187]   --->   Operation 17 'add' 'add_ln187_2' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.40> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_1 : Operation 18 [1/1] (0.80ns) (root node of TernaryAdder)   --->   "%add_ln187_3 = add i58 %add_ln187_2, i58 %a3_read" [include/fp_math_hls.h:187]   --->   Operation 18 'add' 'add_ln187_3' <Predicate = true> <Delay = 0.80> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.40> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_1 : Operation 19 [1/1] (0.80ns) (root node of TernaryAdder)   --->   "%add_ln188 = add i58 %add_ln187_3, i58 %add_ln187_1" [include/fp_math_hls.h:188]   --->   Operation 19 'add' 'add_ln188' <Predicate = true> <Delay = 0.80> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.40> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_1 : Operation 20 [1/1] (0.00ns)   --->   "%ret_ln188 = ret i58 %add_ln188" [include/fp_math_hls.h:188]   --->   Operation 20 'ret' 'ret_ln188' <Predicate = true> <Delay = 0.00>
+State 1 <SV = 0> <Delay = 1.79>
+ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%specpipeline_ln192 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, i32 4294967295, void @empty_524" [include/fp_math_hls.h:192]   --->   Operation 2 'specpipeline' 'specpipeline_ln192' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%a5_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a5" [include/fp_math_hls.h:190]   --->   Operation 3 'read' 'a5_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%a4_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a4" [include/fp_math_hls.h:190]   --->   Operation 4 'read' 'a4_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%a3_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a3" [include/fp_math_hls.h:190]   --->   Operation 5 'read' 'a3_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%a2_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a2" [include/fp_math_hls.h:190]   --->   Operation 6 'read' 'a2_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%a1_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a1" [include/fp_math_hls.h:190]   --->   Operation 7 'read' 'a1_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%a0_read = read i41 @_ssdm_op_Read.ap_auto.i41, i41 %a0" [include/fp_math_hls.h:190]   --->   Operation 8 'read' 'a0_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (1.04ns)   --->   "%add_ln202 = add i41 %a0_read, i41 %a2_read" [include/fp_math_hls.h:202]   --->   Operation 9 'add' 'add_ln202' <Predicate = true> <Delay = 1.04> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.04> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 10 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln202_1 = add i41 %add_ln202, i41 %a1_read" [include/fp_math_hls.h:202]   --->   Operation 10 'add' 'add_ln202_1' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.37> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
+ST_1 : Operation 11 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln202_2 = add i41 %a4_read, i41 %a5_read" [include/fp_math_hls.h:202]   --->   Operation 11 'add' 'add_ln202_2' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.37> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
+ST_1 : Operation 12 [1/1] (0.75ns) (root node of TernaryAdder)   --->   "%add_ln202_3 = add i41 %add_ln202_2, i41 %a3_read" [include/fp_math_hls.h:202]   --->   Operation 12 'add' 'add_ln202_3' <Predicate = true> <Delay = 0.75> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.37> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
+ST_1 : Operation 13 [1/1] (0.75ns) (root node of TernaryAdder)   --->   "%add_ln203 = add i41 %add_ln202_3, i41 %add_ln202_1" [include/fp_math_hls.h:203]   --->   Operation 13 'add' 'add_ln203' <Predicate = true> <Delay = 0.75> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.37> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
+ST_1 : Operation 14 [1/1] (0.00ns)   --->   "%ret_ln203 = ret i41 %add_ln203" [include/fp_math_hls.h:203]   --->   Operation 14 'ret' 'ret_ln203' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================
@@ -123,25 +117,19 @@ Port [ a5]:  wired=1; compound=0; hidden=0; nouse=0; global=0; static=0; extern=
 
 <LifeTime>
 <method=bitvector/>
-specfucore_ln0     (specfucore  ) [ 00]
-specfucore_ln0     (specfucore  ) [ 00]
-specfucore_ln0     (specfucore  ) [ 00]
-specfucore_ln0     (specfucore  ) [ 00]
-specfucore_ln0     (specfucore  ) [ 00]
-specfucore_ln0     (specfucore  ) [ 00]
-specpipeline_ln177 (specpipeline) [ 00]
+specpipeline_ln192 (specpipeline) [ 00]
 a5_read            (read        ) [ 00]
 a4_read            (read        ) [ 00]
 a3_read            (read        ) [ 00]
 a2_read            (read        ) [ 00]
 a1_read            (read        ) [ 00]
 a0_read            (read        ) [ 00]
-add_ln187          (add         ) [ 00]
-add_ln187_1        (add         ) [ 00]
-add_ln187_2        (add         ) [ 00]
-add_ln187_3        (add         ) [ 00]
-add_ln188          (add         ) [ 00]
-ret_ln188          (ret         ) [ 00]
+add_ln202          (add         ) [ 00]
+add_ln202_1        (add         ) [ 00]
+add_ln202_2        (add         ) [ 00]
+add_ln202_3        (add         ) [ 00]
+add_ln203          (add         ) [ 00]
+ret_ln203          (ret         ) [ 00]
 </LifeTime>
 
 <model>
@@ -206,7 +194,7 @@ ret_ln188          (ret         ) [ 00]
 <pin id="13" dir="1" index="0" bw="1" slack="2147483647"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="_ssdm_op_SpecFUCore"/></StgValue>
+<StgValue><ssdm name="_ssdm_op_SpecPipeline"/></StgValue>
 </bind>
 </comp>
 
@@ -242,60 +230,24 @@ ret_ln188          (ret         ) [ 00]
 <pin id="21" dir="1" index="0" bw="1" slack="2147483647"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="_ssdm_op_SpecPipeline"/></StgValue>
+<StgValue><ssdm name="empty_524"/></StgValue>
 </bind>
 </comp>
 
 <comp id="22" class="1001" name="const_22">
 <pin_list>
-<pin id="23" dir="1" index="0" bw="1" slack="2147483647"/>
+<pin id="23" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name=""/></StgValue>
+<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i41"/></StgValue>
 </bind>
 </comp>
 
-<comp id="24" class="1001" name="const_24">
+<comp id="24" class="1004" name="a5_read_read_fu_24">
 <pin_list>
-<pin id="25" dir="1" index="0" bw="1" slack="2147483647"/>
-</pin_list>
-<bind>
-<StgValue><ssdm name=""/></StgValue>
-</bind>
-</comp>
-
-<comp id="26" class="1001" name="const_26">
-<pin_list>
-<pin id="27" dir="1" index="0" bw="1" slack="2147483647"/>
-</pin_list>
-<bind>
-<StgValue><ssdm name=""/></StgValue>
-</bind>
-</comp>
-
-<comp id="28" class="1001" name="const_28">
-<pin_list>
-<pin id="29" dir="1" index="0" bw="1" slack="2147483647"/>
-</pin_list>
-<bind>
-<StgValue><ssdm name="empty_485"/></StgValue>
-</bind>
-</comp>
-
-<comp id="30" class="1001" name="const_30">
-<pin_list>
-<pin id="31" dir="1" index="0" bw="1" slack="0"/>
-</pin_list>
-<bind>
-<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i58"/></StgValue>
-</bind>
-</comp>
-
-<comp id="32" class="1004" name="a5_read_read_fu_32">
-<pin_list>
-<pin id="33" dir="0" index="0" bw="58" slack="0"/>
-<pin id="34" dir="0" index="1" bw="58" slack="0"/>
-<pin id="35" dir="1" index="2" bw="58" slack="0"/>
+<pin id="25" dir="0" index="0" bw="41" slack="0"/>
+<pin id="26" dir="0" index="1" bw="41" slack="0"/>
+<pin id="27" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -303,11 +255,11 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="38" class="1004" name="a4_read_read_fu_38">
+<comp id="30" class="1004" name="a4_read_read_fu_30">
 <pin_list>
-<pin id="39" dir="0" index="0" bw="58" slack="0"/>
-<pin id="40" dir="0" index="1" bw="58" slack="0"/>
-<pin id="41" dir="1" index="2" bw="58" slack="0"/>
+<pin id="31" dir="0" index="0" bw="41" slack="0"/>
+<pin id="32" dir="0" index="1" bw="41" slack="0"/>
+<pin id="33" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -315,11 +267,11 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="44" class="1004" name="a3_read_read_fu_44">
+<comp id="36" class="1004" name="a3_read_read_fu_36">
 <pin_list>
-<pin id="45" dir="0" index="0" bw="58" slack="0"/>
-<pin id="46" dir="0" index="1" bw="58" slack="0"/>
-<pin id="47" dir="1" index="2" bw="58" slack="0"/>
+<pin id="37" dir="0" index="0" bw="41" slack="0"/>
+<pin id="38" dir="0" index="1" bw="41" slack="0"/>
+<pin id="39" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -327,11 +279,11 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="50" class="1004" name="a2_read_read_fu_50">
+<comp id="42" class="1004" name="a2_read_read_fu_42">
 <pin_list>
-<pin id="51" dir="0" index="0" bw="58" slack="0"/>
-<pin id="52" dir="0" index="1" bw="58" slack="0"/>
-<pin id="53" dir="1" index="2" bw="58" slack="0"/>
+<pin id="43" dir="0" index="0" bw="41" slack="0"/>
+<pin id="44" dir="0" index="1" bw="41" slack="0"/>
+<pin id="45" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -339,11 +291,11 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="56" class="1004" name="a1_read_read_fu_56">
+<comp id="48" class="1004" name="a1_read_read_fu_48">
 <pin_list>
-<pin id="57" dir="0" index="0" bw="58" slack="0"/>
-<pin id="58" dir="0" index="1" bw="58" slack="0"/>
-<pin id="59" dir="1" index="2" bw="58" slack="0"/>
+<pin id="49" dir="0" index="0" bw="41" slack="0"/>
+<pin id="50" dir="0" index="1" bw="41" slack="0"/>
+<pin id="51" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -351,11 +303,11 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="62" class="1004" name="a0_read_read_fu_62">
+<comp id="54" class="1004" name="a0_read_read_fu_54">
 <pin_list>
-<pin id="63" dir="0" index="0" bw="58" slack="0"/>
-<pin id="64" dir="0" index="1" bw="58" slack="0"/>
-<pin id="65" dir="1" index="2" bw="58" slack="0"/>
+<pin id="55" dir="0" index="0" bw="41" slack="0"/>
+<pin id="56" dir="0" index="1" bw="41" slack="0"/>
+<pin id="57" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -363,112 +315,112 @@ ret_ln188          (ret         ) [ 00]
 </bind>
 </comp>
 
-<comp id="68" class="1004" name="add_ln187_fu_68">
+<comp id="60" class="1004" name="add_ln202_fu_60">
 <pin_list>
-<pin id="69" dir="0" index="0" bw="58" slack="0"/>
-<pin id="70" dir="0" index="1" bw="58" slack="0"/>
-<pin id="71" dir="1" index="2" bw="58" slack="0"/>
+<pin id="61" dir="0" index="0" bw="41" slack="0"/>
+<pin id="62" dir="0" index="1" bw="41" slack="0"/>
+<pin id="63" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="add_ln187/1 "/>
+<opset="add_ln202/1 "/>
 </bind>
 </comp>
 
-<comp id="74" class="1004" name="add_ln187_1_fu_74">
+<comp id="66" class="1004" name="add_ln202_1_fu_66">
 <pin_list>
-<pin id="75" dir="0" index="0" bw="58" slack="0"/>
-<pin id="76" dir="0" index="1" bw="58" slack="0"/>
-<pin id="77" dir="1" index="2" bw="58" slack="0"/>
+<pin id="67" dir="0" index="0" bw="41" slack="0"/>
+<pin id="68" dir="0" index="1" bw="41" slack="0"/>
+<pin id="69" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="add_ln187_1/1 "/>
+<opset="add_ln202_1/1 "/>
 </bind>
 </comp>
 
-<comp id="80" class="1004" name="add_ln187_2_fu_80">
+<comp id="72" class="1004" name="add_ln202_2_fu_72">
 <pin_list>
-<pin id="81" dir="0" index="0" bw="58" slack="0"/>
-<pin id="82" dir="0" index="1" bw="58" slack="0"/>
-<pin id="83" dir="1" index="2" bw="58" slack="0"/>
+<pin id="73" dir="0" index="0" bw="41" slack="0"/>
+<pin id="74" dir="0" index="1" bw="41" slack="0"/>
+<pin id="75" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="add_ln187_2/1 "/>
+<opset="add_ln202_2/1 "/>
 </bind>
 </comp>
 
-<comp id="86" class="1004" name="add_ln187_3_fu_86">
+<comp id="78" class="1004" name="add_ln202_3_fu_78">
 <pin_list>
-<pin id="87" dir="0" index="0" bw="58" slack="0"/>
-<pin id="88" dir="0" index="1" bw="58" slack="0"/>
-<pin id="89" dir="1" index="2" bw="58" slack="0"/>
+<pin id="79" dir="0" index="0" bw="41" slack="0"/>
+<pin id="80" dir="0" index="1" bw="41" slack="0"/>
+<pin id="81" dir="1" index="2" bw="41" slack="0"/>
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="add_ln187_3/1 "/>
+<opset="add_ln202_3/1 "/>
 </bind>
 </comp>
 
-<comp id="92" class="1004" name="add_ln188_fu_92">
+<comp id="84" class="1004" name="add_ln203_fu_84">
 <pin_list>
-<pin id="93" dir="0" index="0" bw="58" slack="0"/>
-<pin id="94" dir="0" index="1" bw="58" slack="0"/>
-<pin id="95" dir="1" index="2" bw="58" slack="2147483647"/>
+<pin id="85" dir="0" index="0" bw="41" slack="0"/>
+<pin id="86" dir="0" index="1" bw="41" slack="0"/>
+<pin id="87" dir="1" index="2" bw="41" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="add_ln188/1 "/>
+<opset="add_ln203/1 "/>
 </bind>
 </comp>
 
 </comp_list>
 
 <net_list>
-<net id="36"><net_src comp="30" pin="0"/><net_sink comp="32" pin=0"/></net>
+<net id="28"><net_src comp="22" pin="0"/><net_sink comp="24" pin=0"/></net>
 
-<net id="37"><net_src comp="10" pin="0"/><net_sink comp="32" pin=1"/></net>
+<net id="29"><net_src comp="10" pin="0"/><net_sink comp="24" pin=1"/></net>
 
-<net id="42"><net_src comp="30" pin="0"/><net_sink comp="38" pin=0"/></net>
+<net id="34"><net_src comp="22" pin="0"/><net_sink comp="30" pin=0"/></net>
 
-<net id="43"><net_src comp="8" pin="0"/><net_sink comp="38" pin=1"/></net>
+<net id="35"><net_src comp="8" pin="0"/><net_sink comp="30" pin=1"/></net>
 
-<net id="48"><net_src comp="30" pin="0"/><net_sink comp="44" pin=0"/></net>
+<net id="40"><net_src comp="22" pin="0"/><net_sink comp="36" pin=0"/></net>
 
-<net id="49"><net_src comp="6" pin="0"/><net_sink comp="44" pin=1"/></net>
+<net id="41"><net_src comp="6" pin="0"/><net_sink comp="36" pin=1"/></net>
 
-<net id="54"><net_src comp="30" pin="0"/><net_sink comp="50" pin=0"/></net>
+<net id="46"><net_src comp="22" pin="0"/><net_sink comp="42" pin=0"/></net>
 
-<net id="55"><net_src comp="4" pin="0"/><net_sink comp="50" pin=1"/></net>
+<net id="47"><net_src comp="4" pin="0"/><net_sink comp="42" pin=1"/></net>
 
-<net id="60"><net_src comp="30" pin="0"/><net_sink comp="56" pin=0"/></net>
+<net id="52"><net_src comp="22" pin="0"/><net_sink comp="48" pin=0"/></net>
 
-<net id="61"><net_src comp="2" pin="0"/><net_sink comp="56" pin=1"/></net>
+<net id="53"><net_src comp="2" pin="0"/><net_sink comp="48" pin=1"/></net>
 
-<net id="66"><net_src comp="30" pin="0"/><net_sink comp="62" pin=0"/></net>
+<net id="58"><net_src comp="22" pin="0"/><net_sink comp="54" pin=0"/></net>
 
-<net id="67"><net_src comp="0" pin="0"/><net_sink comp="62" pin=1"/></net>
+<net id="59"><net_src comp="0" pin="0"/><net_sink comp="54" pin=1"/></net>
 
-<net id="72"><net_src comp="62" pin="2"/><net_sink comp="68" pin=0"/></net>
+<net id="64"><net_src comp="54" pin="2"/><net_sink comp="60" pin=0"/></net>
 
-<net id="73"><net_src comp="50" pin="2"/><net_sink comp="68" pin=1"/></net>
+<net id="65"><net_src comp="42" pin="2"/><net_sink comp="60" pin=1"/></net>
 
-<net id="78"><net_src comp="68" pin="2"/><net_sink comp="74" pin=0"/></net>
+<net id="70"><net_src comp="60" pin="2"/><net_sink comp="66" pin=0"/></net>
 
-<net id="79"><net_src comp="56" pin="2"/><net_sink comp="74" pin=1"/></net>
+<net id="71"><net_src comp="48" pin="2"/><net_sink comp="66" pin=1"/></net>
 
-<net id="84"><net_src comp="38" pin="2"/><net_sink comp="80" pin=0"/></net>
+<net id="76"><net_src comp="30" pin="2"/><net_sink comp="72" pin=0"/></net>
 
-<net id="85"><net_src comp="32" pin="2"/><net_sink comp="80" pin=1"/></net>
+<net id="77"><net_src comp="24" pin="2"/><net_sink comp="72" pin=1"/></net>
 
-<net id="90"><net_src comp="80" pin="2"/><net_sink comp="86" pin=0"/></net>
+<net id="82"><net_src comp="72" pin="2"/><net_sink comp="78" pin=0"/></net>
 
-<net id="91"><net_src comp="44" pin="2"/><net_sink comp="86" pin=1"/></net>
+<net id="83"><net_src comp="36" pin="2"/><net_sink comp="78" pin=1"/></net>
 
-<net id="96"><net_src comp="86" pin="2"/><net_sink comp="92" pin=0"/></net>
+<net id="88"><net_src comp="78" pin="2"/><net_sink comp="84" pin=0"/></net>
 
-<net id="97"><net_src comp="74" pin="2"/><net_sink comp="92" pin=1"/></net>
+<net id="89"><net_src comp="66" pin="2"/><net_sink comp="84" pin=1"/></net>
 
 </net_list>
 
@@ -486,10 +438,10 @@ ret_ln188          (ret         ) [ 00]
 	Port: sum6_P_QP_raw : a5 | {1 }
   - Chain level:
 	State 1
-		add_ln187_1 : 1
-		add_ln187_3 : 1
-		add_ln188 : 2
-		ret_ln188 : 3
+		add_ln202_1 : 1
+		add_ln202_3 : 1
+		add_ln203 : 2
+		ret_ln203 : 3
 
 
 ============================================================
@@ -500,20 +452,20 @@ ret_ln188          (ret         ) [ 00]
 |----------|--------------------|---------|---------|
 | Operation|   Functional Unit  |    FF   |   LUT   |
 |----------|--------------------|---------|---------|
-|          |   add_ln187_fu_68  |    0    |    65   |
-|          |  add_ln187_1_fu_74 |    0    |    58   |
-|    add   |  add_ln187_2_fu_80 |    0    |    58   |
-|          |  add_ln187_3_fu_86 |    0    |    58   |
-|          |   add_ln188_fu_92  |    0    |    58   |
+|          |   add_ln202_fu_60  |    0    |    48   |
+|          |  add_ln202_1_fu_66 |    0    |    41   |
+|    add   |  add_ln202_2_fu_72 |    0    |    41   |
+|          |  add_ln202_3_fu_78 |    0    |    41   |
+|          |   add_ln203_fu_84  |    0    |    41   |
 |----------|--------------------|---------|---------|
-|          | a5_read_read_fu_32 |    0    |    0    |
-|          | a4_read_read_fu_38 |    0    |    0    |
-|   read   | a3_read_read_fu_44 |    0    |    0    |
-|          | a2_read_read_fu_50 |    0    |    0    |
-|          | a1_read_read_fu_56 |    0    |    0    |
-|          | a0_read_read_fu_62 |    0    |    0    |
+|          | a5_read_read_fu_24 |    0    |    0    |
+|          | a4_read_read_fu_30 |    0    |    0    |
+|   read   | a3_read_read_fu_36 |    0    |    0    |
+|          | a2_read_read_fu_42 |    0    |    0    |
+|          | a1_read_read_fu_48 |    0    |    0    |
+|          | a0_read_read_fu_54 |    0    |    0    |
 |----------|--------------------|---------|---------|
-|   Total  |                    |    0    |   297   |
+|   Total  |                    |    0    |   212   |
 |----------|--------------------|---------|---------|
 
 Memories:
@@ -535,10 +487,10 @@ N/A
 +-----------+--------+--------+
 |           |   FF   |   LUT  |
 +-----------+--------+--------+
-|  Function |    0   |   297  |
+|  Function |    0   |   212  |
 |   Memory  |    -   |    -   |
 |Multiplexer|    -   |    -   |
 |  Register |    -   |    -   |
 +-----------+--------+--------+
-|   Total   |    0   |   297  |
+|   Total   |    0   |   212  |
 +-----------+--------+--------+

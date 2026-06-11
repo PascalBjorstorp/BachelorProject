@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'p_anonymous_namespace_unpack_input_lane_words'" level="0">
-<item name = "Date">Thu May 21 15:23:08 2026
+<item name = "Date">Thu Jun 11 16:06:57 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -31,7 +31,7 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="0">
 <keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1_fu_83">p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1, 14, 14, 70.000 ns, 70.000 ns, 0, 0, loop pipeline stp</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1_fu_83">p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1, 14, 14, 70.000 ns, 70.000 ns, 0, 0, loop pipeline stp</column>
 </table>
 </item>
 <item name = "Loop"><table name="" hasTotal="0">
@@ -50,7 +50,7 @@
 <column name="DSP">-, -, -, -, -</column>
 <column name="Expression">-, -, -, -, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">-, -, 530, 73, -</column>
+<column name="Instance">-, -, 458, 73, -</column>
 <column name="Memory">-, -, -, -, -</column>
 <column name="Multiplexer">-, -, 0, 530, -</column>
 <column name="Register">-, -, 132, -, -</column>
@@ -62,7 +62,7 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1_fu_83">p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1, 0, 0, 530, 73, 0</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1_fu_83">p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1, 0, 0, 458, 73, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -103,7 +103,7 @@
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
 <column name="ap_CS_fsm">73, 0, 73, 0</column>
-<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1_fu_83_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_213_1_fu_83_ap_start_reg">1, 0, 1, 0</column>
 <column name="trunc_ln_reg_143">58, 0, 58, 0</column>
 </table>
 </item>
@@ -182,19 +182,19 @@
 <column name="lane_words_3_address0">out, 4, ap_memory, lane_words_3, array</column>
 <column name="lane_words_3_ce0">out, 1, ap_memory, lane_words_3, array</column>
 <column name="lane_words_3_we0">out, 1, ap_memory, lane_words_3, array</column>
-<column name="lane_words_3_d0">out, 32, ap_memory, lane_words_3, array</column>
+<column name="lane_words_3_d0">out, 26, ap_memory, lane_words_3, array</column>
 <column name="lane_words_4_address0">out, 4, ap_memory, lane_words_4, array</column>
 <column name="lane_words_4_ce0">out, 1, ap_memory, lane_words_4, array</column>
 <column name="lane_words_4_we0">out, 1, ap_memory, lane_words_4, array</column>
-<column name="lane_words_4_d0">out, 32, ap_memory, lane_words_4, array</column>
+<column name="lane_words_4_d0">out, 26, ap_memory, lane_words_4, array</column>
 <column name="lane_words_5_address0">out, 4, ap_memory, lane_words_5, array</column>
 <column name="lane_words_5_ce0">out, 1, ap_memory, lane_words_5, array</column>
 <column name="lane_words_5_we0">out, 1, ap_memory, lane_words_5, array</column>
-<column name="lane_words_5_d0">out, 32, ap_memory, lane_words_5, array</column>
+<column name="lane_words_5_d0">out, 26, ap_memory, lane_words_5, array</column>
 <column name="lane_words_6_address0">out, 4, ap_memory, lane_words_6, array</column>
 <column name="lane_words_6_ce0">out, 1, ap_memory, lane_words_6, array</column>
 <column name="lane_words_6_we0">out, 1, ap_memory, lane_words_6, array</column>
-<column name="lane_words_6_d0">out, 32, ap_memory, lane_words_6, array</column>
+<column name="lane_words_6_d0">out, 26, ap_memory, lane_words_6, array</column>
 <column name="lane_words_7_address0">out, 4, ap_memory, lane_words_7, array</column>
 <column name="lane_words_7_ce0">out, 1, ap_memory, lane_words_7, array</column>
 <column name="lane_words_7_we0">out, 1, ap_memory, lane_words_7, array</column>
@@ -202,35 +202,35 @@
 <column name="lane_words_8_address0">out, 4, ap_memory, lane_words_8, array</column>
 <column name="lane_words_8_ce0">out, 1, ap_memory, lane_words_8, array</column>
 <column name="lane_words_8_we0">out, 1, ap_memory, lane_words_8, array</column>
-<column name="lane_words_8_d0">out, 32, ap_memory, lane_words_8, array</column>
+<column name="lane_words_8_d0">out, 26, ap_memory, lane_words_8, array</column>
 <column name="lane_words_9_address0">out, 4, ap_memory, lane_words_9, array</column>
 <column name="lane_words_9_ce0">out, 1, ap_memory, lane_words_9, array</column>
 <column name="lane_words_9_we0">out, 1, ap_memory, lane_words_9, array</column>
-<column name="lane_words_9_d0">out, 32, ap_memory, lane_words_9, array</column>
+<column name="lane_words_9_d0">out, 26, ap_memory, lane_words_9, array</column>
 <column name="lane_words_10_address0">out, 4, ap_memory, lane_words_10, array</column>
 <column name="lane_words_10_ce0">out, 1, ap_memory, lane_words_10, array</column>
 <column name="lane_words_10_we0">out, 1, ap_memory, lane_words_10, array</column>
-<column name="lane_words_10_d0">out, 32, ap_memory, lane_words_10, array</column>
+<column name="lane_words_10_d0">out, 26, ap_memory, lane_words_10, array</column>
 <column name="lane_words_11_address0">out, 4, ap_memory, lane_words_11, array</column>
 <column name="lane_words_11_ce0">out, 1, ap_memory, lane_words_11, array</column>
 <column name="lane_words_11_we0">out, 1, ap_memory, lane_words_11, array</column>
-<column name="lane_words_11_d0">out, 32, ap_memory, lane_words_11, array</column>
+<column name="lane_words_11_d0">out, 26, ap_memory, lane_words_11, array</column>
 <column name="lane_words_12_address0">out, 4, ap_memory, lane_words_12, array</column>
 <column name="lane_words_12_ce0">out, 1, ap_memory, lane_words_12, array</column>
 <column name="lane_words_12_we0">out, 1, ap_memory, lane_words_12, array</column>
-<column name="lane_words_12_d0">out, 32, ap_memory, lane_words_12, array</column>
+<column name="lane_words_12_d0">out, 26, ap_memory, lane_words_12, array</column>
 <column name="lane_words_13_address0">out, 4, ap_memory, lane_words_13, array</column>
 <column name="lane_words_13_ce0">out, 1, ap_memory, lane_words_13, array</column>
 <column name="lane_words_13_we0">out, 1, ap_memory, lane_words_13, array</column>
-<column name="lane_words_13_d0">out, 32, ap_memory, lane_words_13, array</column>
+<column name="lane_words_13_d0">out, 26, ap_memory, lane_words_13, array</column>
 <column name="lane_words_14_address0">out, 4, ap_memory, lane_words_14, array</column>
 <column name="lane_words_14_ce0">out, 1, ap_memory, lane_words_14, array</column>
 <column name="lane_words_14_we0">out, 1, ap_memory, lane_words_14, array</column>
-<column name="lane_words_14_d0">out, 32, ap_memory, lane_words_14, array</column>
+<column name="lane_words_14_d0">out, 26, ap_memory, lane_words_14, array</column>
 <column name="lane_words_15_address0">out, 4, ap_memory, lane_words_15, array</column>
 <column name="lane_words_15_ce0">out, 1, ap_memory, lane_words_15, array</column>
 <column name="lane_words_15_we0">out, 1, ap_memory, lane_words_15, array</column>
-<column name="lane_words_15_d0">out, 32, ap_memory, lane_words_15, array</column>
+<column name="lane_words_15_d0">out, 26, ap_memory, lane_words_15, array</column>
 </table>
 </item>
 </section>

@@ -1,20 +1,20 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_26s_20ns_46_4_1
+set name mpc_fpga_top_opencl_mul_21s_16ns_33_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_21ns_47_4_1
+set name mpc_fpga_top_opencl_mul_21s_15ns_33_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_19ns_45_4_1
+set name mpc_fpga_top_opencl_mul_21s_14ns_33_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
@@ -29,14 +29,14 @@ if {${::AESL::PGuard_autoexp_gen}} {
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 359 \
-    name conv_i_i_i_i1462_i \
+    name conv5_i_i_i_i1781_i \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_conv_i_i_i_i1462_i \
+    corename dc_conv5_i_i_i_i1781_i \
     op interface \
-    ports { conv_i_i_i_i1462_i { I 17 vector } } \
+    ports { conv5_i_i_i_i1781_i { I 12 vector } } \
 } "
 }
 
@@ -44,14 +44,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 360 \
-    name p_0_0_02853_i \
+    name p_0_0_03467_i \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_p_0_0_02853_i \
+    corename dc_p_0_0_03467_i \
     op interface \
-    ports { p_0_0_02853_i { I 26 vector } } \
+    ports { p_0_0_03467_i { I 21 vector } } \
 } "
 }
 
@@ -66,7 +66,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_empty \
     op interface \
-    ports { empty { I 26 vector } } \
+    ports { empty { I 21 vector } } \
 } "
 }
 
@@ -74,14 +74,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 362 \
-    name conv_i_i_i1476_i \
+    name conv_i_i_i1795_i \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_conv_i_i_i1476_i \
+    corename dc_conv_i_i_i1795_i \
     op interface \
-    ports { conv_i_i_i1476_i { I 26 vector } } \
+    ports { conv_i_i_i1795_i { I 21 vector } } \
 } "
 }
 
@@ -89,14 +89,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 363 \
-    name conv_i_i_i1991_i \
+    name conv_i_i_i2437_i \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_conv_i_i_i1991_i \
+    corename dc_conv_i_i_i2437_i \
     op interface \
-    ports { conv_i_i_i1991_i { I 26 vector } } \
+    ports { conv_i_i_i2437_i { I 21 vector } } \
 } "
 }
 
@@ -104,14 +104,14 @@ eval "cg_default_interface_gen_dc { \
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
     id 364 \
-    name p_0_0_02849_i \
+    name p_0_0_03463_i \
     type other \
     dir I \
     reset_level 1 \
     sync_rst true \
-    corename dc_p_0_0_02849_i \
+    corename dc_p_0_0_03463_i \
     op interface \
-    ports { p_0_0_02849_i { I 26 vector } } \
+    ports { p_0_0_03463_i { I 21 vector } } \
 } "
 }
 
@@ -126,7 +126,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_spec_select_i \
     op interface \
-    ports { spec_select_i { I 25 vector } } \
+    ports { spec_select_i { I 20 vector } } \
 } "
 }
 
@@ -141,7 +141,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_conv_i_i_i65_i \
     op interface \
-    ports { conv_i_i_i65_i { I 26 vector } } \
+    ports { conv_i_i_i65_i { I 21 vector } } \
 } "
 }
 

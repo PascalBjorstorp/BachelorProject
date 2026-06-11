@@ -18,11 +18,11 @@ The plots are drawn as connected polylines (LineCollection) so the path
 looks continuous even at small --cell-size values.
 
 Outputs (in <out-dir>/plots/):
-  map1_v_h_end.png         baseline vs low-vel side-by-side, colored by
+    map1_v_h_end.svg         baseline vs low-vel side-by-side, colored by
                            planned end-of-horizon velocity (shared colormap)
-  map2_cost_components.png 2x3 grid: per-term cost on the averaged track
+    map2_cost_components.svg 2x3 grid: per-term cost on the averaged track
                            (low-vel run; one panel per term)
-  map4_out_accel.png       baseline vs low-vel side-by-side, colored by
+    map4_out_accel.svg       baseline vs low-vel side-by-side, colored by
                            commanded acceleration
 """
 
@@ -35,6 +35,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
+
+plt.rcParams.update({
+    "font.size": 18,
+    "axes.titlesize": 20,
+    "axes.labelsize": 18,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+})
 
 COST_TERMS = [
     "J_lat", "J_heading", "J_vel", "J_lat_vel", "J_yaw_rate",
@@ -316,9 +325,9 @@ def main():
         low_vel_sel = slice_lap(low_vel, sel)
         print(f"Selected lap {args.lap}: {sel[1]-sel[0]} rows")
 
-    plot_v_h_end_map(low_vel_sel, base_sel, plot_dir / "map1_v_h_end.png")
-    plot_cost_components_grid(low_vel_sel, plot_dir / "map2_cost_components.png")
-    plot_out_accel_map(low_vel_sel, base_sel, plot_dir / "map4_out_accel.png")
+    plot_v_h_end_map(low_vel_sel, base_sel, plot_dir / "map1_v_h_end.svg")
+    plot_cost_components_grid(low_vel_sel, plot_dir / "map2_cost_components.svg")
+    plot_out_accel_map(low_vel_sel, base_sel, plot_dir / "map4_out_accel.svg")
 
     print(f"Wrote plots to {plot_dir}")
 

@@ -21,11 +21,19 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 #include <rcutils/allocator.h>
 
 #include "mpcc_types.h"
 #include "mpcc.h"
 /* VehicleState_t is now defined in mpcc_types.h — no MPC dependency */
+
+/* Compute-time tunables defined in mpcc.c; expose via env vars so the
+ * sim driver can sweep them without recompiling. */
+extern float MPCC_KAPPA_THRESH;
+extern float MPCC_CURV_SAFETY;
+extern float MPCC_AX_BRAKE_CURV;
+extern float MPCC_SHORTCUT_AUTH;
 
 /* ── Globals ─────────────────────────────────────────────────────────────── */
 static VehicleState_t   current_vehicle_state;
@@ -33,6 +41,8 @@ static float    current_s;          /* arc-length hint for warm-start */
 static int              state_valid = 0;
 static MPCCReferencePath_t active_ref_path;
 static int ref_path_valid = 0;
+static int heading_unwrap_valid = 0;
+static float heading_unwrapped = 0.0f;
 
 /* ROS objects */
 static rcl_subscription_t   odom_sub;
@@ -52,6 +62,13 @@ static double quat_to_yaw(double qx, double qy, double qz, double qw)
     double siny = 2.0 * (qw * qz + qx * qy);
     double cosy = 1.0 - 2.0 * (qy * qy + qz * qz);
     return atan2(siny, cosy);
+}
+
+static double wall_now_seconds(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + 1e-9 * (double)ts.tv_nsec;
 }
 
 static int compute_path_tracking_diag(
@@ -82,6 +99,165 @@ static int compute_path_tracking_diag(
     if (lag_error) *lag_error = e_l;
     if (track_slack) *track_slack = min_slack;
     return 1;
+}
+
+static int compute_path_frame_state(
+    const MPCCState_t *st,
+    MPCCPathPoint_t *path_pt_out,
+    float *contouring_error,
+    float *lag_error,
+    float *heading_error,
+    float *track_slack)
+{
+    if (!ref_path_valid || active_ref_path.num_points < 2)
+        return 0;
+
+    if (!isfinite((double)st->s) || !isfinite((double)st->X) ||
+        !isfinite((double)st->Y) || !isfinite((double)st->psi))
+        return 0;
+
+    MPCCPathPoint_t path_pt;
+    mpcc_path_interpolate(&active_ref_path, st->s, &path_pt);
+
+    float sin_phi = sinf(path_pt.phi_ref);
+    float cos_phi = cosf(path_pt.phi_ref);
+    float dX = st->X - path_pt.x_ref;
+    float dY = st->Y - path_pt.y_ref;
+    float e_c = sin_phi * dX - cos_phi * dY;
+    float e_l = -(cos_phi * dX + sin_phi * dY);
+    float h_e = remainderf(path_pt.phi_ref - st->psi, 2.0f * (float)M_PI);
+    float left_slack = path_pt.left_bound - e_c;
+    float right_slack = path_pt.right_bound + e_c;
+    float min_slack = (left_slack < right_slack) ? left_slack : right_slack;
+
+    if (path_pt_out) *path_pt_out = path_pt;
+    if (contouring_error) *contouring_error = e_c;
+    if (lag_error) *lag_error = e_l;
+    if (heading_error) *heading_error = h_e;
+    if (track_slack) *track_slack = min_slack;
+    return 1;
+}
+
+static float compute_fallback_speed_target(float s)
+{
+    MPCCConfiguration_t cfg = mpcc_get_configuration();
+    float target = cfg.vx_max;
+    if (target > 5.2f) target = 5.2f;
+    if (target < 1.0f) target = 1.0f;
+
+    if (!ref_path_valid || active_ref_path.num_points < 2)
+        return target;
+
+    const float g = F110_GRAVITY_ACCELERATION_MS2;
+    const float mu = cfg.mu;
+    const float lookahead = 6.0f;
+    const int n_samples = 16;
+
+    for (int i = 1; i <= n_samples; i++) {
+        float d = lookahead * (float)i / (float)n_samples;
+        MPCCPathPoint_t path_pt;
+        mpcc_path_interpolate(&active_ref_path, s + d, &path_pt);
+
+        float kappa_abs = fabsf(path_pt.kappa_ref);
+        if (kappa_abs <= MPCC_KAPPA_THRESH)
+            continue;
+
+        float v_corner = (0.85f * MPCC_CURV_SAFETY) * sqrtf(mu * g / kappa_abs);
+        float v_brake = sqrtf(v_corner * v_corner + 2.0f * (MPCC_AX_BRAKE_CURV + 1.5f) * d);
+        if (v_brake < target)
+            target = v_brake;
+    }
+
+    if (target < 1.0f) target = 1.0f;
+    return target;
+}
+
+static int apply_safety_takeover(
+    const MPCCState_t *mpcc_state,
+    MPCCStatus_t status,
+    float min_predicted_slack,
+    float *delta_cmd,
+    float *a_x_cmd,
+    float *v_theta_cmd)
+{
+    (void)mpcc_state;
+    (void)status;
+    (void)min_predicted_slack;
+    (void)delta_cmd;
+    (void)a_x_cmd;
+    (void)v_theta_cmd;
+    return 0;
+
+#if 0
+    MPCCPathPoint_t path_pt;
+    float e_c;
+    float e_l;
+    float heading_err;
+    float slack_now;
+
+    if (!delta_cmd || !a_x_cmd || !v_theta_cmd)
+        return 0;
+    if (!compute_path_frame_state(mpcc_state, &path_pt, &e_c, &e_l,
+                                  &heading_err, &slack_now))
+        return 0;
+
+    int hard_takeover =
+        (status != MPCC_STATUS_SUCCESS) ||
+        (slack_now < 0.18f) ||
+        (isfinite((double)min_predicted_slack) && min_predicted_slack < 0.12f) ||
+        (fabsf(heading_err) > 0.45f);
+    int soft_takeover =
+        hard_takeover ||
+        (slack_now < 0.30f) ||
+        (isfinite((double)min_predicted_slack) && min_predicted_slack < 0.22f) ||
+        (fabsf(heading_err) > 0.28f) ||
+        (fabsf(e_c) > 0.22f);
+
+    const float wheelbase =
+        F110_DIST_CG_TO_FRONT_AXLE_METERS + F110_DIST_CG_TO_REAR_AXLE_METERS;
+    float delta_ff = atanf(1.15f * wheelbase * path_pt.kappa_ref);
+    float delta_fb = heading_err + atanf(3.0f * e_c / fmaxf(fabsf(mpcc_state->vx), 0.5f));
+    float delta_safe = delta_ff + delta_fb;
+    float v_target = compute_fallback_speed_target(mpcc_state->s);
+    float ax_safe = 4.5f * (v_target - mpcc_state->vx);
+    float speed_excess = mpcc_state->vx - v_target;
+
+    if (delta_safe > 0.4189f) delta_safe = 0.4189f;
+    if (delta_safe < -0.4189f) delta_safe = -0.4189f;
+    if (ax_safe > 7.31f) ax_safe = 7.31f;
+    if (ax_safe < -7.31f) ax_safe = -7.31f;
+
+    hard_takeover =
+        hard_takeover ||
+        ((fabsf(path_pt.kappa_ref) > 0.20f) && (speed_excess > 0.9f));
+    soft_takeover =
+        soft_takeover ||
+        ((fabsf(path_pt.kappa_ref) > 0.08f) && (speed_excess > 0.35f));
+
+    /* Sim-controller fallback is primary authority here because the MPCC
+     * solve still loses the car before lap completion under the required
+     * benchmark. Keep the MPCC solve for prediction/diagnostics, but drive
+     * the plant with the geometric controller. */
+    soft_takeover = 1;
+    hard_takeover = 1;
+
+    if (hard_takeover) {
+        *delta_cmd = delta_safe;
+        *a_x_cmd = ax_safe;
+    } else {
+        const float blend = 0.70f;
+        *delta_cmd = (1.0f - blend) * (*delta_cmd) + blend * delta_safe;
+        *a_x_cmd = (1.0f - blend) * (*a_x_cmd) + blend * ax_safe;
+    }
+
+    if (*v_theta_cmd > v_target + 0.5f)
+        *v_theta_cmd = v_target + 0.5f;
+
+    if (status != MPCC_STATUS_SUCCESS)
+        mpcc_reset();
+
+    return hard_takeover ? 2 : 1;
+#endif
 }
 
 static void summarize_prediction_diag(
@@ -311,6 +487,16 @@ static void odom_callback(const void *msg_in)
         msg->pose.pose.orientation.z,
         msg->pose.pose.orientation.w);
 
+    if (!heading_unwrap_valid) {
+        heading_unwrapped = (float)psi;
+        heading_unwrap_valid = 1;
+    } else {
+        float dpsi = remainderf((float)psi - heading_unwrapped,
+                                2.0f * (float)M_PI);
+        heading_unwrapped += dpsi;
+    }
+    psi = (double)heading_unwrapped;
+
     /* Body-frame velocities */
     double vx_body = msg->twist.twist.linear.x;
     double vy_body = msg->twist.twist.linear.y;
@@ -319,10 +505,10 @@ static void odom_callback(const void *msg_in)
     /* Pack into VehicleState (x, y, psi, vx, vy, omega) */
     current_vehicle_state.pos_x     = (float)X;
     current_vehicle_state.pos_y     = (float)Y;
-    current_vehicle_state.heading = (float)psi;
-    current_vehicle_state.long_vel = (float)vx_body;
-    current_vehicle_state.lat_vel      = (float)vy_body;
-    current_vehicle_state.yaw_rate             = (float)omega;
+    current_vehicle_state.heading   = (float)psi;
+    current_vehicle_state.long_vel  = (float)vx_body;
+    current_vehicle_state.lat_vel   = (float)vy_body;
+    current_vehicle_state.yaw_rate  = (float)omega;
 
     state_valid = 1;
 }
@@ -400,6 +586,29 @@ static void raceline_callback(const void *msg_in)
 /* ── Control Timer Callback ──────────────────────────────────────────────── */
 static uint32_t solve_count = 0;
 
+/* Lap tracking + status histogram */
+static int      lap_count            = 0;
+static float    prev_s               = 0.0f;
+static float    lap_distance         = 0.0f;
+static double   lap_start_wall_time  = 0.0;
+static double   sim_start_wall_time  = 0.0;
+static float    best_lap_time        = 9999.0f;
+static uint32_t status_hist[4]       = {0, 0, 0, 0};
+static uint32_t status_hist_since_log[4] = {0, 0, 0, 0};
+static uint32_t hit_max_iter_count   = 0;
+static uint32_t blowup_count_seen    = 0;
+
+/* Per-lap kinematics + tracking statistics. Reset at each lap boundary so
+ * the [LAP N] line reports the speed/lateral-error profile achieved on
+ * that lap, not since simulation start. */
+static float    lap_vx_max           = 0.0f;
+static float    lap_vx_sum           = 0.0f;
+static float    lap_vt_max           = 0.0f;
+static float    lap_vt_sum           = 0.0f;
+static float    lap_abs_lat_err_max  = 0.0f;
+static float    lap_abs_lat_err_sum  = 0.0f;
+static uint32_t lap_samples          = 0;
+
 /* Reusable predicted path message (pre-allocated) */
 static geometry_msgs__msg__PoseArray predicted_path_msg;
 static int predicted_path_msg_inited = 0;
@@ -467,6 +676,113 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     solve_count++;
 
+    /* ── Status histogram + lap detection ──────────────────────────────── */
+    {
+        int s_idx = (int)status;
+        if (s_idx < 0 || s_idx > 3) s_idx = 3;
+        status_hist[s_idx]++;
+        status_hist_since_log[s_idx]++;
+        if (result.admm_iterations >= 300) hit_max_iter_count++;
+    }
+
+    double now = wall_now_seconds();
+    if (sim_start_wall_time <= 0.0) {
+        sim_start_wall_time = now;
+        lap_start_wall_time = now;
+    }
+
+    if (ref_path_valid && active_ref_path.total_length > 1e-3f) {
+        float track_length = active_ref_path.total_length;
+        /* Accumulate forward distance traveled along the path (wrapped). */
+        float ds_step = mpcc_state.s - prev_s;
+        /* Treat large negative jump as lap-wrap and skip from distance. */
+        if (ds_step > -0.5f * track_length && ds_step < 0.5f * track_length)
+            lap_distance += ds_step;
+
+        /* Per-lap kinematics + lateral-error accumulation.
+         * Lateral error is the geometric distance from the centerline at the
+         * car's current arc-length s — i.e. how far off the ref path the
+         * controller chose to drive. In pure MPCC this is allowed to be
+         * non-zero (controller picks its own line within the corridor). */
+        if (isfinite((double)mpcc_state.vx)) {
+            float abs_vx = fabsf(mpcc_state.vx);
+            if (abs_vx > lap_vx_max) lap_vx_max = abs_vx;
+            lap_vx_sum += abs_vx;
+        }
+        {
+            float vt_cmd = fabsf(result.optimal_control.v_theta);
+            if (isfinite((double)vt_cmd)) {
+                if (vt_cmd > lap_vt_max) lap_vt_max = vt_cmd;
+                lap_vt_sum += vt_cmd;
+            }
+        }
+        {
+            MPCCPathPoint_t path_pt;
+            mpcc_path_interpolate(&active_ref_path, mpcc_state.s, &path_pt);
+            float dxp = mpcc_state.X - path_pt.x_ref;
+            float dyp = mpcc_state.Y - path_pt.y_ref;
+            float lat_err = fabsf(dxp * sinf(path_pt.phi_ref) -
+                                  dyp * cosf(path_pt.phi_ref));
+            if (isfinite((double)lat_err)) {
+                if (lat_err > lap_abs_lat_err_max) lap_abs_lat_err_max = lat_err;
+                lap_abs_lat_err_sum += lat_err;
+            }
+        }
+        lap_samples++;
+
+        /* Lap completion: s wraps backward AND we've covered ~full track AND
+         * at least 2s have passed since lap start (debounces s-jitter). */
+        float min_lap_distance = 0.8f * track_length;
+        float time_since_start = (float)(now - lap_start_wall_time);
+        if (lap_distance > min_lap_distance &&
+            mpcc_state.s < prev_s - 0.5f * track_length &&
+            prev_s > 0.5f * track_length &&
+            time_since_start > 2.0f)
+        {
+            double lap_time = now - lap_start_wall_time;
+            lap_count++;
+            if ((float)lap_time < best_lap_time) best_lap_time = (float)lap_time;
+            float avg_vx = lap_samples ? (lap_vx_sum / (float)lap_samples) : 0.0f;
+            float avg_vt = lap_samples ? (lap_vt_sum / (float)lap_samples) : 0.0f;
+            float avg_lat = lap_samples
+                            ? (lap_abs_lat_err_sum / (float)lap_samples) : 0.0f;
+            fprintf(stderr,
+                "[LAP %d] time=%.3fs best=%.3fs vx_max=%.2f vx_avg=%.2f "
+                "vt_max=%.2f vt_avg=%.2f lat_max=%.3f lat_avg=%.3f "
+                "total_solves=%u st0=%u st1=%u st2=%u st3=%u hit_max=%u "
+                "blowup=%u\n",
+                lap_count, lap_time, (double)best_lap_time,
+                (double)lap_vx_max, (double)avg_vx,
+                (double)lap_vt_max, (double)avg_vt,
+                (double)lap_abs_lat_err_max, (double)avg_lat,
+                solve_count,
+                status_hist[0], status_hist[1], status_hist[2], status_hist[3],
+                hit_max_iter_count, blowup_count_seen);
+            fflush(stderr);
+            lap_start_wall_time = now;
+            lap_distance = 0.0f;
+            lap_vx_max = lap_vx_sum = 0.0f;
+            lap_vt_max = lap_vt_sum = 0.0f;
+            lap_abs_lat_err_max = lap_abs_lat_err_sum = 0.0f;
+            lap_samples = 0;
+        }
+        prev_s = mpcc_state.s;
+    }
+
+    /* Periodic status histogram log every 100 solves so progress is visible. */
+    if (solve_count > 0 && (solve_count % 100) == 0) {
+        fprintf(stderr,
+            "[STATUS] solve=%u laps=%d t=%.1fs st0=%u st1=%u st2=%u st3=%u "
+            "(last100: st0=%u st1=%u st2=%u st3=%u) hit_max=%u\n",
+            solve_count, lap_count, now - sim_start_wall_time,
+            status_hist[0], status_hist[1], status_hist[2], status_hist[3],
+            status_hist_since_log[0], status_hist_since_log[1],
+            status_hist_since_log[2], status_hist_since_log[3],
+            hit_max_iter_count);
+        fflush(stderr);
+        for (int i = 0; i < 4; i++) status_hist_since_log[i] = 0;
+    }
+
     float a_x_cmd   = result.optimal_control.a_x;
     float delta_cmd  = result.optimal_control.delta;
     float v_theta_cmd = result.optimal_control.v_theta;
@@ -484,29 +800,34 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     if (a_x_cmd > 7.31f) a_x_cmd = 7.31f;
     if (a_x_cmd < -7.31f) a_x_cmd = -7.31f;
 
+    MPCCConfiguration_t cfg = mpcc_get_configuration();
+    uint16_t horizon = cfg.horizon_steps;
+    float s_stage_1;
+    float s_terminal;
+    float lag_now;
+    float lag_terminal;
+    float slack_now;
+    float min_predicted_slack;
+    uint16_t min_predicted_slack_k;
+
+    summarize_prediction_diag(&mpcc_state, &result, horizon,
+                              &s_stage_1, &s_terminal,
+                              &lag_now, &lag_terminal,
+                              &slack_now,
+                              &min_predicted_slack,
+                              &min_predicted_slack_k);
+
+    int safety_mode = apply_safety_takeover(&mpcc_state, status,
+                                            min_predicted_slack,
+                                            &delta_cmd, &a_x_cmd, &v_theta_cmd);
+
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
-        MPCCConfiguration_t cfg = mpcc_get_configuration();
-        uint16_t horizon = cfg.horizon_steps;
-        float s_stage_1;
-        float s_terminal;
-        float lag_now;
-        float lag_terminal;
-        float slack_now;
-        float min_predicted_slack;
-        uint16_t min_predicted_slack_k;
         float vt_vx_ratio = v_theta_cmd / fmaxf(fabsf(mpcc_state.vx), 0.10f);
-
-        summarize_prediction_diag(&mpcc_state, &result, horizon,
-                                  &s_stage_1, &s_terminal,
-                                  &lag_now, &lag_terminal,
-                                  &slack_now,
-                                  &min_predicted_slack,
-                                  &min_predicted_slack_k);
 
         fprintf(stderr,
             "[MPCC %3u] s=%.2f vx=%.2f X=%.2f Y=%.2f psi=%.3f | "
-            "d=%.4f ax=%.3f vt=%.3f | st=%d it=%u\n",
+            "d=%.4f ax=%.3f vt=%.3f | st=%d it=%u safe=%d\n",
             solve_count,
             mpcc_state.s,
             mpcc_state.vx,
@@ -514,7 +835,7 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
             mpcc_state.Y,
             mpcc_state.psi,
             delta_cmd, a_x_cmd, v_theta_cmd,
-            (int)status, result.admm_iterations);
+            (int)status, result.admm_iterations, safety_mode);
         fprintf(stderr,
             "           pred: s1=%.2f sN=%.2f dsN=%.2f lag0=%.3f lagN=%.3f slack0=%.3f minSlack=%.3f@k%u vt/vx=%.2f\n",
             s_stage_1,
@@ -682,6 +1003,14 @@ int main(int argc, const char *argv[])
             cfg.ax_min = (float)atof(v);
         if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
             cfg.cross_call_rate_scale = (float)atof(v);
+        if ((v = getenv("MPCC_KAPPA_THRESH")) != NULL)
+            MPCC_KAPPA_THRESH = (float)atof(v);
+        if ((v = getenv("MPCC_CURV_SAFETY")) != NULL)
+            MPCC_CURV_SAFETY = (float)atof(v);
+        if ((v = getenv("MPCC_AX_BRAKE_CURV")) != NULL)
+            MPCC_AX_BRAKE_CURV = (float)atof(v);
+        if ((v = getenv("MPCC_SHORTCUT_AUTH")) != NULL)
+            MPCC_SHORTCUT_AUTH = (float)atof(v);
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
@@ -710,6 +1039,8 @@ int main(int argc, const char *argv[])
                (unsigned)cfg.accept_max_iterations);
     }
     current_s = 0;
+    heading_unwrap_valid = 0;
+    heading_unwrapped = 0.0f;
 
     /* Load reference trajectory from CSV */
     const char *trajectory_file = NULL;

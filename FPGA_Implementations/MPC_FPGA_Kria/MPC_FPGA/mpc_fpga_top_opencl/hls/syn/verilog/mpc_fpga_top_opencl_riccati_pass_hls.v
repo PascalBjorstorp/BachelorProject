@@ -14,114 +14,42 @@ module mpc_fpga_top_opencl_riccati_pass_hls (
         ap_done,
         ap_idle,
         ap_ready,
-        step_data_0_0_0_address0,
-        step_data_0_0_0_ce0,
-        step_data_0_0_0_q0,
-        step_data_0_0_1_address0,
-        step_data_0_0_1_ce0,
-        step_data_0_0_1_q0,
-        step_data_0_0_2_address0,
-        step_data_0_0_2_ce0,
-        step_data_0_0_2_q0,
-        step_data_0_0_3_address0,
-        step_data_0_0_3_ce0,
-        step_data_0_0_3_q0,
-        step_data_0_0_4_address0,
-        step_data_0_0_4_ce0,
-        step_data_0_0_4_q0,
-        step_data_0_0_5_address0,
-        step_data_0_0_5_ce0,
-        step_data_0_0_5_q0,
-        step_data_0_1_0_address0,
-        step_data_0_1_0_ce0,
-        step_data_0_1_0_q0,
-        step_data_0_1_1_address0,
-        step_data_0_1_1_ce0,
-        step_data_0_1_1_q0,
-        step_data_0_1_2_address0,
-        step_data_0_1_2_ce0,
-        step_data_0_1_2_q0,
-        step_data_0_1_3_address0,
-        step_data_0_1_3_ce0,
-        step_data_0_1_3_q0,
-        step_data_0_1_4_address0,
-        step_data_0_1_4_ce0,
-        step_data_0_1_4_q0,
-        step_data_0_1_5_address0,
-        step_data_0_1_5_ce0,
-        step_data_0_1_5_q0,
-        step_data_0_2_0_address0,
-        step_data_0_2_0_ce0,
-        step_data_0_2_0_q0,
-        step_data_0_2_1_address0,
-        step_data_0_2_1_ce0,
-        step_data_0_2_1_q0,
-        step_data_0_2_2_address0,
-        step_data_0_2_2_ce0,
-        step_data_0_2_2_q0,
-        step_data_0_2_3_address0,
-        step_data_0_2_3_ce0,
-        step_data_0_2_3_q0,
-        step_data_0_2_4_address0,
-        step_data_0_2_4_ce0,
-        step_data_0_2_4_q0,
-        step_data_0_2_5_address0,
-        step_data_0_2_5_ce0,
-        step_data_0_2_5_q0,
-        step_data_0_3_0_address0,
-        step_data_0_3_0_ce0,
-        step_data_0_3_0_q0,
-        step_data_0_3_1_address0,
-        step_data_0_3_1_ce0,
-        step_data_0_3_1_q0,
-        step_data_0_3_2_address0,
-        step_data_0_3_2_ce0,
-        step_data_0_3_2_q0,
-        step_data_0_3_3_address0,
-        step_data_0_3_3_ce0,
-        step_data_0_3_3_q0,
-        step_data_0_3_4_address0,
-        step_data_0_3_4_ce0,
-        step_data_0_3_4_q0,
-        step_data_0_3_5_address0,
-        step_data_0_3_5_ce0,
-        step_data_0_3_5_q0,
-        step_data_0_4_0_address0,
-        step_data_0_4_0_ce0,
-        step_data_0_4_0_q0,
-        step_data_0_4_1_address0,
-        step_data_0_4_1_ce0,
-        step_data_0_4_1_q0,
-        step_data_0_4_2_address0,
-        step_data_0_4_2_ce0,
-        step_data_0_4_2_q0,
-        step_data_0_4_3_address0,
-        step_data_0_4_3_ce0,
-        step_data_0_4_3_q0,
-        step_data_0_4_4_address0,
-        step_data_0_4_4_ce0,
-        step_data_0_4_4_q0,
-        step_data_0_4_5_address0,
-        step_data_0_4_5_ce0,
-        step_data_0_4_5_q0,
-        step_data_0_5_0_address0,
-        step_data_0_5_0_ce0,
-        step_data_0_5_0_q0,
-        step_data_0_5_1_address0,
-        step_data_0_5_1_ce0,
-        step_data_0_5_1_q0,
-        step_data_0_5_2_address0,
-        step_data_0_5_2_ce0,
-        step_data_0_5_2_q0,
-        step_data_0_5_3_address0,
-        step_data_0_5_3_ce0,
-        step_data_0_5_3_q0,
-        step_data_0_5_4_address0,
-        step_data_0_5_4_ce0,
-        step_data_0_5_4_q0,
-        step_data_0_5_5_address0,
-        step_data_0_5_5_ce0,
-        step_data_0_5_5_q0,
+        step_data_0_0_address0,
+        step_data_0_0_ce0,
+        step_data_0_0_q0,
+        step_data_0_0_address1,
+        step_data_0_0_ce1,
+        step_data_0_0_q1,
+        step_data_0_1_address0,
+        step_data_0_1_ce0,
+        step_data_0_1_q0,
+        step_data_0_1_address1,
+        step_data_0_1_ce1,
+        step_data_0_1_q1,
+        step_data_0_2_address0,
+        step_data_0_2_ce0,
+        step_data_0_2_q0,
+        step_data_0_2_address1,
+        step_data_0_2_ce1,
+        step_data_0_2_q1,
+        step_data_0_3_address0,
+        step_data_0_3_ce0,
+        step_data_0_3_q0,
+        step_data_0_3_address1,
+        step_data_0_3_ce1,
+        step_data_0_3_q1,
+        step_data_0_4_address0,
+        step_data_0_4_ce0,
+        step_data_0_4_q0,
+        step_data_0_4_address1,
+        step_data_0_4_ce1,
+        step_data_0_4_q1,
+        step_data_0_5_address0,
+        step_data_0_5_ce0,
+        step_data_0_5_q0,
+        step_data_0_5_address1,
+        step_data_0_5_ce1,
+        step_data_0_5_q1,
         step_data_1_address0,
         step_data_1_ce0,
         step_data_1_q0,
@@ -580,20 +508,20 @@ module mpc_fpga_top_opencl_riccati_pass_hls (
         u_out_1_ce0,
         u_out_1_we0,
         u_out_1_d0,
-        grp_fp_recip_fu_6151_p_din1,
-        grp_fp_recip_fu_6151_p_dout0,
-        grp_fu_6156_p_din0,
-        grp_fu_6156_p_din1,
-        grp_fu_6156_p_dout0,
-        grp_fu_6156_p_ce,
-        grp_fu_6160_p_din0,
-        grp_fu_6160_p_din1,
-        grp_fu_6160_p_dout0,
-        grp_fu_6160_p_ce,
-        grp_fu_6164_p_din0,
-        grp_fu_6164_p_din1,
-        grp_fu_6164_p_dout0,
-        grp_fu_6164_p_ce
+        grp_fp_recip_fu_5937_p_din1,
+        grp_fp_recip_fu_5937_p_dout0,
+        grp_fu_5943_p_din0,
+        grp_fu_5943_p_din1,
+        grp_fu_5943_p_dout0,
+        grp_fu_5943_p_ce,
+        grp_fu_5947_p_din0,
+        grp_fu_5947_p_din1,
+        grp_fu_5947_p_dout0,
+        grp_fu_5947_p_ce,
+        grp_fu_2784_p_din0,
+        grp_fu_2784_p_din1,
+        grp_fu_2784_p_dout0,
+        grp_fu_2784_p_ce
 );
 
 parameter    ap_ST_fsm_state1 = 4'd1;
@@ -607,662 +535,536 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-output  [4:0] step_data_0_0_0_address0;
-output   step_data_0_0_0_ce0;
-input  [31:0] step_data_0_0_0_q0;
-output  [4:0] step_data_0_0_1_address0;
-output   step_data_0_0_1_ce0;
-input  [31:0] step_data_0_0_1_q0;
-output  [4:0] step_data_0_0_2_address0;
-output   step_data_0_0_2_ce0;
-input  [31:0] step_data_0_0_2_q0;
-output  [4:0] step_data_0_0_3_address0;
-output   step_data_0_0_3_ce0;
-input  [31:0] step_data_0_0_3_q0;
-output  [4:0] step_data_0_0_4_address0;
-output   step_data_0_0_4_ce0;
-input  [31:0] step_data_0_0_4_q0;
-output  [4:0] step_data_0_0_5_address0;
-output   step_data_0_0_5_ce0;
-input  [31:0] step_data_0_0_5_q0;
-output  [4:0] step_data_0_1_0_address0;
-output   step_data_0_1_0_ce0;
-input  [31:0] step_data_0_1_0_q0;
-output  [4:0] step_data_0_1_1_address0;
-output   step_data_0_1_1_ce0;
-input  [31:0] step_data_0_1_1_q0;
-output  [4:0] step_data_0_1_2_address0;
-output   step_data_0_1_2_ce0;
-input  [31:0] step_data_0_1_2_q0;
-output  [4:0] step_data_0_1_3_address0;
-output   step_data_0_1_3_ce0;
-input  [31:0] step_data_0_1_3_q0;
-output  [4:0] step_data_0_1_4_address0;
-output   step_data_0_1_4_ce0;
-input  [31:0] step_data_0_1_4_q0;
-output  [4:0] step_data_0_1_5_address0;
-output   step_data_0_1_5_ce0;
-input  [31:0] step_data_0_1_5_q0;
-output  [4:0] step_data_0_2_0_address0;
-output   step_data_0_2_0_ce0;
-input  [31:0] step_data_0_2_0_q0;
-output  [4:0] step_data_0_2_1_address0;
-output   step_data_0_2_1_ce0;
-input  [31:0] step_data_0_2_1_q0;
-output  [4:0] step_data_0_2_2_address0;
-output   step_data_0_2_2_ce0;
-input  [31:0] step_data_0_2_2_q0;
-output  [4:0] step_data_0_2_3_address0;
-output   step_data_0_2_3_ce0;
-input  [31:0] step_data_0_2_3_q0;
-output  [4:0] step_data_0_2_4_address0;
-output   step_data_0_2_4_ce0;
-input  [31:0] step_data_0_2_4_q0;
-output  [4:0] step_data_0_2_5_address0;
-output   step_data_0_2_5_ce0;
-input  [31:0] step_data_0_2_5_q0;
-output  [4:0] step_data_0_3_0_address0;
-output   step_data_0_3_0_ce0;
-input  [31:0] step_data_0_3_0_q0;
-output  [4:0] step_data_0_3_1_address0;
-output   step_data_0_3_1_ce0;
-input  [31:0] step_data_0_3_1_q0;
-output  [4:0] step_data_0_3_2_address0;
-output   step_data_0_3_2_ce0;
-input  [31:0] step_data_0_3_2_q0;
-output  [4:0] step_data_0_3_3_address0;
-output   step_data_0_3_3_ce0;
-input  [31:0] step_data_0_3_3_q0;
-output  [4:0] step_data_0_3_4_address0;
-output   step_data_0_3_4_ce0;
-input  [31:0] step_data_0_3_4_q0;
-output  [4:0] step_data_0_3_5_address0;
-output   step_data_0_3_5_ce0;
-input  [31:0] step_data_0_3_5_q0;
-output  [4:0] step_data_0_4_0_address0;
-output   step_data_0_4_0_ce0;
-input  [31:0] step_data_0_4_0_q0;
-output  [4:0] step_data_0_4_1_address0;
-output   step_data_0_4_1_ce0;
-input  [31:0] step_data_0_4_1_q0;
-output  [4:0] step_data_0_4_2_address0;
-output   step_data_0_4_2_ce0;
-input  [31:0] step_data_0_4_2_q0;
-output  [4:0] step_data_0_4_3_address0;
-output   step_data_0_4_3_ce0;
-input  [31:0] step_data_0_4_3_q0;
-output  [4:0] step_data_0_4_4_address0;
-output   step_data_0_4_4_ce0;
-input  [31:0] step_data_0_4_4_q0;
-output  [4:0] step_data_0_4_5_address0;
-output   step_data_0_4_5_ce0;
-input  [31:0] step_data_0_4_5_q0;
-output  [4:0] step_data_0_5_0_address0;
-output   step_data_0_5_0_ce0;
-input  [31:0] step_data_0_5_0_q0;
-output  [4:0] step_data_0_5_1_address0;
-output   step_data_0_5_1_ce0;
-input  [31:0] step_data_0_5_1_q0;
-output  [4:0] step_data_0_5_2_address0;
-output   step_data_0_5_2_ce0;
-input  [31:0] step_data_0_5_2_q0;
-output  [4:0] step_data_0_5_3_address0;
-output   step_data_0_5_3_ce0;
-input  [31:0] step_data_0_5_3_q0;
-output  [4:0] step_data_0_5_4_address0;
-output   step_data_0_5_4_ce0;
-input  [31:0] step_data_0_5_4_q0;
-output  [4:0] step_data_0_5_5_address0;
-output   step_data_0_5_5_ce0;
-input  [31:0] step_data_0_5_5_q0;
+output  [6:0] step_data_0_0_address0;
+output   step_data_0_0_ce0;
+input  [25:0] step_data_0_0_q0;
+output  [6:0] step_data_0_0_address1;
+output   step_data_0_0_ce1;
+input  [25:0] step_data_0_0_q1;
+output  [6:0] step_data_0_1_address0;
+output   step_data_0_1_ce0;
+input  [25:0] step_data_0_1_q0;
+output  [6:0] step_data_0_1_address1;
+output   step_data_0_1_ce1;
+input  [25:0] step_data_0_1_q1;
+output  [6:0] step_data_0_2_address0;
+output   step_data_0_2_ce0;
+input  [25:0] step_data_0_2_q0;
+output  [6:0] step_data_0_2_address1;
+output   step_data_0_2_ce1;
+input  [25:0] step_data_0_2_q1;
+output  [6:0] step_data_0_3_address0;
+output   step_data_0_3_ce0;
+input  [25:0] step_data_0_3_q0;
+output  [6:0] step_data_0_3_address1;
+output   step_data_0_3_ce1;
+input  [25:0] step_data_0_3_q1;
+output  [6:0] step_data_0_4_address0;
+output   step_data_0_4_ce0;
+input  [25:0] step_data_0_4_q0;
+output  [6:0] step_data_0_4_address1;
+output   step_data_0_4_ce1;
+input  [25:0] step_data_0_4_q1;
+output  [6:0] step_data_0_5_address0;
+output   step_data_0_5_ce0;
+input  [25:0] step_data_0_5_q0;
+output  [6:0] step_data_0_5_address1;
+output   step_data_0_5_ce1;
+input  [25:0] step_data_0_5_q1;
 output  [6:0] step_data_1_address0;
 output   step_data_1_ce0;
-input  [31:0] step_data_1_q0;
+input  [25:0] step_data_1_q0;
 output  [6:0] step_data_1_address1;
 output   step_data_1_ce1;
-input  [31:0] step_data_1_q1;
+input  [25:0] step_data_1_q1;
 output  [6:0] step_data_2_address0;
 output   step_data_2_ce0;
-input  [31:0] step_data_2_q0;
+input  [25:0] step_data_2_q0;
 output  [6:0] step_data_2_address1;
 output   step_data_2_ce1;
-input  [31:0] step_data_2_q1;
+input  [25:0] step_data_2_q1;
 output  [4:0] B_sparse_0_address0;
 output   B_sparse_0_ce0;
-input  [31:0] B_sparse_0_q0;
+input  [25:0] B_sparse_0_q0;
 output  [4:0] B_sparse_1_address0;
 output   B_sparse_1_ce0;
-input  [31:0] B_sparse_1_q0;
+input  [25:0] B_sparse_1_q0;
 output  [4:0] B_sparse_2_address0;
 output   B_sparse_2_ce0;
-input  [31:0] B_sparse_2_q0;
+input  [25:0] B_sparse_2_q0;
 output  [4:0] B_sparse_3_address0;
 output   B_sparse_3_ce0;
-input  [31:0] B_sparse_3_q0;
-input  [31:0] p_read;
-input  [31:0] p_read1;
-input  [31:0] p_read2;
-input  [31:0] p_read3;
-input  [31:0] p_read4;
-input  [31:0] p_read5;
-input  [31:0] p_read6;
-input  [31:0] p_read7;
-input  [31:0] p_read8;
-input  [31:0] p_read9;
-input  [31:0] p_read10;
-input  [31:0] p_read11;
-input  [31:0] p_read12;
-input  [31:0] p_read13;
-input  [31:0] rho;
-input  [31:0] rho_u;
+input  [25:0] B_sparse_3_q0;
+input  [25:0] p_read;
+input  [25:0] p_read1;
+input  [25:0] p_read2;
+input  [25:0] p_read3;
+input  [25:0] p_read4;
+input  [25:0] p_read5;
+input  [25:0] p_read6;
+input  [25:0] p_read7;
+input  [25:0] p_read8;
+input  [25:0] p_read9;
+input  [25:0] p_read10;
+input  [25:0] p_read11;
+input  [25:0] p_read12;
+input  [25:0] p_read13;
+input  [25:0] rho;
+input  [25:0] rho_u;
 output  [4:0] z_x_0_address0;
 output   z_x_0_ce0;
-input  [31:0] z_x_0_q0;
+input  [25:0] z_x_0_q0;
 output  [4:0] z_x_5_address0;
 output   z_x_5_ce0;
-input  [31:0] z_x_5_q0;
+input  [25:0] z_x_5_q0;
 output  [4:0] y_x_0_address0;
 output   y_x_0_ce0;
-input  [31:0] y_x_0_q0;
+input  [25:0] y_x_0_q0;
 output  [4:0] y_x_5_address0;
 output   y_x_5_ce0;
-input  [31:0] y_x_5_q0;
+input  [25:0] y_x_5_q0;
 output  [4:0] z_u_0_address0;
 output   z_u_0_ce0;
-input  [31:0] z_u_0_q0;
+input  [25:0] z_u_0_q0;
 output  [4:0] z_u_1_address0;
 output   z_u_1_ce0;
-input  [31:0] z_u_1_q0;
+input  [25:0] z_u_1_q0;
 output  [4:0] y_u_0_address0;
 output   y_u_0_ce0;
-input  [31:0] y_u_0_q0;
+input  [25:0] y_u_0_q0;
 output  [4:0] y_u_1_address0;
 output   y_u_1_ce0;
-input  [31:0] y_u_1_q0;
+input  [25:0] y_u_1_q0;
 output  [2:0] K_0_0_0_address0;
 output   K_0_0_0_ce0;
 output   K_0_0_0_we0;
-output  [25:0] K_0_0_0_d0;
-input  [25:0] K_0_0_0_q0;
+output  [16:0] K_0_0_0_d0;
+input  [16:0] K_0_0_0_q0;
 output  [2:0] K_0_0_1_address0;
 output   K_0_0_1_ce0;
 output   K_0_0_1_we0;
-output  [25:0] K_0_0_1_d0;
-input  [25:0] K_0_0_1_q0;
+output  [16:0] K_0_0_1_d0;
+input  [16:0] K_0_0_1_q0;
 output  [2:0] K_0_0_2_address0;
 output   K_0_0_2_ce0;
 output   K_0_0_2_we0;
-output  [25:0] K_0_0_2_d0;
-input  [25:0] K_0_0_2_q0;
+output  [16:0] K_0_0_2_d0;
+input  [16:0] K_0_0_2_q0;
 output  [2:0] K_0_0_3_address0;
 output   K_0_0_3_ce0;
 output   K_0_0_3_we0;
-output  [25:0] K_0_0_3_d0;
-input  [25:0] K_0_0_3_q0;
+output  [16:0] K_0_0_3_d0;
+input  [16:0] K_0_0_3_q0;
 output  [2:0] K_0_0_4_address0;
 output   K_0_0_4_ce0;
 output   K_0_0_4_we0;
-output  [25:0] K_0_0_4_d0;
-input  [25:0] K_0_0_4_q0;
+output  [16:0] K_0_0_4_d0;
+input  [16:0] K_0_0_4_q0;
 output  [2:0] K_0_0_5_address0;
 output   K_0_0_5_ce0;
 output   K_0_0_5_we0;
-output  [25:0] K_0_0_5_d0;
-input  [25:0] K_0_0_5_q0;
+output  [16:0] K_0_0_5_d0;
+input  [16:0] K_0_0_5_q0;
 output  [2:0] K_0_0_6_address0;
 output   K_0_0_6_ce0;
 output   K_0_0_6_we0;
-output  [25:0] K_0_0_6_d0;
-input  [25:0] K_0_0_6_q0;
+output  [16:0] K_0_0_6_d0;
+input  [16:0] K_0_0_6_q0;
 output  [2:0] K_0_0_7_address0;
 output   K_0_0_7_ce0;
 output   K_0_0_7_we0;
-output  [25:0] K_0_0_7_d0;
-input  [25:0] K_0_0_7_q0;
+output  [16:0] K_0_0_7_d0;
+input  [16:0] K_0_0_7_q0;
 output  [2:0] K_0_1_0_address0;
 output   K_0_1_0_ce0;
 output   K_0_1_0_we0;
-output  [25:0] K_0_1_0_d0;
-input  [25:0] K_0_1_0_q0;
+output  [16:0] K_0_1_0_d0;
+input  [16:0] K_0_1_0_q0;
 output  [2:0] K_0_1_1_address0;
 output   K_0_1_1_ce0;
 output   K_0_1_1_we0;
-output  [25:0] K_0_1_1_d0;
-input  [25:0] K_0_1_1_q0;
+output  [16:0] K_0_1_1_d0;
+input  [16:0] K_0_1_1_q0;
 output  [2:0] K_0_1_2_address0;
 output   K_0_1_2_ce0;
 output   K_0_1_2_we0;
-output  [25:0] K_0_1_2_d0;
-input  [25:0] K_0_1_2_q0;
+output  [16:0] K_0_1_2_d0;
+input  [16:0] K_0_1_2_q0;
 output  [2:0] K_0_1_3_address0;
 output   K_0_1_3_ce0;
 output   K_0_1_3_we0;
-output  [25:0] K_0_1_3_d0;
-input  [25:0] K_0_1_3_q0;
+output  [16:0] K_0_1_3_d0;
+input  [16:0] K_0_1_3_q0;
 output  [2:0] K_0_1_4_address0;
 output   K_0_1_4_ce0;
 output   K_0_1_4_we0;
-output  [25:0] K_0_1_4_d0;
-input  [25:0] K_0_1_4_q0;
+output  [16:0] K_0_1_4_d0;
+input  [16:0] K_0_1_4_q0;
 output  [2:0] K_0_1_5_address0;
 output   K_0_1_5_ce0;
 output   K_0_1_5_we0;
-output  [25:0] K_0_1_5_d0;
-input  [25:0] K_0_1_5_q0;
+output  [16:0] K_0_1_5_d0;
+input  [16:0] K_0_1_5_q0;
 output  [2:0] K_0_1_6_address0;
 output   K_0_1_6_ce0;
 output   K_0_1_6_we0;
-output  [25:0] K_0_1_6_d0;
-input  [25:0] K_0_1_6_q0;
+output  [16:0] K_0_1_6_d0;
+input  [16:0] K_0_1_6_q0;
 output  [2:0] K_0_1_7_address0;
 output   K_0_1_7_ce0;
 output   K_0_1_7_we0;
-output  [25:0] K_0_1_7_d0;
-input  [25:0] K_0_1_7_q0;
+output  [16:0] K_0_1_7_d0;
+input  [16:0] K_0_1_7_q0;
 output  [2:0] K_1_0_0_address0;
 output   K_1_0_0_ce0;
 output   K_1_0_0_we0;
-output  [25:0] K_1_0_0_d0;
-input  [25:0] K_1_0_0_q0;
+output  [16:0] K_1_0_0_d0;
+input  [16:0] K_1_0_0_q0;
 output  [2:0] K_1_0_1_address0;
 output   K_1_0_1_ce0;
 output   K_1_0_1_we0;
-output  [25:0] K_1_0_1_d0;
-input  [25:0] K_1_0_1_q0;
+output  [16:0] K_1_0_1_d0;
+input  [16:0] K_1_0_1_q0;
 output  [2:0] K_1_0_2_address0;
 output   K_1_0_2_ce0;
 output   K_1_0_2_we0;
-output  [25:0] K_1_0_2_d0;
-input  [25:0] K_1_0_2_q0;
+output  [16:0] K_1_0_2_d0;
+input  [16:0] K_1_0_2_q0;
 output  [2:0] K_1_0_3_address0;
 output   K_1_0_3_ce0;
 output   K_1_0_3_we0;
-output  [25:0] K_1_0_3_d0;
-input  [25:0] K_1_0_3_q0;
+output  [16:0] K_1_0_3_d0;
+input  [16:0] K_1_0_3_q0;
 output  [2:0] K_1_0_4_address0;
 output   K_1_0_4_ce0;
 output   K_1_0_4_we0;
-output  [25:0] K_1_0_4_d0;
-input  [25:0] K_1_0_4_q0;
+output  [16:0] K_1_0_4_d0;
+input  [16:0] K_1_0_4_q0;
 output  [2:0] K_1_0_5_address0;
 output   K_1_0_5_ce0;
 output   K_1_0_5_we0;
-output  [25:0] K_1_0_5_d0;
-input  [25:0] K_1_0_5_q0;
+output  [16:0] K_1_0_5_d0;
+input  [16:0] K_1_0_5_q0;
 output  [2:0] K_1_0_6_address0;
 output   K_1_0_6_ce0;
 output   K_1_0_6_we0;
-output  [25:0] K_1_0_6_d0;
-input  [25:0] K_1_0_6_q0;
+output  [16:0] K_1_0_6_d0;
+input  [16:0] K_1_0_6_q0;
 output  [2:0] K_1_0_7_address0;
 output   K_1_0_7_ce0;
 output   K_1_0_7_we0;
-output  [25:0] K_1_0_7_d0;
-input  [25:0] K_1_0_7_q0;
+output  [16:0] K_1_0_7_d0;
+input  [16:0] K_1_0_7_q0;
 output  [2:0] K_1_1_0_address0;
 output   K_1_1_0_ce0;
 output   K_1_1_0_we0;
-output  [25:0] K_1_1_0_d0;
-input  [25:0] K_1_1_0_q0;
+output  [16:0] K_1_1_0_d0;
+input  [16:0] K_1_1_0_q0;
 output  [2:0] K_1_1_1_address0;
 output   K_1_1_1_ce0;
 output   K_1_1_1_we0;
-output  [25:0] K_1_1_1_d0;
-input  [25:0] K_1_1_1_q0;
+output  [16:0] K_1_1_1_d0;
+input  [16:0] K_1_1_1_q0;
 output  [2:0] K_1_1_2_address0;
 output   K_1_1_2_ce0;
 output   K_1_1_2_we0;
-output  [25:0] K_1_1_2_d0;
-input  [25:0] K_1_1_2_q0;
+output  [16:0] K_1_1_2_d0;
+input  [16:0] K_1_1_2_q0;
 output  [2:0] K_1_1_3_address0;
 output   K_1_1_3_ce0;
 output   K_1_1_3_we0;
-output  [25:0] K_1_1_3_d0;
-input  [25:0] K_1_1_3_q0;
+output  [16:0] K_1_1_3_d0;
+input  [16:0] K_1_1_3_q0;
 output  [2:0] K_1_1_4_address0;
 output   K_1_1_4_ce0;
 output   K_1_1_4_we0;
-output  [25:0] K_1_1_4_d0;
-input  [25:0] K_1_1_4_q0;
+output  [16:0] K_1_1_4_d0;
+input  [16:0] K_1_1_4_q0;
 output  [2:0] K_1_1_5_address0;
 output   K_1_1_5_ce0;
 output   K_1_1_5_we0;
-output  [25:0] K_1_1_5_d0;
-input  [25:0] K_1_1_5_q0;
+output  [16:0] K_1_1_5_d0;
+input  [16:0] K_1_1_5_q0;
 output  [2:0] K_1_1_6_address0;
 output   K_1_1_6_ce0;
 output   K_1_1_6_we0;
-output  [25:0] K_1_1_6_d0;
-input  [25:0] K_1_1_6_q0;
+output  [16:0] K_1_1_6_d0;
+input  [16:0] K_1_1_6_q0;
 output  [2:0] K_1_1_7_address0;
 output   K_1_1_7_ce0;
 output   K_1_1_7_we0;
-output  [25:0] K_1_1_7_d0;
-input  [25:0] K_1_1_7_q0;
+output  [16:0] K_1_1_7_d0;
+input  [16:0] K_1_1_7_q0;
 output  [2:0] K_2_0_0_address0;
 output   K_2_0_0_ce0;
 output   K_2_0_0_we0;
-output  [25:0] K_2_0_0_d0;
-input  [25:0] K_2_0_0_q0;
+output  [16:0] K_2_0_0_d0;
+input  [16:0] K_2_0_0_q0;
 output  [2:0] K_2_0_1_address0;
 output   K_2_0_1_ce0;
 output   K_2_0_1_we0;
-output  [25:0] K_2_0_1_d0;
-input  [25:0] K_2_0_1_q0;
+output  [16:0] K_2_0_1_d0;
+input  [16:0] K_2_0_1_q0;
 output  [2:0] K_2_0_2_address0;
 output   K_2_0_2_ce0;
 output   K_2_0_2_we0;
-output  [25:0] K_2_0_2_d0;
-input  [25:0] K_2_0_2_q0;
+output  [16:0] K_2_0_2_d0;
+input  [16:0] K_2_0_2_q0;
 output  [2:0] K_2_0_3_address0;
 output   K_2_0_3_ce0;
 output   K_2_0_3_we0;
-output  [25:0] K_2_0_3_d0;
-input  [25:0] K_2_0_3_q0;
+output  [16:0] K_2_0_3_d0;
+input  [16:0] K_2_0_3_q0;
 output  [2:0] K_2_0_4_address0;
 output   K_2_0_4_ce0;
 output   K_2_0_4_we0;
-output  [25:0] K_2_0_4_d0;
-input  [25:0] K_2_0_4_q0;
+output  [16:0] K_2_0_4_d0;
+input  [16:0] K_2_0_4_q0;
 output  [2:0] K_2_0_5_address0;
 output   K_2_0_5_ce0;
 output   K_2_0_5_we0;
-output  [25:0] K_2_0_5_d0;
-input  [25:0] K_2_0_5_q0;
+output  [16:0] K_2_0_5_d0;
+input  [16:0] K_2_0_5_q0;
 output  [2:0] K_2_0_6_address0;
 output   K_2_0_6_ce0;
 output   K_2_0_6_we0;
-output  [25:0] K_2_0_6_d0;
-input  [25:0] K_2_0_6_q0;
+output  [16:0] K_2_0_6_d0;
+input  [16:0] K_2_0_6_q0;
 output  [2:0] K_2_0_7_address0;
 output   K_2_0_7_ce0;
 output   K_2_0_7_we0;
-output  [25:0] K_2_0_7_d0;
-input  [25:0] K_2_0_7_q0;
+output  [16:0] K_2_0_7_d0;
+input  [16:0] K_2_0_7_q0;
 output  [2:0] K_2_1_0_address0;
 output   K_2_1_0_ce0;
 output   K_2_1_0_we0;
-output  [25:0] K_2_1_0_d0;
-input  [25:0] K_2_1_0_q0;
+output  [16:0] K_2_1_0_d0;
+input  [16:0] K_2_1_0_q0;
 output  [2:0] K_2_1_1_address0;
 output   K_2_1_1_ce0;
 output   K_2_1_1_we0;
-output  [25:0] K_2_1_1_d0;
-input  [25:0] K_2_1_1_q0;
+output  [16:0] K_2_1_1_d0;
+input  [16:0] K_2_1_1_q0;
 output  [2:0] K_2_1_2_address0;
 output   K_2_1_2_ce0;
 output   K_2_1_2_we0;
-output  [25:0] K_2_1_2_d0;
-input  [25:0] K_2_1_2_q0;
+output  [16:0] K_2_1_2_d0;
+input  [16:0] K_2_1_2_q0;
 output  [2:0] K_2_1_3_address0;
 output   K_2_1_3_ce0;
 output   K_2_1_3_we0;
-output  [25:0] K_2_1_3_d0;
-input  [25:0] K_2_1_3_q0;
+output  [16:0] K_2_1_3_d0;
+input  [16:0] K_2_1_3_q0;
 output  [2:0] K_2_1_4_address0;
 output   K_2_1_4_ce0;
 output   K_2_1_4_we0;
-output  [25:0] K_2_1_4_d0;
-input  [25:0] K_2_1_4_q0;
+output  [16:0] K_2_1_4_d0;
+input  [16:0] K_2_1_4_q0;
 output  [2:0] K_2_1_5_address0;
 output   K_2_1_5_ce0;
 output   K_2_1_5_we0;
-output  [25:0] K_2_1_5_d0;
-input  [25:0] K_2_1_5_q0;
+output  [16:0] K_2_1_5_d0;
+input  [16:0] K_2_1_5_q0;
 output  [2:0] K_2_1_6_address0;
 output   K_2_1_6_ce0;
 output   K_2_1_6_we0;
-output  [25:0] K_2_1_6_d0;
-input  [25:0] K_2_1_6_q0;
+output  [16:0] K_2_1_6_d0;
+input  [16:0] K_2_1_6_q0;
 output  [2:0] K_2_1_7_address0;
 output   K_2_1_7_ce0;
 output   K_2_1_7_we0;
-output  [25:0] K_2_1_7_d0;
-input  [25:0] K_2_1_7_q0;
+output  [16:0] K_2_1_7_d0;
+input  [16:0] K_2_1_7_q0;
 output  [2:0] K_3_0_0_address0;
 output   K_3_0_0_ce0;
 output   K_3_0_0_we0;
-output  [25:0] K_3_0_0_d0;
-input  [25:0] K_3_0_0_q0;
+output  [16:0] K_3_0_0_d0;
+input  [16:0] K_3_0_0_q0;
 output  [2:0] K_3_0_1_address0;
 output   K_3_0_1_ce0;
 output   K_3_0_1_we0;
-output  [25:0] K_3_0_1_d0;
-input  [25:0] K_3_0_1_q0;
+output  [16:0] K_3_0_1_d0;
+input  [16:0] K_3_0_1_q0;
 output  [2:0] K_3_0_2_address0;
 output   K_3_0_2_ce0;
 output   K_3_0_2_we0;
-output  [25:0] K_3_0_2_d0;
-input  [25:0] K_3_0_2_q0;
+output  [16:0] K_3_0_2_d0;
+input  [16:0] K_3_0_2_q0;
 output  [2:0] K_3_0_3_address0;
 output   K_3_0_3_ce0;
 output   K_3_0_3_we0;
-output  [25:0] K_3_0_3_d0;
-input  [25:0] K_3_0_3_q0;
+output  [16:0] K_3_0_3_d0;
+input  [16:0] K_3_0_3_q0;
 output  [2:0] K_3_0_4_address0;
 output   K_3_0_4_ce0;
 output   K_3_0_4_we0;
-output  [25:0] K_3_0_4_d0;
-input  [25:0] K_3_0_4_q0;
+output  [16:0] K_3_0_4_d0;
+input  [16:0] K_3_0_4_q0;
 output  [2:0] K_3_0_5_address0;
 output   K_3_0_5_ce0;
 output   K_3_0_5_we0;
-output  [25:0] K_3_0_5_d0;
-input  [25:0] K_3_0_5_q0;
+output  [16:0] K_3_0_5_d0;
+input  [16:0] K_3_0_5_q0;
 output  [2:0] K_3_0_6_address0;
 output   K_3_0_6_ce0;
 output   K_3_0_6_we0;
-output  [25:0] K_3_0_6_d0;
-input  [25:0] K_3_0_6_q0;
+output  [16:0] K_3_0_6_d0;
+input  [16:0] K_3_0_6_q0;
 output  [2:0] K_3_0_7_address0;
 output   K_3_0_7_ce0;
 output   K_3_0_7_we0;
-output  [25:0] K_3_0_7_d0;
-input  [25:0] K_3_0_7_q0;
+output  [16:0] K_3_0_7_d0;
+input  [16:0] K_3_0_7_q0;
 output  [2:0] K_3_1_0_address0;
 output   K_3_1_0_ce0;
 output   K_3_1_0_we0;
-output  [25:0] K_3_1_0_d0;
-input  [25:0] K_3_1_0_q0;
+output  [16:0] K_3_1_0_d0;
+input  [16:0] K_3_1_0_q0;
 output  [2:0] K_3_1_1_address0;
 output   K_3_1_1_ce0;
 output   K_3_1_1_we0;
-output  [25:0] K_3_1_1_d0;
-input  [25:0] K_3_1_1_q0;
+output  [16:0] K_3_1_1_d0;
+input  [16:0] K_3_1_1_q0;
 output  [2:0] K_3_1_2_address0;
 output   K_3_1_2_ce0;
 output   K_3_1_2_we0;
-output  [25:0] K_3_1_2_d0;
-input  [25:0] K_3_1_2_q0;
+output  [16:0] K_3_1_2_d0;
+input  [16:0] K_3_1_2_q0;
 output  [2:0] K_3_1_3_address0;
 output   K_3_1_3_ce0;
 output   K_3_1_3_we0;
-output  [25:0] K_3_1_3_d0;
-input  [25:0] K_3_1_3_q0;
+output  [16:0] K_3_1_3_d0;
+input  [16:0] K_3_1_3_q0;
 output  [2:0] K_3_1_4_address0;
 output   K_3_1_4_ce0;
 output   K_3_1_4_we0;
-output  [25:0] K_3_1_4_d0;
-input  [25:0] K_3_1_4_q0;
+output  [16:0] K_3_1_4_d0;
+input  [16:0] K_3_1_4_q0;
 output  [2:0] K_3_1_5_address0;
 output   K_3_1_5_ce0;
 output   K_3_1_5_we0;
-output  [25:0] K_3_1_5_d0;
-input  [25:0] K_3_1_5_q0;
+output  [16:0] K_3_1_5_d0;
+input  [16:0] K_3_1_5_q0;
 output  [2:0] K_3_1_6_address0;
 output   K_3_1_6_ce0;
 output   K_3_1_6_we0;
-output  [25:0] K_3_1_6_d0;
-input  [25:0] K_3_1_6_q0;
+output  [16:0] K_3_1_6_d0;
+input  [16:0] K_3_1_6_q0;
 output  [2:0] K_3_1_7_address0;
 output   K_3_1_7_ce0;
 output   K_3_1_7_we0;
-output  [25:0] K_3_1_7_d0;
-input  [25:0] K_3_1_7_q0;
+output  [16:0] K_3_1_7_d0;
+input  [16:0] K_3_1_7_q0;
 output  [4:0] kk_0_address0;
 output   kk_0_ce0;
 output   kk_0_we0;
-output  [25:0] kk_0_d0;
-input  [25:0] kk_0_q0;
+output  [16:0] kk_0_d0;
+input  [16:0] kk_0_q0;
 output  [4:0] kk_1_address0;
 output   kk_1_ce0;
 output   kk_1_we0;
-output  [25:0] kk_1_d0;
-input  [25:0] kk_1_q0;
+output  [16:0] kk_1_d0;
+input  [16:0] kk_1_q0;
 output  [4:0] x_out_0_address0;
 output   x_out_0_ce0;
-input  [31:0] x_out_0_q0;
+input  [25:0] x_out_0_q0;
 output  [4:0] x_out_0_address1;
 output   x_out_0_ce1;
 output   x_out_0_we1;
-output  [31:0] x_out_0_d1;
+output  [25:0] x_out_0_d1;
 output  [4:0] x_out_1_address0;
 output   x_out_1_ce0;
-input  [31:0] x_out_1_q0;
+input  [25:0] x_out_1_q0;
 output  [4:0] x_out_1_address1;
 output   x_out_1_ce1;
 output   x_out_1_we1;
-output  [31:0] x_out_1_d1;
+output  [25:0] x_out_1_d1;
 output  [4:0] x_out_2_address0;
 output   x_out_2_ce0;
-input  [31:0] x_out_2_q0;
+input  [25:0] x_out_2_q0;
 output  [4:0] x_out_2_address1;
 output   x_out_2_ce1;
 output   x_out_2_we1;
-output  [31:0] x_out_2_d1;
+output  [25:0] x_out_2_d1;
 output  [4:0] x_out_3_address0;
 output   x_out_3_ce0;
-input  [31:0] x_out_3_q0;
+input  [25:0] x_out_3_q0;
 output  [4:0] x_out_3_address1;
 output   x_out_3_ce1;
 output   x_out_3_we1;
-output  [31:0] x_out_3_d1;
+output  [25:0] x_out_3_d1;
 output  [4:0] x_out_4_address0;
 output   x_out_4_ce0;
-input  [31:0] x_out_4_q0;
+input  [25:0] x_out_4_q0;
 output  [4:0] x_out_4_address1;
 output   x_out_4_ce1;
 output   x_out_4_we1;
-output  [31:0] x_out_4_d1;
+output  [25:0] x_out_4_d1;
 output  [4:0] x_out_5_address0;
 output   x_out_5_ce0;
-input  [31:0] x_out_5_q0;
+input  [25:0] x_out_5_q0;
 output  [4:0] x_out_5_address1;
 output   x_out_5_ce1;
 output   x_out_5_we1;
-output  [31:0] x_out_5_d1;
+output  [25:0] x_out_5_d1;
 output  [4:0] x_out_6_address0;
 output   x_out_6_ce0;
-input  [31:0] x_out_6_q0;
+input  [25:0] x_out_6_q0;
 output  [4:0] x_out_6_address1;
 output   x_out_6_ce1;
 output   x_out_6_we1;
-output  [31:0] x_out_6_d1;
+output  [25:0] x_out_6_d1;
 output  [4:0] x_out_7_address0;
 output   x_out_7_ce0;
-input  [31:0] x_out_7_q0;
+input  [25:0] x_out_7_q0;
 output  [4:0] x_out_7_address1;
 output   x_out_7_ce1;
 output   x_out_7_we1;
-output  [31:0] x_out_7_d1;
+output  [25:0] x_out_7_d1;
 output  [4:0] u_out_0_address0;
 output   u_out_0_ce0;
 output   u_out_0_we0;
-output  [31:0] u_out_0_d0;
+output  [25:0] u_out_0_d0;
 output  [4:0] u_out_1_address0;
 output   u_out_1_ce0;
 output   u_out_1_we0;
-output  [31:0] u_out_1_d0;
-output  [31:0] grp_fp_recip_fu_6151_p_din1;
-input  [26:0] grp_fp_recip_fu_6151_p_dout0;
-output  [31:0] grp_fu_6156_p_din0;
-output  [31:0] grp_fu_6156_p_din1;
-input  [49:0] grp_fu_6156_p_dout0;
-output   grp_fu_6156_p_ce;
-output  [31:0] grp_fu_6160_p_din0;
-output  [31:0] grp_fu_6160_p_din1;
-input  [49:0] grp_fu_6160_p_dout0;
-output   grp_fu_6160_p_ce;
-output  [31:0] grp_fu_6164_p_din0;
-output  [31:0] grp_fu_6164_p_din1;
-input  [49:0] grp_fu_6164_p_dout0;
-output   grp_fu_6164_p_ce;
+output  [25:0] u_out_1_d0;
+output  [25:0] grp_fp_recip_fu_5937_p_din1;
+input  [16:0] grp_fp_recip_fu_5937_p_dout0;
+output  [25:0] grp_fu_5943_p_din0;
+output  [25:0] grp_fu_5943_p_din1;
+input  [39:0] grp_fu_5943_p_dout0;
+output   grp_fu_5943_p_ce;
+output  [25:0] grp_fu_5947_p_din0;
+output  [25:0] grp_fu_5947_p_din1;
+input  [39:0] grp_fu_5947_p_dout0;
+output   grp_fu_5947_p_ce;
+output  [25:0] grp_fu_2784_p_din0;
+output  [25:0] grp_fu_2784_p_din1;
+input  [50:0] grp_fu_2784_p_dout0;
+output   grp_fu_2784_p_ce;
 
 reg ap_done;
 reg ap_idle;
 reg ap_ready;
-reg[4:0] step_data_0_0_0_address0;
-reg step_data_0_0_0_ce0;
-reg[4:0] step_data_0_0_1_address0;
-reg step_data_0_0_1_ce0;
-reg[4:0] step_data_0_0_2_address0;
-reg step_data_0_0_2_ce0;
-reg[4:0] step_data_0_0_3_address0;
-reg step_data_0_0_3_ce0;
-reg[4:0] step_data_0_0_4_address0;
-reg step_data_0_0_4_ce0;
-reg[4:0] step_data_0_0_5_address0;
-reg step_data_0_0_5_ce0;
-reg[4:0] step_data_0_1_0_address0;
-reg step_data_0_1_0_ce0;
-reg[4:0] step_data_0_1_1_address0;
-reg step_data_0_1_1_ce0;
-reg[4:0] step_data_0_1_2_address0;
-reg step_data_0_1_2_ce0;
-reg[4:0] step_data_0_1_3_address0;
-reg step_data_0_1_3_ce0;
-reg[4:0] step_data_0_1_4_address0;
-reg step_data_0_1_4_ce0;
-reg[4:0] step_data_0_1_5_address0;
-reg step_data_0_1_5_ce0;
-reg[4:0] step_data_0_2_0_address0;
-reg step_data_0_2_0_ce0;
-reg[4:0] step_data_0_2_1_address0;
-reg step_data_0_2_1_ce0;
-reg[4:0] step_data_0_2_2_address0;
-reg step_data_0_2_2_ce0;
-reg[4:0] step_data_0_2_3_address0;
-reg step_data_0_2_3_ce0;
-reg[4:0] step_data_0_2_4_address0;
-reg step_data_0_2_4_ce0;
-reg[4:0] step_data_0_2_5_address0;
-reg step_data_0_2_5_ce0;
-reg[4:0] step_data_0_3_0_address0;
-reg step_data_0_3_0_ce0;
-reg[4:0] step_data_0_3_1_address0;
-reg step_data_0_3_1_ce0;
-reg[4:0] step_data_0_3_2_address0;
-reg step_data_0_3_2_ce0;
-reg[4:0] step_data_0_3_3_address0;
-reg step_data_0_3_3_ce0;
-reg[4:0] step_data_0_3_4_address0;
-reg step_data_0_3_4_ce0;
-reg[4:0] step_data_0_3_5_address0;
-reg step_data_0_3_5_ce0;
-reg[4:0] step_data_0_4_0_address0;
-reg step_data_0_4_0_ce0;
-reg[4:0] step_data_0_4_1_address0;
-reg step_data_0_4_1_ce0;
-reg[4:0] step_data_0_4_2_address0;
-reg step_data_0_4_2_ce0;
-reg[4:0] step_data_0_4_3_address0;
-reg step_data_0_4_3_ce0;
-reg[4:0] step_data_0_4_4_address0;
-reg step_data_0_4_4_ce0;
-reg[4:0] step_data_0_4_5_address0;
-reg step_data_0_4_5_ce0;
-reg[4:0] step_data_0_5_0_address0;
-reg step_data_0_5_0_ce0;
-reg[4:0] step_data_0_5_1_address0;
-reg step_data_0_5_1_ce0;
-reg[4:0] step_data_0_5_2_address0;
-reg step_data_0_5_2_ce0;
-reg[4:0] step_data_0_5_3_address0;
-reg step_data_0_5_3_ce0;
-reg[4:0] step_data_0_5_4_address0;
-reg step_data_0_5_4_ce0;
-reg[4:0] step_data_0_5_5_address0;
-reg step_data_0_5_5_ce0;
+reg[6:0] step_data_0_0_address0;
+reg step_data_0_0_ce0;
+reg step_data_0_0_ce1;
+reg[6:0] step_data_0_1_address0;
+reg step_data_0_1_ce0;
+reg step_data_0_1_ce1;
+reg[6:0] step_data_0_2_address0;
+reg step_data_0_2_ce0;
+reg step_data_0_2_ce1;
+reg[6:0] step_data_0_3_address0;
+reg step_data_0_3_ce0;
+reg step_data_0_3_ce1;
+reg[6:0] step_data_0_4_address0;
+reg step_data_0_4_ce0;
+reg step_data_0_4_ce1;
+reg[6:0] step_data_0_5_address0;
+reg step_data_0_5_ce0;
+reg step_data_0_5_ce1;
 reg[6:0] step_data_1_address0;
 reg step_data_1_ce0;
 reg[6:0] step_data_1_address1;
@@ -1476,674 +1278,566 @@ reg kk_1_we0;
 
 (* fsm_encoding = "none" *) reg   [3:0] ap_CS_fsm;
 wire    ap_CS_fsm_state1;
-wire   [19:0] empty_fu_907_p1;
-reg   [19:0] empty_reg_947;
+wire   [13:0] empty_fu_731_p1;
+reg   [13:0] empty_reg_771;
 wire    ap_CS_fsm_state3;
-wire    grp_riccati_backward_pass_fu_400_ap_start;
-wire    grp_riccati_backward_pass_fu_400_ap_done;
-wire    grp_riccati_backward_pass_fu_400_ap_idle;
-wire    grp_riccati_backward_pass_fu_400_ap_ready;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_0_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_0_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_1_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_1_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_2_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_2_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_3_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_3_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_4_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_4_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_0_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_3_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_4_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_4_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_step_data_0_5_5_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_0_5_5_ce0;
-wire   [6:0] grp_riccati_backward_pass_fu_400_step_data_1_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_1_ce0;
-wire   [6:0] grp_riccati_backward_pass_fu_400_step_data_1_address1;
-wire    grp_riccati_backward_pass_fu_400_step_data_1_ce1;
-wire   [6:0] grp_riccati_backward_pass_fu_400_step_data_2_address0;
-wire    grp_riccati_backward_pass_fu_400_step_data_2_ce0;
-wire   [6:0] grp_riccati_backward_pass_fu_400_step_data_2_address1;
-wire    grp_riccati_backward_pass_fu_400_step_data_2_ce1;
-wire   [4:0] grp_riccati_backward_pass_fu_400_B_sparse_0_address0;
-wire    grp_riccati_backward_pass_fu_400_B_sparse_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_B_sparse_1_address0;
-wire    grp_riccati_backward_pass_fu_400_B_sparse_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_B_sparse_2_address0;
-wire    grp_riccati_backward_pass_fu_400_B_sparse_2_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_B_sparse_3_address0;
-wire    grp_riccati_backward_pass_fu_400_B_sparse_3_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_z_x_0_address0;
-wire    grp_riccati_backward_pass_fu_400_z_x_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_z_x_5_address0;
-wire    grp_riccati_backward_pass_fu_400_z_x_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_y_x_0_address0;
-wire    grp_riccati_backward_pass_fu_400_y_x_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_y_x_5_address0;
-wire    grp_riccati_backward_pass_fu_400_y_x_5_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_z_u_0_address0;
-wire    grp_riccati_backward_pass_fu_400_z_u_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_z_u_1_address0;
-wire    grp_riccati_backward_pass_fu_400_z_u_1_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_y_u_0_address0;
-wire    grp_riccati_backward_pass_fu_400_y_u_0_ce0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_y_u_1_address0;
-wire    grp_riccati_backward_pass_fu_400_y_u_1_ce0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_0_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_0_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_0_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_0_1_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_0_1_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_0_1_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_0_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_0_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_0_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_1_1_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_1_1_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_1_1_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_0_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_0_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_0_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_2_1_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_2_1_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_2_1_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_0_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_0_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_0_7_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_0_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_0_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_1_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_1_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_2_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_2_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_2_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_2_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_3_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_3_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_3_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_3_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_4_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_4_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_4_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_4_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_5_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_5_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_5_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_5_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_6_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_6_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_6_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_6_d0;
-wire   [2:0] grp_riccati_backward_pass_fu_400_K_3_1_7_address0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_7_ce0;
-wire    grp_riccati_backward_pass_fu_400_K_3_1_7_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_K_3_1_7_d0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_kk_0_address0;
-wire    grp_riccati_backward_pass_fu_400_kk_0_ce0;
-wire    grp_riccati_backward_pass_fu_400_kk_0_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_kk_0_d0;
-wire   [4:0] grp_riccati_backward_pass_fu_400_kk_1_address0;
-wire    grp_riccati_backward_pass_fu_400_kk_1_ce0;
-wire    grp_riccati_backward_pass_fu_400_kk_1_we0;
-wire   [25:0] grp_riccati_backward_pass_fu_400_kk_1_d0;
-wire   [31:0] grp_riccati_backward_pass_fu_400_grp_fp_recip_fu_992_p_din1;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_997_p_din0;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_997_p_din1;
-wire    grp_riccati_backward_pass_fu_400_grp_fu_997_p_ce;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din0;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din1;
-wire    grp_riccati_backward_pass_fu_400_grp_fu_1001_p_ce;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din0;
-wire  signed [31:0] grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din1;
-wire    grp_riccati_backward_pass_fu_400_grp_fu_1005_p_ce;
-wire    grp_riccati_forward_pass_fu_653_ap_start;
-wire    grp_riccati_forward_pass_fu_653_ap_done;
-wire    grp_riccati_forward_pass_fu_653_ap_idle;
-wire    grp_riccati_forward_pass_fu_653_ap_ready;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_0_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_0_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_1_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_1_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_2_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_2_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_3_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_3_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_4_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_4_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_0_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_2_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_3_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_4_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_step_data_0_5_5_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_0_5_5_ce0;
-wire   [6:0] grp_riccati_forward_pass_fu_653_step_data_1_address0;
-wire    grp_riccati_forward_pass_fu_653_step_data_1_ce0;
-wire   [6:0] grp_riccati_forward_pass_fu_653_step_data_1_address1;
-wire    grp_riccati_forward_pass_fu_653_step_data_1_ce1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_B_sparse_0_address0;
-wire    grp_riccati_forward_pass_fu_653_B_sparse_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_B_sparse_1_address0;
-wire    grp_riccati_forward_pass_fu_653_B_sparse_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_B_sparse_2_address0;
-wire    grp_riccati_forward_pass_fu_653_B_sparse_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_B_sparse_3_address0;
-wire    grp_riccati_forward_pass_fu_653_B_sparse_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_0_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_0_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_0_1_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_0_1_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_0_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_0_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_1_1_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_1_1_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_0_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_0_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_2_1_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_2_1_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_0_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_0_7_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_0_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_0_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_1_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_1_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_2_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_2_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_3_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_3_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_4_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_4_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_5_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_5_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_6_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_6_ce0;
-wire   [2:0] grp_riccati_forward_pass_fu_653_K_3_1_7_address0;
-wire    grp_riccati_forward_pass_fu_653_K_3_1_7_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_kk_0_address0;
-wire    grp_riccati_forward_pass_fu_653_kk_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_kk_1_address0;
-wire    grp_riccati_forward_pass_fu_653_kk_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_0_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_0_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_0_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_0_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_0_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_0_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_1_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_1_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_1_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_1_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_1_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_1_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_2_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_2_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_2_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_2_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_2_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_2_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_3_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_3_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_3_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_3_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_3_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_3_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_4_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_4_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_4_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_4_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_4_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_4_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_5_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_5_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_5_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_5_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_5_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_5_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_6_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_6_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_6_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_6_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_6_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_6_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_7_address0;
-wire    grp_riccati_forward_pass_fu_653_x_out_7_ce0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_x_out_7_address1;
-wire    grp_riccati_forward_pass_fu_653_x_out_7_ce1;
-wire    grp_riccati_forward_pass_fu_653_x_out_7_we1;
-wire   [31:0] grp_riccati_forward_pass_fu_653_x_out_7_d1;
-wire   [4:0] grp_riccati_forward_pass_fu_653_u_out_0_address0;
-wire    grp_riccati_forward_pass_fu_653_u_out_0_ce0;
-wire    grp_riccati_forward_pass_fu_653_u_out_0_we0;
-wire   [31:0] grp_riccati_forward_pass_fu_653_u_out_0_d0;
-wire   [4:0] grp_riccati_forward_pass_fu_653_u_out_1_address0;
-wire    grp_riccati_forward_pass_fu_653_u_out_1_ce0;
-wire    grp_riccati_forward_pass_fu_653_u_out_1_we0;
-wire   [31:0] grp_riccati_forward_pass_fu_653_u_out_1_d0;
-reg    grp_riccati_backward_pass_fu_400_ap_start_reg;
+wire    grp_riccati_backward_pass_fu_342_ap_start;
+wire    grp_riccati_backward_pass_fu_342_ap_done;
+wire    grp_riccati_backward_pass_fu_342_ap_idle;
+wire    grp_riccati_backward_pass_fu_342_ap_ready;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_0_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_0_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_0_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_0_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_1_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_1_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_1_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_1_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_2_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_2_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_2_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_2_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_3_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_3_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_3_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_3_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_4_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_4_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_4_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_4_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_5_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_5_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_0_5_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_0_5_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_1_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_1_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_1_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_1_ce1;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_2_address0;
+wire    grp_riccati_backward_pass_fu_342_step_data_2_ce0;
+wire   [6:0] grp_riccati_backward_pass_fu_342_step_data_2_address1;
+wire    grp_riccati_backward_pass_fu_342_step_data_2_ce1;
+wire   [4:0] grp_riccati_backward_pass_fu_342_B_sparse_0_address0;
+wire    grp_riccati_backward_pass_fu_342_B_sparse_0_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_B_sparse_1_address0;
+wire    grp_riccati_backward_pass_fu_342_B_sparse_1_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_B_sparse_2_address0;
+wire    grp_riccati_backward_pass_fu_342_B_sparse_2_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_B_sparse_3_address0;
+wire    grp_riccati_backward_pass_fu_342_B_sparse_3_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_z_x_0_address0;
+wire    grp_riccati_backward_pass_fu_342_z_x_0_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_z_x_5_address0;
+wire    grp_riccati_backward_pass_fu_342_z_x_5_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_y_x_0_address0;
+wire    grp_riccati_backward_pass_fu_342_y_x_0_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_y_x_5_address0;
+wire    grp_riccati_backward_pass_fu_342_y_x_5_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_z_u_0_address0;
+wire    grp_riccati_backward_pass_fu_342_z_u_0_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_z_u_1_address0;
+wire    grp_riccati_backward_pass_fu_342_z_u_1_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_y_u_0_address0;
+wire    grp_riccati_backward_pass_fu_342_y_u_0_ce0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_y_u_1_address0;
+wire    grp_riccati_backward_pass_fu_342_y_u_1_ce0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_0_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_0_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_0_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_0_1_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_0_1_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_0_1_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_0_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_0_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_0_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_1_1_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_1_1_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_1_1_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_0_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_0_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_0_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_2_1_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_2_1_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_2_1_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_0_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_0_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_0_7_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_0_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_0_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_1_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_1_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_2_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_2_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_2_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_2_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_3_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_3_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_3_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_3_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_4_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_4_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_4_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_4_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_5_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_5_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_5_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_5_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_6_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_6_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_6_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_6_d0;
+wire   [2:0] grp_riccati_backward_pass_fu_342_K_3_1_7_address0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_7_ce0;
+wire    grp_riccati_backward_pass_fu_342_K_3_1_7_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_K_3_1_7_d0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_kk_0_address0;
+wire    grp_riccati_backward_pass_fu_342_kk_0_ce0;
+wire    grp_riccati_backward_pass_fu_342_kk_0_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_kk_0_d0;
+wire   [4:0] grp_riccati_backward_pass_fu_342_kk_1_address0;
+wire    grp_riccati_backward_pass_fu_342_kk_1_ce0;
+wire    grp_riccati_backward_pass_fu_342_kk_1_we0;
+wire   [16:0] grp_riccati_backward_pass_fu_342_kk_1_d0;
+wire   [25:0] grp_riccati_backward_pass_fu_342_grp_fp_recip_fu_816_p_din1;
+wire  signed [25:0] grp_riccati_backward_pass_fu_342_grp_fu_822_p_din0;
+wire  signed [25:0] grp_riccati_backward_pass_fu_342_grp_fu_822_p_din1;
+wire    grp_riccati_backward_pass_fu_342_grp_fu_822_p_ce;
+wire  signed [25:0] grp_riccati_backward_pass_fu_342_grp_fu_826_p_din0;
+wire  signed [25:0] grp_riccati_backward_pass_fu_342_grp_fu_826_p_din1;
+wire    grp_riccati_backward_pass_fu_342_grp_fu_826_p_ce;
+wire    grp_riccati_forward_pass_fu_537_ap_start;
+wire    grp_riccati_forward_pass_fu_537_ap_done;
+wire    grp_riccati_forward_pass_fu_537_ap_idle;
+wire    grp_riccati_forward_pass_fu_537_ap_ready;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_0_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_0_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_1_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_1_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_2_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_2_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_3_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_3_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_4_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_4_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_0_5_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_0_5_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_1_address0;
+wire    grp_riccati_forward_pass_fu_537_step_data_1_ce0;
+wire   [6:0] grp_riccati_forward_pass_fu_537_step_data_1_address1;
+wire    grp_riccati_forward_pass_fu_537_step_data_1_ce1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_B_sparse_0_address0;
+wire    grp_riccati_forward_pass_fu_537_B_sparse_0_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_B_sparse_1_address0;
+wire    grp_riccati_forward_pass_fu_537_B_sparse_1_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_B_sparse_2_address0;
+wire    grp_riccati_forward_pass_fu_537_B_sparse_2_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_B_sparse_3_address0;
+wire    grp_riccati_forward_pass_fu_537_B_sparse_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_0_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_0_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_0_1_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_0_1_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_0_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_0_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_1_1_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_1_1_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_0_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_0_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_2_1_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_2_1_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_0_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_0_7_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_0_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_0_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_1_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_1_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_2_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_2_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_3_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_3_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_4_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_4_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_5_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_5_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_6_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_6_ce0;
+wire   [2:0] grp_riccati_forward_pass_fu_537_K_3_1_7_address0;
+wire    grp_riccati_forward_pass_fu_537_K_3_1_7_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_kk_0_address0;
+wire    grp_riccati_forward_pass_fu_537_kk_0_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_kk_1_address0;
+wire    grp_riccati_forward_pass_fu_537_kk_1_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_0_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_0_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_0_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_0_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_0_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_0_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_1_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_1_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_1_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_1_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_1_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_1_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_2_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_2_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_2_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_2_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_2_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_2_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_3_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_3_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_3_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_3_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_3_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_3_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_4_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_4_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_4_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_4_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_4_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_4_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_5_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_5_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_5_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_5_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_5_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_5_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_6_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_6_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_6_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_6_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_6_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_6_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_7_address0;
+wire    grp_riccati_forward_pass_fu_537_x_out_7_ce0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_x_out_7_address1;
+wire    grp_riccati_forward_pass_fu_537_x_out_7_ce1;
+wire    grp_riccati_forward_pass_fu_537_x_out_7_we1;
+wire   [25:0] grp_riccati_forward_pass_fu_537_x_out_7_d1;
+wire   [4:0] grp_riccati_forward_pass_fu_537_u_out_0_address0;
+wire    grp_riccati_forward_pass_fu_537_u_out_0_ce0;
+wire    grp_riccati_forward_pass_fu_537_u_out_0_we0;
+wire   [25:0] grp_riccati_forward_pass_fu_537_u_out_0_d0;
+wire   [4:0] grp_riccati_forward_pass_fu_537_u_out_1_address0;
+wire    grp_riccati_forward_pass_fu_537_u_out_1_ce0;
+wire    grp_riccati_forward_pass_fu_537_u_out_1_we0;
+wire   [25:0] grp_riccati_forward_pass_fu_537_u_out_1_d0;
+wire  signed [25:0] grp_riccati_forward_pass_fu_537_grp_fu_830_p_din0;
+wire  signed [24:0] grp_riccati_forward_pass_fu_537_grp_fu_830_p_din1;
+wire    grp_riccati_forward_pass_fu_537_grp_fu_830_p_ce;
+reg    grp_riccati_backward_pass_fu_342_ap_start_reg;
 wire    ap_CS_fsm_state2;
-reg    grp_riccati_forward_pass_fu_653_ap_start_reg;
+reg    grp_riccati_forward_pass_fu_537_ap_start_reg;
 wire    ap_CS_fsm_state4;
-reg    grp_fu_997_ce;
-reg    grp_fu_1001_ce;
-reg    grp_fu_1005_ce;
+reg    grp_fu_822_ce;
+reg    grp_fu_826_ce;
+reg    grp_fu_830_ce;
 reg   [3:0] ap_NS_fsm;
 reg    ap_ST_fsm_state1_blk;
 reg    ap_ST_fsm_state2_blk;
@@ -2154,657 +1848,491 @@ wire    ap_ce_reg;
 // power-on initialization
 initial begin
 #0 ap_CS_fsm = 4'd1;
-#0 grp_riccati_backward_pass_fu_400_ap_start_reg = 1'b0;
-#0 grp_riccati_forward_pass_fu_653_ap_start_reg = 1'b0;
+#0 grp_riccati_backward_pass_fu_342_ap_start_reg = 1'b0;
+#0 grp_riccati_forward_pass_fu_537_ap_start_reg = 1'b0;
 end
 
-mpc_fpga_top_opencl_riccati_backward_pass grp_riccati_backward_pass_fu_400(
+mpc_fpga_top_opencl_riccati_backward_pass grp_riccati_backward_pass_fu_342(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_riccati_backward_pass_fu_400_ap_start),
-    .ap_done(grp_riccati_backward_pass_fu_400_ap_done),
-    .ap_idle(grp_riccati_backward_pass_fu_400_ap_idle),
-    .ap_ready(grp_riccati_backward_pass_fu_400_ap_ready),
-    .step_data_0_0_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_0_address0),
-    .step_data_0_0_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_0_ce0),
-    .step_data_0_0_0_q0(step_data_0_0_0_q0),
-    .step_data_0_0_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_1_address0),
-    .step_data_0_0_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_1_ce0),
-    .step_data_0_0_1_q0(step_data_0_0_1_q0),
-    .step_data_0_0_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_2_address0),
-    .step_data_0_0_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_2_ce0),
-    .step_data_0_0_2_q0(step_data_0_0_2_q0),
-    .step_data_0_0_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_3_address0),
-    .step_data_0_0_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_3_ce0),
-    .step_data_0_0_3_q0(step_data_0_0_3_q0),
-    .step_data_0_0_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_4_address0),
-    .step_data_0_0_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_4_ce0),
-    .step_data_0_0_4_q0(step_data_0_0_4_q0),
-    .step_data_0_0_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_0_5_address0),
-    .step_data_0_0_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_0_5_ce0),
-    .step_data_0_0_5_q0(step_data_0_0_5_q0),
-    .step_data_0_1_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_0_address0),
-    .step_data_0_1_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_0_ce0),
-    .step_data_0_1_0_q0(step_data_0_1_0_q0),
-    .step_data_0_1_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_1_address0),
-    .step_data_0_1_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_1_ce0),
-    .step_data_0_1_1_q0(step_data_0_1_1_q0),
-    .step_data_0_1_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_2_address0),
-    .step_data_0_1_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_2_ce0),
-    .step_data_0_1_2_q0(step_data_0_1_2_q0),
-    .step_data_0_1_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_3_address0),
-    .step_data_0_1_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_3_ce0),
-    .step_data_0_1_3_q0(step_data_0_1_3_q0),
-    .step_data_0_1_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_4_address0),
-    .step_data_0_1_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_4_ce0),
-    .step_data_0_1_4_q0(step_data_0_1_4_q0),
-    .step_data_0_1_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_1_5_address0),
-    .step_data_0_1_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_1_5_ce0),
-    .step_data_0_1_5_q0(step_data_0_1_5_q0),
-    .step_data_0_2_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_0_address0),
-    .step_data_0_2_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_0_ce0),
-    .step_data_0_2_0_q0(step_data_0_2_0_q0),
-    .step_data_0_2_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_1_address0),
-    .step_data_0_2_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_1_ce0),
-    .step_data_0_2_1_q0(step_data_0_2_1_q0),
-    .step_data_0_2_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_2_address0),
-    .step_data_0_2_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_2_ce0),
-    .step_data_0_2_2_q0(step_data_0_2_2_q0),
-    .step_data_0_2_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_3_address0),
-    .step_data_0_2_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_3_ce0),
-    .step_data_0_2_3_q0(step_data_0_2_3_q0),
-    .step_data_0_2_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_4_address0),
-    .step_data_0_2_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_4_ce0),
-    .step_data_0_2_4_q0(step_data_0_2_4_q0),
-    .step_data_0_2_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_2_5_address0),
-    .step_data_0_2_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_2_5_ce0),
-    .step_data_0_2_5_q0(step_data_0_2_5_q0),
-    .step_data_0_3_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_0_address0),
-    .step_data_0_3_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_0_ce0),
-    .step_data_0_3_0_q0(step_data_0_3_0_q0),
-    .step_data_0_3_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_1_address0),
-    .step_data_0_3_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_1_ce0),
-    .step_data_0_3_1_q0(step_data_0_3_1_q0),
-    .step_data_0_3_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_2_address0),
-    .step_data_0_3_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_2_ce0),
-    .step_data_0_3_2_q0(step_data_0_3_2_q0),
-    .step_data_0_3_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_3_address0),
-    .step_data_0_3_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_3_ce0),
-    .step_data_0_3_3_q0(step_data_0_3_3_q0),
-    .step_data_0_3_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_4_address0),
-    .step_data_0_3_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_4_ce0),
-    .step_data_0_3_4_q0(step_data_0_3_4_q0),
-    .step_data_0_3_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_3_5_address0),
-    .step_data_0_3_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_3_5_ce0),
-    .step_data_0_3_5_q0(step_data_0_3_5_q0),
-    .step_data_0_4_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_0_address0),
-    .step_data_0_4_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_0_ce0),
-    .step_data_0_4_0_q0(step_data_0_4_0_q0),
-    .step_data_0_4_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_1_address0),
-    .step_data_0_4_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_1_ce0),
-    .step_data_0_4_1_q0(step_data_0_4_1_q0),
-    .step_data_0_4_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_2_address0),
-    .step_data_0_4_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_2_ce0),
-    .step_data_0_4_2_q0(step_data_0_4_2_q0),
-    .step_data_0_4_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_3_address0),
-    .step_data_0_4_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_3_ce0),
-    .step_data_0_4_3_q0(step_data_0_4_3_q0),
-    .step_data_0_4_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_4_address0),
-    .step_data_0_4_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_4_ce0),
-    .step_data_0_4_4_q0(step_data_0_4_4_q0),
-    .step_data_0_4_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_4_5_address0),
-    .step_data_0_4_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_4_5_ce0),
-    .step_data_0_4_5_q0(step_data_0_4_5_q0),
-    .step_data_0_5_0_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_0_address0),
-    .step_data_0_5_0_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_0_ce0),
-    .step_data_0_5_0_q0(step_data_0_5_0_q0),
-    .step_data_0_5_1_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_1_address0),
-    .step_data_0_5_1_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_1_ce0),
-    .step_data_0_5_1_q0(step_data_0_5_1_q0),
-    .step_data_0_5_2_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_2_address0),
-    .step_data_0_5_2_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_2_ce0),
-    .step_data_0_5_2_q0(step_data_0_5_2_q0),
-    .step_data_0_5_3_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_3_address0),
-    .step_data_0_5_3_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_3_ce0),
-    .step_data_0_5_3_q0(step_data_0_5_3_q0),
-    .step_data_0_5_4_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_4_address0),
-    .step_data_0_5_4_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_4_ce0),
-    .step_data_0_5_4_q0(step_data_0_5_4_q0),
-    .step_data_0_5_5_address0(grp_riccati_backward_pass_fu_400_step_data_0_5_5_address0),
-    .step_data_0_5_5_ce0(grp_riccati_backward_pass_fu_400_step_data_0_5_5_ce0),
-    .step_data_0_5_5_q0(step_data_0_5_5_q0),
-    .step_data_1_address0(grp_riccati_backward_pass_fu_400_step_data_1_address0),
-    .step_data_1_ce0(grp_riccati_backward_pass_fu_400_step_data_1_ce0),
+    .ap_start(grp_riccati_backward_pass_fu_342_ap_start),
+    .ap_done(grp_riccati_backward_pass_fu_342_ap_done),
+    .ap_idle(grp_riccati_backward_pass_fu_342_ap_idle),
+    .ap_ready(grp_riccati_backward_pass_fu_342_ap_ready),
+    .step_data_0_0_address0(grp_riccati_backward_pass_fu_342_step_data_0_0_address0),
+    .step_data_0_0_ce0(grp_riccati_backward_pass_fu_342_step_data_0_0_ce0),
+    .step_data_0_0_q0(step_data_0_0_q0),
+    .step_data_0_0_address1(grp_riccati_backward_pass_fu_342_step_data_0_0_address1),
+    .step_data_0_0_ce1(grp_riccati_backward_pass_fu_342_step_data_0_0_ce1),
+    .step_data_0_0_q1(step_data_0_0_q1),
+    .step_data_0_1_address0(grp_riccati_backward_pass_fu_342_step_data_0_1_address0),
+    .step_data_0_1_ce0(grp_riccati_backward_pass_fu_342_step_data_0_1_ce0),
+    .step_data_0_1_q0(step_data_0_1_q0),
+    .step_data_0_1_address1(grp_riccati_backward_pass_fu_342_step_data_0_1_address1),
+    .step_data_0_1_ce1(grp_riccati_backward_pass_fu_342_step_data_0_1_ce1),
+    .step_data_0_1_q1(step_data_0_1_q1),
+    .step_data_0_2_address0(grp_riccati_backward_pass_fu_342_step_data_0_2_address0),
+    .step_data_0_2_ce0(grp_riccati_backward_pass_fu_342_step_data_0_2_ce0),
+    .step_data_0_2_q0(step_data_0_2_q0),
+    .step_data_0_2_address1(grp_riccati_backward_pass_fu_342_step_data_0_2_address1),
+    .step_data_0_2_ce1(grp_riccati_backward_pass_fu_342_step_data_0_2_ce1),
+    .step_data_0_2_q1(step_data_0_2_q1),
+    .step_data_0_3_address0(grp_riccati_backward_pass_fu_342_step_data_0_3_address0),
+    .step_data_0_3_ce0(grp_riccati_backward_pass_fu_342_step_data_0_3_ce0),
+    .step_data_0_3_q0(step_data_0_3_q0),
+    .step_data_0_3_address1(grp_riccati_backward_pass_fu_342_step_data_0_3_address1),
+    .step_data_0_3_ce1(grp_riccati_backward_pass_fu_342_step_data_0_3_ce1),
+    .step_data_0_3_q1(step_data_0_3_q1),
+    .step_data_0_4_address0(grp_riccati_backward_pass_fu_342_step_data_0_4_address0),
+    .step_data_0_4_ce0(grp_riccati_backward_pass_fu_342_step_data_0_4_ce0),
+    .step_data_0_4_q0(step_data_0_4_q0),
+    .step_data_0_4_address1(grp_riccati_backward_pass_fu_342_step_data_0_4_address1),
+    .step_data_0_4_ce1(grp_riccati_backward_pass_fu_342_step_data_0_4_ce1),
+    .step_data_0_4_q1(step_data_0_4_q1),
+    .step_data_0_5_address0(grp_riccati_backward_pass_fu_342_step_data_0_5_address0),
+    .step_data_0_5_ce0(grp_riccati_backward_pass_fu_342_step_data_0_5_ce0),
+    .step_data_0_5_q0(step_data_0_5_q0),
+    .step_data_0_5_address1(grp_riccati_backward_pass_fu_342_step_data_0_5_address1),
+    .step_data_0_5_ce1(grp_riccati_backward_pass_fu_342_step_data_0_5_ce1),
+    .step_data_0_5_q1(step_data_0_5_q1),
+    .step_data_1_address0(grp_riccati_backward_pass_fu_342_step_data_1_address0),
+    .step_data_1_ce0(grp_riccati_backward_pass_fu_342_step_data_1_ce0),
     .step_data_1_q0(step_data_1_q0),
-    .step_data_1_address1(grp_riccati_backward_pass_fu_400_step_data_1_address1),
-    .step_data_1_ce1(grp_riccati_backward_pass_fu_400_step_data_1_ce1),
+    .step_data_1_address1(grp_riccati_backward_pass_fu_342_step_data_1_address1),
+    .step_data_1_ce1(grp_riccati_backward_pass_fu_342_step_data_1_ce1),
     .step_data_1_q1(step_data_1_q1),
-    .step_data_2_address0(grp_riccati_backward_pass_fu_400_step_data_2_address0),
-    .step_data_2_ce0(grp_riccati_backward_pass_fu_400_step_data_2_ce0),
+    .step_data_2_address0(grp_riccati_backward_pass_fu_342_step_data_2_address0),
+    .step_data_2_ce0(grp_riccati_backward_pass_fu_342_step_data_2_ce0),
     .step_data_2_q0(step_data_2_q0),
-    .step_data_2_address1(grp_riccati_backward_pass_fu_400_step_data_2_address1),
-    .step_data_2_ce1(grp_riccati_backward_pass_fu_400_step_data_2_ce1),
+    .step_data_2_address1(grp_riccati_backward_pass_fu_342_step_data_2_address1),
+    .step_data_2_ce1(grp_riccati_backward_pass_fu_342_step_data_2_ce1),
     .step_data_2_q1(step_data_2_q1),
-    .B_sparse_0_address0(grp_riccati_backward_pass_fu_400_B_sparse_0_address0),
-    .B_sparse_0_ce0(grp_riccati_backward_pass_fu_400_B_sparse_0_ce0),
+    .B_sparse_0_address0(grp_riccati_backward_pass_fu_342_B_sparse_0_address0),
+    .B_sparse_0_ce0(grp_riccati_backward_pass_fu_342_B_sparse_0_ce0),
     .B_sparse_0_q0(B_sparse_0_q0),
-    .B_sparse_1_address0(grp_riccati_backward_pass_fu_400_B_sparse_1_address0),
-    .B_sparse_1_ce0(grp_riccati_backward_pass_fu_400_B_sparse_1_ce0),
+    .B_sparse_1_address0(grp_riccati_backward_pass_fu_342_B_sparse_1_address0),
+    .B_sparse_1_ce0(grp_riccati_backward_pass_fu_342_B_sparse_1_ce0),
     .B_sparse_1_q0(B_sparse_1_q0),
-    .B_sparse_2_address0(grp_riccati_backward_pass_fu_400_B_sparse_2_address0),
-    .B_sparse_2_ce0(grp_riccati_backward_pass_fu_400_B_sparse_2_ce0),
+    .B_sparse_2_address0(grp_riccati_backward_pass_fu_342_B_sparse_2_address0),
+    .B_sparse_2_ce0(grp_riccati_backward_pass_fu_342_B_sparse_2_ce0),
     .B_sparse_2_q0(B_sparse_2_q0),
-    .B_sparse_3_address0(grp_riccati_backward_pass_fu_400_B_sparse_3_address0),
-    .B_sparse_3_ce0(grp_riccati_backward_pass_fu_400_B_sparse_3_ce0),
+    .B_sparse_3_address0(grp_riccati_backward_pass_fu_342_B_sparse_3_address0),
+    .B_sparse_3_ce0(grp_riccati_backward_pass_fu_342_B_sparse_3_ce0),
     .B_sparse_3_q0(B_sparse_3_q0),
     .p_read(p_read),
     .p_read1(p_read1),
     .p_read2(p_read2),
     .p_read3(p_read3),
     .p_read4(p_read4),
-    .p_read5(empty_reg_947),
+    .p_read5(empty_reg_771),
     .rho(rho),
     .rho_u(rho_u),
-    .z_x_0_address0(grp_riccati_backward_pass_fu_400_z_x_0_address0),
-    .z_x_0_ce0(grp_riccati_backward_pass_fu_400_z_x_0_ce0),
+    .z_x_0_address0(grp_riccati_backward_pass_fu_342_z_x_0_address0),
+    .z_x_0_ce0(grp_riccati_backward_pass_fu_342_z_x_0_ce0),
     .z_x_0_q0(z_x_0_q0),
-    .z_x_5_address0(grp_riccati_backward_pass_fu_400_z_x_5_address0),
-    .z_x_5_ce0(grp_riccati_backward_pass_fu_400_z_x_5_ce0),
+    .z_x_5_address0(grp_riccati_backward_pass_fu_342_z_x_5_address0),
+    .z_x_5_ce0(grp_riccati_backward_pass_fu_342_z_x_5_ce0),
     .z_x_5_q0(z_x_5_q0),
-    .y_x_0_address0(grp_riccati_backward_pass_fu_400_y_x_0_address0),
-    .y_x_0_ce0(grp_riccati_backward_pass_fu_400_y_x_0_ce0),
+    .y_x_0_address0(grp_riccati_backward_pass_fu_342_y_x_0_address0),
+    .y_x_0_ce0(grp_riccati_backward_pass_fu_342_y_x_0_ce0),
     .y_x_0_q0(y_x_0_q0),
-    .y_x_5_address0(grp_riccati_backward_pass_fu_400_y_x_5_address0),
-    .y_x_5_ce0(grp_riccati_backward_pass_fu_400_y_x_5_ce0),
+    .y_x_5_address0(grp_riccati_backward_pass_fu_342_y_x_5_address0),
+    .y_x_5_ce0(grp_riccati_backward_pass_fu_342_y_x_5_ce0),
     .y_x_5_q0(y_x_5_q0),
-    .z_u_0_address0(grp_riccati_backward_pass_fu_400_z_u_0_address0),
-    .z_u_0_ce0(grp_riccati_backward_pass_fu_400_z_u_0_ce0),
+    .z_u_0_address0(grp_riccati_backward_pass_fu_342_z_u_0_address0),
+    .z_u_0_ce0(grp_riccati_backward_pass_fu_342_z_u_0_ce0),
     .z_u_0_q0(z_u_0_q0),
-    .z_u_1_address0(grp_riccati_backward_pass_fu_400_z_u_1_address0),
-    .z_u_1_ce0(grp_riccati_backward_pass_fu_400_z_u_1_ce0),
+    .z_u_1_address0(grp_riccati_backward_pass_fu_342_z_u_1_address0),
+    .z_u_1_ce0(grp_riccati_backward_pass_fu_342_z_u_1_ce0),
     .z_u_1_q0(z_u_1_q0),
-    .y_u_0_address0(grp_riccati_backward_pass_fu_400_y_u_0_address0),
-    .y_u_0_ce0(grp_riccati_backward_pass_fu_400_y_u_0_ce0),
+    .y_u_0_address0(grp_riccati_backward_pass_fu_342_y_u_0_address0),
+    .y_u_0_ce0(grp_riccati_backward_pass_fu_342_y_u_0_ce0),
     .y_u_0_q0(y_u_0_q0),
-    .y_u_1_address0(grp_riccati_backward_pass_fu_400_y_u_1_address0),
-    .y_u_1_ce0(grp_riccati_backward_pass_fu_400_y_u_1_ce0),
+    .y_u_1_address0(grp_riccati_backward_pass_fu_342_y_u_1_address0),
+    .y_u_1_ce0(grp_riccati_backward_pass_fu_342_y_u_1_ce0),
     .y_u_1_q0(y_u_1_q0),
-    .K_0_0_0_address0(grp_riccati_backward_pass_fu_400_K_0_0_0_address0),
-    .K_0_0_0_ce0(grp_riccati_backward_pass_fu_400_K_0_0_0_ce0),
-    .K_0_0_0_we0(grp_riccati_backward_pass_fu_400_K_0_0_0_we0),
-    .K_0_0_0_d0(grp_riccati_backward_pass_fu_400_K_0_0_0_d0),
+    .K_0_0_0_address0(grp_riccati_backward_pass_fu_342_K_0_0_0_address0),
+    .K_0_0_0_ce0(grp_riccati_backward_pass_fu_342_K_0_0_0_ce0),
+    .K_0_0_0_we0(grp_riccati_backward_pass_fu_342_K_0_0_0_we0),
+    .K_0_0_0_d0(grp_riccati_backward_pass_fu_342_K_0_0_0_d0),
     .K_0_0_0_q0(K_0_0_0_q0),
-    .K_0_0_1_address0(grp_riccati_backward_pass_fu_400_K_0_0_1_address0),
-    .K_0_0_1_ce0(grp_riccati_backward_pass_fu_400_K_0_0_1_ce0),
-    .K_0_0_1_we0(grp_riccati_backward_pass_fu_400_K_0_0_1_we0),
-    .K_0_0_1_d0(grp_riccati_backward_pass_fu_400_K_0_0_1_d0),
+    .K_0_0_1_address0(grp_riccati_backward_pass_fu_342_K_0_0_1_address0),
+    .K_0_0_1_ce0(grp_riccati_backward_pass_fu_342_K_0_0_1_ce0),
+    .K_0_0_1_we0(grp_riccati_backward_pass_fu_342_K_0_0_1_we0),
+    .K_0_0_1_d0(grp_riccati_backward_pass_fu_342_K_0_0_1_d0),
     .K_0_0_1_q0(K_0_0_1_q0),
-    .K_0_0_2_address0(grp_riccati_backward_pass_fu_400_K_0_0_2_address0),
-    .K_0_0_2_ce0(grp_riccati_backward_pass_fu_400_K_0_0_2_ce0),
-    .K_0_0_2_we0(grp_riccati_backward_pass_fu_400_K_0_0_2_we0),
-    .K_0_0_2_d0(grp_riccati_backward_pass_fu_400_K_0_0_2_d0),
+    .K_0_0_2_address0(grp_riccati_backward_pass_fu_342_K_0_0_2_address0),
+    .K_0_0_2_ce0(grp_riccati_backward_pass_fu_342_K_0_0_2_ce0),
+    .K_0_0_2_we0(grp_riccati_backward_pass_fu_342_K_0_0_2_we0),
+    .K_0_0_2_d0(grp_riccati_backward_pass_fu_342_K_0_0_2_d0),
     .K_0_0_2_q0(K_0_0_2_q0),
-    .K_0_0_3_address0(grp_riccati_backward_pass_fu_400_K_0_0_3_address0),
-    .K_0_0_3_ce0(grp_riccati_backward_pass_fu_400_K_0_0_3_ce0),
-    .K_0_0_3_we0(grp_riccati_backward_pass_fu_400_K_0_0_3_we0),
-    .K_0_0_3_d0(grp_riccati_backward_pass_fu_400_K_0_0_3_d0),
+    .K_0_0_3_address0(grp_riccati_backward_pass_fu_342_K_0_0_3_address0),
+    .K_0_0_3_ce0(grp_riccati_backward_pass_fu_342_K_0_0_3_ce0),
+    .K_0_0_3_we0(grp_riccati_backward_pass_fu_342_K_0_0_3_we0),
+    .K_0_0_3_d0(grp_riccati_backward_pass_fu_342_K_0_0_3_d0),
     .K_0_0_3_q0(K_0_0_3_q0),
-    .K_0_0_4_address0(grp_riccati_backward_pass_fu_400_K_0_0_4_address0),
-    .K_0_0_4_ce0(grp_riccati_backward_pass_fu_400_K_0_0_4_ce0),
-    .K_0_0_4_we0(grp_riccati_backward_pass_fu_400_K_0_0_4_we0),
-    .K_0_0_4_d0(grp_riccati_backward_pass_fu_400_K_0_0_4_d0),
+    .K_0_0_4_address0(grp_riccati_backward_pass_fu_342_K_0_0_4_address0),
+    .K_0_0_4_ce0(grp_riccati_backward_pass_fu_342_K_0_0_4_ce0),
+    .K_0_0_4_we0(grp_riccati_backward_pass_fu_342_K_0_0_4_we0),
+    .K_0_0_4_d0(grp_riccati_backward_pass_fu_342_K_0_0_4_d0),
     .K_0_0_4_q0(K_0_0_4_q0),
-    .K_0_0_5_address0(grp_riccati_backward_pass_fu_400_K_0_0_5_address0),
-    .K_0_0_5_ce0(grp_riccati_backward_pass_fu_400_K_0_0_5_ce0),
-    .K_0_0_5_we0(grp_riccati_backward_pass_fu_400_K_0_0_5_we0),
-    .K_0_0_5_d0(grp_riccati_backward_pass_fu_400_K_0_0_5_d0),
+    .K_0_0_5_address0(grp_riccati_backward_pass_fu_342_K_0_0_5_address0),
+    .K_0_0_5_ce0(grp_riccati_backward_pass_fu_342_K_0_0_5_ce0),
+    .K_0_0_5_we0(grp_riccati_backward_pass_fu_342_K_0_0_5_we0),
+    .K_0_0_5_d0(grp_riccati_backward_pass_fu_342_K_0_0_5_d0),
     .K_0_0_5_q0(K_0_0_5_q0),
-    .K_0_0_6_address0(grp_riccati_backward_pass_fu_400_K_0_0_6_address0),
-    .K_0_0_6_ce0(grp_riccati_backward_pass_fu_400_K_0_0_6_ce0),
-    .K_0_0_6_we0(grp_riccati_backward_pass_fu_400_K_0_0_6_we0),
-    .K_0_0_6_d0(grp_riccati_backward_pass_fu_400_K_0_0_6_d0),
+    .K_0_0_6_address0(grp_riccati_backward_pass_fu_342_K_0_0_6_address0),
+    .K_0_0_6_ce0(grp_riccati_backward_pass_fu_342_K_0_0_6_ce0),
+    .K_0_0_6_we0(grp_riccati_backward_pass_fu_342_K_0_0_6_we0),
+    .K_0_0_6_d0(grp_riccati_backward_pass_fu_342_K_0_0_6_d0),
     .K_0_0_6_q0(K_0_0_6_q0),
-    .K_0_0_7_address0(grp_riccati_backward_pass_fu_400_K_0_0_7_address0),
-    .K_0_0_7_ce0(grp_riccati_backward_pass_fu_400_K_0_0_7_ce0),
-    .K_0_0_7_we0(grp_riccati_backward_pass_fu_400_K_0_0_7_we0),
-    .K_0_0_7_d0(grp_riccati_backward_pass_fu_400_K_0_0_7_d0),
+    .K_0_0_7_address0(grp_riccati_backward_pass_fu_342_K_0_0_7_address0),
+    .K_0_0_7_ce0(grp_riccati_backward_pass_fu_342_K_0_0_7_ce0),
+    .K_0_0_7_we0(grp_riccati_backward_pass_fu_342_K_0_0_7_we0),
+    .K_0_0_7_d0(grp_riccati_backward_pass_fu_342_K_0_0_7_d0),
     .K_0_0_7_q0(K_0_0_7_q0),
-    .K_0_1_0_address0(grp_riccati_backward_pass_fu_400_K_0_1_0_address0),
-    .K_0_1_0_ce0(grp_riccati_backward_pass_fu_400_K_0_1_0_ce0),
-    .K_0_1_0_we0(grp_riccati_backward_pass_fu_400_K_0_1_0_we0),
-    .K_0_1_0_d0(grp_riccati_backward_pass_fu_400_K_0_1_0_d0),
+    .K_0_1_0_address0(grp_riccati_backward_pass_fu_342_K_0_1_0_address0),
+    .K_0_1_0_ce0(grp_riccati_backward_pass_fu_342_K_0_1_0_ce0),
+    .K_0_1_0_we0(grp_riccati_backward_pass_fu_342_K_0_1_0_we0),
+    .K_0_1_0_d0(grp_riccati_backward_pass_fu_342_K_0_1_0_d0),
     .K_0_1_0_q0(K_0_1_0_q0),
-    .K_0_1_1_address0(grp_riccati_backward_pass_fu_400_K_0_1_1_address0),
-    .K_0_1_1_ce0(grp_riccati_backward_pass_fu_400_K_0_1_1_ce0),
-    .K_0_1_1_we0(grp_riccati_backward_pass_fu_400_K_0_1_1_we0),
-    .K_0_1_1_d0(grp_riccati_backward_pass_fu_400_K_0_1_1_d0),
+    .K_0_1_1_address0(grp_riccati_backward_pass_fu_342_K_0_1_1_address0),
+    .K_0_1_1_ce0(grp_riccati_backward_pass_fu_342_K_0_1_1_ce0),
+    .K_0_1_1_we0(grp_riccati_backward_pass_fu_342_K_0_1_1_we0),
+    .K_0_1_1_d0(grp_riccati_backward_pass_fu_342_K_0_1_1_d0),
     .K_0_1_1_q0(K_0_1_1_q0),
-    .K_0_1_2_address0(grp_riccati_backward_pass_fu_400_K_0_1_2_address0),
-    .K_0_1_2_ce0(grp_riccati_backward_pass_fu_400_K_0_1_2_ce0),
-    .K_0_1_2_we0(grp_riccati_backward_pass_fu_400_K_0_1_2_we0),
-    .K_0_1_2_d0(grp_riccati_backward_pass_fu_400_K_0_1_2_d0),
+    .K_0_1_2_address0(grp_riccati_backward_pass_fu_342_K_0_1_2_address0),
+    .K_0_1_2_ce0(grp_riccati_backward_pass_fu_342_K_0_1_2_ce0),
+    .K_0_1_2_we0(grp_riccati_backward_pass_fu_342_K_0_1_2_we0),
+    .K_0_1_2_d0(grp_riccati_backward_pass_fu_342_K_0_1_2_d0),
     .K_0_1_2_q0(K_0_1_2_q0),
-    .K_0_1_3_address0(grp_riccati_backward_pass_fu_400_K_0_1_3_address0),
-    .K_0_1_3_ce0(grp_riccati_backward_pass_fu_400_K_0_1_3_ce0),
-    .K_0_1_3_we0(grp_riccati_backward_pass_fu_400_K_0_1_3_we0),
-    .K_0_1_3_d0(grp_riccati_backward_pass_fu_400_K_0_1_3_d0),
+    .K_0_1_3_address0(grp_riccati_backward_pass_fu_342_K_0_1_3_address0),
+    .K_0_1_3_ce0(grp_riccati_backward_pass_fu_342_K_0_1_3_ce0),
+    .K_0_1_3_we0(grp_riccati_backward_pass_fu_342_K_0_1_3_we0),
+    .K_0_1_3_d0(grp_riccati_backward_pass_fu_342_K_0_1_3_d0),
     .K_0_1_3_q0(K_0_1_3_q0),
-    .K_0_1_4_address0(grp_riccati_backward_pass_fu_400_K_0_1_4_address0),
-    .K_0_1_4_ce0(grp_riccati_backward_pass_fu_400_K_0_1_4_ce0),
-    .K_0_1_4_we0(grp_riccati_backward_pass_fu_400_K_0_1_4_we0),
-    .K_0_1_4_d0(grp_riccati_backward_pass_fu_400_K_0_1_4_d0),
+    .K_0_1_4_address0(grp_riccati_backward_pass_fu_342_K_0_1_4_address0),
+    .K_0_1_4_ce0(grp_riccati_backward_pass_fu_342_K_0_1_4_ce0),
+    .K_0_1_4_we0(grp_riccati_backward_pass_fu_342_K_0_1_4_we0),
+    .K_0_1_4_d0(grp_riccati_backward_pass_fu_342_K_0_1_4_d0),
     .K_0_1_4_q0(K_0_1_4_q0),
-    .K_0_1_5_address0(grp_riccati_backward_pass_fu_400_K_0_1_5_address0),
-    .K_0_1_5_ce0(grp_riccati_backward_pass_fu_400_K_0_1_5_ce0),
-    .K_0_1_5_we0(grp_riccati_backward_pass_fu_400_K_0_1_5_we0),
-    .K_0_1_5_d0(grp_riccati_backward_pass_fu_400_K_0_1_5_d0),
+    .K_0_1_5_address0(grp_riccati_backward_pass_fu_342_K_0_1_5_address0),
+    .K_0_1_5_ce0(grp_riccati_backward_pass_fu_342_K_0_1_5_ce0),
+    .K_0_1_5_we0(grp_riccati_backward_pass_fu_342_K_0_1_5_we0),
+    .K_0_1_5_d0(grp_riccati_backward_pass_fu_342_K_0_1_5_d0),
     .K_0_1_5_q0(K_0_1_5_q0),
-    .K_0_1_6_address0(grp_riccati_backward_pass_fu_400_K_0_1_6_address0),
-    .K_0_1_6_ce0(grp_riccati_backward_pass_fu_400_K_0_1_6_ce0),
-    .K_0_1_6_we0(grp_riccati_backward_pass_fu_400_K_0_1_6_we0),
-    .K_0_1_6_d0(grp_riccati_backward_pass_fu_400_K_0_1_6_d0),
+    .K_0_1_6_address0(grp_riccati_backward_pass_fu_342_K_0_1_6_address0),
+    .K_0_1_6_ce0(grp_riccati_backward_pass_fu_342_K_0_1_6_ce0),
+    .K_0_1_6_we0(grp_riccati_backward_pass_fu_342_K_0_1_6_we0),
+    .K_0_1_6_d0(grp_riccati_backward_pass_fu_342_K_0_1_6_d0),
     .K_0_1_6_q0(K_0_1_6_q0),
-    .K_0_1_7_address0(grp_riccati_backward_pass_fu_400_K_0_1_7_address0),
-    .K_0_1_7_ce0(grp_riccati_backward_pass_fu_400_K_0_1_7_ce0),
-    .K_0_1_7_we0(grp_riccati_backward_pass_fu_400_K_0_1_7_we0),
-    .K_0_1_7_d0(grp_riccati_backward_pass_fu_400_K_0_1_7_d0),
+    .K_0_1_7_address0(grp_riccati_backward_pass_fu_342_K_0_1_7_address0),
+    .K_0_1_7_ce0(grp_riccati_backward_pass_fu_342_K_0_1_7_ce0),
+    .K_0_1_7_we0(grp_riccati_backward_pass_fu_342_K_0_1_7_we0),
+    .K_0_1_7_d0(grp_riccati_backward_pass_fu_342_K_0_1_7_d0),
     .K_0_1_7_q0(K_0_1_7_q0),
-    .K_1_0_0_address0(grp_riccati_backward_pass_fu_400_K_1_0_0_address0),
-    .K_1_0_0_ce0(grp_riccati_backward_pass_fu_400_K_1_0_0_ce0),
-    .K_1_0_0_we0(grp_riccati_backward_pass_fu_400_K_1_0_0_we0),
-    .K_1_0_0_d0(grp_riccati_backward_pass_fu_400_K_1_0_0_d0),
+    .K_1_0_0_address0(grp_riccati_backward_pass_fu_342_K_1_0_0_address0),
+    .K_1_0_0_ce0(grp_riccati_backward_pass_fu_342_K_1_0_0_ce0),
+    .K_1_0_0_we0(grp_riccati_backward_pass_fu_342_K_1_0_0_we0),
+    .K_1_0_0_d0(grp_riccati_backward_pass_fu_342_K_1_0_0_d0),
     .K_1_0_0_q0(K_1_0_0_q0),
-    .K_1_0_1_address0(grp_riccati_backward_pass_fu_400_K_1_0_1_address0),
-    .K_1_0_1_ce0(grp_riccati_backward_pass_fu_400_K_1_0_1_ce0),
-    .K_1_0_1_we0(grp_riccati_backward_pass_fu_400_K_1_0_1_we0),
-    .K_1_0_1_d0(grp_riccati_backward_pass_fu_400_K_1_0_1_d0),
+    .K_1_0_1_address0(grp_riccati_backward_pass_fu_342_K_1_0_1_address0),
+    .K_1_0_1_ce0(grp_riccati_backward_pass_fu_342_K_1_0_1_ce0),
+    .K_1_0_1_we0(grp_riccati_backward_pass_fu_342_K_1_0_1_we0),
+    .K_1_0_1_d0(grp_riccati_backward_pass_fu_342_K_1_0_1_d0),
     .K_1_0_1_q0(K_1_0_1_q0),
-    .K_1_0_2_address0(grp_riccati_backward_pass_fu_400_K_1_0_2_address0),
-    .K_1_0_2_ce0(grp_riccati_backward_pass_fu_400_K_1_0_2_ce0),
-    .K_1_0_2_we0(grp_riccati_backward_pass_fu_400_K_1_0_2_we0),
-    .K_1_0_2_d0(grp_riccati_backward_pass_fu_400_K_1_0_2_d0),
+    .K_1_0_2_address0(grp_riccati_backward_pass_fu_342_K_1_0_2_address0),
+    .K_1_0_2_ce0(grp_riccati_backward_pass_fu_342_K_1_0_2_ce0),
+    .K_1_0_2_we0(grp_riccati_backward_pass_fu_342_K_1_0_2_we0),
+    .K_1_0_2_d0(grp_riccati_backward_pass_fu_342_K_1_0_2_d0),
     .K_1_0_2_q0(K_1_0_2_q0),
-    .K_1_0_3_address0(grp_riccati_backward_pass_fu_400_K_1_0_3_address0),
-    .K_1_0_3_ce0(grp_riccati_backward_pass_fu_400_K_1_0_3_ce0),
-    .K_1_0_3_we0(grp_riccati_backward_pass_fu_400_K_1_0_3_we0),
-    .K_1_0_3_d0(grp_riccati_backward_pass_fu_400_K_1_0_3_d0),
+    .K_1_0_3_address0(grp_riccati_backward_pass_fu_342_K_1_0_3_address0),
+    .K_1_0_3_ce0(grp_riccati_backward_pass_fu_342_K_1_0_3_ce0),
+    .K_1_0_3_we0(grp_riccati_backward_pass_fu_342_K_1_0_3_we0),
+    .K_1_0_3_d0(grp_riccati_backward_pass_fu_342_K_1_0_3_d0),
     .K_1_0_3_q0(K_1_0_3_q0),
-    .K_1_0_4_address0(grp_riccati_backward_pass_fu_400_K_1_0_4_address0),
-    .K_1_0_4_ce0(grp_riccati_backward_pass_fu_400_K_1_0_4_ce0),
-    .K_1_0_4_we0(grp_riccati_backward_pass_fu_400_K_1_0_4_we0),
-    .K_1_0_4_d0(grp_riccati_backward_pass_fu_400_K_1_0_4_d0),
+    .K_1_0_4_address0(grp_riccati_backward_pass_fu_342_K_1_0_4_address0),
+    .K_1_0_4_ce0(grp_riccati_backward_pass_fu_342_K_1_0_4_ce0),
+    .K_1_0_4_we0(grp_riccati_backward_pass_fu_342_K_1_0_4_we0),
+    .K_1_0_4_d0(grp_riccati_backward_pass_fu_342_K_1_0_4_d0),
     .K_1_0_4_q0(K_1_0_4_q0),
-    .K_1_0_5_address0(grp_riccati_backward_pass_fu_400_K_1_0_5_address0),
-    .K_1_0_5_ce0(grp_riccati_backward_pass_fu_400_K_1_0_5_ce0),
-    .K_1_0_5_we0(grp_riccati_backward_pass_fu_400_K_1_0_5_we0),
-    .K_1_0_5_d0(grp_riccati_backward_pass_fu_400_K_1_0_5_d0),
+    .K_1_0_5_address0(grp_riccati_backward_pass_fu_342_K_1_0_5_address0),
+    .K_1_0_5_ce0(grp_riccati_backward_pass_fu_342_K_1_0_5_ce0),
+    .K_1_0_5_we0(grp_riccati_backward_pass_fu_342_K_1_0_5_we0),
+    .K_1_0_5_d0(grp_riccati_backward_pass_fu_342_K_1_0_5_d0),
     .K_1_0_5_q0(K_1_0_5_q0),
-    .K_1_0_6_address0(grp_riccati_backward_pass_fu_400_K_1_0_6_address0),
-    .K_1_0_6_ce0(grp_riccati_backward_pass_fu_400_K_1_0_6_ce0),
-    .K_1_0_6_we0(grp_riccati_backward_pass_fu_400_K_1_0_6_we0),
-    .K_1_0_6_d0(grp_riccati_backward_pass_fu_400_K_1_0_6_d0),
+    .K_1_0_6_address0(grp_riccati_backward_pass_fu_342_K_1_0_6_address0),
+    .K_1_0_6_ce0(grp_riccati_backward_pass_fu_342_K_1_0_6_ce0),
+    .K_1_0_6_we0(grp_riccati_backward_pass_fu_342_K_1_0_6_we0),
+    .K_1_0_6_d0(grp_riccati_backward_pass_fu_342_K_1_0_6_d0),
     .K_1_0_6_q0(K_1_0_6_q0),
-    .K_1_0_7_address0(grp_riccati_backward_pass_fu_400_K_1_0_7_address0),
-    .K_1_0_7_ce0(grp_riccati_backward_pass_fu_400_K_1_0_7_ce0),
-    .K_1_0_7_we0(grp_riccati_backward_pass_fu_400_K_1_0_7_we0),
-    .K_1_0_7_d0(grp_riccati_backward_pass_fu_400_K_1_0_7_d0),
+    .K_1_0_7_address0(grp_riccati_backward_pass_fu_342_K_1_0_7_address0),
+    .K_1_0_7_ce0(grp_riccati_backward_pass_fu_342_K_1_0_7_ce0),
+    .K_1_0_7_we0(grp_riccati_backward_pass_fu_342_K_1_0_7_we0),
+    .K_1_0_7_d0(grp_riccati_backward_pass_fu_342_K_1_0_7_d0),
     .K_1_0_7_q0(K_1_0_7_q0),
-    .K_1_1_0_address0(grp_riccati_backward_pass_fu_400_K_1_1_0_address0),
-    .K_1_1_0_ce0(grp_riccati_backward_pass_fu_400_K_1_1_0_ce0),
-    .K_1_1_0_we0(grp_riccati_backward_pass_fu_400_K_1_1_0_we0),
-    .K_1_1_0_d0(grp_riccati_backward_pass_fu_400_K_1_1_0_d0),
+    .K_1_1_0_address0(grp_riccati_backward_pass_fu_342_K_1_1_0_address0),
+    .K_1_1_0_ce0(grp_riccati_backward_pass_fu_342_K_1_1_0_ce0),
+    .K_1_1_0_we0(grp_riccati_backward_pass_fu_342_K_1_1_0_we0),
+    .K_1_1_0_d0(grp_riccati_backward_pass_fu_342_K_1_1_0_d0),
     .K_1_1_0_q0(K_1_1_0_q0),
-    .K_1_1_1_address0(grp_riccati_backward_pass_fu_400_K_1_1_1_address0),
-    .K_1_1_1_ce0(grp_riccati_backward_pass_fu_400_K_1_1_1_ce0),
-    .K_1_1_1_we0(grp_riccati_backward_pass_fu_400_K_1_1_1_we0),
-    .K_1_1_1_d0(grp_riccati_backward_pass_fu_400_K_1_1_1_d0),
+    .K_1_1_1_address0(grp_riccati_backward_pass_fu_342_K_1_1_1_address0),
+    .K_1_1_1_ce0(grp_riccati_backward_pass_fu_342_K_1_1_1_ce0),
+    .K_1_1_1_we0(grp_riccati_backward_pass_fu_342_K_1_1_1_we0),
+    .K_1_1_1_d0(grp_riccati_backward_pass_fu_342_K_1_1_1_d0),
     .K_1_1_1_q0(K_1_1_1_q0),
-    .K_1_1_2_address0(grp_riccati_backward_pass_fu_400_K_1_1_2_address0),
-    .K_1_1_2_ce0(grp_riccati_backward_pass_fu_400_K_1_1_2_ce0),
-    .K_1_1_2_we0(grp_riccati_backward_pass_fu_400_K_1_1_2_we0),
-    .K_1_1_2_d0(grp_riccati_backward_pass_fu_400_K_1_1_2_d0),
+    .K_1_1_2_address0(grp_riccati_backward_pass_fu_342_K_1_1_2_address0),
+    .K_1_1_2_ce0(grp_riccati_backward_pass_fu_342_K_1_1_2_ce0),
+    .K_1_1_2_we0(grp_riccati_backward_pass_fu_342_K_1_1_2_we0),
+    .K_1_1_2_d0(grp_riccati_backward_pass_fu_342_K_1_1_2_d0),
     .K_1_1_2_q0(K_1_1_2_q0),
-    .K_1_1_3_address0(grp_riccati_backward_pass_fu_400_K_1_1_3_address0),
-    .K_1_1_3_ce0(grp_riccati_backward_pass_fu_400_K_1_1_3_ce0),
-    .K_1_1_3_we0(grp_riccati_backward_pass_fu_400_K_1_1_3_we0),
-    .K_1_1_3_d0(grp_riccati_backward_pass_fu_400_K_1_1_3_d0),
+    .K_1_1_3_address0(grp_riccati_backward_pass_fu_342_K_1_1_3_address0),
+    .K_1_1_3_ce0(grp_riccati_backward_pass_fu_342_K_1_1_3_ce0),
+    .K_1_1_3_we0(grp_riccati_backward_pass_fu_342_K_1_1_3_we0),
+    .K_1_1_3_d0(grp_riccati_backward_pass_fu_342_K_1_1_3_d0),
     .K_1_1_3_q0(K_1_1_3_q0),
-    .K_1_1_4_address0(grp_riccati_backward_pass_fu_400_K_1_1_4_address0),
-    .K_1_1_4_ce0(grp_riccati_backward_pass_fu_400_K_1_1_4_ce0),
-    .K_1_1_4_we0(grp_riccati_backward_pass_fu_400_K_1_1_4_we0),
-    .K_1_1_4_d0(grp_riccati_backward_pass_fu_400_K_1_1_4_d0),
+    .K_1_1_4_address0(grp_riccati_backward_pass_fu_342_K_1_1_4_address0),
+    .K_1_1_4_ce0(grp_riccati_backward_pass_fu_342_K_1_1_4_ce0),
+    .K_1_1_4_we0(grp_riccati_backward_pass_fu_342_K_1_1_4_we0),
+    .K_1_1_4_d0(grp_riccati_backward_pass_fu_342_K_1_1_4_d0),
     .K_1_1_4_q0(K_1_1_4_q0),
-    .K_1_1_5_address0(grp_riccati_backward_pass_fu_400_K_1_1_5_address0),
-    .K_1_1_5_ce0(grp_riccati_backward_pass_fu_400_K_1_1_5_ce0),
-    .K_1_1_5_we0(grp_riccati_backward_pass_fu_400_K_1_1_5_we0),
-    .K_1_1_5_d0(grp_riccati_backward_pass_fu_400_K_1_1_5_d0),
+    .K_1_1_5_address0(grp_riccati_backward_pass_fu_342_K_1_1_5_address0),
+    .K_1_1_5_ce0(grp_riccati_backward_pass_fu_342_K_1_1_5_ce0),
+    .K_1_1_5_we0(grp_riccati_backward_pass_fu_342_K_1_1_5_we0),
+    .K_1_1_5_d0(grp_riccati_backward_pass_fu_342_K_1_1_5_d0),
     .K_1_1_5_q0(K_1_1_5_q0),
-    .K_1_1_6_address0(grp_riccati_backward_pass_fu_400_K_1_1_6_address0),
-    .K_1_1_6_ce0(grp_riccati_backward_pass_fu_400_K_1_1_6_ce0),
-    .K_1_1_6_we0(grp_riccati_backward_pass_fu_400_K_1_1_6_we0),
-    .K_1_1_6_d0(grp_riccati_backward_pass_fu_400_K_1_1_6_d0),
+    .K_1_1_6_address0(grp_riccati_backward_pass_fu_342_K_1_1_6_address0),
+    .K_1_1_6_ce0(grp_riccati_backward_pass_fu_342_K_1_1_6_ce0),
+    .K_1_1_6_we0(grp_riccati_backward_pass_fu_342_K_1_1_6_we0),
+    .K_1_1_6_d0(grp_riccati_backward_pass_fu_342_K_1_1_6_d0),
     .K_1_1_6_q0(K_1_1_6_q0),
-    .K_1_1_7_address0(grp_riccati_backward_pass_fu_400_K_1_1_7_address0),
-    .K_1_1_7_ce0(grp_riccati_backward_pass_fu_400_K_1_1_7_ce0),
-    .K_1_1_7_we0(grp_riccati_backward_pass_fu_400_K_1_1_7_we0),
-    .K_1_1_7_d0(grp_riccati_backward_pass_fu_400_K_1_1_7_d0),
+    .K_1_1_7_address0(grp_riccati_backward_pass_fu_342_K_1_1_7_address0),
+    .K_1_1_7_ce0(grp_riccati_backward_pass_fu_342_K_1_1_7_ce0),
+    .K_1_1_7_we0(grp_riccati_backward_pass_fu_342_K_1_1_7_we0),
+    .K_1_1_7_d0(grp_riccati_backward_pass_fu_342_K_1_1_7_d0),
     .K_1_1_7_q0(K_1_1_7_q0),
-    .K_2_0_0_address0(grp_riccati_backward_pass_fu_400_K_2_0_0_address0),
-    .K_2_0_0_ce0(grp_riccati_backward_pass_fu_400_K_2_0_0_ce0),
-    .K_2_0_0_we0(grp_riccati_backward_pass_fu_400_K_2_0_0_we0),
-    .K_2_0_0_d0(grp_riccati_backward_pass_fu_400_K_2_0_0_d0),
+    .K_2_0_0_address0(grp_riccati_backward_pass_fu_342_K_2_0_0_address0),
+    .K_2_0_0_ce0(grp_riccati_backward_pass_fu_342_K_2_0_0_ce0),
+    .K_2_0_0_we0(grp_riccati_backward_pass_fu_342_K_2_0_0_we0),
+    .K_2_0_0_d0(grp_riccati_backward_pass_fu_342_K_2_0_0_d0),
     .K_2_0_0_q0(K_2_0_0_q0),
-    .K_2_0_1_address0(grp_riccati_backward_pass_fu_400_K_2_0_1_address0),
-    .K_2_0_1_ce0(grp_riccati_backward_pass_fu_400_K_2_0_1_ce0),
-    .K_2_0_1_we0(grp_riccati_backward_pass_fu_400_K_2_0_1_we0),
-    .K_2_0_1_d0(grp_riccati_backward_pass_fu_400_K_2_0_1_d0),
+    .K_2_0_1_address0(grp_riccati_backward_pass_fu_342_K_2_0_1_address0),
+    .K_2_0_1_ce0(grp_riccati_backward_pass_fu_342_K_2_0_1_ce0),
+    .K_2_0_1_we0(grp_riccati_backward_pass_fu_342_K_2_0_1_we0),
+    .K_2_0_1_d0(grp_riccati_backward_pass_fu_342_K_2_0_1_d0),
     .K_2_0_1_q0(K_2_0_1_q0),
-    .K_2_0_2_address0(grp_riccati_backward_pass_fu_400_K_2_0_2_address0),
-    .K_2_0_2_ce0(grp_riccati_backward_pass_fu_400_K_2_0_2_ce0),
-    .K_2_0_2_we0(grp_riccati_backward_pass_fu_400_K_2_0_2_we0),
-    .K_2_0_2_d0(grp_riccati_backward_pass_fu_400_K_2_0_2_d0),
+    .K_2_0_2_address0(grp_riccati_backward_pass_fu_342_K_2_0_2_address0),
+    .K_2_0_2_ce0(grp_riccati_backward_pass_fu_342_K_2_0_2_ce0),
+    .K_2_0_2_we0(grp_riccati_backward_pass_fu_342_K_2_0_2_we0),
+    .K_2_0_2_d0(grp_riccati_backward_pass_fu_342_K_2_0_2_d0),
     .K_2_0_2_q0(K_2_0_2_q0),
-    .K_2_0_3_address0(grp_riccati_backward_pass_fu_400_K_2_0_3_address0),
-    .K_2_0_3_ce0(grp_riccati_backward_pass_fu_400_K_2_0_3_ce0),
-    .K_2_0_3_we0(grp_riccati_backward_pass_fu_400_K_2_0_3_we0),
-    .K_2_0_3_d0(grp_riccati_backward_pass_fu_400_K_2_0_3_d0),
+    .K_2_0_3_address0(grp_riccati_backward_pass_fu_342_K_2_0_3_address0),
+    .K_2_0_3_ce0(grp_riccati_backward_pass_fu_342_K_2_0_3_ce0),
+    .K_2_0_3_we0(grp_riccati_backward_pass_fu_342_K_2_0_3_we0),
+    .K_2_0_3_d0(grp_riccati_backward_pass_fu_342_K_2_0_3_d0),
     .K_2_0_3_q0(K_2_0_3_q0),
-    .K_2_0_4_address0(grp_riccati_backward_pass_fu_400_K_2_0_4_address0),
-    .K_2_0_4_ce0(grp_riccati_backward_pass_fu_400_K_2_0_4_ce0),
-    .K_2_0_4_we0(grp_riccati_backward_pass_fu_400_K_2_0_4_we0),
-    .K_2_0_4_d0(grp_riccati_backward_pass_fu_400_K_2_0_4_d0),
+    .K_2_0_4_address0(grp_riccati_backward_pass_fu_342_K_2_0_4_address0),
+    .K_2_0_4_ce0(grp_riccati_backward_pass_fu_342_K_2_0_4_ce0),
+    .K_2_0_4_we0(grp_riccati_backward_pass_fu_342_K_2_0_4_we0),
+    .K_2_0_4_d0(grp_riccati_backward_pass_fu_342_K_2_0_4_d0),
     .K_2_0_4_q0(K_2_0_4_q0),
-    .K_2_0_5_address0(grp_riccati_backward_pass_fu_400_K_2_0_5_address0),
-    .K_2_0_5_ce0(grp_riccati_backward_pass_fu_400_K_2_0_5_ce0),
-    .K_2_0_5_we0(grp_riccati_backward_pass_fu_400_K_2_0_5_we0),
-    .K_2_0_5_d0(grp_riccati_backward_pass_fu_400_K_2_0_5_d0),
+    .K_2_0_5_address0(grp_riccati_backward_pass_fu_342_K_2_0_5_address0),
+    .K_2_0_5_ce0(grp_riccati_backward_pass_fu_342_K_2_0_5_ce0),
+    .K_2_0_5_we0(grp_riccati_backward_pass_fu_342_K_2_0_5_we0),
+    .K_2_0_5_d0(grp_riccati_backward_pass_fu_342_K_2_0_5_d0),
     .K_2_0_5_q0(K_2_0_5_q0),
-    .K_2_0_6_address0(grp_riccati_backward_pass_fu_400_K_2_0_6_address0),
-    .K_2_0_6_ce0(grp_riccati_backward_pass_fu_400_K_2_0_6_ce0),
-    .K_2_0_6_we0(grp_riccati_backward_pass_fu_400_K_2_0_6_we0),
-    .K_2_0_6_d0(grp_riccati_backward_pass_fu_400_K_2_0_6_d0),
+    .K_2_0_6_address0(grp_riccati_backward_pass_fu_342_K_2_0_6_address0),
+    .K_2_0_6_ce0(grp_riccati_backward_pass_fu_342_K_2_0_6_ce0),
+    .K_2_0_6_we0(grp_riccati_backward_pass_fu_342_K_2_0_6_we0),
+    .K_2_0_6_d0(grp_riccati_backward_pass_fu_342_K_2_0_6_d0),
     .K_2_0_6_q0(K_2_0_6_q0),
-    .K_2_0_7_address0(grp_riccati_backward_pass_fu_400_K_2_0_7_address0),
-    .K_2_0_7_ce0(grp_riccati_backward_pass_fu_400_K_2_0_7_ce0),
-    .K_2_0_7_we0(grp_riccati_backward_pass_fu_400_K_2_0_7_we0),
-    .K_2_0_7_d0(grp_riccati_backward_pass_fu_400_K_2_0_7_d0),
+    .K_2_0_7_address0(grp_riccati_backward_pass_fu_342_K_2_0_7_address0),
+    .K_2_0_7_ce0(grp_riccati_backward_pass_fu_342_K_2_0_7_ce0),
+    .K_2_0_7_we0(grp_riccati_backward_pass_fu_342_K_2_0_7_we0),
+    .K_2_0_7_d0(grp_riccati_backward_pass_fu_342_K_2_0_7_d0),
     .K_2_0_7_q0(K_2_0_7_q0),
-    .K_2_1_0_address0(grp_riccati_backward_pass_fu_400_K_2_1_0_address0),
-    .K_2_1_0_ce0(grp_riccati_backward_pass_fu_400_K_2_1_0_ce0),
-    .K_2_1_0_we0(grp_riccati_backward_pass_fu_400_K_2_1_0_we0),
-    .K_2_1_0_d0(grp_riccati_backward_pass_fu_400_K_2_1_0_d0),
+    .K_2_1_0_address0(grp_riccati_backward_pass_fu_342_K_2_1_0_address0),
+    .K_2_1_0_ce0(grp_riccati_backward_pass_fu_342_K_2_1_0_ce0),
+    .K_2_1_0_we0(grp_riccati_backward_pass_fu_342_K_2_1_0_we0),
+    .K_2_1_0_d0(grp_riccati_backward_pass_fu_342_K_2_1_0_d0),
     .K_2_1_0_q0(K_2_1_0_q0),
-    .K_2_1_1_address0(grp_riccati_backward_pass_fu_400_K_2_1_1_address0),
-    .K_2_1_1_ce0(grp_riccati_backward_pass_fu_400_K_2_1_1_ce0),
-    .K_2_1_1_we0(grp_riccati_backward_pass_fu_400_K_2_1_1_we0),
-    .K_2_1_1_d0(grp_riccati_backward_pass_fu_400_K_2_1_1_d0),
+    .K_2_1_1_address0(grp_riccati_backward_pass_fu_342_K_2_1_1_address0),
+    .K_2_1_1_ce0(grp_riccati_backward_pass_fu_342_K_2_1_1_ce0),
+    .K_2_1_1_we0(grp_riccati_backward_pass_fu_342_K_2_1_1_we0),
+    .K_2_1_1_d0(grp_riccati_backward_pass_fu_342_K_2_1_1_d0),
     .K_2_1_1_q0(K_2_1_1_q0),
-    .K_2_1_2_address0(grp_riccati_backward_pass_fu_400_K_2_1_2_address0),
-    .K_2_1_2_ce0(grp_riccati_backward_pass_fu_400_K_2_1_2_ce0),
-    .K_2_1_2_we0(grp_riccati_backward_pass_fu_400_K_2_1_2_we0),
-    .K_2_1_2_d0(grp_riccati_backward_pass_fu_400_K_2_1_2_d0),
+    .K_2_1_2_address0(grp_riccati_backward_pass_fu_342_K_2_1_2_address0),
+    .K_2_1_2_ce0(grp_riccati_backward_pass_fu_342_K_2_1_2_ce0),
+    .K_2_1_2_we0(grp_riccati_backward_pass_fu_342_K_2_1_2_we0),
+    .K_2_1_2_d0(grp_riccati_backward_pass_fu_342_K_2_1_2_d0),
     .K_2_1_2_q0(K_2_1_2_q0),
-    .K_2_1_3_address0(grp_riccati_backward_pass_fu_400_K_2_1_3_address0),
-    .K_2_1_3_ce0(grp_riccati_backward_pass_fu_400_K_2_1_3_ce0),
-    .K_2_1_3_we0(grp_riccati_backward_pass_fu_400_K_2_1_3_we0),
-    .K_2_1_3_d0(grp_riccati_backward_pass_fu_400_K_2_1_3_d0),
+    .K_2_1_3_address0(grp_riccati_backward_pass_fu_342_K_2_1_3_address0),
+    .K_2_1_3_ce0(grp_riccati_backward_pass_fu_342_K_2_1_3_ce0),
+    .K_2_1_3_we0(grp_riccati_backward_pass_fu_342_K_2_1_3_we0),
+    .K_2_1_3_d0(grp_riccati_backward_pass_fu_342_K_2_1_3_d0),
     .K_2_1_3_q0(K_2_1_3_q0),
-    .K_2_1_4_address0(grp_riccati_backward_pass_fu_400_K_2_1_4_address0),
-    .K_2_1_4_ce0(grp_riccati_backward_pass_fu_400_K_2_1_4_ce0),
-    .K_2_1_4_we0(grp_riccati_backward_pass_fu_400_K_2_1_4_we0),
-    .K_2_1_4_d0(grp_riccati_backward_pass_fu_400_K_2_1_4_d0),
+    .K_2_1_4_address0(grp_riccati_backward_pass_fu_342_K_2_1_4_address0),
+    .K_2_1_4_ce0(grp_riccati_backward_pass_fu_342_K_2_1_4_ce0),
+    .K_2_1_4_we0(grp_riccati_backward_pass_fu_342_K_2_1_4_we0),
+    .K_2_1_4_d0(grp_riccati_backward_pass_fu_342_K_2_1_4_d0),
     .K_2_1_4_q0(K_2_1_4_q0),
-    .K_2_1_5_address0(grp_riccati_backward_pass_fu_400_K_2_1_5_address0),
-    .K_2_1_5_ce0(grp_riccati_backward_pass_fu_400_K_2_1_5_ce0),
-    .K_2_1_5_we0(grp_riccati_backward_pass_fu_400_K_2_1_5_we0),
-    .K_2_1_5_d0(grp_riccati_backward_pass_fu_400_K_2_1_5_d0),
+    .K_2_1_5_address0(grp_riccati_backward_pass_fu_342_K_2_1_5_address0),
+    .K_2_1_5_ce0(grp_riccati_backward_pass_fu_342_K_2_1_5_ce0),
+    .K_2_1_5_we0(grp_riccati_backward_pass_fu_342_K_2_1_5_we0),
+    .K_2_1_5_d0(grp_riccati_backward_pass_fu_342_K_2_1_5_d0),
     .K_2_1_5_q0(K_2_1_5_q0),
-    .K_2_1_6_address0(grp_riccati_backward_pass_fu_400_K_2_1_6_address0),
-    .K_2_1_6_ce0(grp_riccati_backward_pass_fu_400_K_2_1_6_ce0),
-    .K_2_1_6_we0(grp_riccati_backward_pass_fu_400_K_2_1_6_we0),
-    .K_2_1_6_d0(grp_riccati_backward_pass_fu_400_K_2_1_6_d0),
+    .K_2_1_6_address0(grp_riccati_backward_pass_fu_342_K_2_1_6_address0),
+    .K_2_1_6_ce0(grp_riccati_backward_pass_fu_342_K_2_1_6_ce0),
+    .K_2_1_6_we0(grp_riccati_backward_pass_fu_342_K_2_1_6_we0),
+    .K_2_1_6_d0(grp_riccati_backward_pass_fu_342_K_2_1_6_d0),
     .K_2_1_6_q0(K_2_1_6_q0),
-    .K_2_1_7_address0(grp_riccati_backward_pass_fu_400_K_2_1_7_address0),
-    .K_2_1_7_ce0(grp_riccati_backward_pass_fu_400_K_2_1_7_ce0),
-    .K_2_1_7_we0(grp_riccati_backward_pass_fu_400_K_2_1_7_we0),
-    .K_2_1_7_d0(grp_riccati_backward_pass_fu_400_K_2_1_7_d0),
+    .K_2_1_7_address0(grp_riccati_backward_pass_fu_342_K_2_1_7_address0),
+    .K_2_1_7_ce0(grp_riccati_backward_pass_fu_342_K_2_1_7_ce0),
+    .K_2_1_7_we0(grp_riccati_backward_pass_fu_342_K_2_1_7_we0),
+    .K_2_1_7_d0(grp_riccati_backward_pass_fu_342_K_2_1_7_d0),
     .K_2_1_7_q0(K_2_1_7_q0),
-    .K_3_0_0_address0(grp_riccati_backward_pass_fu_400_K_3_0_0_address0),
-    .K_3_0_0_ce0(grp_riccati_backward_pass_fu_400_K_3_0_0_ce0),
-    .K_3_0_0_we0(grp_riccati_backward_pass_fu_400_K_3_0_0_we0),
-    .K_3_0_0_d0(grp_riccati_backward_pass_fu_400_K_3_0_0_d0),
+    .K_3_0_0_address0(grp_riccati_backward_pass_fu_342_K_3_0_0_address0),
+    .K_3_0_0_ce0(grp_riccati_backward_pass_fu_342_K_3_0_0_ce0),
+    .K_3_0_0_we0(grp_riccati_backward_pass_fu_342_K_3_0_0_we0),
+    .K_3_0_0_d0(grp_riccati_backward_pass_fu_342_K_3_0_0_d0),
     .K_3_0_0_q0(K_3_0_0_q0),
-    .K_3_0_1_address0(grp_riccati_backward_pass_fu_400_K_3_0_1_address0),
-    .K_3_0_1_ce0(grp_riccati_backward_pass_fu_400_K_3_0_1_ce0),
-    .K_3_0_1_we0(grp_riccati_backward_pass_fu_400_K_3_0_1_we0),
-    .K_3_0_1_d0(grp_riccati_backward_pass_fu_400_K_3_0_1_d0),
+    .K_3_0_1_address0(grp_riccati_backward_pass_fu_342_K_3_0_1_address0),
+    .K_3_0_1_ce0(grp_riccati_backward_pass_fu_342_K_3_0_1_ce0),
+    .K_3_0_1_we0(grp_riccati_backward_pass_fu_342_K_3_0_1_we0),
+    .K_3_0_1_d0(grp_riccati_backward_pass_fu_342_K_3_0_1_d0),
     .K_3_0_1_q0(K_3_0_1_q0),
-    .K_3_0_2_address0(grp_riccati_backward_pass_fu_400_K_3_0_2_address0),
-    .K_3_0_2_ce0(grp_riccati_backward_pass_fu_400_K_3_0_2_ce0),
-    .K_3_0_2_we0(grp_riccati_backward_pass_fu_400_K_3_0_2_we0),
-    .K_3_0_2_d0(grp_riccati_backward_pass_fu_400_K_3_0_2_d0),
+    .K_3_0_2_address0(grp_riccati_backward_pass_fu_342_K_3_0_2_address0),
+    .K_3_0_2_ce0(grp_riccati_backward_pass_fu_342_K_3_0_2_ce0),
+    .K_3_0_2_we0(grp_riccati_backward_pass_fu_342_K_3_0_2_we0),
+    .K_3_0_2_d0(grp_riccati_backward_pass_fu_342_K_3_0_2_d0),
     .K_3_0_2_q0(K_3_0_2_q0),
-    .K_3_0_3_address0(grp_riccati_backward_pass_fu_400_K_3_0_3_address0),
-    .K_3_0_3_ce0(grp_riccati_backward_pass_fu_400_K_3_0_3_ce0),
-    .K_3_0_3_we0(grp_riccati_backward_pass_fu_400_K_3_0_3_we0),
-    .K_3_0_3_d0(grp_riccati_backward_pass_fu_400_K_3_0_3_d0),
+    .K_3_0_3_address0(grp_riccati_backward_pass_fu_342_K_3_0_3_address0),
+    .K_3_0_3_ce0(grp_riccati_backward_pass_fu_342_K_3_0_3_ce0),
+    .K_3_0_3_we0(grp_riccati_backward_pass_fu_342_K_3_0_3_we0),
+    .K_3_0_3_d0(grp_riccati_backward_pass_fu_342_K_3_0_3_d0),
     .K_3_0_3_q0(K_3_0_3_q0),
-    .K_3_0_4_address0(grp_riccati_backward_pass_fu_400_K_3_0_4_address0),
-    .K_3_0_4_ce0(grp_riccati_backward_pass_fu_400_K_3_0_4_ce0),
-    .K_3_0_4_we0(grp_riccati_backward_pass_fu_400_K_3_0_4_we0),
-    .K_3_0_4_d0(grp_riccati_backward_pass_fu_400_K_3_0_4_d0),
+    .K_3_0_4_address0(grp_riccati_backward_pass_fu_342_K_3_0_4_address0),
+    .K_3_0_4_ce0(grp_riccati_backward_pass_fu_342_K_3_0_4_ce0),
+    .K_3_0_4_we0(grp_riccati_backward_pass_fu_342_K_3_0_4_we0),
+    .K_3_0_4_d0(grp_riccati_backward_pass_fu_342_K_3_0_4_d0),
     .K_3_0_4_q0(K_3_0_4_q0),
-    .K_3_0_5_address0(grp_riccati_backward_pass_fu_400_K_3_0_5_address0),
-    .K_3_0_5_ce0(grp_riccati_backward_pass_fu_400_K_3_0_5_ce0),
-    .K_3_0_5_we0(grp_riccati_backward_pass_fu_400_K_3_0_5_we0),
-    .K_3_0_5_d0(grp_riccati_backward_pass_fu_400_K_3_0_5_d0),
+    .K_3_0_5_address0(grp_riccati_backward_pass_fu_342_K_3_0_5_address0),
+    .K_3_0_5_ce0(grp_riccati_backward_pass_fu_342_K_3_0_5_ce0),
+    .K_3_0_5_we0(grp_riccati_backward_pass_fu_342_K_3_0_5_we0),
+    .K_3_0_5_d0(grp_riccati_backward_pass_fu_342_K_3_0_5_d0),
     .K_3_0_5_q0(K_3_0_5_q0),
-    .K_3_0_6_address0(grp_riccati_backward_pass_fu_400_K_3_0_6_address0),
-    .K_3_0_6_ce0(grp_riccati_backward_pass_fu_400_K_3_0_6_ce0),
-    .K_3_0_6_we0(grp_riccati_backward_pass_fu_400_K_3_0_6_we0),
-    .K_3_0_6_d0(grp_riccati_backward_pass_fu_400_K_3_0_6_d0),
+    .K_3_0_6_address0(grp_riccati_backward_pass_fu_342_K_3_0_6_address0),
+    .K_3_0_6_ce0(grp_riccati_backward_pass_fu_342_K_3_0_6_ce0),
+    .K_3_0_6_we0(grp_riccati_backward_pass_fu_342_K_3_0_6_we0),
+    .K_3_0_6_d0(grp_riccati_backward_pass_fu_342_K_3_0_6_d0),
     .K_3_0_6_q0(K_3_0_6_q0),
-    .K_3_0_7_address0(grp_riccati_backward_pass_fu_400_K_3_0_7_address0),
-    .K_3_0_7_ce0(grp_riccati_backward_pass_fu_400_K_3_0_7_ce0),
-    .K_3_0_7_we0(grp_riccati_backward_pass_fu_400_K_3_0_7_we0),
-    .K_3_0_7_d0(grp_riccati_backward_pass_fu_400_K_3_0_7_d0),
+    .K_3_0_7_address0(grp_riccati_backward_pass_fu_342_K_3_0_7_address0),
+    .K_3_0_7_ce0(grp_riccati_backward_pass_fu_342_K_3_0_7_ce0),
+    .K_3_0_7_we0(grp_riccati_backward_pass_fu_342_K_3_0_7_we0),
+    .K_3_0_7_d0(grp_riccati_backward_pass_fu_342_K_3_0_7_d0),
     .K_3_0_7_q0(K_3_0_7_q0),
-    .K_3_1_0_address0(grp_riccati_backward_pass_fu_400_K_3_1_0_address0),
-    .K_3_1_0_ce0(grp_riccati_backward_pass_fu_400_K_3_1_0_ce0),
-    .K_3_1_0_we0(grp_riccati_backward_pass_fu_400_K_3_1_0_we0),
-    .K_3_1_0_d0(grp_riccati_backward_pass_fu_400_K_3_1_0_d0),
+    .K_3_1_0_address0(grp_riccati_backward_pass_fu_342_K_3_1_0_address0),
+    .K_3_1_0_ce0(grp_riccati_backward_pass_fu_342_K_3_1_0_ce0),
+    .K_3_1_0_we0(grp_riccati_backward_pass_fu_342_K_3_1_0_we0),
+    .K_3_1_0_d0(grp_riccati_backward_pass_fu_342_K_3_1_0_d0),
     .K_3_1_0_q0(K_3_1_0_q0),
-    .K_3_1_1_address0(grp_riccati_backward_pass_fu_400_K_3_1_1_address0),
-    .K_3_1_1_ce0(grp_riccati_backward_pass_fu_400_K_3_1_1_ce0),
-    .K_3_1_1_we0(grp_riccati_backward_pass_fu_400_K_3_1_1_we0),
-    .K_3_1_1_d0(grp_riccati_backward_pass_fu_400_K_3_1_1_d0),
+    .K_3_1_1_address0(grp_riccati_backward_pass_fu_342_K_3_1_1_address0),
+    .K_3_1_1_ce0(grp_riccati_backward_pass_fu_342_K_3_1_1_ce0),
+    .K_3_1_1_we0(grp_riccati_backward_pass_fu_342_K_3_1_1_we0),
+    .K_3_1_1_d0(grp_riccati_backward_pass_fu_342_K_3_1_1_d0),
     .K_3_1_1_q0(K_3_1_1_q0),
-    .K_3_1_2_address0(grp_riccati_backward_pass_fu_400_K_3_1_2_address0),
-    .K_3_1_2_ce0(grp_riccati_backward_pass_fu_400_K_3_1_2_ce0),
-    .K_3_1_2_we0(grp_riccati_backward_pass_fu_400_K_3_1_2_we0),
-    .K_3_1_2_d0(grp_riccati_backward_pass_fu_400_K_3_1_2_d0),
+    .K_3_1_2_address0(grp_riccati_backward_pass_fu_342_K_3_1_2_address0),
+    .K_3_1_2_ce0(grp_riccati_backward_pass_fu_342_K_3_1_2_ce0),
+    .K_3_1_2_we0(grp_riccati_backward_pass_fu_342_K_3_1_2_we0),
+    .K_3_1_2_d0(grp_riccati_backward_pass_fu_342_K_3_1_2_d0),
     .K_3_1_2_q0(K_3_1_2_q0),
-    .K_3_1_3_address0(grp_riccati_backward_pass_fu_400_K_3_1_3_address0),
-    .K_3_1_3_ce0(grp_riccati_backward_pass_fu_400_K_3_1_3_ce0),
-    .K_3_1_3_we0(grp_riccati_backward_pass_fu_400_K_3_1_3_we0),
-    .K_3_1_3_d0(grp_riccati_backward_pass_fu_400_K_3_1_3_d0),
+    .K_3_1_3_address0(grp_riccati_backward_pass_fu_342_K_3_1_3_address0),
+    .K_3_1_3_ce0(grp_riccati_backward_pass_fu_342_K_3_1_3_ce0),
+    .K_3_1_3_we0(grp_riccati_backward_pass_fu_342_K_3_1_3_we0),
+    .K_3_1_3_d0(grp_riccati_backward_pass_fu_342_K_3_1_3_d0),
     .K_3_1_3_q0(K_3_1_3_q0),
-    .K_3_1_4_address0(grp_riccati_backward_pass_fu_400_K_3_1_4_address0),
-    .K_3_1_4_ce0(grp_riccati_backward_pass_fu_400_K_3_1_4_ce0),
-    .K_3_1_4_we0(grp_riccati_backward_pass_fu_400_K_3_1_4_we0),
-    .K_3_1_4_d0(grp_riccati_backward_pass_fu_400_K_3_1_4_d0),
+    .K_3_1_4_address0(grp_riccati_backward_pass_fu_342_K_3_1_4_address0),
+    .K_3_1_4_ce0(grp_riccati_backward_pass_fu_342_K_3_1_4_ce0),
+    .K_3_1_4_we0(grp_riccati_backward_pass_fu_342_K_3_1_4_we0),
+    .K_3_1_4_d0(grp_riccati_backward_pass_fu_342_K_3_1_4_d0),
     .K_3_1_4_q0(K_3_1_4_q0),
-    .K_3_1_5_address0(grp_riccati_backward_pass_fu_400_K_3_1_5_address0),
-    .K_3_1_5_ce0(grp_riccati_backward_pass_fu_400_K_3_1_5_ce0),
-    .K_3_1_5_we0(grp_riccati_backward_pass_fu_400_K_3_1_5_we0),
-    .K_3_1_5_d0(grp_riccati_backward_pass_fu_400_K_3_1_5_d0),
+    .K_3_1_5_address0(grp_riccati_backward_pass_fu_342_K_3_1_5_address0),
+    .K_3_1_5_ce0(grp_riccati_backward_pass_fu_342_K_3_1_5_ce0),
+    .K_3_1_5_we0(grp_riccati_backward_pass_fu_342_K_3_1_5_we0),
+    .K_3_1_5_d0(grp_riccati_backward_pass_fu_342_K_3_1_5_d0),
     .K_3_1_5_q0(K_3_1_5_q0),
-    .K_3_1_6_address0(grp_riccati_backward_pass_fu_400_K_3_1_6_address0),
-    .K_3_1_6_ce0(grp_riccati_backward_pass_fu_400_K_3_1_6_ce0),
-    .K_3_1_6_we0(grp_riccati_backward_pass_fu_400_K_3_1_6_we0),
-    .K_3_1_6_d0(grp_riccati_backward_pass_fu_400_K_3_1_6_d0),
+    .K_3_1_6_address0(grp_riccati_backward_pass_fu_342_K_3_1_6_address0),
+    .K_3_1_6_ce0(grp_riccati_backward_pass_fu_342_K_3_1_6_ce0),
+    .K_3_1_6_we0(grp_riccati_backward_pass_fu_342_K_3_1_6_we0),
+    .K_3_1_6_d0(grp_riccati_backward_pass_fu_342_K_3_1_6_d0),
     .K_3_1_6_q0(K_3_1_6_q0),
-    .K_3_1_7_address0(grp_riccati_backward_pass_fu_400_K_3_1_7_address0),
-    .K_3_1_7_ce0(grp_riccati_backward_pass_fu_400_K_3_1_7_ce0),
-    .K_3_1_7_we0(grp_riccati_backward_pass_fu_400_K_3_1_7_we0),
-    .K_3_1_7_d0(grp_riccati_backward_pass_fu_400_K_3_1_7_d0),
+    .K_3_1_7_address0(grp_riccati_backward_pass_fu_342_K_3_1_7_address0),
+    .K_3_1_7_ce0(grp_riccati_backward_pass_fu_342_K_3_1_7_ce0),
+    .K_3_1_7_we0(grp_riccati_backward_pass_fu_342_K_3_1_7_we0),
+    .K_3_1_7_d0(grp_riccati_backward_pass_fu_342_K_3_1_7_d0),
     .K_3_1_7_q0(K_3_1_7_q0),
-    .kk_0_address0(grp_riccati_backward_pass_fu_400_kk_0_address0),
-    .kk_0_ce0(grp_riccati_backward_pass_fu_400_kk_0_ce0),
-    .kk_0_we0(grp_riccati_backward_pass_fu_400_kk_0_we0),
-    .kk_0_d0(grp_riccati_backward_pass_fu_400_kk_0_d0),
-    .kk_1_address0(grp_riccati_backward_pass_fu_400_kk_1_address0),
-    .kk_1_ce0(grp_riccati_backward_pass_fu_400_kk_1_ce0),
-    .kk_1_we0(grp_riccati_backward_pass_fu_400_kk_1_we0),
-    .kk_1_d0(grp_riccati_backward_pass_fu_400_kk_1_d0),
-    .grp_fp_recip_fu_992_p_din1(grp_riccati_backward_pass_fu_400_grp_fp_recip_fu_992_p_din1),
-    .grp_fp_recip_fu_992_p_dout0(grp_fp_recip_fu_6151_p_dout0),
-    .grp_fu_997_p_din0(grp_riccati_backward_pass_fu_400_grp_fu_997_p_din0),
-    .grp_fu_997_p_din1(grp_riccati_backward_pass_fu_400_grp_fu_997_p_din1),
-    .grp_fu_997_p_dout0(grp_fu_6164_p_dout0),
-    .grp_fu_997_p_ce(grp_riccati_backward_pass_fu_400_grp_fu_997_p_ce),
-    .grp_fu_1001_p_din0(grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din0),
-    .grp_fu_1001_p_din1(grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din1),
-    .grp_fu_1001_p_dout0(grp_fu_6156_p_dout0),
-    .grp_fu_1001_p_ce(grp_riccati_backward_pass_fu_400_grp_fu_1001_p_ce),
-    .grp_fu_1005_p_din0(grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din0),
-    .grp_fu_1005_p_din1(grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din1),
-    .grp_fu_1005_p_dout0(grp_fu_6160_p_dout0),
-    .grp_fu_1005_p_ce(grp_riccati_backward_pass_fu_400_grp_fu_1005_p_ce)
+    .kk_0_address0(grp_riccati_backward_pass_fu_342_kk_0_address0),
+    .kk_0_ce0(grp_riccati_backward_pass_fu_342_kk_0_ce0),
+    .kk_0_we0(grp_riccati_backward_pass_fu_342_kk_0_we0),
+    .kk_0_d0(grp_riccati_backward_pass_fu_342_kk_0_d0),
+    .kk_1_address0(grp_riccati_backward_pass_fu_342_kk_1_address0),
+    .kk_1_ce0(grp_riccati_backward_pass_fu_342_kk_1_ce0),
+    .kk_1_we0(grp_riccati_backward_pass_fu_342_kk_1_we0),
+    .kk_1_d0(grp_riccati_backward_pass_fu_342_kk_1_d0),
+    .grp_fp_recip_fu_816_p_din1(grp_riccati_backward_pass_fu_342_grp_fp_recip_fu_816_p_din1),
+    .grp_fp_recip_fu_816_p_dout0(grp_fp_recip_fu_5937_p_dout0),
+    .grp_fu_822_p_din0(grp_riccati_backward_pass_fu_342_grp_fu_822_p_din0),
+    .grp_fu_822_p_din1(grp_riccati_backward_pass_fu_342_grp_fu_822_p_din1),
+    .grp_fu_822_p_dout0(grp_fu_5943_p_dout0),
+    .grp_fu_822_p_ce(grp_riccati_backward_pass_fu_342_grp_fu_822_p_ce),
+    .grp_fu_826_p_din0(grp_riccati_backward_pass_fu_342_grp_fu_826_p_din0),
+    .grp_fu_826_p_din1(grp_riccati_backward_pass_fu_342_grp_fu_826_p_din1),
+    .grp_fu_826_p_dout0(grp_fu_5947_p_dout0),
+    .grp_fu_826_p_ce(grp_riccati_backward_pass_fu_342_grp_fu_826_p_ce)
 );
 
-mpc_fpga_top_opencl_riccati_forward_pass grp_riccati_forward_pass_fu_653(
+mpc_fpga_top_opencl_riccati_forward_pass grp_riccati_forward_pass_fu_537(
     .ap_clk(ap_clk),
     .ap_rst(ap_rst),
-    .ap_start(grp_riccati_forward_pass_fu_653_ap_start),
-    .ap_done(grp_riccati_forward_pass_fu_653_ap_done),
-    .ap_idle(grp_riccati_forward_pass_fu_653_ap_idle),
-    .ap_ready(grp_riccati_forward_pass_fu_653_ap_ready),
-    .step_data_0_0_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_0_address0),
-    .step_data_0_0_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_0_ce0),
-    .step_data_0_0_0_q0(step_data_0_0_0_q0),
-    .step_data_0_0_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_1_address0),
-    .step_data_0_0_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_1_ce0),
-    .step_data_0_0_1_q0(step_data_0_0_1_q0),
-    .step_data_0_0_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_2_address0),
-    .step_data_0_0_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_2_ce0),
-    .step_data_0_0_2_q0(step_data_0_0_2_q0),
-    .step_data_0_0_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_3_address0),
-    .step_data_0_0_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_3_ce0),
-    .step_data_0_0_3_q0(step_data_0_0_3_q0),
-    .step_data_0_0_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_4_address0),
-    .step_data_0_0_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_4_ce0),
-    .step_data_0_0_4_q0(step_data_0_0_4_q0),
-    .step_data_0_0_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_0_5_address0),
-    .step_data_0_0_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_0_5_ce0),
-    .step_data_0_0_5_q0(step_data_0_0_5_q0),
-    .step_data_0_1_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_0_address0),
-    .step_data_0_1_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_0_ce0),
-    .step_data_0_1_0_q0(step_data_0_1_0_q0),
-    .step_data_0_1_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_1_address0),
-    .step_data_0_1_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_1_ce0),
-    .step_data_0_1_1_q0(step_data_0_1_1_q0),
-    .step_data_0_1_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_2_address0),
-    .step_data_0_1_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_2_ce0),
-    .step_data_0_1_2_q0(step_data_0_1_2_q0),
-    .step_data_0_1_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_3_address0),
-    .step_data_0_1_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_3_ce0),
-    .step_data_0_1_3_q0(step_data_0_1_3_q0),
-    .step_data_0_1_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_4_address0),
-    .step_data_0_1_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_4_ce0),
-    .step_data_0_1_4_q0(step_data_0_1_4_q0),
-    .step_data_0_1_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_1_5_address0),
-    .step_data_0_1_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_1_5_ce0),
-    .step_data_0_1_5_q0(step_data_0_1_5_q0),
-    .step_data_0_2_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_0_address0),
-    .step_data_0_2_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_0_ce0),
-    .step_data_0_2_0_q0(step_data_0_2_0_q0),
-    .step_data_0_2_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_1_address0),
-    .step_data_0_2_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_1_ce0),
-    .step_data_0_2_1_q0(step_data_0_2_1_q0),
-    .step_data_0_2_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_2_address0),
-    .step_data_0_2_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_2_ce0),
-    .step_data_0_2_2_q0(step_data_0_2_2_q0),
-    .step_data_0_2_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_3_address0),
-    .step_data_0_2_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_3_ce0),
-    .step_data_0_2_3_q0(step_data_0_2_3_q0),
-    .step_data_0_2_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_4_address0),
-    .step_data_0_2_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_4_ce0),
-    .step_data_0_2_4_q0(step_data_0_2_4_q0),
-    .step_data_0_2_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_2_5_address0),
-    .step_data_0_2_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_2_5_ce0),
-    .step_data_0_2_5_q0(step_data_0_2_5_q0),
-    .step_data_0_3_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_0_address0),
-    .step_data_0_3_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_0_ce0),
-    .step_data_0_3_0_q0(step_data_0_3_0_q0),
-    .step_data_0_3_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_1_address0),
-    .step_data_0_3_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_1_ce0),
-    .step_data_0_3_1_q0(step_data_0_3_1_q0),
-    .step_data_0_3_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_2_address0),
-    .step_data_0_3_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_2_ce0),
-    .step_data_0_3_2_q0(step_data_0_3_2_q0),
-    .step_data_0_3_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_3_address0),
-    .step_data_0_3_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_3_ce0),
-    .step_data_0_3_3_q0(step_data_0_3_3_q0),
-    .step_data_0_3_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_4_address0),
-    .step_data_0_3_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_4_ce0),
-    .step_data_0_3_4_q0(step_data_0_3_4_q0),
-    .step_data_0_3_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_3_5_address0),
-    .step_data_0_3_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_3_5_ce0),
-    .step_data_0_3_5_q0(step_data_0_3_5_q0),
-    .step_data_0_4_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_0_address0),
-    .step_data_0_4_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_0_ce0),
-    .step_data_0_4_0_q0(step_data_0_4_0_q0),
-    .step_data_0_4_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_1_address0),
-    .step_data_0_4_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_1_ce0),
-    .step_data_0_4_1_q0(step_data_0_4_1_q0),
-    .step_data_0_4_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_2_address0),
-    .step_data_0_4_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_2_ce0),
-    .step_data_0_4_2_q0(step_data_0_4_2_q0),
-    .step_data_0_4_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_3_address0),
-    .step_data_0_4_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_3_ce0),
-    .step_data_0_4_3_q0(step_data_0_4_3_q0),
-    .step_data_0_4_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_4_address0),
-    .step_data_0_4_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_4_ce0),
-    .step_data_0_4_4_q0(step_data_0_4_4_q0),
-    .step_data_0_4_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_4_5_address0),
-    .step_data_0_4_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_4_5_ce0),
-    .step_data_0_4_5_q0(step_data_0_4_5_q0),
-    .step_data_0_5_0_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_0_address0),
-    .step_data_0_5_0_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_0_ce0),
-    .step_data_0_5_0_q0(step_data_0_5_0_q0),
-    .step_data_0_5_1_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_1_address0),
-    .step_data_0_5_1_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_1_ce0),
-    .step_data_0_5_1_q0(step_data_0_5_1_q0),
-    .step_data_0_5_2_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_2_address0),
-    .step_data_0_5_2_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_2_ce0),
-    .step_data_0_5_2_q0(step_data_0_5_2_q0),
-    .step_data_0_5_3_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_3_address0),
-    .step_data_0_5_3_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_3_ce0),
-    .step_data_0_5_3_q0(step_data_0_5_3_q0),
-    .step_data_0_5_4_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_4_address0),
-    .step_data_0_5_4_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_4_ce0),
-    .step_data_0_5_4_q0(step_data_0_5_4_q0),
-    .step_data_0_5_5_address0(grp_riccati_forward_pass_fu_653_step_data_0_5_5_address0),
-    .step_data_0_5_5_ce0(grp_riccati_forward_pass_fu_653_step_data_0_5_5_ce0),
-    .step_data_0_5_5_q0(step_data_0_5_5_q0),
-    .step_data_1_address0(grp_riccati_forward_pass_fu_653_step_data_1_address0),
-    .step_data_1_ce0(grp_riccati_forward_pass_fu_653_step_data_1_ce0),
+    .ap_start(grp_riccati_forward_pass_fu_537_ap_start),
+    .ap_done(grp_riccati_forward_pass_fu_537_ap_done),
+    .ap_idle(grp_riccati_forward_pass_fu_537_ap_idle),
+    .ap_ready(grp_riccati_forward_pass_fu_537_ap_ready),
+    .step_data_0_0_address0(grp_riccati_forward_pass_fu_537_step_data_0_0_address0),
+    .step_data_0_0_ce0(grp_riccati_forward_pass_fu_537_step_data_0_0_ce0),
+    .step_data_0_0_q0(step_data_0_0_q0),
+    .step_data_0_1_address0(grp_riccati_forward_pass_fu_537_step_data_0_1_address0),
+    .step_data_0_1_ce0(grp_riccati_forward_pass_fu_537_step_data_0_1_ce0),
+    .step_data_0_1_q0(step_data_0_1_q0),
+    .step_data_0_2_address0(grp_riccati_forward_pass_fu_537_step_data_0_2_address0),
+    .step_data_0_2_ce0(grp_riccati_forward_pass_fu_537_step_data_0_2_ce0),
+    .step_data_0_2_q0(step_data_0_2_q0),
+    .step_data_0_3_address0(grp_riccati_forward_pass_fu_537_step_data_0_3_address0),
+    .step_data_0_3_ce0(grp_riccati_forward_pass_fu_537_step_data_0_3_ce0),
+    .step_data_0_3_q0(step_data_0_3_q0),
+    .step_data_0_4_address0(grp_riccati_forward_pass_fu_537_step_data_0_4_address0),
+    .step_data_0_4_ce0(grp_riccati_forward_pass_fu_537_step_data_0_4_ce0),
+    .step_data_0_4_q0(step_data_0_4_q0),
+    .step_data_0_5_address0(grp_riccati_forward_pass_fu_537_step_data_0_5_address0),
+    .step_data_0_5_ce0(grp_riccati_forward_pass_fu_537_step_data_0_5_ce0),
+    .step_data_0_5_q0(step_data_0_5_q0),
+    .step_data_1_address0(grp_riccati_forward_pass_fu_537_step_data_1_address0),
+    .step_data_1_ce0(grp_riccati_forward_pass_fu_537_step_data_1_ce0),
     .step_data_1_q0(step_data_1_q0),
-    .step_data_1_address1(grp_riccati_forward_pass_fu_653_step_data_1_address1),
-    .step_data_1_ce1(grp_riccati_forward_pass_fu_653_step_data_1_ce1),
+    .step_data_1_address1(grp_riccati_forward_pass_fu_537_step_data_1_address1),
+    .step_data_1_ce1(grp_riccati_forward_pass_fu_537_step_data_1_ce1),
     .step_data_1_q1(step_data_1_q1),
-    .B_sparse_0_address0(grp_riccati_forward_pass_fu_653_B_sparse_0_address0),
-    .B_sparse_0_ce0(grp_riccati_forward_pass_fu_653_B_sparse_0_ce0),
+    .B_sparse_0_address0(grp_riccati_forward_pass_fu_537_B_sparse_0_address0),
+    .B_sparse_0_ce0(grp_riccati_forward_pass_fu_537_B_sparse_0_ce0),
     .B_sparse_0_q0(B_sparse_0_q0),
-    .B_sparse_1_address0(grp_riccati_forward_pass_fu_653_B_sparse_1_address0),
-    .B_sparse_1_ce0(grp_riccati_forward_pass_fu_653_B_sparse_1_ce0),
+    .B_sparse_1_address0(grp_riccati_forward_pass_fu_537_B_sparse_1_address0),
+    .B_sparse_1_ce0(grp_riccati_forward_pass_fu_537_B_sparse_1_ce0),
     .B_sparse_1_q0(B_sparse_1_q0),
-    .B_sparse_2_address0(grp_riccati_forward_pass_fu_653_B_sparse_2_address0),
-    .B_sparse_2_ce0(grp_riccati_forward_pass_fu_653_B_sparse_2_ce0),
+    .B_sparse_2_address0(grp_riccati_forward_pass_fu_537_B_sparse_2_address0),
+    .B_sparse_2_ce0(grp_riccati_forward_pass_fu_537_B_sparse_2_ce0),
     .B_sparse_2_q0(B_sparse_2_q0),
-    .B_sparse_3_address0(grp_riccati_forward_pass_fu_653_B_sparse_3_address0),
-    .B_sparse_3_ce0(grp_riccati_forward_pass_fu_653_B_sparse_3_ce0),
+    .B_sparse_3_address0(grp_riccati_forward_pass_fu_537_B_sparse_3_address0),
+    .B_sparse_3_ce0(grp_riccati_forward_pass_fu_537_B_sparse_3_ce0),
     .B_sparse_3_q0(B_sparse_3_q0),
     .p_read(p_read6),
     .p_read1(p_read7),
@@ -2814,268 +2342,272 @@ mpc_fpga_top_opencl_riccati_forward_pass grp_riccati_forward_pass_fu_653(
     .p_read5(p_read11),
     .p_read6(p_read12),
     .p_read7(p_read13),
-    .K_0_0_0_address0(grp_riccati_forward_pass_fu_653_K_0_0_0_address0),
-    .K_0_0_0_ce0(grp_riccati_forward_pass_fu_653_K_0_0_0_ce0),
+    .K_0_0_0_address0(grp_riccati_forward_pass_fu_537_K_0_0_0_address0),
+    .K_0_0_0_ce0(grp_riccati_forward_pass_fu_537_K_0_0_0_ce0),
     .K_0_0_0_q0(K_0_0_0_q0),
-    .K_0_0_1_address0(grp_riccati_forward_pass_fu_653_K_0_0_1_address0),
-    .K_0_0_1_ce0(grp_riccati_forward_pass_fu_653_K_0_0_1_ce0),
+    .K_0_0_1_address0(grp_riccati_forward_pass_fu_537_K_0_0_1_address0),
+    .K_0_0_1_ce0(grp_riccati_forward_pass_fu_537_K_0_0_1_ce0),
     .K_0_0_1_q0(K_0_0_1_q0),
-    .K_0_0_2_address0(grp_riccati_forward_pass_fu_653_K_0_0_2_address0),
-    .K_0_0_2_ce0(grp_riccati_forward_pass_fu_653_K_0_0_2_ce0),
+    .K_0_0_2_address0(grp_riccati_forward_pass_fu_537_K_0_0_2_address0),
+    .K_0_0_2_ce0(grp_riccati_forward_pass_fu_537_K_0_0_2_ce0),
     .K_0_0_2_q0(K_0_0_2_q0),
-    .K_0_0_3_address0(grp_riccati_forward_pass_fu_653_K_0_0_3_address0),
-    .K_0_0_3_ce0(grp_riccati_forward_pass_fu_653_K_0_0_3_ce0),
+    .K_0_0_3_address0(grp_riccati_forward_pass_fu_537_K_0_0_3_address0),
+    .K_0_0_3_ce0(grp_riccati_forward_pass_fu_537_K_0_0_3_ce0),
     .K_0_0_3_q0(K_0_0_3_q0),
-    .K_0_0_4_address0(grp_riccati_forward_pass_fu_653_K_0_0_4_address0),
-    .K_0_0_4_ce0(grp_riccati_forward_pass_fu_653_K_0_0_4_ce0),
+    .K_0_0_4_address0(grp_riccati_forward_pass_fu_537_K_0_0_4_address0),
+    .K_0_0_4_ce0(grp_riccati_forward_pass_fu_537_K_0_0_4_ce0),
     .K_0_0_4_q0(K_0_0_4_q0),
-    .K_0_0_5_address0(grp_riccati_forward_pass_fu_653_K_0_0_5_address0),
-    .K_0_0_5_ce0(grp_riccati_forward_pass_fu_653_K_0_0_5_ce0),
+    .K_0_0_5_address0(grp_riccati_forward_pass_fu_537_K_0_0_5_address0),
+    .K_0_0_5_ce0(grp_riccati_forward_pass_fu_537_K_0_0_5_ce0),
     .K_0_0_5_q0(K_0_0_5_q0),
-    .K_0_0_6_address0(grp_riccati_forward_pass_fu_653_K_0_0_6_address0),
-    .K_0_0_6_ce0(grp_riccati_forward_pass_fu_653_K_0_0_6_ce0),
+    .K_0_0_6_address0(grp_riccati_forward_pass_fu_537_K_0_0_6_address0),
+    .K_0_0_6_ce0(grp_riccati_forward_pass_fu_537_K_0_0_6_ce0),
     .K_0_0_6_q0(K_0_0_6_q0),
-    .K_0_0_7_address0(grp_riccati_forward_pass_fu_653_K_0_0_7_address0),
-    .K_0_0_7_ce0(grp_riccati_forward_pass_fu_653_K_0_0_7_ce0),
+    .K_0_0_7_address0(grp_riccati_forward_pass_fu_537_K_0_0_7_address0),
+    .K_0_0_7_ce0(grp_riccati_forward_pass_fu_537_K_0_0_7_ce0),
     .K_0_0_7_q0(K_0_0_7_q0),
-    .K_0_1_0_address0(grp_riccati_forward_pass_fu_653_K_0_1_0_address0),
-    .K_0_1_0_ce0(grp_riccati_forward_pass_fu_653_K_0_1_0_ce0),
+    .K_0_1_0_address0(grp_riccati_forward_pass_fu_537_K_0_1_0_address0),
+    .K_0_1_0_ce0(grp_riccati_forward_pass_fu_537_K_0_1_0_ce0),
     .K_0_1_0_q0(K_0_1_0_q0),
-    .K_0_1_1_address0(grp_riccati_forward_pass_fu_653_K_0_1_1_address0),
-    .K_0_1_1_ce0(grp_riccati_forward_pass_fu_653_K_0_1_1_ce0),
+    .K_0_1_1_address0(grp_riccati_forward_pass_fu_537_K_0_1_1_address0),
+    .K_0_1_1_ce0(grp_riccati_forward_pass_fu_537_K_0_1_1_ce0),
     .K_0_1_1_q0(K_0_1_1_q0),
-    .K_0_1_2_address0(grp_riccati_forward_pass_fu_653_K_0_1_2_address0),
-    .K_0_1_2_ce0(grp_riccati_forward_pass_fu_653_K_0_1_2_ce0),
+    .K_0_1_2_address0(grp_riccati_forward_pass_fu_537_K_0_1_2_address0),
+    .K_0_1_2_ce0(grp_riccati_forward_pass_fu_537_K_0_1_2_ce0),
     .K_0_1_2_q0(K_0_1_2_q0),
-    .K_0_1_3_address0(grp_riccati_forward_pass_fu_653_K_0_1_3_address0),
-    .K_0_1_3_ce0(grp_riccati_forward_pass_fu_653_K_0_1_3_ce0),
+    .K_0_1_3_address0(grp_riccati_forward_pass_fu_537_K_0_1_3_address0),
+    .K_0_1_3_ce0(grp_riccati_forward_pass_fu_537_K_0_1_3_ce0),
     .K_0_1_3_q0(K_0_1_3_q0),
-    .K_0_1_4_address0(grp_riccati_forward_pass_fu_653_K_0_1_4_address0),
-    .K_0_1_4_ce0(grp_riccati_forward_pass_fu_653_K_0_1_4_ce0),
+    .K_0_1_4_address0(grp_riccati_forward_pass_fu_537_K_0_1_4_address0),
+    .K_0_1_4_ce0(grp_riccati_forward_pass_fu_537_K_0_1_4_ce0),
     .K_0_1_4_q0(K_0_1_4_q0),
-    .K_0_1_5_address0(grp_riccati_forward_pass_fu_653_K_0_1_5_address0),
-    .K_0_1_5_ce0(grp_riccati_forward_pass_fu_653_K_0_1_5_ce0),
+    .K_0_1_5_address0(grp_riccati_forward_pass_fu_537_K_0_1_5_address0),
+    .K_0_1_5_ce0(grp_riccati_forward_pass_fu_537_K_0_1_5_ce0),
     .K_0_1_5_q0(K_0_1_5_q0),
-    .K_0_1_6_address0(grp_riccati_forward_pass_fu_653_K_0_1_6_address0),
-    .K_0_1_6_ce0(grp_riccati_forward_pass_fu_653_K_0_1_6_ce0),
+    .K_0_1_6_address0(grp_riccati_forward_pass_fu_537_K_0_1_6_address0),
+    .K_0_1_6_ce0(grp_riccati_forward_pass_fu_537_K_0_1_6_ce0),
     .K_0_1_6_q0(K_0_1_6_q0),
-    .K_0_1_7_address0(grp_riccati_forward_pass_fu_653_K_0_1_7_address0),
-    .K_0_1_7_ce0(grp_riccati_forward_pass_fu_653_K_0_1_7_ce0),
+    .K_0_1_7_address0(grp_riccati_forward_pass_fu_537_K_0_1_7_address0),
+    .K_0_1_7_ce0(grp_riccati_forward_pass_fu_537_K_0_1_7_ce0),
     .K_0_1_7_q0(K_0_1_7_q0),
-    .K_1_0_0_address0(grp_riccati_forward_pass_fu_653_K_1_0_0_address0),
-    .K_1_0_0_ce0(grp_riccati_forward_pass_fu_653_K_1_0_0_ce0),
+    .K_1_0_0_address0(grp_riccati_forward_pass_fu_537_K_1_0_0_address0),
+    .K_1_0_0_ce0(grp_riccati_forward_pass_fu_537_K_1_0_0_ce0),
     .K_1_0_0_q0(K_1_0_0_q0),
-    .K_1_0_1_address0(grp_riccati_forward_pass_fu_653_K_1_0_1_address0),
-    .K_1_0_1_ce0(grp_riccati_forward_pass_fu_653_K_1_0_1_ce0),
+    .K_1_0_1_address0(grp_riccati_forward_pass_fu_537_K_1_0_1_address0),
+    .K_1_0_1_ce0(grp_riccati_forward_pass_fu_537_K_1_0_1_ce0),
     .K_1_0_1_q0(K_1_0_1_q0),
-    .K_1_0_2_address0(grp_riccati_forward_pass_fu_653_K_1_0_2_address0),
-    .K_1_0_2_ce0(grp_riccati_forward_pass_fu_653_K_1_0_2_ce0),
+    .K_1_0_2_address0(grp_riccati_forward_pass_fu_537_K_1_0_2_address0),
+    .K_1_0_2_ce0(grp_riccati_forward_pass_fu_537_K_1_0_2_ce0),
     .K_1_0_2_q0(K_1_0_2_q0),
-    .K_1_0_3_address0(grp_riccati_forward_pass_fu_653_K_1_0_3_address0),
-    .K_1_0_3_ce0(grp_riccati_forward_pass_fu_653_K_1_0_3_ce0),
+    .K_1_0_3_address0(grp_riccati_forward_pass_fu_537_K_1_0_3_address0),
+    .K_1_0_3_ce0(grp_riccati_forward_pass_fu_537_K_1_0_3_ce0),
     .K_1_0_3_q0(K_1_0_3_q0),
-    .K_1_0_4_address0(grp_riccati_forward_pass_fu_653_K_1_0_4_address0),
-    .K_1_0_4_ce0(grp_riccati_forward_pass_fu_653_K_1_0_4_ce0),
+    .K_1_0_4_address0(grp_riccati_forward_pass_fu_537_K_1_0_4_address0),
+    .K_1_0_4_ce0(grp_riccati_forward_pass_fu_537_K_1_0_4_ce0),
     .K_1_0_4_q0(K_1_0_4_q0),
-    .K_1_0_5_address0(grp_riccati_forward_pass_fu_653_K_1_0_5_address0),
-    .K_1_0_5_ce0(grp_riccati_forward_pass_fu_653_K_1_0_5_ce0),
+    .K_1_0_5_address0(grp_riccati_forward_pass_fu_537_K_1_0_5_address0),
+    .K_1_0_5_ce0(grp_riccati_forward_pass_fu_537_K_1_0_5_ce0),
     .K_1_0_5_q0(K_1_0_5_q0),
-    .K_1_0_6_address0(grp_riccati_forward_pass_fu_653_K_1_0_6_address0),
-    .K_1_0_6_ce0(grp_riccati_forward_pass_fu_653_K_1_0_6_ce0),
+    .K_1_0_6_address0(grp_riccati_forward_pass_fu_537_K_1_0_6_address0),
+    .K_1_0_6_ce0(grp_riccati_forward_pass_fu_537_K_1_0_6_ce0),
     .K_1_0_6_q0(K_1_0_6_q0),
-    .K_1_0_7_address0(grp_riccati_forward_pass_fu_653_K_1_0_7_address0),
-    .K_1_0_7_ce0(grp_riccati_forward_pass_fu_653_K_1_0_7_ce0),
+    .K_1_0_7_address0(grp_riccati_forward_pass_fu_537_K_1_0_7_address0),
+    .K_1_0_7_ce0(grp_riccati_forward_pass_fu_537_K_1_0_7_ce0),
     .K_1_0_7_q0(K_1_0_7_q0),
-    .K_1_1_0_address0(grp_riccati_forward_pass_fu_653_K_1_1_0_address0),
-    .K_1_1_0_ce0(grp_riccati_forward_pass_fu_653_K_1_1_0_ce0),
+    .K_1_1_0_address0(grp_riccati_forward_pass_fu_537_K_1_1_0_address0),
+    .K_1_1_0_ce0(grp_riccati_forward_pass_fu_537_K_1_1_0_ce0),
     .K_1_1_0_q0(K_1_1_0_q0),
-    .K_1_1_1_address0(grp_riccati_forward_pass_fu_653_K_1_1_1_address0),
-    .K_1_1_1_ce0(grp_riccati_forward_pass_fu_653_K_1_1_1_ce0),
+    .K_1_1_1_address0(grp_riccati_forward_pass_fu_537_K_1_1_1_address0),
+    .K_1_1_1_ce0(grp_riccati_forward_pass_fu_537_K_1_1_1_ce0),
     .K_1_1_1_q0(K_1_1_1_q0),
-    .K_1_1_2_address0(grp_riccati_forward_pass_fu_653_K_1_1_2_address0),
-    .K_1_1_2_ce0(grp_riccati_forward_pass_fu_653_K_1_1_2_ce0),
+    .K_1_1_2_address0(grp_riccati_forward_pass_fu_537_K_1_1_2_address0),
+    .K_1_1_2_ce0(grp_riccati_forward_pass_fu_537_K_1_1_2_ce0),
     .K_1_1_2_q0(K_1_1_2_q0),
-    .K_1_1_3_address0(grp_riccati_forward_pass_fu_653_K_1_1_3_address0),
-    .K_1_1_3_ce0(grp_riccati_forward_pass_fu_653_K_1_1_3_ce0),
+    .K_1_1_3_address0(grp_riccati_forward_pass_fu_537_K_1_1_3_address0),
+    .K_1_1_3_ce0(grp_riccati_forward_pass_fu_537_K_1_1_3_ce0),
     .K_1_1_3_q0(K_1_1_3_q0),
-    .K_1_1_4_address0(grp_riccati_forward_pass_fu_653_K_1_1_4_address0),
-    .K_1_1_4_ce0(grp_riccati_forward_pass_fu_653_K_1_1_4_ce0),
+    .K_1_1_4_address0(grp_riccati_forward_pass_fu_537_K_1_1_4_address0),
+    .K_1_1_4_ce0(grp_riccati_forward_pass_fu_537_K_1_1_4_ce0),
     .K_1_1_4_q0(K_1_1_4_q0),
-    .K_1_1_5_address0(grp_riccati_forward_pass_fu_653_K_1_1_5_address0),
-    .K_1_1_5_ce0(grp_riccati_forward_pass_fu_653_K_1_1_5_ce0),
+    .K_1_1_5_address0(grp_riccati_forward_pass_fu_537_K_1_1_5_address0),
+    .K_1_1_5_ce0(grp_riccati_forward_pass_fu_537_K_1_1_5_ce0),
     .K_1_1_5_q0(K_1_1_5_q0),
-    .K_1_1_6_address0(grp_riccati_forward_pass_fu_653_K_1_1_6_address0),
-    .K_1_1_6_ce0(grp_riccati_forward_pass_fu_653_K_1_1_6_ce0),
+    .K_1_1_6_address0(grp_riccati_forward_pass_fu_537_K_1_1_6_address0),
+    .K_1_1_6_ce0(grp_riccati_forward_pass_fu_537_K_1_1_6_ce0),
     .K_1_1_6_q0(K_1_1_6_q0),
-    .K_1_1_7_address0(grp_riccati_forward_pass_fu_653_K_1_1_7_address0),
-    .K_1_1_7_ce0(grp_riccati_forward_pass_fu_653_K_1_1_7_ce0),
+    .K_1_1_7_address0(grp_riccati_forward_pass_fu_537_K_1_1_7_address0),
+    .K_1_1_7_ce0(grp_riccati_forward_pass_fu_537_K_1_1_7_ce0),
     .K_1_1_7_q0(K_1_1_7_q0),
-    .K_2_0_0_address0(grp_riccati_forward_pass_fu_653_K_2_0_0_address0),
-    .K_2_0_0_ce0(grp_riccati_forward_pass_fu_653_K_2_0_0_ce0),
+    .K_2_0_0_address0(grp_riccati_forward_pass_fu_537_K_2_0_0_address0),
+    .K_2_0_0_ce0(grp_riccati_forward_pass_fu_537_K_2_0_0_ce0),
     .K_2_0_0_q0(K_2_0_0_q0),
-    .K_2_0_1_address0(grp_riccati_forward_pass_fu_653_K_2_0_1_address0),
-    .K_2_0_1_ce0(grp_riccati_forward_pass_fu_653_K_2_0_1_ce0),
+    .K_2_0_1_address0(grp_riccati_forward_pass_fu_537_K_2_0_1_address0),
+    .K_2_0_1_ce0(grp_riccati_forward_pass_fu_537_K_2_0_1_ce0),
     .K_2_0_1_q0(K_2_0_1_q0),
-    .K_2_0_2_address0(grp_riccati_forward_pass_fu_653_K_2_0_2_address0),
-    .K_2_0_2_ce0(grp_riccati_forward_pass_fu_653_K_2_0_2_ce0),
+    .K_2_0_2_address0(grp_riccati_forward_pass_fu_537_K_2_0_2_address0),
+    .K_2_0_2_ce0(grp_riccati_forward_pass_fu_537_K_2_0_2_ce0),
     .K_2_0_2_q0(K_2_0_2_q0),
-    .K_2_0_3_address0(grp_riccati_forward_pass_fu_653_K_2_0_3_address0),
-    .K_2_0_3_ce0(grp_riccati_forward_pass_fu_653_K_2_0_3_ce0),
+    .K_2_0_3_address0(grp_riccati_forward_pass_fu_537_K_2_0_3_address0),
+    .K_2_0_3_ce0(grp_riccati_forward_pass_fu_537_K_2_0_3_ce0),
     .K_2_0_3_q0(K_2_0_3_q0),
-    .K_2_0_4_address0(grp_riccati_forward_pass_fu_653_K_2_0_4_address0),
-    .K_2_0_4_ce0(grp_riccati_forward_pass_fu_653_K_2_0_4_ce0),
+    .K_2_0_4_address0(grp_riccati_forward_pass_fu_537_K_2_0_4_address0),
+    .K_2_0_4_ce0(grp_riccati_forward_pass_fu_537_K_2_0_4_ce0),
     .K_2_0_4_q0(K_2_0_4_q0),
-    .K_2_0_5_address0(grp_riccati_forward_pass_fu_653_K_2_0_5_address0),
-    .K_2_0_5_ce0(grp_riccati_forward_pass_fu_653_K_2_0_5_ce0),
+    .K_2_0_5_address0(grp_riccati_forward_pass_fu_537_K_2_0_5_address0),
+    .K_2_0_5_ce0(grp_riccati_forward_pass_fu_537_K_2_0_5_ce0),
     .K_2_0_5_q0(K_2_0_5_q0),
-    .K_2_0_6_address0(grp_riccati_forward_pass_fu_653_K_2_0_6_address0),
-    .K_2_0_6_ce0(grp_riccati_forward_pass_fu_653_K_2_0_6_ce0),
+    .K_2_0_6_address0(grp_riccati_forward_pass_fu_537_K_2_0_6_address0),
+    .K_2_0_6_ce0(grp_riccati_forward_pass_fu_537_K_2_0_6_ce0),
     .K_2_0_6_q0(K_2_0_6_q0),
-    .K_2_0_7_address0(grp_riccati_forward_pass_fu_653_K_2_0_7_address0),
-    .K_2_0_7_ce0(grp_riccati_forward_pass_fu_653_K_2_0_7_ce0),
+    .K_2_0_7_address0(grp_riccati_forward_pass_fu_537_K_2_0_7_address0),
+    .K_2_0_7_ce0(grp_riccati_forward_pass_fu_537_K_2_0_7_ce0),
     .K_2_0_7_q0(K_2_0_7_q0),
-    .K_2_1_0_address0(grp_riccati_forward_pass_fu_653_K_2_1_0_address0),
-    .K_2_1_0_ce0(grp_riccati_forward_pass_fu_653_K_2_1_0_ce0),
+    .K_2_1_0_address0(grp_riccati_forward_pass_fu_537_K_2_1_0_address0),
+    .K_2_1_0_ce0(grp_riccati_forward_pass_fu_537_K_2_1_0_ce0),
     .K_2_1_0_q0(K_2_1_0_q0),
-    .K_2_1_1_address0(grp_riccati_forward_pass_fu_653_K_2_1_1_address0),
-    .K_2_1_1_ce0(grp_riccati_forward_pass_fu_653_K_2_1_1_ce0),
+    .K_2_1_1_address0(grp_riccati_forward_pass_fu_537_K_2_1_1_address0),
+    .K_2_1_1_ce0(grp_riccati_forward_pass_fu_537_K_2_1_1_ce0),
     .K_2_1_1_q0(K_2_1_1_q0),
-    .K_2_1_2_address0(grp_riccati_forward_pass_fu_653_K_2_1_2_address0),
-    .K_2_1_2_ce0(grp_riccati_forward_pass_fu_653_K_2_1_2_ce0),
+    .K_2_1_2_address0(grp_riccati_forward_pass_fu_537_K_2_1_2_address0),
+    .K_2_1_2_ce0(grp_riccati_forward_pass_fu_537_K_2_1_2_ce0),
     .K_2_1_2_q0(K_2_1_2_q0),
-    .K_2_1_3_address0(grp_riccati_forward_pass_fu_653_K_2_1_3_address0),
-    .K_2_1_3_ce0(grp_riccati_forward_pass_fu_653_K_2_1_3_ce0),
+    .K_2_1_3_address0(grp_riccati_forward_pass_fu_537_K_2_1_3_address0),
+    .K_2_1_3_ce0(grp_riccati_forward_pass_fu_537_K_2_1_3_ce0),
     .K_2_1_3_q0(K_2_1_3_q0),
-    .K_2_1_4_address0(grp_riccati_forward_pass_fu_653_K_2_1_4_address0),
-    .K_2_1_4_ce0(grp_riccati_forward_pass_fu_653_K_2_1_4_ce0),
+    .K_2_1_4_address0(grp_riccati_forward_pass_fu_537_K_2_1_4_address0),
+    .K_2_1_4_ce0(grp_riccati_forward_pass_fu_537_K_2_1_4_ce0),
     .K_2_1_4_q0(K_2_1_4_q0),
-    .K_2_1_5_address0(grp_riccati_forward_pass_fu_653_K_2_1_5_address0),
-    .K_2_1_5_ce0(grp_riccati_forward_pass_fu_653_K_2_1_5_ce0),
+    .K_2_1_5_address0(grp_riccati_forward_pass_fu_537_K_2_1_5_address0),
+    .K_2_1_5_ce0(grp_riccati_forward_pass_fu_537_K_2_1_5_ce0),
     .K_2_1_5_q0(K_2_1_5_q0),
-    .K_2_1_6_address0(grp_riccati_forward_pass_fu_653_K_2_1_6_address0),
-    .K_2_1_6_ce0(grp_riccati_forward_pass_fu_653_K_2_1_6_ce0),
+    .K_2_1_6_address0(grp_riccati_forward_pass_fu_537_K_2_1_6_address0),
+    .K_2_1_6_ce0(grp_riccati_forward_pass_fu_537_K_2_1_6_ce0),
     .K_2_1_6_q0(K_2_1_6_q0),
-    .K_2_1_7_address0(grp_riccati_forward_pass_fu_653_K_2_1_7_address0),
-    .K_2_1_7_ce0(grp_riccati_forward_pass_fu_653_K_2_1_7_ce0),
+    .K_2_1_7_address0(grp_riccati_forward_pass_fu_537_K_2_1_7_address0),
+    .K_2_1_7_ce0(grp_riccati_forward_pass_fu_537_K_2_1_7_ce0),
     .K_2_1_7_q0(K_2_1_7_q0),
-    .K_3_0_0_address0(grp_riccati_forward_pass_fu_653_K_3_0_0_address0),
-    .K_3_0_0_ce0(grp_riccati_forward_pass_fu_653_K_3_0_0_ce0),
+    .K_3_0_0_address0(grp_riccati_forward_pass_fu_537_K_3_0_0_address0),
+    .K_3_0_0_ce0(grp_riccati_forward_pass_fu_537_K_3_0_0_ce0),
     .K_3_0_0_q0(K_3_0_0_q0),
-    .K_3_0_1_address0(grp_riccati_forward_pass_fu_653_K_3_0_1_address0),
-    .K_3_0_1_ce0(grp_riccati_forward_pass_fu_653_K_3_0_1_ce0),
+    .K_3_0_1_address0(grp_riccati_forward_pass_fu_537_K_3_0_1_address0),
+    .K_3_0_1_ce0(grp_riccati_forward_pass_fu_537_K_3_0_1_ce0),
     .K_3_0_1_q0(K_3_0_1_q0),
-    .K_3_0_2_address0(grp_riccati_forward_pass_fu_653_K_3_0_2_address0),
-    .K_3_0_2_ce0(grp_riccati_forward_pass_fu_653_K_3_0_2_ce0),
+    .K_3_0_2_address0(grp_riccati_forward_pass_fu_537_K_3_0_2_address0),
+    .K_3_0_2_ce0(grp_riccati_forward_pass_fu_537_K_3_0_2_ce0),
     .K_3_0_2_q0(K_3_0_2_q0),
-    .K_3_0_3_address0(grp_riccati_forward_pass_fu_653_K_3_0_3_address0),
-    .K_3_0_3_ce0(grp_riccati_forward_pass_fu_653_K_3_0_3_ce0),
+    .K_3_0_3_address0(grp_riccati_forward_pass_fu_537_K_3_0_3_address0),
+    .K_3_0_3_ce0(grp_riccati_forward_pass_fu_537_K_3_0_3_ce0),
     .K_3_0_3_q0(K_3_0_3_q0),
-    .K_3_0_4_address0(grp_riccati_forward_pass_fu_653_K_3_0_4_address0),
-    .K_3_0_4_ce0(grp_riccati_forward_pass_fu_653_K_3_0_4_ce0),
+    .K_3_0_4_address0(grp_riccati_forward_pass_fu_537_K_3_0_4_address0),
+    .K_3_0_4_ce0(grp_riccati_forward_pass_fu_537_K_3_0_4_ce0),
     .K_3_0_4_q0(K_3_0_4_q0),
-    .K_3_0_5_address0(grp_riccati_forward_pass_fu_653_K_3_0_5_address0),
-    .K_3_0_5_ce0(grp_riccati_forward_pass_fu_653_K_3_0_5_ce0),
+    .K_3_0_5_address0(grp_riccati_forward_pass_fu_537_K_3_0_5_address0),
+    .K_3_0_5_ce0(grp_riccati_forward_pass_fu_537_K_3_0_5_ce0),
     .K_3_0_5_q0(K_3_0_5_q0),
-    .K_3_0_6_address0(grp_riccati_forward_pass_fu_653_K_3_0_6_address0),
-    .K_3_0_6_ce0(grp_riccati_forward_pass_fu_653_K_3_0_6_ce0),
+    .K_3_0_6_address0(grp_riccati_forward_pass_fu_537_K_3_0_6_address0),
+    .K_3_0_6_ce0(grp_riccati_forward_pass_fu_537_K_3_0_6_ce0),
     .K_3_0_6_q0(K_3_0_6_q0),
-    .K_3_0_7_address0(grp_riccati_forward_pass_fu_653_K_3_0_7_address0),
-    .K_3_0_7_ce0(grp_riccati_forward_pass_fu_653_K_3_0_7_ce0),
+    .K_3_0_7_address0(grp_riccati_forward_pass_fu_537_K_3_0_7_address0),
+    .K_3_0_7_ce0(grp_riccati_forward_pass_fu_537_K_3_0_7_ce0),
     .K_3_0_7_q0(K_3_0_7_q0),
-    .K_3_1_0_address0(grp_riccati_forward_pass_fu_653_K_3_1_0_address0),
-    .K_3_1_0_ce0(grp_riccati_forward_pass_fu_653_K_3_1_0_ce0),
+    .K_3_1_0_address0(grp_riccati_forward_pass_fu_537_K_3_1_0_address0),
+    .K_3_1_0_ce0(grp_riccati_forward_pass_fu_537_K_3_1_0_ce0),
     .K_3_1_0_q0(K_3_1_0_q0),
-    .K_3_1_1_address0(grp_riccati_forward_pass_fu_653_K_3_1_1_address0),
-    .K_3_1_1_ce0(grp_riccati_forward_pass_fu_653_K_3_1_1_ce0),
+    .K_3_1_1_address0(grp_riccati_forward_pass_fu_537_K_3_1_1_address0),
+    .K_3_1_1_ce0(grp_riccati_forward_pass_fu_537_K_3_1_1_ce0),
     .K_3_1_1_q0(K_3_1_1_q0),
-    .K_3_1_2_address0(grp_riccati_forward_pass_fu_653_K_3_1_2_address0),
-    .K_3_1_2_ce0(grp_riccati_forward_pass_fu_653_K_3_1_2_ce0),
+    .K_3_1_2_address0(grp_riccati_forward_pass_fu_537_K_3_1_2_address0),
+    .K_3_1_2_ce0(grp_riccati_forward_pass_fu_537_K_3_1_2_ce0),
     .K_3_1_2_q0(K_3_1_2_q0),
-    .K_3_1_3_address0(grp_riccati_forward_pass_fu_653_K_3_1_3_address0),
-    .K_3_1_3_ce0(grp_riccati_forward_pass_fu_653_K_3_1_3_ce0),
+    .K_3_1_3_address0(grp_riccati_forward_pass_fu_537_K_3_1_3_address0),
+    .K_3_1_3_ce0(grp_riccati_forward_pass_fu_537_K_3_1_3_ce0),
     .K_3_1_3_q0(K_3_1_3_q0),
-    .K_3_1_4_address0(grp_riccati_forward_pass_fu_653_K_3_1_4_address0),
-    .K_3_1_4_ce0(grp_riccati_forward_pass_fu_653_K_3_1_4_ce0),
+    .K_3_1_4_address0(grp_riccati_forward_pass_fu_537_K_3_1_4_address0),
+    .K_3_1_4_ce0(grp_riccati_forward_pass_fu_537_K_3_1_4_ce0),
     .K_3_1_4_q0(K_3_1_4_q0),
-    .K_3_1_5_address0(grp_riccati_forward_pass_fu_653_K_3_1_5_address0),
-    .K_3_1_5_ce0(grp_riccati_forward_pass_fu_653_K_3_1_5_ce0),
+    .K_3_1_5_address0(grp_riccati_forward_pass_fu_537_K_3_1_5_address0),
+    .K_3_1_5_ce0(grp_riccati_forward_pass_fu_537_K_3_1_5_ce0),
     .K_3_1_5_q0(K_3_1_5_q0),
-    .K_3_1_6_address0(grp_riccati_forward_pass_fu_653_K_3_1_6_address0),
-    .K_3_1_6_ce0(grp_riccati_forward_pass_fu_653_K_3_1_6_ce0),
+    .K_3_1_6_address0(grp_riccati_forward_pass_fu_537_K_3_1_6_address0),
+    .K_3_1_6_ce0(grp_riccati_forward_pass_fu_537_K_3_1_6_ce0),
     .K_3_1_6_q0(K_3_1_6_q0),
-    .K_3_1_7_address0(grp_riccati_forward_pass_fu_653_K_3_1_7_address0),
-    .K_3_1_7_ce0(grp_riccati_forward_pass_fu_653_K_3_1_7_ce0),
+    .K_3_1_7_address0(grp_riccati_forward_pass_fu_537_K_3_1_7_address0),
+    .K_3_1_7_ce0(grp_riccati_forward_pass_fu_537_K_3_1_7_ce0),
     .K_3_1_7_q0(K_3_1_7_q0),
-    .kk_0_address0(grp_riccati_forward_pass_fu_653_kk_0_address0),
-    .kk_0_ce0(grp_riccati_forward_pass_fu_653_kk_0_ce0),
+    .kk_0_address0(grp_riccati_forward_pass_fu_537_kk_0_address0),
+    .kk_0_ce0(grp_riccati_forward_pass_fu_537_kk_0_ce0),
     .kk_0_q0(kk_0_q0),
-    .kk_1_address0(grp_riccati_forward_pass_fu_653_kk_1_address0),
-    .kk_1_ce0(grp_riccati_forward_pass_fu_653_kk_1_ce0),
+    .kk_1_address0(grp_riccati_forward_pass_fu_537_kk_1_address0),
+    .kk_1_ce0(grp_riccati_forward_pass_fu_537_kk_1_ce0),
     .kk_1_q0(kk_1_q0),
-    .x_out_0_address0(grp_riccati_forward_pass_fu_653_x_out_0_address0),
-    .x_out_0_ce0(grp_riccati_forward_pass_fu_653_x_out_0_ce0),
+    .x_out_0_address0(grp_riccati_forward_pass_fu_537_x_out_0_address0),
+    .x_out_0_ce0(grp_riccati_forward_pass_fu_537_x_out_0_ce0),
     .x_out_0_q0(x_out_0_q0),
-    .x_out_0_address1(grp_riccati_forward_pass_fu_653_x_out_0_address1),
-    .x_out_0_ce1(grp_riccati_forward_pass_fu_653_x_out_0_ce1),
-    .x_out_0_we1(grp_riccati_forward_pass_fu_653_x_out_0_we1),
-    .x_out_0_d1(grp_riccati_forward_pass_fu_653_x_out_0_d1),
-    .x_out_1_address0(grp_riccati_forward_pass_fu_653_x_out_1_address0),
-    .x_out_1_ce0(grp_riccati_forward_pass_fu_653_x_out_1_ce0),
+    .x_out_0_address1(grp_riccati_forward_pass_fu_537_x_out_0_address1),
+    .x_out_0_ce1(grp_riccati_forward_pass_fu_537_x_out_0_ce1),
+    .x_out_0_we1(grp_riccati_forward_pass_fu_537_x_out_0_we1),
+    .x_out_0_d1(grp_riccati_forward_pass_fu_537_x_out_0_d1),
+    .x_out_1_address0(grp_riccati_forward_pass_fu_537_x_out_1_address0),
+    .x_out_1_ce0(grp_riccati_forward_pass_fu_537_x_out_1_ce0),
     .x_out_1_q0(x_out_1_q0),
-    .x_out_1_address1(grp_riccati_forward_pass_fu_653_x_out_1_address1),
-    .x_out_1_ce1(grp_riccati_forward_pass_fu_653_x_out_1_ce1),
-    .x_out_1_we1(grp_riccati_forward_pass_fu_653_x_out_1_we1),
-    .x_out_1_d1(grp_riccati_forward_pass_fu_653_x_out_1_d1),
-    .x_out_2_address0(grp_riccati_forward_pass_fu_653_x_out_2_address0),
-    .x_out_2_ce0(grp_riccati_forward_pass_fu_653_x_out_2_ce0),
+    .x_out_1_address1(grp_riccati_forward_pass_fu_537_x_out_1_address1),
+    .x_out_1_ce1(grp_riccati_forward_pass_fu_537_x_out_1_ce1),
+    .x_out_1_we1(grp_riccati_forward_pass_fu_537_x_out_1_we1),
+    .x_out_1_d1(grp_riccati_forward_pass_fu_537_x_out_1_d1),
+    .x_out_2_address0(grp_riccati_forward_pass_fu_537_x_out_2_address0),
+    .x_out_2_ce0(grp_riccati_forward_pass_fu_537_x_out_2_ce0),
     .x_out_2_q0(x_out_2_q0),
-    .x_out_2_address1(grp_riccati_forward_pass_fu_653_x_out_2_address1),
-    .x_out_2_ce1(grp_riccati_forward_pass_fu_653_x_out_2_ce1),
-    .x_out_2_we1(grp_riccati_forward_pass_fu_653_x_out_2_we1),
-    .x_out_2_d1(grp_riccati_forward_pass_fu_653_x_out_2_d1),
-    .x_out_3_address0(grp_riccati_forward_pass_fu_653_x_out_3_address0),
-    .x_out_3_ce0(grp_riccati_forward_pass_fu_653_x_out_3_ce0),
+    .x_out_2_address1(grp_riccati_forward_pass_fu_537_x_out_2_address1),
+    .x_out_2_ce1(grp_riccati_forward_pass_fu_537_x_out_2_ce1),
+    .x_out_2_we1(grp_riccati_forward_pass_fu_537_x_out_2_we1),
+    .x_out_2_d1(grp_riccati_forward_pass_fu_537_x_out_2_d1),
+    .x_out_3_address0(grp_riccati_forward_pass_fu_537_x_out_3_address0),
+    .x_out_3_ce0(grp_riccati_forward_pass_fu_537_x_out_3_ce0),
     .x_out_3_q0(x_out_3_q0),
-    .x_out_3_address1(grp_riccati_forward_pass_fu_653_x_out_3_address1),
-    .x_out_3_ce1(grp_riccati_forward_pass_fu_653_x_out_3_ce1),
-    .x_out_3_we1(grp_riccati_forward_pass_fu_653_x_out_3_we1),
-    .x_out_3_d1(grp_riccati_forward_pass_fu_653_x_out_3_d1),
-    .x_out_4_address0(grp_riccati_forward_pass_fu_653_x_out_4_address0),
-    .x_out_4_ce0(grp_riccati_forward_pass_fu_653_x_out_4_ce0),
+    .x_out_3_address1(grp_riccati_forward_pass_fu_537_x_out_3_address1),
+    .x_out_3_ce1(grp_riccati_forward_pass_fu_537_x_out_3_ce1),
+    .x_out_3_we1(grp_riccati_forward_pass_fu_537_x_out_3_we1),
+    .x_out_3_d1(grp_riccati_forward_pass_fu_537_x_out_3_d1),
+    .x_out_4_address0(grp_riccati_forward_pass_fu_537_x_out_4_address0),
+    .x_out_4_ce0(grp_riccati_forward_pass_fu_537_x_out_4_ce0),
     .x_out_4_q0(x_out_4_q0),
-    .x_out_4_address1(grp_riccati_forward_pass_fu_653_x_out_4_address1),
-    .x_out_4_ce1(grp_riccati_forward_pass_fu_653_x_out_4_ce1),
-    .x_out_4_we1(grp_riccati_forward_pass_fu_653_x_out_4_we1),
-    .x_out_4_d1(grp_riccati_forward_pass_fu_653_x_out_4_d1),
-    .x_out_5_address0(grp_riccati_forward_pass_fu_653_x_out_5_address0),
-    .x_out_5_ce0(grp_riccati_forward_pass_fu_653_x_out_5_ce0),
+    .x_out_4_address1(grp_riccati_forward_pass_fu_537_x_out_4_address1),
+    .x_out_4_ce1(grp_riccati_forward_pass_fu_537_x_out_4_ce1),
+    .x_out_4_we1(grp_riccati_forward_pass_fu_537_x_out_4_we1),
+    .x_out_4_d1(grp_riccati_forward_pass_fu_537_x_out_4_d1),
+    .x_out_5_address0(grp_riccati_forward_pass_fu_537_x_out_5_address0),
+    .x_out_5_ce0(grp_riccati_forward_pass_fu_537_x_out_5_ce0),
     .x_out_5_q0(x_out_5_q0),
-    .x_out_5_address1(grp_riccati_forward_pass_fu_653_x_out_5_address1),
-    .x_out_5_ce1(grp_riccati_forward_pass_fu_653_x_out_5_ce1),
-    .x_out_5_we1(grp_riccati_forward_pass_fu_653_x_out_5_we1),
-    .x_out_5_d1(grp_riccati_forward_pass_fu_653_x_out_5_d1),
-    .x_out_6_address0(grp_riccati_forward_pass_fu_653_x_out_6_address0),
-    .x_out_6_ce0(grp_riccati_forward_pass_fu_653_x_out_6_ce0),
+    .x_out_5_address1(grp_riccati_forward_pass_fu_537_x_out_5_address1),
+    .x_out_5_ce1(grp_riccati_forward_pass_fu_537_x_out_5_ce1),
+    .x_out_5_we1(grp_riccati_forward_pass_fu_537_x_out_5_we1),
+    .x_out_5_d1(grp_riccati_forward_pass_fu_537_x_out_5_d1),
+    .x_out_6_address0(grp_riccati_forward_pass_fu_537_x_out_6_address0),
+    .x_out_6_ce0(grp_riccati_forward_pass_fu_537_x_out_6_ce0),
     .x_out_6_q0(x_out_6_q0),
-    .x_out_6_address1(grp_riccati_forward_pass_fu_653_x_out_6_address1),
-    .x_out_6_ce1(grp_riccati_forward_pass_fu_653_x_out_6_ce1),
-    .x_out_6_we1(grp_riccati_forward_pass_fu_653_x_out_6_we1),
-    .x_out_6_d1(grp_riccati_forward_pass_fu_653_x_out_6_d1),
-    .x_out_7_address0(grp_riccati_forward_pass_fu_653_x_out_7_address0),
-    .x_out_7_ce0(grp_riccati_forward_pass_fu_653_x_out_7_ce0),
+    .x_out_6_address1(grp_riccati_forward_pass_fu_537_x_out_6_address1),
+    .x_out_6_ce1(grp_riccati_forward_pass_fu_537_x_out_6_ce1),
+    .x_out_6_we1(grp_riccati_forward_pass_fu_537_x_out_6_we1),
+    .x_out_6_d1(grp_riccati_forward_pass_fu_537_x_out_6_d1),
+    .x_out_7_address0(grp_riccati_forward_pass_fu_537_x_out_7_address0),
+    .x_out_7_ce0(grp_riccati_forward_pass_fu_537_x_out_7_ce0),
     .x_out_7_q0(x_out_7_q0),
-    .x_out_7_address1(grp_riccati_forward_pass_fu_653_x_out_7_address1),
-    .x_out_7_ce1(grp_riccati_forward_pass_fu_653_x_out_7_ce1),
-    .x_out_7_we1(grp_riccati_forward_pass_fu_653_x_out_7_we1),
-    .x_out_7_d1(grp_riccati_forward_pass_fu_653_x_out_7_d1),
-    .u_out_0_address0(grp_riccati_forward_pass_fu_653_u_out_0_address0),
-    .u_out_0_ce0(grp_riccati_forward_pass_fu_653_u_out_0_ce0),
-    .u_out_0_we0(grp_riccati_forward_pass_fu_653_u_out_0_we0),
-    .u_out_0_d0(grp_riccati_forward_pass_fu_653_u_out_0_d0),
-    .u_out_1_address0(grp_riccati_forward_pass_fu_653_u_out_1_address0),
-    .u_out_1_ce0(grp_riccati_forward_pass_fu_653_u_out_1_ce0),
-    .u_out_1_we0(grp_riccati_forward_pass_fu_653_u_out_1_we0),
-    .u_out_1_d0(grp_riccati_forward_pass_fu_653_u_out_1_d0)
+    .x_out_7_address1(grp_riccati_forward_pass_fu_537_x_out_7_address1),
+    .x_out_7_ce1(grp_riccati_forward_pass_fu_537_x_out_7_ce1),
+    .x_out_7_we1(grp_riccati_forward_pass_fu_537_x_out_7_we1),
+    .x_out_7_d1(grp_riccati_forward_pass_fu_537_x_out_7_d1),
+    .u_out_0_address0(grp_riccati_forward_pass_fu_537_u_out_0_address0),
+    .u_out_0_ce0(grp_riccati_forward_pass_fu_537_u_out_0_ce0),
+    .u_out_0_we0(grp_riccati_forward_pass_fu_537_u_out_0_we0),
+    .u_out_0_d0(grp_riccati_forward_pass_fu_537_u_out_0_d0),
+    .u_out_1_address0(grp_riccati_forward_pass_fu_537_u_out_1_address0),
+    .u_out_1_ce0(grp_riccati_forward_pass_fu_537_u_out_1_ce0),
+    .u_out_1_we0(grp_riccati_forward_pass_fu_537_u_out_1_we0),
+    .u_out_1_d0(grp_riccati_forward_pass_fu_537_u_out_1_d0),
+    .grp_fu_830_p_din0(grp_riccati_forward_pass_fu_537_grp_fu_830_p_din0),
+    .grp_fu_830_p_din1(grp_riccati_forward_pass_fu_537_grp_fu_830_p_din1),
+    .grp_fu_830_p_dout0(grp_fu_2784_p_dout0),
+    .grp_fu_830_p_ce(grp_riccati_forward_pass_fu_537_grp_fu_830_p_ce)
 );
 
 always @ (posedge ap_clk) begin
@@ -3088,39 +2620,39 @@ end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        grp_riccati_backward_pass_fu_400_ap_start_reg <= 1'b0;
+        grp_riccati_backward_pass_fu_342_ap_start_reg <= 1'b0;
     end else begin
         if (((ap_start == 1'b1) & (1'b1 == ap_CS_fsm_state1))) begin
-            grp_riccati_backward_pass_fu_400_ap_start_reg <= 1'b1;
-        end else if ((grp_riccati_backward_pass_fu_400_ap_ready == 1'b1)) begin
-            grp_riccati_backward_pass_fu_400_ap_start_reg <= 1'b0;
+            grp_riccati_backward_pass_fu_342_ap_start_reg <= 1'b1;
+        end else if ((grp_riccati_backward_pass_fu_342_ap_ready == 1'b1)) begin
+            grp_riccati_backward_pass_fu_342_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if (ap_rst == 1'b1) begin
-        grp_riccati_forward_pass_fu_653_ap_start_reg <= 1'b0;
+        grp_riccati_forward_pass_fu_537_ap_start_reg <= 1'b0;
     end else begin
         if ((1'b1 == ap_CS_fsm_state3)) begin
-            grp_riccati_forward_pass_fu_653_ap_start_reg <= 1'b1;
-        end else if ((grp_riccati_forward_pass_fu_653_ap_ready == 1'b1)) begin
-            grp_riccati_forward_pass_fu_653_ap_start_reg <= 1'b0;
+            grp_riccati_forward_pass_fu_537_ap_start_reg <= 1'b1;
+        end else if ((grp_riccati_forward_pass_fu_537_ap_ready == 1'b1)) begin
+            grp_riccati_forward_pass_fu_537_ap_start_reg <= 1'b0;
         end
     end
 end
 
 always @ (posedge ap_clk) begin
     if ((1'b1 == ap_CS_fsm_state1)) begin
-        empty_reg_947 <= empty_fu_907_p1;
+        empty_reg_771 <= empty_fu_731_p1;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_0_address0 = grp_riccati_forward_pass_fu_653_B_sparse_0_address0;
+        B_sparse_0_address0 = grp_riccati_forward_pass_fu_537_B_sparse_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_0_address0 = grp_riccati_backward_pass_fu_400_B_sparse_0_address0;
+        B_sparse_0_address0 = grp_riccati_backward_pass_fu_342_B_sparse_0_address0;
     end else begin
         B_sparse_0_address0 = 'bx;
     end
@@ -3128,9 +2660,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_0_ce0 = grp_riccati_forward_pass_fu_653_B_sparse_0_ce0;
+        B_sparse_0_ce0 = grp_riccati_forward_pass_fu_537_B_sparse_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_0_ce0 = grp_riccati_backward_pass_fu_400_B_sparse_0_ce0;
+        B_sparse_0_ce0 = grp_riccati_backward_pass_fu_342_B_sparse_0_ce0;
     end else begin
         B_sparse_0_ce0 = 1'b0;
     end
@@ -3138,9 +2670,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_1_address0 = grp_riccati_forward_pass_fu_653_B_sparse_1_address0;
+        B_sparse_1_address0 = grp_riccati_forward_pass_fu_537_B_sparse_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_1_address0 = grp_riccati_backward_pass_fu_400_B_sparse_1_address0;
+        B_sparse_1_address0 = grp_riccati_backward_pass_fu_342_B_sparse_1_address0;
     end else begin
         B_sparse_1_address0 = 'bx;
     end
@@ -3148,9 +2680,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_1_ce0 = grp_riccati_forward_pass_fu_653_B_sparse_1_ce0;
+        B_sparse_1_ce0 = grp_riccati_forward_pass_fu_537_B_sparse_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_1_ce0 = grp_riccati_backward_pass_fu_400_B_sparse_1_ce0;
+        B_sparse_1_ce0 = grp_riccati_backward_pass_fu_342_B_sparse_1_ce0;
     end else begin
         B_sparse_1_ce0 = 1'b0;
     end
@@ -3158,9 +2690,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_2_address0 = grp_riccati_forward_pass_fu_653_B_sparse_2_address0;
+        B_sparse_2_address0 = grp_riccati_forward_pass_fu_537_B_sparse_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_2_address0 = grp_riccati_backward_pass_fu_400_B_sparse_2_address0;
+        B_sparse_2_address0 = grp_riccati_backward_pass_fu_342_B_sparse_2_address0;
     end else begin
         B_sparse_2_address0 = 'bx;
     end
@@ -3168,9 +2700,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_2_ce0 = grp_riccati_forward_pass_fu_653_B_sparse_2_ce0;
+        B_sparse_2_ce0 = grp_riccati_forward_pass_fu_537_B_sparse_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_2_ce0 = grp_riccati_backward_pass_fu_400_B_sparse_2_ce0;
+        B_sparse_2_ce0 = grp_riccati_backward_pass_fu_342_B_sparse_2_ce0;
     end else begin
         B_sparse_2_ce0 = 1'b0;
     end
@@ -3178,9 +2710,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_3_address0 = grp_riccati_forward_pass_fu_653_B_sparse_3_address0;
+        B_sparse_3_address0 = grp_riccati_forward_pass_fu_537_B_sparse_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_3_address0 = grp_riccati_backward_pass_fu_400_B_sparse_3_address0;
+        B_sparse_3_address0 = grp_riccati_backward_pass_fu_342_B_sparse_3_address0;
     end else begin
         B_sparse_3_address0 = 'bx;
     end
@@ -3188,9 +2720,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        B_sparse_3_ce0 = grp_riccati_forward_pass_fu_653_B_sparse_3_ce0;
+        B_sparse_3_ce0 = grp_riccati_forward_pass_fu_537_B_sparse_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        B_sparse_3_ce0 = grp_riccati_backward_pass_fu_400_B_sparse_3_ce0;
+        B_sparse_3_ce0 = grp_riccati_backward_pass_fu_342_B_sparse_3_ce0;
     end else begin
         B_sparse_3_ce0 = 1'b0;
     end
@@ -3198,9 +2730,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_0_address0 = grp_riccati_forward_pass_fu_653_K_0_0_0_address0;
+        K_0_0_0_address0 = grp_riccati_forward_pass_fu_537_K_0_0_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_0_address0 = grp_riccati_backward_pass_fu_400_K_0_0_0_address0;
+        K_0_0_0_address0 = grp_riccati_backward_pass_fu_342_K_0_0_0_address0;
     end else begin
         K_0_0_0_address0 = 'bx;
     end
@@ -3208,9 +2740,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_0_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_0_ce0;
+        K_0_0_0_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_0_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_0_ce0;
+        K_0_0_0_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_0_ce0;
     end else begin
         K_0_0_0_ce0 = 1'b0;
     end
@@ -3218,7 +2750,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_0_we0 = grp_riccati_backward_pass_fu_400_K_0_0_0_we0;
+        K_0_0_0_we0 = grp_riccati_backward_pass_fu_342_K_0_0_0_we0;
     end else begin
         K_0_0_0_we0 = 1'b0;
     end
@@ -3226,9 +2758,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_1_address0 = grp_riccati_forward_pass_fu_653_K_0_0_1_address0;
+        K_0_0_1_address0 = grp_riccati_forward_pass_fu_537_K_0_0_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_1_address0 = grp_riccati_backward_pass_fu_400_K_0_0_1_address0;
+        K_0_0_1_address0 = grp_riccati_backward_pass_fu_342_K_0_0_1_address0;
     end else begin
         K_0_0_1_address0 = 'bx;
     end
@@ -3236,9 +2768,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_1_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_1_ce0;
+        K_0_0_1_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_1_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_1_ce0;
+        K_0_0_1_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_1_ce0;
     end else begin
         K_0_0_1_ce0 = 1'b0;
     end
@@ -3246,7 +2778,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_1_we0 = grp_riccati_backward_pass_fu_400_K_0_0_1_we0;
+        K_0_0_1_we0 = grp_riccati_backward_pass_fu_342_K_0_0_1_we0;
     end else begin
         K_0_0_1_we0 = 1'b0;
     end
@@ -3254,9 +2786,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_2_address0 = grp_riccati_forward_pass_fu_653_K_0_0_2_address0;
+        K_0_0_2_address0 = grp_riccati_forward_pass_fu_537_K_0_0_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_2_address0 = grp_riccati_backward_pass_fu_400_K_0_0_2_address0;
+        K_0_0_2_address0 = grp_riccati_backward_pass_fu_342_K_0_0_2_address0;
     end else begin
         K_0_0_2_address0 = 'bx;
     end
@@ -3264,9 +2796,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_2_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_2_ce0;
+        K_0_0_2_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_2_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_2_ce0;
+        K_0_0_2_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_2_ce0;
     end else begin
         K_0_0_2_ce0 = 1'b0;
     end
@@ -3274,7 +2806,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_2_we0 = grp_riccati_backward_pass_fu_400_K_0_0_2_we0;
+        K_0_0_2_we0 = grp_riccati_backward_pass_fu_342_K_0_0_2_we0;
     end else begin
         K_0_0_2_we0 = 1'b0;
     end
@@ -3282,9 +2814,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_3_address0 = grp_riccati_forward_pass_fu_653_K_0_0_3_address0;
+        K_0_0_3_address0 = grp_riccati_forward_pass_fu_537_K_0_0_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_3_address0 = grp_riccati_backward_pass_fu_400_K_0_0_3_address0;
+        K_0_0_3_address0 = grp_riccati_backward_pass_fu_342_K_0_0_3_address0;
     end else begin
         K_0_0_3_address0 = 'bx;
     end
@@ -3292,9 +2824,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_3_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_3_ce0;
+        K_0_0_3_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_3_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_3_ce0;
+        K_0_0_3_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_3_ce0;
     end else begin
         K_0_0_3_ce0 = 1'b0;
     end
@@ -3302,7 +2834,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_3_we0 = grp_riccati_backward_pass_fu_400_K_0_0_3_we0;
+        K_0_0_3_we0 = grp_riccati_backward_pass_fu_342_K_0_0_3_we0;
     end else begin
         K_0_0_3_we0 = 1'b0;
     end
@@ -3310,9 +2842,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_4_address0 = grp_riccati_forward_pass_fu_653_K_0_0_4_address0;
+        K_0_0_4_address0 = grp_riccati_forward_pass_fu_537_K_0_0_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_4_address0 = grp_riccati_backward_pass_fu_400_K_0_0_4_address0;
+        K_0_0_4_address0 = grp_riccati_backward_pass_fu_342_K_0_0_4_address0;
     end else begin
         K_0_0_4_address0 = 'bx;
     end
@@ -3320,9 +2852,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_4_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_4_ce0;
+        K_0_0_4_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_4_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_4_ce0;
+        K_0_0_4_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_4_ce0;
     end else begin
         K_0_0_4_ce0 = 1'b0;
     end
@@ -3330,7 +2862,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_4_we0 = grp_riccati_backward_pass_fu_400_K_0_0_4_we0;
+        K_0_0_4_we0 = grp_riccati_backward_pass_fu_342_K_0_0_4_we0;
     end else begin
         K_0_0_4_we0 = 1'b0;
     end
@@ -3338,9 +2870,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_5_address0 = grp_riccati_forward_pass_fu_653_K_0_0_5_address0;
+        K_0_0_5_address0 = grp_riccati_forward_pass_fu_537_K_0_0_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_5_address0 = grp_riccati_backward_pass_fu_400_K_0_0_5_address0;
+        K_0_0_5_address0 = grp_riccati_backward_pass_fu_342_K_0_0_5_address0;
     end else begin
         K_0_0_5_address0 = 'bx;
     end
@@ -3348,9 +2880,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_5_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_5_ce0;
+        K_0_0_5_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_5_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_5_ce0;
+        K_0_0_5_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_5_ce0;
     end else begin
         K_0_0_5_ce0 = 1'b0;
     end
@@ -3358,7 +2890,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_5_we0 = grp_riccati_backward_pass_fu_400_K_0_0_5_we0;
+        K_0_0_5_we0 = grp_riccati_backward_pass_fu_342_K_0_0_5_we0;
     end else begin
         K_0_0_5_we0 = 1'b0;
     end
@@ -3366,9 +2898,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_6_address0 = grp_riccati_forward_pass_fu_653_K_0_0_6_address0;
+        K_0_0_6_address0 = grp_riccati_forward_pass_fu_537_K_0_0_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_6_address0 = grp_riccati_backward_pass_fu_400_K_0_0_6_address0;
+        K_0_0_6_address0 = grp_riccati_backward_pass_fu_342_K_0_0_6_address0;
     end else begin
         K_0_0_6_address0 = 'bx;
     end
@@ -3376,9 +2908,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_6_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_6_ce0;
+        K_0_0_6_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_6_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_6_ce0;
+        K_0_0_6_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_6_ce0;
     end else begin
         K_0_0_6_ce0 = 1'b0;
     end
@@ -3386,7 +2918,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_6_we0 = grp_riccati_backward_pass_fu_400_K_0_0_6_we0;
+        K_0_0_6_we0 = grp_riccati_backward_pass_fu_342_K_0_0_6_we0;
     end else begin
         K_0_0_6_we0 = 1'b0;
     end
@@ -3394,9 +2926,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_7_address0 = grp_riccati_forward_pass_fu_653_K_0_0_7_address0;
+        K_0_0_7_address0 = grp_riccati_forward_pass_fu_537_K_0_0_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_7_address0 = grp_riccati_backward_pass_fu_400_K_0_0_7_address0;
+        K_0_0_7_address0 = grp_riccati_backward_pass_fu_342_K_0_0_7_address0;
     end else begin
         K_0_0_7_address0 = 'bx;
     end
@@ -3404,9 +2936,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_0_7_ce0 = grp_riccati_forward_pass_fu_653_K_0_0_7_ce0;
+        K_0_0_7_ce0 = grp_riccati_forward_pass_fu_537_K_0_0_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_7_ce0 = grp_riccati_backward_pass_fu_400_K_0_0_7_ce0;
+        K_0_0_7_ce0 = grp_riccati_backward_pass_fu_342_K_0_0_7_ce0;
     end else begin
         K_0_0_7_ce0 = 1'b0;
     end
@@ -3414,7 +2946,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_0_7_we0 = grp_riccati_backward_pass_fu_400_K_0_0_7_we0;
+        K_0_0_7_we0 = grp_riccati_backward_pass_fu_342_K_0_0_7_we0;
     end else begin
         K_0_0_7_we0 = 1'b0;
     end
@@ -3422,9 +2954,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_0_address0 = grp_riccati_forward_pass_fu_653_K_0_1_0_address0;
+        K_0_1_0_address0 = grp_riccati_forward_pass_fu_537_K_0_1_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_0_address0 = grp_riccati_backward_pass_fu_400_K_0_1_0_address0;
+        K_0_1_0_address0 = grp_riccati_backward_pass_fu_342_K_0_1_0_address0;
     end else begin
         K_0_1_0_address0 = 'bx;
     end
@@ -3432,9 +2964,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_0_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_0_ce0;
+        K_0_1_0_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_0_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_0_ce0;
+        K_0_1_0_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_0_ce0;
     end else begin
         K_0_1_0_ce0 = 1'b0;
     end
@@ -3442,7 +2974,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_0_we0 = grp_riccati_backward_pass_fu_400_K_0_1_0_we0;
+        K_0_1_0_we0 = grp_riccati_backward_pass_fu_342_K_0_1_0_we0;
     end else begin
         K_0_1_0_we0 = 1'b0;
     end
@@ -3450,9 +2982,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_1_address0 = grp_riccati_forward_pass_fu_653_K_0_1_1_address0;
+        K_0_1_1_address0 = grp_riccati_forward_pass_fu_537_K_0_1_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_1_address0 = grp_riccati_backward_pass_fu_400_K_0_1_1_address0;
+        K_0_1_1_address0 = grp_riccati_backward_pass_fu_342_K_0_1_1_address0;
     end else begin
         K_0_1_1_address0 = 'bx;
     end
@@ -3460,9 +2992,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_1_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_1_ce0;
+        K_0_1_1_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_1_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_1_ce0;
+        K_0_1_1_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_1_ce0;
     end else begin
         K_0_1_1_ce0 = 1'b0;
     end
@@ -3470,7 +3002,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_1_we0 = grp_riccati_backward_pass_fu_400_K_0_1_1_we0;
+        K_0_1_1_we0 = grp_riccati_backward_pass_fu_342_K_0_1_1_we0;
     end else begin
         K_0_1_1_we0 = 1'b0;
     end
@@ -3478,9 +3010,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_2_address0 = grp_riccati_forward_pass_fu_653_K_0_1_2_address0;
+        K_0_1_2_address0 = grp_riccati_forward_pass_fu_537_K_0_1_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_2_address0 = grp_riccati_backward_pass_fu_400_K_0_1_2_address0;
+        K_0_1_2_address0 = grp_riccati_backward_pass_fu_342_K_0_1_2_address0;
     end else begin
         K_0_1_2_address0 = 'bx;
     end
@@ -3488,9 +3020,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_2_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_2_ce0;
+        K_0_1_2_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_2_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_2_ce0;
+        K_0_1_2_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_2_ce0;
     end else begin
         K_0_1_2_ce0 = 1'b0;
     end
@@ -3498,7 +3030,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_2_we0 = grp_riccati_backward_pass_fu_400_K_0_1_2_we0;
+        K_0_1_2_we0 = grp_riccati_backward_pass_fu_342_K_0_1_2_we0;
     end else begin
         K_0_1_2_we0 = 1'b0;
     end
@@ -3506,9 +3038,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_3_address0 = grp_riccati_forward_pass_fu_653_K_0_1_3_address0;
+        K_0_1_3_address0 = grp_riccati_forward_pass_fu_537_K_0_1_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_3_address0 = grp_riccati_backward_pass_fu_400_K_0_1_3_address0;
+        K_0_1_3_address0 = grp_riccati_backward_pass_fu_342_K_0_1_3_address0;
     end else begin
         K_0_1_3_address0 = 'bx;
     end
@@ -3516,9 +3048,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_3_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_3_ce0;
+        K_0_1_3_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_3_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_3_ce0;
+        K_0_1_3_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_3_ce0;
     end else begin
         K_0_1_3_ce0 = 1'b0;
     end
@@ -3526,7 +3058,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_3_we0 = grp_riccati_backward_pass_fu_400_K_0_1_3_we0;
+        K_0_1_3_we0 = grp_riccati_backward_pass_fu_342_K_0_1_3_we0;
     end else begin
         K_0_1_3_we0 = 1'b0;
     end
@@ -3534,9 +3066,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_4_address0 = grp_riccati_forward_pass_fu_653_K_0_1_4_address0;
+        K_0_1_4_address0 = grp_riccati_forward_pass_fu_537_K_0_1_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_4_address0 = grp_riccati_backward_pass_fu_400_K_0_1_4_address0;
+        K_0_1_4_address0 = grp_riccati_backward_pass_fu_342_K_0_1_4_address0;
     end else begin
         K_0_1_4_address0 = 'bx;
     end
@@ -3544,9 +3076,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_4_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_4_ce0;
+        K_0_1_4_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_4_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_4_ce0;
+        K_0_1_4_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_4_ce0;
     end else begin
         K_0_1_4_ce0 = 1'b0;
     end
@@ -3554,7 +3086,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_4_we0 = grp_riccati_backward_pass_fu_400_K_0_1_4_we0;
+        K_0_1_4_we0 = grp_riccati_backward_pass_fu_342_K_0_1_4_we0;
     end else begin
         K_0_1_4_we0 = 1'b0;
     end
@@ -3562,9 +3094,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_5_address0 = grp_riccati_forward_pass_fu_653_K_0_1_5_address0;
+        K_0_1_5_address0 = grp_riccati_forward_pass_fu_537_K_0_1_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_5_address0 = grp_riccati_backward_pass_fu_400_K_0_1_5_address0;
+        K_0_1_5_address0 = grp_riccati_backward_pass_fu_342_K_0_1_5_address0;
     end else begin
         K_0_1_5_address0 = 'bx;
     end
@@ -3572,9 +3104,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_5_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_5_ce0;
+        K_0_1_5_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_5_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_5_ce0;
+        K_0_1_5_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_5_ce0;
     end else begin
         K_0_1_5_ce0 = 1'b0;
     end
@@ -3582,7 +3114,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_5_we0 = grp_riccati_backward_pass_fu_400_K_0_1_5_we0;
+        K_0_1_5_we0 = grp_riccati_backward_pass_fu_342_K_0_1_5_we0;
     end else begin
         K_0_1_5_we0 = 1'b0;
     end
@@ -3590,9 +3122,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_6_address0 = grp_riccati_forward_pass_fu_653_K_0_1_6_address0;
+        K_0_1_6_address0 = grp_riccati_forward_pass_fu_537_K_0_1_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_6_address0 = grp_riccati_backward_pass_fu_400_K_0_1_6_address0;
+        K_0_1_6_address0 = grp_riccati_backward_pass_fu_342_K_0_1_6_address0;
     end else begin
         K_0_1_6_address0 = 'bx;
     end
@@ -3600,9 +3132,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_6_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_6_ce0;
+        K_0_1_6_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_6_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_6_ce0;
+        K_0_1_6_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_6_ce0;
     end else begin
         K_0_1_6_ce0 = 1'b0;
     end
@@ -3610,7 +3142,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_6_we0 = grp_riccati_backward_pass_fu_400_K_0_1_6_we0;
+        K_0_1_6_we0 = grp_riccati_backward_pass_fu_342_K_0_1_6_we0;
     end else begin
         K_0_1_6_we0 = 1'b0;
     end
@@ -3618,9 +3150,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_7_address0 = grp_riccati_forward_pass_fu_653_K_0_1_7_address0;
+        K_0_1_7_address0 = grp_riccati_forward_pass_fu_537_K_0_1_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_7_address0 = grp_riccati_backward_pass_fu_400_K_0_1_7_address0;
+        K_0_1_7_address0 = grp_riccati_backward_pass_fu_342_K_0_1_7_address0;
     end else begin
         K_0_1_7_address0 = 'bx;
     end
@@ -3628,9 +3160,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_0_1_7_ce0 = grp_riccati_forward_pass_fu_653_K_0_1_7_ce0;
+        K_0_1_7_ce0 = grp_riccati_forward_pass_fu_537_K_0_1_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_7_ce0 = grp_riccati_backward_pass_fu_400_K_0_1_7_ce0;
+        K_0_1_7_ce0 = grp_riccati_backward_pass_fu_342_K_0_1_7_ce0;
     end else begin
         K_0_1_7_ce0 = 1'b0;
     end
@@ -3638,7 +3170,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_0_1_7_we0 = grp_riccati_backward_pass_fu_400_K_0_1_7_we0;
+        K_0_1_7_we0 = grp_riccati_backward_pass_fu_342_K_0_1_7_we0;
     end else begin
         K_0_1_7_we0 = 1'b0;
     end
@@ -3646,9 +3178,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_0_address0 = grp_riccati_forward_pass_fu_653_K_1_0_0_address0;
+        K_1_0_0_address0 = grp_riccati_forward_pass_fu_537_K_1_0_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_0_address0 = grp_riccati_backward_pass_fu_400_K_1_0_0_address0;
+        K_1_0_0_address0 = grp_riccati_backward_pass_fu_342_K_1_0_0_address0;
     end else begin
         K_1_0_0_address0 = 'bx;
     end
@@ -3656,9 +3188,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_0_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_0_ce0;
+        K_1_0_0_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_0_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_0_ce0;
+        K_1_0_0_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_0_ce0;
     end else begin
         K_1_0_0_ce0 = 1'b0;
     end
@@ -3666,7 +3198,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_0_we0 = grp_riccati_backward_pass_fu_400_K_1_0_0_we0;
+        K_1_0_0_we0 = grp_riccati_backward_pass_fu_342_K_1_0_0_we0;
     end else begin
         K_1_0_0_we0 = 1'b0;
     end
@@ -3674,9 +3206,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_1_address0 = grp_riccati_forward_pass_fu_653_K_1_0_1_address0;
+        K_1_0_1_address0 = grp_riccati_forward_pass_fu_537_K_1_0_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_1_address0 = grp_riccati_backward_pass_fu_400_K_1_0_1_address0;
+        K_1_0_1_address0 = grp_riccati_backward_pass_fu_342_K_1_0_1_address0;
     end else begin
         K_1_0_1_address0 = 'bx;
     end
@@ -3684,9 +3216,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_1_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_1_ce0;
+        K_1_0_1_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_1_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_1_ce0;
+        K_1_0_1_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_1_ce0;
     end else begin
         K_1_0_1_ce0 = 1'b0;
     end
@@ -3694,7 +3226,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_1_we0 = grp_riccati_backward_pass_fu_400_K_1_0_1_we0;
+        K_1_0_1_we0 = grp_riccati_backward_pass_fu_342_K_1_0_1_we0;
     end else begin
         K_1_0_1_we0 = 1'b0;
     end
@@ -3702,9 +3234,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_2_address0 = grp_riccati_forward_pass_fu_653_K_1_0_2_address0;
+        K_1_0_2_address0 = grp_riccati_forward_pass_fu_537_K_1_0_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_2_address0 = grp_riccati_backward_pass_fu_400_K_1_0_2_address0;
+        K_1_0_2_address0 = grp_riccati_backward_pass_fu_342_K_1_0_2_address0;
     end else begin
         K_1_0_2_address0 = 'bx;
     end
@@ -3712,9 +3244,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_2_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_2_ce0;
+        K_1_0_2_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_2_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_2_ce0;
+        K_1_0_2_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_2_ce0;
     end else begin
         K_1_0_2_ce0 = 1'b0;
     end
@@ -3722,7 +3254,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_2_we0 = grp_riccati_backward_pass_fu_400_K_1_0_2_we0;
+        K_1_0_2_we0 = grp_riccati_backward_pass_fu_342_K_1_0_2_we0;
     end else begin
         K_1_0_2_we0 = 1'b0;
     end
@@ -3730,9 +3262,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_3_address0 = grp_riccati_forward_pass_fu_653_K_1_0_3_address0;
+        K_1_0_3_address0 = grp_riccati_forward_pass_fu_537_K_1_0_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_3_address0 = grp_riccati_backward_pass_fu_400_K_1_0_3_address0;
+        K_1_0_3_address0 = grp_riccati_backward_pass_fu_342_K_1_0_3_address0;
     end else begin
         K_1_0_3_address0 = 'bx;
     end
@@ -3740,9 +3272,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_3_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_3_ce0;
+        K_1_0_3_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_3_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_3_ce0;
+        K_1_0_3_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_3_ce0;
     end else begin
         K_1_0_3_ce0 = 1'b0;
     end
@@ -3750,7 +3282,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_3_we0 = grp_riccati_backward_pass_fu_400_K_1_0_3_we0;
+        K_1_0_3_we0 = grp_riccati_backward_pass_fu_342_K_1_0_3_we0;
     end else begin
         K_1_0_3_we0 = 1'b0;
     end
@@ -3758,9 +3290,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_4_address0 = grp_riccati_forward_pass_fu_653_K_1_0_4_address0;
+        K_1_0_4_address0 = grp_riccati_forward_pass_fu_537_K_1_0_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_4_address0 = grp_riccati_backward_pass_fu_400_K_1_0_4_address0;
+        K_1_0_4_address0 = grp_riccati_backward_pass_fu_342_K_1_0_4_address0;
     end else begin
         K_1_0_4_address0 = 'bx;
     end
@@ -3768,9 +3300,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_4_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_4_ce0;
+        K_1_0_4_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_4_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_4_ce0;
+        K_1_0_4_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_4_ce0;
     end else begin
         K_1_0_4_ce0 = 1'b0;
     end
@@ -3778,7 +3310,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_4_we0 = grp_riccati_backward_pass_fu_400_K_1_0_4_we0;
+        K_1_0_4_we0 = grp_riccati_backward_pass_fu_342_K_1_0_4_we0;
     end else begin
         K_1_0_4_we0 = 1'b0;
     end
@@ -3786,9 +3318,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_5_address0 = grp_riccati_forward_pass_fu_653_K_1_0_5_address0;
+        K_1_0_5_address0 = grp_riccati_forward_pass_fu_537_K_1_0_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_5_address0 = grp_riccati_backward_pass_fu_400_K_1_0_5_address0;
+        K_1_0_5_address0 = grp_riccati_backward_pass_fu_342_K_1_0_5_address0;
     end else begin
         K_1_0_5_address0 = 'bx;
     end
@@ -3796,9 +3328,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_5_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_5_ce0;
+        K_1_0_5_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_5_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_5_ce0;
+        K_1_0_5_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_5_ce0;
     end else begin
         K_1_0_5_ce0 = 1'b0;
     end
@@ -3806,7 +3338,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_5_we0 = grp_riccati_backward_pass_fu_400_K_1_0_5_we0;
+        K_1_0_5_we0 = grp_riccati_backward_pass_fu_342_K_1_0_5_we0;
     end else begin
         K_1_0_5_we0 = 1'b0;
     end
@@ -3814,9 +3346,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_6_address0 = grp_riccati_forward_pass_fu_653_K_1_0_6_address0;
+        K_1_0_6_address0 = grp_riccati_forward_pass_fu_537_K_1_0_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_6_address0 = grp_riccati_backward_pass_fu_400_K_1_0_6_address0;
+        K_1_0_6_address0 = grp_riccati_backward_pass_fu_342_K_1_0_6_address0;
     end else begin
         K_1_0_6_address0 = 'bx;
     end
@@ -3824,9 +3356,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_6_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_6_ce0;
+        K_1_0_6_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_6_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_6_ce0;
+        K_1_0_6_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_6_ce0;
     end else begin
         K_1_0_6_ce0 = 1'b0;
     end
@@ -3834,7 +3366,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_6_we0 = grp_riccati_backward_pass_fu_400_K_1_0_6_we0;
+        K_1_0_6_we0 = grp_riccati_backward_pass_fu_342_K_1_0_6_we0;
     end else begin
         K_1_0_6_we0 = 1'b0;
     end
@@ -3842,9 +3374,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_7_address0 = grp_riccati_forward_pass_fu_653_K_1_0_7_address0;
+        K_1_0_7_address0 = grp_riccati_forward_pass_fu_537_K_1_0_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_7_address0 = grp_riccati_backward_pass_fu_400_K_1_0_7_address0;
+        K_1_0_7_address0 = grp_riccati_backward_pass_fu_342_K_1_0_7_address0;
     end else begin
         K_1_0_7_address0 = 'bx;
     end
@@ -3852,9 +3384,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_0_7_ce0 = grp_riccati_forward_pass_fu_653_K_1_0_7_ce0;
+        K_1_0_7_ce0 = grp_riccati_forward_pass_fu_537_K_1_0_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_7_ce0 = grp_riccati_backward_pass_fu_400_K_1_0_7_ce0;
+        K_1_0_7_ce0 = grp_riccati_backward_pass_fu_342_K_1_0_7_ce0;
     end else begin
         K_1_0_7_ce0 = 1'b0;
     end
@@ -3862,7 +3394,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_0_7_we0 = grp_riccati_backward_pass_fu_400_K_1_0_7_we0;
+        K_1_0_7_we0 = grp_riccati_backward_pass_fu_342_K_1_0_7_we0;
     end else begin
         K_1_0_7_we0 = 1'b0;
     end
@@ -3870,9 +3402,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_0_address0 = grp_riccati_forward_pass_fu_653_K_1_1_0_address0;
+        K_1_1_0_address0 = grp_riccati_forward_pass_fu_537_K_1_1_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_0_address0 = grp_riccati_backward_pass_fu_400_K_1_1_0_address0;
+        K_1_1_0_address0 = grp_riccati_backward_pass_fu_342_K_1_1_0_address0;
     end else begin
         K_1_1_0_address0 = 'bx;
     end
@@ -3880,9 +3412,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_0_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_0_ce0;
+        K_1_1_0_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_0_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_0_ce0;
+        K_1_1_0_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_0_ce0;
     end else begin
         K_1_1_0_ce0 = 1'b0;
     end
@@ -3890,7 +3422,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_0_we0 = grp_riccati_backward_pass_fu_400_K_1_1_0_we0;
+        K_1_1_0_we0 = grp_riccati_backward_pass_fu_342_K_1_1_0_we0;
     end else begin
         K_1_1_0_we0 = 1'b0;
     end
@@ -3898,9 +3430,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_1_address0 = grp_riccati_forward_pass_fu_653_K_1_1_1_address0;
+        K_1_1_1_address0 = grp_riccati_forward_pass_fu_537_K_1_1_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_1_address0 = grp_riccati_backward_pass_fu_400_K_1_1_1_address0;
+        K_1_1_1_address0 = grp_riccati_backward_pass_fu_342_K_1_1_1_address0;
     end else begin
         K_1_1_1_address0 = 'bx;
     end
@@ -3908,9 +3440,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_1_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_1_ce0;
+        K_1_1_1_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_1_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_1_ce0;
+        K_1_1_1_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_1_ce0;
     end else begin
         K_1_1_1_ce0 = 1'b0;
     end
@@ -3918,7 +3450,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_1_we0 = grp_riccati_backward_pass_fu_400_K_1_1_1_we0;
+        K_1_1_1_we0 = grp_riccati_backward_pass_fu_342_K_1_1_1_we0;
     end else begin
         K_1_1_1_we0 = 1'b0;
     end
@@ -3926,9 +3458,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_2_address0 = grp_riccati_forward_pass_fu_653_K_1_1_2_address0;
+        K_1_1_2_address0 = grp_riccati_forward_pass_fu_537_K_1_1_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_2_address0 = grp_riccati_backward_pass_fu_400_K_1_1_2_address0;
+        K_1_1_2_address0 = grp_riccati_backward_pass_fu_342_K_1_1_2_address0;
     end else begin
         K_1_1_2_address0 = 'bx;
     end
@@ -3936,9 +3468,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_2_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_2_ce0;
+        K_1_1_2_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_2_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_2_ce0;
+        K_1_1_2_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_2_ce0;
     end else begin
         K_1_1_2_ce0 = 1'b0;
     end
@@ -3946,7 +3478,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_2_we0 = grp_riccati_backward_pass_fu_400_K_1_1_2_we0;
+        K_1_1_2_we0 = grp_riccati_backward_pass_fu_342_K_1_1_2_we0;
     end else begin
         K_1_1_2_we0 = 1'b0;
     end
@@ -3954,9 +3486,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_3_address0 = grp_riccati_forward_pass_fu_653_K_1_1_3_address0;
+        K_1_1_3_address0 = grp_riccati_forward_pass_fu_537_K_1_1_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_3_address0 = grp_riccati_backward_pass_fu_400_K_1_1_3_address0;
+        K_1_1_3_address0 = grp_riccati_backward_pass_fu_342_K_1_1_3_address0;
     end else begin
         K_1_1_3_address0 = 'bx;
     end
@@ -3964,9 +3496,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_3_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_3_ce0;
+        K_1_1_3_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_3_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_3_ce0;
+        K_1_1_3_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_3_ce0;
     end else begin
         K_1_1_3_ce0 = 1'b0;
     end
@@ -3974,7 +3506,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_3_we0 = grp_riccati_backward_pass_fu_400_K_1_1_3_we0;
+        K_1_1_3_we0 = grp_riccati_backward_pass_fu_342_K_1_1_3_we0;
     end else begin
         K_1_1_3_we0 = 1'b0;
     end
@@ -3982,9 +3514,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_4_address0 = grp_riccati_forward_pass_fu_653_K_1_1_4_address0;
+        K_1_1_4_address0 = grp_riccati_forward_pass_fu_537_K_1_1_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_4_address0 = grp_riccati_backward_pass_fu_400_K_1_1_4_address0;
+        K_1_1_4_address0 = grp_riccati_backward_pass_fu_342_K_1_1_4_address0;
     end else begin
         K_1_1_4_address0 = 'bx;
     end
@@ -3992,9 +3524,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_4_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_4_ce0;
+        K_1_1_4_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_4_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_4_ce0;
+        K_1_1_4_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_4_ce0;
     end else begin
         K_1_1_4_ce0 = 1'b0;
     end
@@ -4002,7 +3534,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_4_we0 = grp_riccati_backward_pass_fu_400_K_1_1_4_we0;
+        K_1_1_4_we0 = grp_riccati_backward_pass_fu_342_K_1_1_4_we0;
     end else begin
         K_1_1_4_we0 = 1'b0;
     end
@@ -4010,9 +3542,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_5_address0 = grp_riccati_forward_pass_fu_653_K_1_1_5_address0;
+        K_1_1_5_address0 = grp_riccati_forward_pass_fu_537_K_1_1_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_5_address0 = grp_riccati_backward_pass_fu_400_K_1_1_5_address0;
+        K_1_1_5_address0 = grp_riccati_backward_pass_fu_342_K_1_1_5_address0;
     end else begin
         K_1_1_5_address0 = 'bx;
     end
@@ -4020,9 +3552,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_5_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_5_ce0;
+        K_1_1_5_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_5_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_5_ce0;
+        K_1_1_5_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_5_ce0;
     end else begin
         K_1_1_5_ce0 = 1'b0;
     end
@@ -4030,7 +3562,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_5_we0 = grp_riccati_backward_pass_fu_400_K_1_1_5_we0;
+        K_1_1_5_we0 = grp_riccati_backward_pass_fu_342_K_1_1_5_we0;
     end else begin
         K_1_1_5_we0 = 1'b0;
     end
@@ -4038,9 +3570,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_6_address0 = grp_riccati_forward_pass_fu_653_K_1_1_6_address0;
+        K_1_1_6_address0 = grp_riccati_forward_pass_fu_537_K_1_1_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_6_address0 = grp_riccati_backward_pass_fu_400_K_1_1_6_address0;
+        K_1_1_6_address0 = grp_riccati_backward_pass_fu_342_K_1_1_6_address0;
     end else begin
         K_1_1_6_address0 = 'bx;
     end
@@ -4048,9 +3580,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_6_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_6_ce0;
+        K_1_1_6_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_6_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_6_ce0;
+        K_1_1_6_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_6_ce0;
     end else begin
         K_1_1_6_ce0 = 1'b0;
     end
@@ -4058,7 +3590,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_6_we0 = grp_riccati_backward_pass_fu_400_K_1_1_6_we0;
+        K_1_1_6_we0 = grp_riccati_backward_pass_fu_342_K_1_1_6_we0;
     end else begin
         K_1_1_6_we0 = 1'b0;
     end
@@ -4066,9 +3598,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_7_address0 = grp_riccati_forward_pass_fu_653_K_1_1_7_address0;
+        K_1_1_7_address0 = grp_riccati_forward_pass_fu_537_K_1_1_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_7_address0 = grp_riccati_backward_pass_fu_400_K_1_1_7_address0;
+        K_1_1_7_address0 = grp_riccati_backward_pass_fu_342_K_1_1_7_address0;
     end else begin
         K_1_1_7_address0 = 'bx;
     end
@@ -4076,9 +3608,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_1_1_7_ce0 = grp_riccati_forward_pass_fu_653_K_1_1_7_ce0;
+        K_1_1_7_ce0 = grp_riccati_forward_pass_fu_537_K_1_1_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_7_ce0 = grp_riccati_backward_pass_fu_400_K_1_1_7_ce0;
+        K_1_1_7_ce0 = grp_riccati_backward_pass_fu_342_K_1_1_7_ce0;
     end else begin
         K_1_1_7_ce0 = 1'b0;
     end
@@ -4086,7 +3618,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_1_1_7_we0 = grp_riccati_backward_pass_fu_400_K_1_1_7_we0;
+        K_1_1_7_we0 = grp_riccati_backward_pass_fu_342_K_1_1_7_we0;
     end else begin
         K_1_1_7_we0 = 1'b0;
     end
@@ -4094,9 +3626,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_0_address0 = grp_riccati_forward_pass_fu_653_K_2_0_0_address0;
+        K_2_0_0_address0 = grp_riccati_forward_pass_fu_537_K_2_0_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_0_address0 = grp_riccati_backward_pass_fu_400_K_2_0_0_address0;
+        K_2_0_0_address0 = grp_riccati_backward_pass_fu_342_K_2_0_0_address0;
     end else begin
         K_2_0_0_address0 = 'bx;
     end
@@ -4104,9 +3636,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_0_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_0_ce0;
+        K_2_0_0_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_0_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_0_ce0;
+        K_2_0_0_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_0_ce0;
     end else begin
         K_2_0_0_ce0 = 1'b0;
     end
@@ -4114,7 +3646,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_0_we0 = grp_riccati_backward_pass_fu_400_K_2_0_0_we0;
+        K_2_0_0_we0 = grp_riccati_backward_pass_fu_342_K_2_0_0_we0;
     end else begin
         K_2_0_0_we0 = 1'b0;
     end
@@ -4122,9 +3654,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_1_address0 = grp_riccati_forward_pass_fu_653_K_2_0_1_address0;
+        K_2_0_1_address0 = grp_riccati_forward_pass_fu_537_K_2_0_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_1_address0 = grp_riccati_backward_pass_fu_400_K_2_0_1_address0;
+        K_2_0_1_address0 = grp_riccati_backward_pass_fu_342_K_2_0_1_address0;
     end else begin
         K_2_0_1_address0 = 'bx;
     end
@@ -4132,9 +3664,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_1_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_1_ce0;
+        K_2_0_1_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_1_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_1_ce0;
+        K_2_0_1_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_1_ce0;
     end else begin
         K_2_0_1_ce0 = 1'b0;
     end
@@ -4142,7 +3674,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_1_we0 = grp_riccati_backward_pass_fu_400_K_2_0_1_we0;
+        K_2_0_1_we0 = grp_riccati_backward_pass_fu_342_K_2_0_1_we0;
     end else begin
         K_2_0_1_we0 = 1'b0;
     end
@@ -4150,9 +3682,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_2_address0 = grp_riccati_forward_pass_fu_653_K_2_0_2_address0;
+        K_2_0_2_address0 = grp_riccati_forward_pass_fu_537_K_2_0_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_2_address0 = grp_riccati_backward_pass_fu_400_K_2_0_2_address0;
+        K_2_0_2_address0 = grp_riccati_backward_pass_fu_342_K_2_0_2_address0;
     end else begin
         K_2_0_2_address0 = 'bx;
     end
@@ -4160,9 +3692,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_2_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_2_ce0;
+        K_2_0_2_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_2_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_2_ce0;
+        K_2_0_2_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_2_ce0;
     end else begin
         K_2_0_2_ce0 = 1'b0;
     end
@@ -4170,7 +3702,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_2_we0 = grp_riccati_backward_pass_fu_400_K_2_0_2_we0;
+        K_2_0_2_we0 = grp_riccati_backward_pass_fu_342_K_2_0_2_we0;
     end else begin
         K_2_0_2_we0 = 1'b0;
     end
@@ -4178,9 +3710,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_3_address0 = grp_riccati_forward_pass_fu_653_K_2_0_3_address0;
+        K_2_0_3_address0 = grp_riccati_forward_pass_fu_537_K_2_0_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_3_address0 = grp_riccati_backward_pass_fu_400_K_2_0_3_address0;
+        K_2_0_3_address0 = grp_riccati_backward_pass_fu_342_K_2_0_3_address0;
     end else begin
         K_2_0_3_address0 = 'bx;
     end
@@ -4188,9 +3720,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_3_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_3_ce0;
+        K_2_0_3_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_3_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_3_ce0;
+        K_2_0_3_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_3_ce0;
     end else begin
         K_2_0_3_ce0 = 1'b0;
     end
@@ -4198,7 +3730,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_3_we0 = grp_riccati_backward_pass_fu_400_K_2_0_3_we0;
+        K_2_0_3_we0 = grp_riccati_backward_pass_fu_342_K_2_0_3_we0;
     end else begin
         K_2_0_3_we0 = 1'b0;
     end
@@ -4206,9 +3738,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_4_address0 = grp_riccati_forward_pass_fu_653_K_2_0_4_address0;
+        K_2_0_4_address0 = grp_riccati_forward_pass_fu_537_K_2_0_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_4_address0 = grp_riccati_backward_pass_fu_400_K_2_0_4_address0;
+        K_2_0_4_address0 = grp_riccati_backward_pass_fu_342_K_2_0_4_address0;
     end else begin
         K_2_0_4_address0 = 'bx;
     end
@@ -4216,9 +3748,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_4_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_4_ce0;
+        K_2_0_4_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_4_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_4_ce0;
+        K_2_0_4_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_4_ce0;
     end else begin
         K_2_0_4_ce0 = 1'b0;
     end
@@ -4226,7 +3758,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_4_we0 = grp_riccati_backward_pass_fu_400_K_2_0_4_we0;
+        K_2_0_4_we0 = grp_riccati_backward_pass_fu_342_K_2_0_4_we0;
     end else begin
         K_2_0_4_we0 = 1'b0;
     end
@@ -4234,9 +3766,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_5_address0 = grp_riccati_forward_pass_fu_653_K_2_0_5_address0;
+        K_2_0_5_address0 = grp_riccati_forward_pass_fu_537_K_2_0_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_5_address0 = grp_riccati_backward_pass_fu_400_K_2_0_5_address0;
+        K_2_0_5_address0 = grp_riccati_backward_pass_fu_342_K_2_0_5_address0;
     end else begin
         K_2_0_5_address0 = 'bx;
     end
@@ -4244,9 +3776,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_5_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_5_ce0;
+        K_2_0_5_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_5_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_5_ce0;
+        K_2_0_5_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_5_ce0;
     end else begin
         K_2_0_5_ce0 = 1'b0;
     end
@@ -4254,7 +3786,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_5_we0 = grp_riccati_backward_pass_fu_400_K_2_0_5_we0;
+        K_2_0_5_we0 = grp_riccati_backward_pass_fu_342_K_2_0_5_we0;
     end else begin
         K_2_0_5_we0 = 1'b0;
     end
@@ -4262,9 +3794,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_6_address0 = grp_riccati_forward_pass_fu_653_K_2_0_6_address0;
+        K_2_0_6_address0 = grp_riccati_forward_pass_fu_537_K_2_0_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_6_address0 = grp_riccati_backward_pass_fu_400_K_2_0_6_address0;
+        K_2_0_6_address0 = grp_riccati_backward_pass_fu_342_K_2_0_6_address0;
     end else begin
         K_2_0_6_address0 = 'bx;
     end
@@ -4272,9 +3804,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_6_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_6_ce0;
+        K_2_0_6_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_6_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_6_ce0;
+        K_2_0_6_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_6_ce0;
     end else begin
         K_2_0_6_ce0 = 1'b0;
     end
@@ -4282,7 +3814,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_6_we0 = grp_riccati_backward_pass_fu_400_K_2_0_6_we0;
+        K_2_0_6_we0 = grp_riccati_backward_pass_fu_342_K_2_0_6_we0;
     end else begin
         K_2_0_6_we0 = 1'b0;
     end
@@ -4290,9 +3822,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_7_address0 = grp_riccati_forward_pass_fu_653_K_2_0_7_address0;
+        K_2_0_7_address0 = grp_riccati_forward_pass_fu_537_K_2_0_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_7_address0 = grp_riccati_backward_pass_fu_400_K_2_0_7_address0;
+        K_2_0_7_address0 = grp_riccati_backward_pass_fu_342_K_2_0_7_address0;
     end else begin
         K_2_0_7_address0 = 'bx;
     end
@@ -4300,9 +3832,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_0_7_ce0 = grp_riccati_forward_pass_fu_653_K_2_0_7_ce0;
+        K_2_0_7_ce0 = grp_riccati_forward_pass_fu_537_K_2_0_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_7_ce0 = grp_riccati_backward_pass_fu_400_K_2_0_7_ce0;
+        K_2_0_7_ce0 = grp_riccati_backward_pass_fu_342_K_2_0_7_ce0;
     end else begin
         K_2_0_7_ce0 = 1'b0;
     end
@@ -4310,7 +3842,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_0_7_we0 = grp_riccati_backward_pass_fu_400_K_2_0_7_we0;
+        K_2_0_7_we0 = grp_riccati_backward_pass_fu_342_K_2_0_7_we0;
     end else begin
         K_2_0_7_we0 = 1'b0;
     end
@@ -4318,9 +3850,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_0_address0 = grp_riccati_forward_pass_fu_653_K_2_1_0_address0;
+        K_2_1_0_address0 = grp_riccati_forward_pass_fu_537_K_2_1_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_0_address0 = grp_riccati_backward_pass_fu_400_K_2_1_0_address0;
+        K_2_1_0_address0 = grp_riccati_backward_pass_fu_342_K_2_1_0_address0;
     end else begin
         K_2_1_0_address0 = 'bx;
     end
@@ -4328,9 +3860,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_0_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_0_ce0;
+        K_2_1_0_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_0_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_0_ce0;
+        K_2_1_0_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_0_ce0;
     end else begin
         K_2_1_0_ce0 = 1'b0;
     end
@@ -4338,7 +3870,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_0_we0 = grp_riccati_backward_pass_fu_400_K_2_1_0_we0;
+        K_2_1_0_we0 = grp_riccati_backward_pass_fu_342_K_2_1_0_we0;
     end else begin
         K_2_1_0_we0 = 1'b0;
     end
@@ -4346,9 +3878,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_1_address0 = grp_riccati_forward_pass_fu_653_K_2_1_1_address0;
+        K_2_1_1_address0 = grp_riccati_forward_pass_fu_537_K_2_1_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_1_address0 = grp_riccati_backward_pass_fu_400_K_2_1_1_address0;
+        K_2_1_1_address0 = grp_riccati_backward_pass_fu_342_K_2_1_1_address0;
     end else begin
         K_2_1_1_address0 = 'bx;
     end
@@ -4356,9 +3888,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_1_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_1_ce0;
+        K_2_1_1_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_1_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_1_ce0;
+        K_2_1_1_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_1_ce0;
     end else begin
         K_2_1_1_ce0 = 1'b0;
     end
@@ -4366,7 +3898,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_1_we0 = grp_riccati_backward_pass_fu_400_K_2_1_1_we0;
+        K_2_1_1_we0 = grp_riccati_backward_pass_fu_342_K_2_1_1_we0;
     end else begin
         K_2_1_1_we0 = 1'b0;
     end
@@ -4374,9 +3906,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_2_address0 = grp_riccati_forward_pass_fu_653_K_2_1_2_address0;
+        K_2_1_2_address0 = grp_riccati_forward_pass_fu_537_K_2_1_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_2_address0 = grp_riccati_backward_pass_fu_400_K_2_1_2_address0;
+        K_2_1_2_address0 = grp_riccati_backward_pass_fu_342_K_2_1_2_address0;
     end else begin
         K_2_1_2_address0 = 'bx;
     end
@@ -4384,9 +3916,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_2_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_2_ce0;
+        K_2_1_2_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_2_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_2_ce0;
+        K_2_1_2_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_2_ce0;
     end else begin
         K_2_1_2_ce0 = 1'b0;
     end
@@ -4394,7 +3926,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_2_we0 = grp_riccati_backward_pass_fu_400_K_2_1_2_we0;
+        K_2_1_2_we0 = grp_riccati_backward_pass_fu_342_K_2_1_2_we0;
     end else begin
         K_2_1_2_we0 = 1'b0;
     end
@@ -4402,9 +3934,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_3_address0 = grp_riccati_forward_pass_fu_653_K_2_1_3_address0;
+        K_2_1_3_address0 = grp_riccati_forward_pass_fu_537_K_2_1_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_3_address0 = grp_riccati_backward_pass_fu_400_K_2_1_3_address0;
+        K_2_1_3_address0 = grp_riccati_backward_pass_fu_342_K_2_1_3_address0;
     end else begin
         K_2_1_3_address0 = 'bx;
     end
@@ -4412,9 +3944,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_3_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_3_ce0;
+        K_2_1_3_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_3_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_3_ce0;
+        K_2_1_3_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_3_ce0;
     end else begin
         K_2_1_3_ce0 = 1'b0;
     end
@@ -4422,7 +3954,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_3_we0 = grp_riccati_backward_pass_fu_400_K_2_1_3_we0;
+        K_2_1_3_we0 = grp_riccati_backward_pass_fu_342_K_2_1_3_we0;
     end else begin
         K_2_1_3_we0 = 1'b0;
     end
@@ -4430,9 +3962,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_4_address0 = grp_riccati_forward_pass_fu_653_K_2_1_4_address0;
+        K_2_1_4_address0 = grp_riccati_forward_pass_fu_537_K_2_1_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_4_address0 = grp_riccati_backward_pass_fu_400_K_2_1_4_address0;
+        K_2_1_4_address0 = grp_riccati_backward_pass_fu_342_K_2_1_4_address0;
     end else begin
         K_2_1_4_address0 = 'bx;
     end
@@ -4440,9 +3972,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_4_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_4_ce0;
+        K_2_1_4_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_4_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_4_ce0;
+        K_2_1_4_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_4_ce0;
     end else begin
         K_2_1_4_ce0 = 1'b0;
     end
@@ -4450,7 +3982,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_4_we0 = grp_riccati_backward_pass_fu_400_K_2_1_4_we0;
+        K_2_1_4_we0 = grp_riccati_backward_pass_fu_342_K_2_1_4_we0;
     end else begin
         K_2_1_4_we0 = 1'b0;
     end
@@ -4458,9 +3990,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_5_address0 = grp_riccati_forward_pass_fu_653_K_2_1_5_address0;
+        K_2_1_5_address0 = grp_riccati_forward_pass_fu_537_K_2_1_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_5_address0 = grp_riccati_backward_pass_fu_400_K_2_1_5_address0;
+        K_2_1_5_address0 = grp_riccati_backward_pass_fu_342_K_2_1_5_address0;
     end else begin
         K_2_1_5_address0 = 'bx;
     end
@@ -4468,9 +4000,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_5_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_5_ce0;
+        K_2_1_5_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_5_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_5_ce0;
+        K_2_1_5_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_5_ce0;
     end else begin
         K_2_1_5_ce0 = 1'b0;
     end
@@ -4478,7 +4010,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_5_we0 = grp_riccati_backward_pass_fu_400_K_2_1_5_we0;
+        K_2_1_5_we0 = grp_riccati_backward_pass_fu_342_K_2_1_5_we0;
     end else begin
         K_2_1_5_we0 = 1'b0;
     end
@@ -4486,9 +4018,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_6_address0 = grp_riccati_forward_pass_fu_653_K_2_1_6_address0;
+        K_2_1_6_address0 = grp_riccati_forward_pass_fu_537_K_2_1_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_6_address0 = grp_riccati_backward_pass_fu_400_K_2_1_6_address0;
+        K_2_1_6_address0 = grp_riccati_backward_pass_fu_342_K_2_1_6_address0;
     end else begin
         K_2_1_6_address0 = 'bx;
     end
@@ -4496,9 +4028,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_6_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_6_ce0;
+        K_2_1_6_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_6_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_6_ce0;
+        K_2_1_6_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_6_ce0;
     end else begin
         K_2_1_6_ce0 = 1'b0;
     end
@@ -4506,7 +4038,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_6_we0 = grp_riccati_backward_pass_fu_400_K_2_1_6_we0;
+        K_2_1_6_we0 = grp_riccati_backward_pass_fu_342_K_2_1_6_we0;
     end else begin
         K_2_1_6_we0 = 1'b0;
     end
@@ -4514,9 +4046,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_7_address0 = grp_riccati_forward_pass_fu_653_K_2_1_7_address0;
+        K_2_1_7_address0 = grp_riccati_forward_pass_fu_537_K_2_1_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_7_address0 = grp_riccati_backward_pass_fu_400_K_2_1_7_address0;
+        K_2_1_7_address0 = grp_riccati_backward_pass_fu_342_K_2_1_7_address0;
     end else begin
         K_2_1_7_address0 = 'bx;
     end
@@ -4524,9 +4056,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_2_1_7_ce0 = grp_riccati_forward_pass_fu_653_K_2_1_7_ce0;
+        K_2_1_7_ce0 = grp_riccati_forward_pass_fu_537_K_2_1_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_7_ce0 = grp_riccati_backward_pass_fu_400_K_2_1_7_ce0;
+        K_2_1_7_ce0 = grp_riccati_backward_pass_fu_342_K_2_1_7_ce0;
     end else begin
         K_2_1_7_ce0 = 1'b0;
     end
@@ -4534,7 +4066,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_2_1_7_we0 = grp_riccati_backward_pass_fu_400_K_2_1_7_we0;
+        K_2_1_7_we0 = grp_riccati_backward_pass_fu_342_K_2_1_7_we0;
     end else begin
         K_2_1_7_we0 = 1'b0;
     end
@@ -4542,9 +4074,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_0_address0 = grp_riccati_forward_pass_fu_653_K_3_0_0_address0;
+        K_3_0_0_address0 = grp_riccati_forward_pass_fu_537_K_3_0_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_0_address0 = grp_riccati_backward_pass_fu_400_K_3_0_0_address0;
+        K_3_0_0_address0 = grp_riccati_backward_pass_fu_342_K_3_0_0_address0;
     end else begin
         K_3_0_0_address0 = 'bx;
     end
@@ -4552,9 +4084,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_0_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_0_ce0;
+        K_3_0_0_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_0_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_0_ce0;
+        K_3_0_0_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_0_ce0;
     end else begin
         K_3_0_0_ce0 = 1'b0;
     end
@@ -4562,7 +4094,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_0_we0 = grp_riccati_backward_pass_fu_400_K_3_0_0_we0;
+        K_3_0_0_we0 = grp_riccati_backward_pass_fu_342_K_3_0_0_we0;
     end else begin
         K_3_0_0_we0 = 1'b0;
     end
@@ -4570,9 +4102,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_1_address0 = grp_riccati_forward_pass_fu_653_K_3_0_1_address0;
+        K_3_0_1_address0 = grp_riccati_forward_pass_fu_537_K_3_0_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_1_address0 = grp_riccati_backward_pass_fu_400_K_3_0_1_address0;
+        K_3_0_1_address0 = grp_riccati_backward_pass_fu_342_K_3_0_1_address0;
     end else begin
         K_3_0_1_address0 = 'bx;
     end
@@ -4580,9 +4112,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_1_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_1_ce0;
+        K_3_0_1_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_1_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_1_ce0;
+        K_3_0_1_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_1_ce0;
     end else begin
         K_3_0_1_ce0 = 1'b0;
     end
@@ -4590,7 +4122,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_1_we0 = grp_riccati_backward_pass_fu_400_K_3_0_1_we0;
+        K_3_0_1_we0 = grp_riccati_backward_pass_fu_342_K_3_0_1_we0;
     end else begin
         K_3_0_1_we0 = 1'b0;
     end
@@ -4598,9 +4130,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_2_address0 = grp_riccati_forward_pass_fu_653_K_3_0_2_address0;
+        K_3_0_2_address0 = grp_riccati_forward_pass_fu_537_K_3_0_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_2_address0 = grp_riccati_backward_pass_fu_400_K_3_0_2_address0;
+        K_3_0_2_address0 = grp_riccati_backward_pass_fu_342_K_3_0_2_address0;
     end else begin
         K_3_0_2_address0 = 'bx;
     end
@@ -4608,9 +4140,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_2_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_2_ce0;
+        K_3_0_2_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_2_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_2_ce0;
+        K_3_0_2_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_2_ce0;
     end else begin
         K_3_0_2_ce0 = 1'b0;
     end
@@ -4618,7 +4150,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_2_we0 = grp_riccati_backward_pass_fu_400_K_3_0_2_we0;
+        K_3_0_2_we0 = grp_riccati_backward_pass_fu_342_K_3_0_2_we0;
     end else begin
         K_3_0_2_we0 = 1'b0;
     end
@@ -4626,9 +4158,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_3_address0 = grp_riccati_forward_pass_fu_653_K_3_0_3_address0;
+        K_3_0_3_address0 = grp_riccati_forward_pass_fu_537_K_3_0_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_3_address0 = grp_riccati_backward_pass_fu_400_K_3_0_3_address0;
+        K_3_0_3_address0 = grp_riccati_backward_pass_fu_342_K_3_0_3_address0;
     end else begin
         K_3_0_3_address0 = 'bx;
     end
@@ -4636,9 +4168,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_3_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_3_ce0;
+        K_3_0_3_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_3_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_3_ce0;
+        K_3_0_3_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_3_ce0;
     end else begin
         K_3_0_3_ce0 = 1'b0;
     end
@@ -4646,7 +4178,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_3_we0 = grp_riccati_backward_pass_fu_400_K_3_0_3_we0;
+        K_3_0_3_we0 = grp_riccati_backward_pass_fu_342_K_3_0_3_we0;
     end else begin
         K_3_0_3_we0 = 1'b0;
     end
@@ -4654,9 +4186,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_4_address0 = grp_riccati_forward_pass_fu_653_K_3_0_4_address0;
+        K_3_0_4_address0 = grp_riccati_forward_pass_fu_537_K_3_0_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_4_address0 = grp_riccati_backward_pass_fu_400_K_3_0_4_address0;
+        K_3_0_4_address0 = grp_riccati_backward_pass_fu_342_K_3_0_4_address0;
     end else begin
         K_3_0_4_address0 = 'bx;
     end
@@ -4664,9 +4196,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_4_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_4_ce0;
+        K_3_0_4_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_4_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_4_ce0;
+        K_3_0_4_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_4_ce0;
     end else begin
         K_3_0_4_ce0 = 1'b0;
     end
@@ -4674,7 +4206,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_4_we0 = grp_riccati_backward_pass_fu_400_K_3_0_4_we0;
+        K_3_0_4_we0 = grp_riccati_backward_pass_fu_342_K_3_0_4_we0;
     end else begin
         K_3_0_4_we0 = 1'b0;
     end
@@ -4682,9 +4214,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_5_address0 = grp_riccati_forward_pass_fu_653_K_3_0_5_address0;
+        K_3_0_5_address0 = grp_riccati_forward_pass_fu_537_K_3_0_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_5_address0 = grp_riccati_backward_pass_fu_400_K_3_0_5_address0;
+        K_3_0_5_address0 = grp_riccati_backward_pass_fu_342_K_3_0_5_address0;
     end else begin
         K_3_0_5_address0 = 'bx;
     end
@@ -4692,9 +4224,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_5_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_5_ce0;
+        K_3_0_5_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_5_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_5_ce0;
+        K_3_0_5_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_5_ce0;
     end else begin
         K_3_0_5_ce0 = 1'b0;
     end
@@ -4702,7 +4234,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_5_we0 = grp_riccati_backward_pass_fu_400_K_3_0_5_we0;
+        K_3_0_5_we0 = grp_riccati_backward_pass_fu_342_K_3_0_5_we0;
     end else begin
         K_3_0_5_we0 = 1'b0;
     end
@@ -4710,9 +4242,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_6_address0 = grp_riccati_forward_pass_fu_653_K_3_0_6_address0;
+        K_3_0_6_address0 = grp_riccati_forward_pass_fu_537_K_3_0_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_6_address0 = grp_riccati_backward_pass_fu_400_K_3_0_6_address0;
+        K_3_0_6_address0 = grp_riccati_backward_pass_fu_342_K_3_0_6_address0;
     end else begin
         K_3_0_6_address0 = 'bx;
     end
@@ -4720,9 +4252,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_6_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_6_ce0;
+        K_3_0_6_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_6_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_6_ce0;
+        K_3_0_6_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_6_ce0;
     end else begin
         K_3_0_6_ce0 = 1'b0;
     end
@@ -4730,7 +4262,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_6_we0 = grp_riccati_backward_pass_fu_400_K_3_0_6_we0;
+        K_3_0_6_we0 = grp_riccati_backward_pass_fu_342_K_3_0_6_we0;
     end else begin
         K_3_0_6_we0 = 1'b0;
     end
@@ -4738,9 +4270,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_7_address0 = grp_riccati_forward_pass_fu_653_K_3_0_7_address0;
+        K_3_0_7_address0 = grp_riccati_forward_pass_fu_537_K_3_0_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_7_address0 = grp_riccati_backward_pass_fu_400_K_3_0_7_address0;
+        K_3_0_7_address0 = grp_riccati_backward_pass_fu_342_K_3_0_7_address0;
     end else begin
         K_3_0_7_address0 = 'bx;
     end
@@ -4748,9 +4280,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_0_7_ce0 = grp_riccati_forward_pass_fu_653_K_3_0_7_ce0;
+        K_3_0_7_ce0 = grp_riccati_forward_pass_fu_537_K_3_0_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_7_ce0 = grp_riccati_backward_pass_fu_400_K_3_0_7_ce0;
+        K_3_0_7_ce0 = grp_riccati_backward_pass_fu_342_K_3_0_7_ce0;
     end else begin
         K_3_0_7_ce0 = 1'b0;
     end
@@ -4758,7 +4290,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_0_7_we0 = grp_riccati_backward_pass_fu_400_K_3_0_7_we0;
+        K_3_0_7_we0 = grp_riccati_backward_pass_fu_342_K_3_0_7_we0;
     end else begin
         K_3_0_7_we0 = 1'b0;
     end
@@ -4766,9 +4298,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_0_address0 = grp_riccati_forward_pass_fu_653_K_3_1_0_address0;
+        K_3_1_0_address0 = grp_riccati_forward_pass_fu_537_K_3_1_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_0_address0 = grp_riccati_backward_pass_fu_400_K_3_1_0_address0;
+        K_3_1_0_address0 = grp_riccati_backward_pass_fu_342_K_3_1_0_address0;
     end else begin
         K_3_1_0_address0 = 'bx;
     end
@@ -4776,9 +4308,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_0_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_0_ce0;
+        K_3_1_0_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_0_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_0_ce0;
+        K_3_1_0_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_0_ce0;
     end else begin
         K_3_1_0_ce0 = 1'b0;
     end
@@ -4786,7 +4318,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_0_we0 = grp_riccati_backward_pass_fu_400_K_3_1_0_we0;
+        K_3_1_0_we0 = grp_riccati_backward_pass_fu_342_K_3_1_0_we0;
     end else begin
         K_3_1_0_we0 = 1'b0;
     end
@@ -4794,9 +4326,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_1_address0 = grp_riccati_forward_pass_fu_653_K_3_1_1_address0;
+        K_3_1_1_address0 = grp_riccati_forward_pass_fu_537_K_3_1_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_1_address0 = grp_riccati_backward_pass_fu_400_K_3_1_1_address0;
+        K_3_1_1_address0 = grp_riccati_backward_pass_fu_342_K_3_1_1_address0;
     end else begin
         K_3_1_1_address0 = 'bx;
     end
@@ -4804,9 +4336,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_1_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_1_ce0;
+        K_3_1_1_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_1_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_1_ce0;
+        K_3_1_1_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_1_ce0;
     end else begin
         K_3_1_1_ce0 = 1'b0;
     end
@@ -4814,7 +4346,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_1_we0 = grp_riccati_backward_pass_fu_400_K_3_1_1_we0;
+        K_3_1_1_we0 = grp_riccati_backward_pass_fu_342_K_3_1_1_we0;
     end else begin
         K_3_1_1_we0 = 1'b0;
     end
@@ -4822,9 +4354,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_2_address0 = grp_riccati_forward_pass_fu_653_K_3_1_2_address0;
+        K_3_1_2_address0 = grp_riccati_forward_pass_fu_537_K_3_1_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_2_address0 = grp_riccati_backward_pass_fu_400_K_3_1_2_address0;
+        K_3_1_2_address0 = grp_riccati_backward_pass_fu_342_K_3_1_2_address0;
     end else begin
         K_3_1_2_address0 = 'bx;
     end
@@ -4832,9 +4364,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_2_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_2_ce0;
+        K_3_1_2_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_2_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_2_ce0;
+        K_3_1_2_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_2_ce0;
     end else begin
         K_3_1_2_ce0 = 1'b0;
     end
@@ -4842,7 +4374,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_2_we0 = grp_riccati_backward_pass_fu_400_K_3_1_2_we0;
+        K_3_1_2_we0 = grp_riccati_backward_pass_fu_342_K_3_1_2_we0;
     end else begin
         K_3_1_2_we0 = 1'b0;
     end
@@ -4850,9 +4382,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_3_address0 = grp_riccati_forward_pass_fu_653_K_3_1_3_address0;
+        K_3_1_3_address0 = grp_riccati_forward_pass_fu_537_K_3_1_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_3_address0 = grp_riccati_backward_pass_fu_400_K_3_1_3_address0;
+        K_3_1_3_address0 = grp_riccati_backward_pass_fu_342_K_3_1_3_address0;
     end else begin
         K_3_1_3_address0 = 'bx;
     end
@@ -4860,9 +4392,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_3_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_3_ce0;
+        K_3_1_3_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_3_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_3_ce0;
+        K_3_1_3_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_3_ce0;
     end else begin
         K_3_1_3_ce0 = 1'b0;
     end
@@ -4870,7 +4402,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_3_we0 = grp_riccati_backward_pass_fu_400_K_3_1_3_we0;
+        K_3_1_3_we0 = grp_riccati_backward_pass_fu_342_K_3_1_3_we0;
     end else begin
         K_3_1_3_we0 = 1'b0;
     end
@@ -4878,9 +4410,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_4_address0 = grp_riccati_forward_pass_fu_653_K_3_1_4_address0;
+        K_3_1_4_address0 = grp_riccati_forward_pass_fu_537_K_3_1_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_4_address0 = grp_riccati_backward_pass_fu_400_K_3_1_4_address0;
+        K_3_1_4_address0 = grp_riccati_backward_pass_fu_342_K_3_1_4_address0;
     end else begin
         K_3_1_4_address0 = 'bx;
     end
@@ -4888,9 +4420,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_4_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_4_ce0;
+        K_3_1_4_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_4_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_4_ce0;
+        K_3_1_4_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_4_ce0;
     end else begin
         K_3_1_4_ce0 = 1'b0;
     end
@@ -4898,7 +4430,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_4_we0 = grp_riccati_backward_pass_fu_400_K_3_1_4_we0;
+        K_3_1_4_we0 = grp_riccati_backward_pass_fu_342_K_3_1_4_we0;
     end else begin
         K_3_1_4_we0 = 1'b0;
     end
@@ -4906,9 +4438,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_5_address0 = grp_riccati_forward_pass_fu_653_K_3_1_5_address0;
+        K_3_1_5_address0 = grp_riccati_forward_pass_fu_537_K_3_1_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_5_address0 = grp_riccati_backward_pass_fu_400_K_3_1_5_address0;
+        K_3_1_5_address0 = grp_riccati_backward_pass_fu_342_K_3_1_5_address0;
     end else begin
         K_3_1_5_address0 = 'bx;
     end
@@ -4916,9 +4448,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_5_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_5_ce0;
+        K_3_1_5_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_5_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_5_ce0;
+        K_3_1_5_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_5_ce0;
     end else begin
         K_3_1_5_ce0 = 1'b0;
     end
@@ -4926,7 +4458,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_5_we0 = grp_riccati_backward_pass_fu_400_K_3_1_5_we0;
+        K_3_1_5_we0 = grp_riccati_backward_pass_fu_342_K_3_1_5_we0;
     end else begin
         K_3_1_5_we0 = 1'b0;
     end
@@ -4934,9 +4466,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_6_address0 = grp_riccati_forward_pass_fu_653_K_3_1_6_address0;
+        K_3_1_6_address0 = grp_riccati_forward_pass_fu_537_K_3_1_6_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_6_address0 = grp_riccati_backward_pass_fu_400_K_3_1_6_address0;
+        K_3_1_6_address0 = grp_riccati_backward_pass_fu_342_K_3_1_6_address0;
     end else begin
         K_3_1_6_address0 = 'bx;
     end
@@ -4944,9 +4476,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_6_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_6_ce0;
+        K_3_1_6_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_6_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_6_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_6_ce0;
+        K_3_1_6_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_6_ce0;
     end else begin
         K_3_1_6_ce0 = 1'b0;
     end
@@ -4954,7 +4486,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_6_we0 = grp_riccati_backward_pass_fu_400_K_3_1_6_we0;
+        K_3_1_6_we0 = grp_riccati_backward_pass_fu_342_K_3_1_6_we0;
     end else begin
         K_3_1_6_we0 = 1'b0;
     end
@@ -4962,9 +4494,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_7_address0 = grp_riccati_forward_pass_fu_653_K_3_1_7_address0;
+        K_3_1_7_address0 = grp_riccati_forward_pass_fu_537_K_3_1_7_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_7_address0 = grp_riccati_backward_pass_fu_400_K_3_1_7_address0;
+        K_3_1_7_address0 = grp_riccati_backward_pass_fu_342_K_3_1_7_address0;
     end else begin
         K_3_1_7_address0 = 'bx;
     end
@@ -4972,9 +4504,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        K_3_1_7_ce0 = grp_riccati_forward_pass_fu_653_K_3_1_7_ce0;
+        K_3_1_7_ce0 = grp_riccati_forward_pass_fu_537_K_3_1_7_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_7_ce0 = grp_riccati_backward_pass_fu_400_K_3_1_7_ce0;
+        K_3_1_7_ce0 = grp_riccati_backward_pass_fu_342_K_3_1_7_ce0;
     end else begin
         K_3_1_7_ce0 = 1'b0;
     end
@@ -4982,7 +4514,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        K_3_1_7_we0 = grp_riccati_backward_pass_fu_400_K_3_1_7_we0;
+        K_3_1_7_we0 = grp_riccati_backward_pass_fu_342_K_3_1_7_we0;
     end else begin
         K_3_1_7_we0 = 1'b0;
     end
@@ -4997,7 +4529,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((grp_riccati_backward_pass_fu_400_ap_done == 1'b0)) begin
+    if ((grp_riccati_backward_pass_fu_342_ap_done == 1'b0)) begin
         ap_ST_fsm_state2_blk = 1'b1;
     end else begin
         ap_ST_fsm_state2_blk = 1'b0;
@@ -5007,7 +4539,7 @@ end
 assign ap_ST_fsm_state3_blk = 1'b0;
 
 always @ (*) begin
-    if ((grp_riccati_forward_pass_fu_653_ap_done == 1'b0)) begin
+    if ((grp_riccati_forward_pass_fu_537_ap_done == 1'b0)) begin
         ap_ST_fsm_state4_blk = 1'b1;
     end else begin
         ap_ST_fsm_state4_blk = 1'b0;
@@ -5015,7 +4547,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if ((((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_653_ap_done == 1'b1)) | ((ap_start == 1'b0) & (1'b1 == ap_CS_fsm_state1)))) begin
+    if ((((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_537_ap_done == 1'b1)) | ((ap_start == 1'b0) & (1'b1 == ap_CS_fsm_state1)))) begin
         ap_done = 1'b1;
     end else begin
         ap_done = 1'b0;
@@ -5031,7 +4563,7 @@ always @ (*) begin
 end
 
 always @ (*) begin
-    if (((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_653_ap_done == 1'b1))) begin
+    if (((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_537_ap_done == 1'b1))) begin
         ap_ready = 1'b1;
     end else begin
         ap_ready = 1'b0;
@@ -5040,33 +4572,33 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        grp_fu_1001_ce = grp_riccati_backward_pass_fu_400_grp_fu_1001_p_ce;
+        grp_fu_822_ce = grp_riccati_backward_pass_fu_342_grp_fu_822_p_ce;
     end else begin
-        grp_fu_1001_ce = 1'b1;
+        grp_fu_822_ce = 1'b1;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        grp_fu_1005_ce = grp_riccati_backward_pass_fu_400_grp_fu_1005_p_ce;
+        grp_fu_826_ce = grp_riccati_backward_pass_fu_342_grp_fu_826_p_ce;
     end else begin
-        grp_fu_1005_ce = 1'b1;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state2)) begin
-        grp_fu_997_ce = grp_riccati_backward_pass_fu_400_grp_fu_997_p_ce;
-    end else begin
-        grp_fu_997_ce = 1'b1;
+        grp_fu_826_ce = 1'b1;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        kk_0_address0 = grp_riccati_forward_pass_fu_653_kk_0_address0;
+        grp_fu_830_ce = grp_riccati_forward_pass_fu_537_grp_fu_830_p_ce;
+    end else begin
+        grp_fu_830_ce = 1'b1;
+    end
+end
+
+always @ (*) begin
+    if ((1'b1 == ap_CS_fsm_state4)) begin
+        kk_0_address0 = grp_riccati_forward_pass_fu_537_kk_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_0_address0 = grp_riccati_backward_pass_fu_400_kk_0_address0;
+        kk_0_address0 = grp_riccati_backward_pass_fu_342_kk_0_address0;
     end else begin
         kk_0_address0 = 'bx;
     end
@@ -5074,9 +4606,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        kk_0_ce0 = grp_riccati_forward_pass_fu_653_kk_0_ce0;
+        kk_0_ce0 = grp_riccati_forward_pass_fu_537_kk_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_0_ce0 = grp_riccati_backward_pass_fu_400_kk_0_ce0;
+        kk_0_ce0 = grp_riccati_backward_pass_fu_342_kk_0_ce0;
     end else begin
         kk_0_ce0 = 1'b0;
     end
@@ -5084,7 +4616,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_0_we0 = grp_riccati_backward_pass_fu_400_kk_0_we0;
+        kk_0_we0 = grp_riccati_backward_pass_fu_342_kk_0_we0;
     end else begin
         kk_0_we0 = 1'b0;
     end
@@ -5092,9 +4624,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        kk_1_address0 = grp_riccati_forward_pass_fu_653_kk_1_address0;
+        kk_1_address0 = grp_riccati_forward_pass_fu_537_kk_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_1_address0 = grp_riccati_backward_pass_fu_400_kk_1_address0;
+        kk_1_address0 = grp_riccati_backward_pass_fu_342_kk_1_address0;
     end else begin
         kk_1_address0 = 'bx;
     end
@@ -5102,9 +4634,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        kk_1_ce0 = grp_riccati_forward_pass_fu_653_kk_1_ce0;
+        kk_1_ce0 = grp_riccati_forward_pass_fu_537_kk_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_1_ce0 = grp_riccati_backward_pass_fu_400_kk_1_ce0;
+        kk_1_ce0 = grp_riccati_backward_pass_fu_342_kk_1_ce0;
     end else begin
         kk_1_ce0 = 1'b0;
     end
@@ -5112,7 +4644,7 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state2)) begin
-        kk_1_we0 = grp_riccati_backward_pass_fu_400_kk_1_we0;
+        kk_1_we0 = grp_riccati_backward_pass_fu_342_kk_1_we0;
     end else begin
         kk_1_we0 = 1'b0;
     end
@@ -5120,729 +4652,177 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_0_address0;
+        step_data_0_0_address0 = grp_riccati_forward_pass_fu_537_step_data_0_0_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_0_address0;
+        step_data_0_0_address0 = grp_riccati_backward_pass_fu_342_step_data_0_0_address0;
     end else begin
-        step_data_0_0_0_address0 = 'bx;
+        step_data_0_0_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_0_ce0;
+        step_data_0_0_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_0_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_0_ce0;
+        step_data_0_0_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_0_ce0;
     end else begin
-        step_data_0_0_0_ce0 = 1'b0;
+        step_data_0_0_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_1_address0;
-    end else begin
-        step_data_0_0_1_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_1_ce0;
-    end else begin
-        step_data_0_0_1_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_2_address0;
-    end else begin
-        step_data_0_0_2_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_2_ce0;
-    end else begin
-        step_data_0_0_2_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_3_address0;
-    end else begin
-        step_data_0_0_3_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_3_ce0;
-    end else begin
-        step_data_0_0_3_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_4_address0;
-    end else begin
-        step_data_0_0_4_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_4_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_4_ce0;
-    end else begin
-        step_data_0_0_4_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_0_5_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_0_5_address0;
-    end else begin
-        step_data_0_0_5_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_0_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_0_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_0_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_0_5_ce0;
-    end else begin
-        step_data_0_0_5_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_0_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_0_address0;
-    end else begin
-        step_data_0_1_0_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_0_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_0_ce0;
-    end else begin
-        step_data_0_1_0_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_1_address0;
-    end else begin
-        step_data_0_1_1_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_1_ce0;
-    end else begin
-        step_data_0_1_1_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_2_address0;
-    end else begin
-        step_data_0_1_2_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_2_ce0;
-    end else begin
-        step_data_0_1_2_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_3_address0;
-    end else begin
-        step_data_0_1_3_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_3_ce0;
-    end else begin
-        step_data_0_1_3_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_4_address0;
-    end else begin
-        step_data_0_1_4_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_4_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_4_ce0;
-    end else begin
-        step_data_0_1_4_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_1_5_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_1_5_address0;
-    end else begin
-        step_data_0_1_5_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_1_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_1_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_1_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_1_5_ce0;
-    end else begin
-        step_data_0_1_5_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_0_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_0_address0;
-    end else begin
-        step_data_0_2_0_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_0_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_0_ce0;
-    end else begin
-        step_data_0_2_0_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_1_address0;
-    end else begin
-        step_data_0_2_1_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_1_ce0;
-    end else begin
-        step_data_0_2_1_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_2_address0;
-    end else begin
-        step_data_0_2_2_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_2_ce0;
-    end else begin
-        step_data_0_2_2_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_3_address0;
-    end else begin
-        step_data_0_2_3_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_3_ce0;
-    end else begin
-        step_data_0_2_3_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_4_address0;
-    end else begin
-        step_data_0_2_4_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_4_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_4_ce0;
-    end else begin
-        step_data_0_2_4_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_2_5_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_2_5_address0;
-    end else begin
-        step_data_0_2_5_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_2_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_2_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_2_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_2_5_ce0;
-    end else begin
-        step_data_0_2_5_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_0_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_0_address0;
-    end else begin
-        step_data_0_3_0_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_0_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_0_ce0;
-    end else begin
-        step_data_0_3_0_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_1_address0;
-    end else begin
-        step_data_0_3_1_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_1_ce0;
-    end else begin
-        step_data_0_3_1_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_2_address0;
-    end else begin
-        step_data_0_3_2_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_2_ce0;
-    end else begin
-        step_data_0_3_2_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_3_address0;
-    end else begin
-        step_data_0_3_3_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_3_ce0;
-    end else begin
-        step_data_0_3_3_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_4_address0;
-    end else begin
-        step_data_0_3_4_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_4_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_4_ce0;
-    end else begin
-        step_data_0_3_4_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_3_5_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_3_5_address0;
-    end else begin
-        step_data_0_3_5_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_3_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_3_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_3_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_3_5_ce0;
-    end else begin
-        step_data_0_3_5_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_0_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_0_address0;
-    end else begin
-        step_data_0_4_0_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_0_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_0_ce0;
-    end else begin
-        step_data_0_4_0_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_1_address0;
-    end else begin
-        step_data_0_4_1_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_1_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_1_ce0;
-    end else begin
-        step_data_0_4_1_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_2_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_2_address0;
-    end else begin
-        step_data_0_4_2_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_2_ce0;
-    end else begin
-        step_data_0_4_2_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_3_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_3_address0;
-    end else begin
-        step_data_0_4_3_address0 = 'bx;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_3_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_3_ce0;
-    end else begin
-        step_data_0_4_3_ce0 = 1'b0;
-    end
-end
-
-always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_4_address0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_0_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_0_ce1;
     end else begin
-        step_data_0_4_4_address0 = 'bx;
+        step_data_0_0_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_4_ce0;
+        step_data_0_1_address0 = grp_riccati_forward_pass_fu_537_step_data_0_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_4_ce0;
+        step_data_0_1_address0 = grp_riccati_backward_pass_fu_342_step_data_0_1_address0;
     end else begin
-        step_data_0_4_4_ce0 = 1'b0;
+        step_data_0_1_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_4_5_address0;
+        step_data_0_1_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_4_5_address0;
+        step_data_0_1_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_1_ce0;
     end else begin
-        step_data_0_4_5_address0 = 'bx;
+        step_data_0_1_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_4_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_4_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_4_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_4_5_ce0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_1_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_1_ce1;
     end else begin
-        step_data_0_4_5_ce0 = 1'b0;
+        step_data_0_1_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_0_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_0_address0;
+        step_data_0_2_address0 = grp_riccati_forward_pass_fu_537_step_data_0_2_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_0_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_0_address0;
+        step_data_0_2_address0 = grp_riccati_backward_pass_fu_342_step_data_0_2_address0;
     end else begin
-        step_data_0_5_0_address0 = 'bx;
+        step_data_0_2_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_0_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_0_ce0;
+        step_data_0_2_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_2_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_0_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_0_ce0;
+        step_data_0_2_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_2_ce0;
     end else begin
-        step_data_0_5_0_ce0 = 1'b0;
+        step_data_0_2_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_1_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_1_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_1_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_1_address0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_2_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_2_ce1;
     end else begin
-        step_data_0_5_1_address0 = 'bx;
+        step_data_0_2_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_1_ce0;
+        step_data_0_3_address0 = grp_riccati_forward_pass_fu_537_step_data_0_3_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_1_ce0;
+        step_data_0_3_address0 = grp_riccati_backward_pass_fu_342_step_data_0_3_address0;
     end else begin
-        step_data_0_5_1_ce0 = 1'b0;
+        step_data_0_3_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_2_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_2_address0;
+        step_data_0_3_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_3_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_2_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_2_address0;
+        step_data_0_3_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_3_ce0;
     end else begin
-        step_data_0_5_2_address0 = 'bx;
+        step_data_0_3_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_2_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_2_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_2_ce0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_3_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_3_ce1;
     end else begin
-        step_data_0_5_2_ce0 = 1'b0;
+        step_data_0_3_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_3_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_3_address0;
+        step_data_0_4_address0 = grp_riccati_forward_pass_fu_537_step_data_0_4_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_3_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_3_address0;
+        step_data_0_4_address0 = grp_riccati_backward_pass_fu_342_step_data_0_4_address0;
     end else begin
-        step_data_0_5_3_address0 = 'bx;
+        step_data_0_4_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_3_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_3_ce0;
+        step_data_0_4_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_4_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_3_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_3_ce0;
+        step_data_0_4_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_4_ce0;
     end else begin
-        step_data_0_5_3_ce0 = 1'b0;
+        step_data_0_4_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_4_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_4_address0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_4_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_4_address0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_4_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_4_ce1;
     end else begin
-        step_data_0_5_4_address0 = 'bx;
+        step_data_0_4_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_4_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_4_ce0;
+        step_data_0_5_address0 = grp_riccati_forward_pass_fu_537_step_data_0_5_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_4_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_4_ce0;
+        step_data_0_5_address0 = grp_riccati_backward_pass_fu_342_step_data_0_5_address0;
     end else begin
-        step_data_0_5_4_ce0 = 1'b0;
+        step_data_0_5_address0 = 'bx;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_5_address0 = grp_riccati_forward_pass_fu_653_step_data_0_5_5_address0;
+        step_data_0_5_ce0 = grp_riccati_forward_pass_fu_537_step_data_0_5_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_5_address0 = grp_riccati_backward_pass_fu_400_step_data_0_5_5_address0;
+        step_data_0_5_ce0 = grp_riccati_backward_pass_fu_342_step_data_0_5_ce0;
     end else begin
-        step_data_0_5_5_address0 = 'bx;
+        step_data_0_5_ce0 = 1'b0;
     end
 end
 
 always @ (*) begin
-    if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_0_5_5_ce0 = grp_riccati_forward_pass_fu_653_step_data_0_5_5_ce0;
-    end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_0_5_5_ce0 = grp_riccati_backward_pass_fu_400_step_data_0_5_5_ce0;
+    if ((1'b1 == ap_CS_fsm_state2)) begin
+        step_data_0_5_ce1 = grp_riccati_backward_pass_fu_342_step_data_0_5_ce1;
     end else begin
-        step_data_0_5_5_ce0 = 1'b0;
+        step_data_0_5_ce1 = 1'b0;
     end
 end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_1_address0 = grp_riccati_forward_pass_fu_653_step_data_1_address0;
+        step_data_1_address0 = grp_riccati_forward_pass_fu_537_step_data_1_address0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_1_address0 = grp_riccati_backward_pass_fu_400_step_data_1_address0;
+        step_data_1_address0 = grp_riccati_backward_pass_fu_342_step_data_1_address0;
     end else begin
         step_data_1_address0 = 'bx;
     end
@@ -5850,9 +4830,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_1_address1 = grp_riccati_forward_pass_fu_653_step_data_1_address1;
+        step_data_1_address1 = grp_riccati_forward_pass_fu_537_step_data_1_address1;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_1_address1 = grp_riccati_backward_pass_fu_400_step_data_1_address1;
+        step_data_1_address1 = grp_riccati_backward_pass_fu_342_step_data_1_address1;
     end else begin
         step_data_1_address1 = 'bx;
     end
@@ -5860,9 +4840,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_1_ce0 = grp_riccati_forward_pass_fu_653_step_data_1_ce0;
+        step_data_1_ce0 = grp_riccati_forward_pass_fu_537_step_data_1_ce0;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_1_ce0 = grp_riccati_backward_pass_fu_400_step_data_1_ce0;
+        step_data_1_ce0 = grp_riccati_backward_pass_fu_342_step_data_1_ce0;
     end else begin
         step_data_1_ce0 = 1'b0;
     end
@@ -5870,9 +4850,9 @@ end
 
 always @ (*) begin
     if ((1'b1 == ap_CS_fsm_state4)) begin
-        step_data_1_ce1 = grp_riccati_forward_pass_fu_653_step_data_1_ce1;
+        step_data_1_ce1 = grp_riccati_forward_pass_fu_537_step_data_1_ce1;
     end else if ((1'b1 == ap_CS_fsm_state2)) begin
-        step_data_1_ce1 = grp_riccati_backward_pass_fu_400_step_data_1_ce1;
+        step_data_1_ce1 = grp_riccati_backward_pass_fu_342_step_data_1_ce1;
     end else begin
         step_data_1_ce1 = 1'b0;
     end
@@ -5888,7 +4868,7 @@ always @ (*) begin
             end
         end
         ap_ST_fsm_state2 : begin
-            if (((1'b1 == ap_CS_fsm_state2) & (grp_riccati_backward_pass_fu_400_ap_done == 1'b1))) begin
+            if (((grp_riccati_backward_pass_fu_342_ap_done == 1'b1) & (1'b1 == ap_CS_fsm_state2))) begin
                 ap_NS_fsm = ap_ST_fsm_state3;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state2;
@@ -5898,7 +4878,7 @@ always @ (*) begin
             ap_NS_fsm = ap_ST_fsm_state4;
         end
         ap_ST_fsm_state4 : begin
-            if (((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_653_ap_done == 1'b1))) begin
+            if (((1'b1 == ap_CS_fsm_state4) & (grp_riccati_forward_pass_fu_537_ap_done == 1'b1))) begin
                 ap_NS_fsm = ap_ST_fsm_state1;
             end else begin
                 ap_NS_fsm = ap_ST_fsm_state4;
@@ -5910,133 +4890,133 @@ always @ (*) begin
     endcase
 end
 
-assign K_0_0_0_d0 = grp_riccati_backward_pass_fu_400_K_0_0_0_d0;
+assign K_0_0_0_d0 = grp_riccati_backward_pass_fu_342_K_0_0_0_d0;
 
-assign K_0_0_1_d0 = grp_riccati_backward_pass_fu_400_K_0_0_1_d0;
+assign K_0_0_1_d0 = grp_riccati_backward_pass_fu_342_K_0_0_1_d0;
 
-assign K_0_0_2_d0 = grp_riccati_backward_pass_fu_400_K_0_0_2_d0;
+assign K_0_0_2_d0 = grp_riccati_backward_pass_fu_342_K_0_0_2_d0;
 
-assign K_0_0_3_d0 = grp_riccati_backward_pass_fu_400_K_0_0_3_d0;
+assign K_0_0_3_d0 = grp_riccati_backward_pass_fu_342_K_0_0_3_d0;
 
-assign K_0_0_4_d0 = grp_riccati_backward_pass_fu_400_K_0_0_4_d0;
+assign K_0_0_4_d0 = grp_riccati_backward_pass_fu_342_K_0_0_4_d0;
 
-assign K_0_0_5_d0 = grp_riccati_backward_pass_fu_400_K_0_0_5_d0;
+assign K_0_0_5_d0 = grp_riccati_backward_pass_fu_342_K_0_0_5_d0;
 
-assign K_0_0_6_d0 = grp_riccati_backward_pass_fu_400_K_0_0_6_d0;
+assign K_0_0_6_d0 = grp_riccati_backward_pass_fu_342_K_0_0_6_d0;
 
-assign K_0_0_7_d0 = grp_riccati_backward_pass_fu_400_K_0_0_7_d0;
+assign K_0_0_7_d0 = grp_riccati_backward_pass_fu_342_K_0_0_7_d0;
 
-assign K_0_1_0_d0 = grp_riccati_backward_pass_fu_400_K_0_1_0_d0;
+assign K_0_1_0_d0 = grp_riccati_backward_pass_fu_342_K_0_1_0_d0;
 
-assign K_0_1_1_d0 = grp_riccati_backward_pass_fu_400_K_0_1_1_d0;
+assign K_0_1_1_d0 = grp_riccati_backward_pass_fu_342_K_0_1_1_d0;
 
-assign K_0_1_2_d0 = grp_riccati_backward_pass_fu_400_K_0_1_2_d0;
+assign K_0_1_2_d0 = grp_riccati_backward_pass_fu_342_K_0_1_2_d0;
 
-assign K_0_1_3_d0 = grp_riccati_backward_pass_fu_400_K_0_1_3_d0;
+assign K_0_1_3_d0 = grp_riccati_backward_pass_fu_342_K_0_1_3_d0;
 
-assign K_0_1_4_d0 = grp_riccati_backward_pass_fu_400_K_0_1_4_d0;
+assign K_0_1_4_d0 = grp_riccati_backward_pass_fu_342_K_0_1_4_d0;
 
-assign K_0_1_5_d0 = grp_riccati_backward_pass_fu_400_K_0_1_5_d0;
+assign K_0_1_5_d0 = grp_riccati_backward_pass_fu_342_K_0_1_5_d0;
 
-assign K_0_1_6_d0 = grp_riccati_backward_pass_fu_400_K_0_1_6_d0;
+assign K_0_1_6_d0 = grp_riccati_backward_pass_fu_342_K_0_1_6_d0;
 
-assign K_0_1_7_d0 = grp_riccati_backward_pass_fu_400_K_0_1_7_d0;
+assign K_0_1_7_d0 = grp_riccati_backward_pass_fu_342_K_0_1_7_d0;
 
-assign K_1_0_0_d0 = grp_riccati_backward_pass_fu_400_K_1_0_0_d0;
+assign K_1_0_0_d0 = grp_riccati_backward_pass_fu_342_K_1_0_0_d0;
 
-assign K_1_0_1_d0 = grp_riccati_backward_pass_fu_400_K_1_0_1_d0;
+assign K_1_0_1_d0 = grp_riccati_backward_pass_fu_342_K_1_0_1_d0;
 
-assign K_1_0_2_d0 = grp_riccati_backward_pass_fu_400_K_1_0_2_d0;
+assign K_1_0_2_d0 = grp_riccati_backward_pass_fu_342_K_1_0_2_d0;
 
-assign K_1_0_3_d0 = grp_riccati_backward_pass_fu_400_K_1_0_3_d0;
+assign K_1_0_3_d0 = grp_riccati_backward_pass_fu_342_K_1_0_3_d0;
 
-assign K_1_0_4_d0 = grp_riccati_backward_pass_fu_400_K_1_0_4_d0;
+assign K_1_0_4_d0 = grp_riccati_backward_pass_fu_342_K_1_0_4_d0;
 
-assign K_1_0_5_d0 = grp_riccati_backward_pass_fu_400_K_1_0_5_d0;
+assign K_1_0_5_d0 = grp_riccati_backward_pass_fu_342_K_1_0_5_d0;
 
-assign K_1_0_6_d0 = grp_riccati_backward_pass_fu_400_K_1_0_6_d0;
+assign K_1_0_6_d0 = grp_riccati_backward_pass_fu_342_K_1_0_6_d0;
 
-assign K_1_0_7_d0 = grp_riccati_backward_pass_fu_400_K_1_0_7_d0;
+assign K_1_0_7_d0 = grp_riccati_backward_pass_fu_342_K_1_0_7_d0;
 
-assign K_1_1_0_d0 = grp_riccati_backward_pass_fu_400_K_1_1_0_d0;
+assign K_1_1_0_d0 = grp_riccati_backward_pass_fu_342_K_1_1_0_d0;
 
-assign K_1_1_1_d0 = grp_riccati_backward_pass_fu_400_K_1_1_1_d0;
+assign K_1_1_1_d0 = grp_riccati_backward_pass_fu_342_K_1_1_1_d0;
 
-assign K_1_1_2_d0 = grp_riccati_backward_pass_fu_400_K_1_1_2_d0;
+assign K_1_1_2_d0 = grp_riccati_backward_pass_fu_342_K_1_1_2_d0;
 
-assign K_1_1_3_d0 = grp_riccati_backward_pass_fu_400_K_1_1_3_d0;
+assign K_1_1_3_d0 = grp_riccati_backward_pass_fu_342_K_1_1_3_d0;
 
-assign K_1_1_4_d0 = grp_riccati_backward_pass_fu_400_K_1_1_4_d0;
+assign K_1_1_4_d0 = grp_riccati_backward_pass_fu_342_K_1_1_4_d0;
 
-assign K_1_1_5_d0 = grp_riccati_backward_pass_fu_400_K_1_1_5_d0;
+assign K_1_1_5_d0 = grp_riccati_backward_pass_fu_342_K_1_1_5_d0;
 
-assign K_1_1_6_d0 = grp_riccati_backward_pass_fu_400_K_1_1_6_d0;
+assign K_1_1_6_d0 = grp_riccati_backward_pass_fu_342_K_1_1_6_d0;
 
-assign K_1_1_7_d0 = grp_riccati_backward_pass_fu_400_K_1_1_7_d0;
+assign K_1_1_7_d0 = grp_riccati_backward_pass_fu_342_K_1_1_7_d0;
 
-assign K_2_0_0_d0 = grp_riccati_backward_pass_fu_400_K_2_0_0_d0;
+assign K_2_0_0_d0 = grp_riccati_backward_pass_fu_342_K_2_0_0_d0;
 
-assign K_2_0_1_d0 = grp_riccati_backward_pass_fu_400_K_2_0_1_d0;
+assign K_2_0_1_d0 = grp_riccati_backward_pass_fu_342_K_2_0_1_d0;
 
-assign K_2_0_2_d0 = grp_riccati_backward_pass_fu_400_K_2_0_2_d0;
+assign K_2_0_2_d0 = grp_riccati_backward_pass_fu_342_K_2_0_2_d0;
 
-assign K_2_0_3_d0 = grp_riccati_backward_pass_fu_400_K_2_0_3_d0;
+assign K_2_0_3_d0 = grp_riccati_backward_pass_fu_342_K_2_0_3_d0;
 
-assign K_2_0_4_d0 = grp_riccati_backward_pass_fu_400_K_2_0_4_d0;
+assign K_2_0_4_d0 = grp_riccati_backward_pass_fu_342_K_2_0_4_d0;
 
-assign K_2_0_5_d0 = grp_riccati_backward_pass_fu_400_K_2_0_5_d0;
+assign K_2_0_5_d0 = grp_riccati_backward_pass_fu_342_K_2_0_5_d0;
 
-assign K_2_0_6_d0 = grp_riccati_backward_pass_fu_400_K_2_0_6_d0;
+assign K_2_0_6_d0 = grp_riccati_backward_pass_fu_342_K_2_0_6_d0;
 
-assign K_2_0_7_d0 = grp_riccati_backward_pass_fu_400_K_2_0_7_d0;
+assign K_2_0_7_d0 = grp_riccati_backward_pass_fu_342_K_2_0_7_d0;
 
-assign K_2_1_0_d0 = grp_riccati_backward_pass_fu_400_K_2_1_0_d0;
+assign K_2_1_0_d0 = grp_riccati_backward_pass_fu_342_K_2_1_0_d0;
 
-assign K_2_1_1_d0 = grp_riccati_backward_pass_fu_400_K_2_1_1_d0;
+assign K_2_1_1_d0 = grp_riccati_backward_pass_fu_342_K_2_1_1_d0;
 
-assign K_2_1_2_d0 = grp_riccati_backward_pass_fu_400_K_2_1_2_d0;
+assign K_2_1_2_d0 = grp_riccati_backward_pass_fu_342_K_2_1_2_d0;
 
-assign K_2_1_3_d0 = grp_riccati_backward_pass_fu_400_K_2_1_3_d0;
+assign K_2_1_3_d0 = grp_riccati_backward_pass_fu_342_K_2_1_3_d0;
 
-assign K_2_1_4_d0 = grp_riccati_backward_pass_fu_400_K_2_1_4_d0;
+assign K_2_1_4_d0 = grp_riccati_backward_pass_fu_342_K_2_1_4_d0;
 
-assign K_2_1_5_d0 = grp_riccati_backward_pass_fu_400_K_2_1_5_d0;
+assign K_2_1_5_d0 = grp_riccati_backward_pass_fu_342_K_2_1_5_d0;
 
-assign K_2_1_6_d0 = grp_riccati_backward_pass_fu_400_K_2_1_6_d0;
+assign K_2_1_6_d0 = grp_riccati_backward_pass_fu_342_K_2_1_6_d0;
 
-assign K_2_1_7_d0 = grp_riccati_backward_pass_fu_400_K_2_1_7_d0;
+assign K_2_1_7_d0 = grp_riccati_backward_pass_fu_342_K_2_1_7_d0;
 
-assign K_3_0_0_d0 = grp_riccati_backward_pass_fu_400_K_3_0_0_d0;
+assign K_3_0_0_d0 = grp_riccati_backward_pass_fu_342_K_3_0_0_d0;
 
-assign K_3_0_1_d0 = grp_riccati_backward_pass_fu_400_K_3_0_1_d0;
+assign K_3_0_1_d0 = grp_riccati_backward_pass_fu_342_K_3_0_1_d0;
 
-assign K_3_0_2_d0 = grp_riccati_backward_pass_fu_400_K_3_0_2_d0;
+assign K_3_0_2_d0 = grp_riccati_backward_pass_fu_342_K_3_0_2_d0;
 
-assign K_3_0_3_d0 = grp_riccati_backward_pass_fu_400_K_3_0_3_d0;
+assign K_3_0_3_d0 = grp_riccati_backward_pass_fu_342_K_3_0_3_d0;
 
-assign K_3_0_4_d0 = grp_riccati_backward_pass_fu_400_K_3_0_4_d0;
+assign K_3_0_4_d0 = grp_riccati_backward_pass_fu_342_K_3_0_4_d0;
 
-assign K_3_0_5_d0 = grp_riccati_backward_pass_fu_400_K_3_0_5_d0;
+assign K_3_0_5_d0 = grp_riccati_backward_pass_fu_342_K_3_0_5_d0;
 
-assign K_3_0_6_d0 = grp_riccati_backward_pass_fu_400_K_3_0_6_d0;
+assign K_3_0_6_d0 = grp_riccati_backward_pass_fu_342_K_3_0_6_d0;
 
-assign K_3_0_7_d0 = grp_riccati_backward_pass_fu_400_K_3_0_7_d0;
+assign K_3_0_7_d0 = grp_riccati_backward_pass_fu_342_K_3_0_7_d0;
 
-assign K_3_1_0_d0 = grp_riccati_backward_pass_fu_400_K_3_1_0_d0;
+assign K_3_1_0_d0 = grp_riccati_backward_pass_fu_342_K_3_1_0_d0;
 
-assign K_3_1_1_d0 = grp_riccati_backward_pass_fu_400_K_3_1_1_d0;
+assign K_3_1_1_d0 = grp_riccati_backward_pass_fu_342_K_3_1_1_d0;
 
-assign K_3_1_2_d0 = grp_riccati_backward_pass_fu_400_K_3_1_2_d0;
+assign K_3_1_2_d0 = grp_riccati_backward_pass_fu_342_K_3_1_2_d0;
 
-assign K_3_1_3_d0 = grp_riccati_backward_pass_fu_400_K_3_1_3_d0;
+assign K_3_1_3_d0 = grp_riccati_backward_pass_fu_342_K_3_1_3_d0;
 
-assign K_3_1_4_d0 = grp_riccati_backward_pass_fu_400_K_3_1_4_d0;
+assign K_3_1_4_d0 = grp_riccati_backward_pass_fu_342_K_3_1_4_d0;
 
-assign K_3_1_5_d0 = grp_riccati_backward_pass_fu_400_K_3_1_5_d0;
+assign K_3_1_5_d0 = grp_riccati_backward_pass_fu_342_K_3_1_5_d0;
 
-assign K_3_1_6_d0 = grp_riccati_backward_pass_fu_400_K_3_1_6_d0;
+assign K_3_1_6_d0 = grp_riccati_backward_pass_fu_342_K_3_1_6_d0;
 
-assign K_3_1_7_d0 = grp_riccati_backward_pass_fu_400_K_3_1_7_d0;
+assign K_3_1_7_d0 = grp_riccati_backward_pass_fu_342_K_3_1_7_d0;
 
 assign ap_CS_fsm_state1 = ap_CS_fsm[32'd0];
 
@@ -6046,186 +5026,198 @@ assign ap_CS_fsm_state3 = ap_CS_fsm[32'd2];
 
 assign ap_CS_fsm_state4 = ap_CS_fsm[32'd3];
 
-assign empty_fu_907_p1 = p_read5[19:0];
+assign empty_fu_731_p1 = p_read5[13:0];
 
-assign grp_fp_recip_fu_6151_p_din1 = grp_riccati_backward_pass_fu_400_grp_fp_recip_fu_992_p_din1;
+assign grp_fp_recip_fu_5937_p_din1 = grp_riccati_backward_pass_fu_342_grp_fp_recip_fu_816_p_din1;
 
-assign grp_fu_6156_p_ce = grp_fu_1001_ce;
+assign grp_fu_2784_p_ce = grp_fu_830_ce;
 
-assign grp_fu_6156_p_din0 = grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din0;
+assign grp_fu_2784_p_din0 = grp_riccati_forward_pass_fu_537_grp_fu_830_p_din0;
 
-assign grp_fu_6156_p_din1 = grp_riccati_backward_pass_fu_400_grp_fu_1001_p_din1;
+assign grp_fu_2784_p_din1 = grp_riccati_forward_pass_fu_537_grp_fu_830_p_din1;
 
-assign grp_fu_6160_p_ce = grp_fu_1005_ce;
+assign grp_fu_5943_p_ce = grp_fu_822_ce;
 
-assign grp_fu_6160_p_din0 = grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din0;
+assign grp_fu_5943_p_din0 = grp_riccati_backward_pass_fu_342_grp_fu_822_p_din0;
 
-assign grp_fu_6160_p_din1 = grp_riccati_backward_pass_fu_400_grp_fu_1005_p_din1;
+assign grp_fu_5943_p_din1 = grp_riccati_backward_pass_fu_342_grp_fu_822_p_din1;
 
-assign grp_fu_6164_p_ce = grp_fu_997_ce;
+assign grp_fu_5947_p_ce = grp_fu_826_ce;
 
-assign grp_fu_6164_p_din0 = grp_riccati_backward_pass_fu_400_grp_fu_997_p_din0;
+assign grp_fu_5947_p_din0 = grp_riccati_backward_pass_fu_342_grp_fu_826_p_din0;
 
-assign grp_fu_6164_p_din1 = grp_riccati_backward_pass_fu_400_grp_fu_997_p_din1;
+assign grp_fu_5947_p_din1 = grp_riccati_backward_pass_fu_342_grp_fu_826_p_din1;
 
-assign grp_riccati_backward_pass_fu_400_ap_start = grp_riccati_backward_pass_fu_400_ap_start_reg;
+assign grp_riccati_backward_pass_fu_342_ap_start = grp_riccati_backward_pass_fu_342_ap_start_reg;
 
-assign grp_riccati_forward_pass_fu_653_ap_start = grp_riccati_forward_pass_fu_653_ap_start_reg;
+assign grp_riccati_forward_pass_fu_537_ap_start = grp_riccati_forward_pass_fu_537_ap_start_reg;
 
-assign kk_0_d0 = grp_riccati_backward_pass_fu_400_kk_0_d0;
+assign kk_0_d0 = grp_riccati_backward_pass_fu_342_kk_0_d0;
 
-assign kk_1_d0 = grp_riccati_backward_pass_fu_400_kk_1_d0;
+assign kk_1_d0 = grp_riccati_backward_pass_fu_342_kk_1_d0;
 
-assign step_data_2_address0 = grp_riccati_backward_pass_fu_400_step_data_2_address0;
+assign step_data_0_0_address1 = grp_riccati_backward_pass_fu_342_step_data_0_0_address1;
 
-assign step_data_2_address1 = grp_riccati_backward_pass_fu_400_step_data_2_address1;
+assign step_data_0_1_address1 = grp_riccati_backward_pass_fu_342_step_data_0_1_address1;
 
-assign step_data_2_ce0 = grp_riccati_backward_pass_fu_400_step_data_2_ce0;
+assign step_data_0_2_address1 = grp_riccati_backward_pass_fu_342_step_data_0_2_address1;
 
-assign step_data_2_ce1 = grp_riccati_backward_pass_fu_400_step_data_2_ce1;
+assign step_data_0_3_address1 = grp_riccati_backward_pass_fu_342_step_data_0_3_address1;
 
-assign u_out_0_address0 = grp_riccati_forward_pass_fu_653_u_out_0_address0;
+assign step_data_0_4_address1 = grp_riccati_backward_pass_fu_342_step_data_0_4_address1;
 
-assign u_out_0_ce0 = grp_riccati_forward_pass_fu_653_u_out_0_ce0;
+assign step_data_0_5_address1 = grp_riccati_backward_pass_fu_342_step_data_0_5_address1;
 
-assign u_out_0_d0 = grp_riccati_forward_pass_fu_653_u_out_0_d0;
+assign step_data_2_address0 = grp_riccati_backward_pass_fu_342_step_data_2_address0;
 
-assign u_out_0_we0 = grp_riccati_forward_pass_fu_653_u_out_0_we0;
+assign step_data_2_address1 = grp_riccati_backward_pass_fu_342_step_data_2_address1;
 
-assign u_out_1_address0 = grp_riccati_forward_pass_fu_653_u_out_1_address0;
+assign step_data_2_ce0 = grp_riccati_backward_pass_fu_342_step_data_2_ce0;
 
-assign u_out_1_ce0 = grp_riccati_forward_pass_fu_653_u_out_1_ce0;
+assign step_data_2_ce1 = grp_riccati_backward_pass_fu_342_step_data_2_ce1;
 
-assign u_out_1_d0 = grp_riccati_forward_pass_fu_653_u_out_1_d0;
+assign u_out_0_address0 = grp_riccati_forward_pass_fu_537_u_out_0_address0;
 
-assign u_out_1_we0 = grp_riccati_forward_pass_fu_653_u_out_1_we0;
+assign u_out_0_ce0 = grp_riccati_forward_pass_fu_537_u_out_0_ce0;
 
-assign x_out_0_address0 = grp_riccati_forward_pass_fu_653_x_out_0_address0;
+assign u_out_0_d0 = grp_riccati_forward_pass_fu_537_u_out_0_d0;
 
-assign x_out_0_address1 = grp_riccati_forward_pass_fu_653_x_out_0_address1;
+assign u_out_0_we0 = grp_riccati_forward_pass_fu_537_u_out_0_we0;
 
-assign x_out_0_ce0 = grp_riccati_forward_pass_fu_653_x_out_0_ce0;
+assign u_out_1_address0 = grp_riccati_forward_pass_fu_537_u_out_1_address0;
 
-assign x_out_0_ce1 = grp_riccati_forward_pass_fu_653_x_out_0_ce1;
+assign u_out_1_ce0 = grp_riccati_forward_pass_fu_537_u_out_1_ce0;
 
-assign x_out_0_d1 = grp_riccati_forward_pass_fu_653_x_out_0_d1;
+assign u_out_1_d0 = grp_riccati_forward_pass_fu_537_u_out_1_d0;
 
-assign x_out_0_we1 = grp_riccati_forward_pass_fu_653_x_out_0_we1;
+assign u_out_1_we0 = grp_riccati_forward_pass_fu_537_u_out_1_we0;
 
-assign x_out_1_address0 = grp_riccati_forward_pass_fu_653_x_out_1_address0;
+assign x_out_0_address0 = grp_riccati_forward_pass_fu_537_x_out_0_address0;
 
-assign x_out_1_address1 = grp_riccati_forward_pass_fu_653_x_out_1_address1;
+assign x_out_0_address1 = grp_riccati_forward_pass_fu_537_x_out_0_address1;
 
-assign x_out_1_ce0 = grp_riccati_forward_pass_fu_653_x_out_1_ce0;
+assign x_out_0_ce0 = grp_riccati_forward_pass_fu_537_x_out_0_ce0;
 
-assign x_out_1_ce1 = grp_riccati_forward_pass_fu_653_x_out_1_ce1;
+assign x_out_0_ce1 = grp_riccati_forward_pass_fu_537_x_out_0_ce1;
 
-assign x_out_1_d1 = grp_riccati_forward_pass_fu_653_x_out_1_d1;
+assign x_out_0_d1 = grp_riccati_forward_pass_fu_537_x_out_0_d1;
 
-assign x_out_1_we1 = grp_riccati_forward_pass_fu_653_x_out_1_we1;
+assign x_out_0_we1 = grp_riccati_forward_pass_fu_537_x_out_0_we1;
 
-assign x_out_2_address0 = grp_riccati_forward_pass_fu_653_x_out_2_address0;
+assign x_out_1_address0 = grp_riccati_forward_pass_fu_537_x_out_1_address0;
 
-assign x_out_2_address1 = grp_riccati_forward_pass_fu_653_x_out_2_address1;
+assign x_out_1_address1 = grp_riccati_forward_pass_fu_537_x_out_1_address1;
 
-assign x_out_2_ce0 = grp_riccati_forward_pass_fu_653_x_out_2_ce0;
+assign x_out_1_ce0 = grp_riccati_forward_pass_fu_537_x_out_1_ce0;
 
-assign x_out_2_ce1 = grp_riccati_forward_pass_fu_653_x_out_2_ce1;
+assign x_out_1_ce1 = grp_riccati_forward_pass_fu_537_x_out_1_ce1;
 
-assign x_out_2_d1 = grp_riccati_forward_pass_fu_653_x_out_2_d1;
+assign x_out_1_d1 = grp_riccati_forward_pass_fu_537_x_out_1_d1;
 
-assign x_out_2_we1 = grp_riccati_forward_pass_fu_653_x_out_2_we1;
+assign x_out_1_we1 = grp_riccati_forward_pass_fu_537_x_out_1_we1;
 
-assign x_out_3_address0 = grp_riccati_forward_pass_fu_653_x_out_3_address0;
+assign x_out_2_address0 = grp_riccati_forward_pass_fu_537_x_out_2_address0;
 
-assign x_out_3_address1 = grp_riccati_forward_pass_fu_653_x_out_3_address1;
+assign x_out_2_address1 = grp_riccati_forward_pass_fu_537_x_out_2_address1;
 
-assign x_out_3_ce0 = grp_riccati_forward_pass_fu_653_x_out_3_ce0;
+assign x_out_2_ce0 = grp_riccati_forward_pass_fu_537_x_out_2_ce0;
 
-assign x_out_3_ce1 = grp_riccati_forward_pass_fu_653_x_out_3_ce1;
+assign x_out_2_ce1 = grp_riccati_forward_pass_fu_537_x_out_2_ce1;
 
-assign x_out_3_d1 = grp_riccati_forward_pass_fu_653_x_out_3_d1;
+assign x_out_2_d1 = grp_riccati_forward_pass_fu_537_x_out_2_d1;
 
-assign x_out_3_we1 = grp_riccati_forward_pass_fu_653_x_out_3_we1;
+assign x_out_2_we1 = grp_riccati_forward_pass_fu_537_x_out_2_we1;
 
-assign x_out_4_address0 = grp_riccati_forward_pass_fu_653_x_out_4_address0;
+assign x_out_3_address0 = grp_riccati_forward_pass_fu_537_x_out_3_address0;
 
-assign x_out_4_address1 = grp_riccati_forward_pass_fu_653_x_out_4_address1;
+assign x_out_3_address1 = grp_riccati_forward_pass_fu_537_x_out_3_address1;
 
-assign x_out_4_ce0 = grp_riccati_forward_pass_fu_653_x_out_4_ce0;
+assign x_out_3_ce0 = grp_riccati_forward_pass_fu_537_x_out_3_ce0;
 
-assign x_out_4_ce1 = grp_riccati_forward_pass_fu_653_x_out_4_ce1;
+assign x_out_3_ce1 = grp_riccati_forward_pass_fu_537_x_out_3_ce1;
 
-assign x_out_4_d1 = grp_riccati_forward_pass_fu_653_x_out_4_d1;
+assign x_out_3_d1 = grp_riccati_forward_pass_fu_537_x_out_3_d1;
 
-assign x_out_4_we1 = grp_riccati_forward_pass_fu_653_x_out_4_we1;
+assign x_out_3_we1 = grp_riccati_forward_pass_fu_537_x_out_3_we1;
 
-assign x_out_5_address0 = grp_riccati_forward_pass_fu_653_x_out_5_address0;
+assign x_out_4_address0 = grp_riccati_forward_pass_fu_537_x_out_4_address0;
 
-assign x_out_5_address1 = grp_riccati_forward_pass_fu_653_x_out_5_address1;
+assign x_out_4_address1 = grp_riccati_forward_pass_fu_537_x_out_4_address1;
 
-assign x_out_5_ce0 = grp_riccati_forward_pass_fu_653_x_out_5_ce0;
+assign x_out_4_ce0 = grp_riccati_forward_pass_fu_537_x_out_4_ce0;
 
-assign x_out_5_ce1 = grp_riccati_forward_pass_fu_653_x_out_5_ce1;
+assign x_out_4_ce1 = grp_riccati_forward_pass_fu_537_x_out_4_ce1;
 
-assign x_out_5_d1 = grp_riccati_forward_pass_fu_653_x_out_5_d1;
+assign x_out_4_d1 = grp_riccati_forward_pass_fu_537_x_out_4_d1;
 
-assign x_out_5_we1 = grp_riccati_forward_pass_fu_653_x_out_5_we1;
+assign x_out_4_we1 = grp_riccati_forward_pass_fu_537_x_out_4_we1;
 
-assign x_out_6_address0 = grp_riccati_forward_pass_fu_653_x_out_6_address0;
+assign x_out_5_address0 = grp_riccati_forward_pass_fu_537_x_out_5_address0;
 
-assign x_out_6_address1 = grp_riccati_forward_pass_fu_653_x_out_6_address1;
+assign x_out_5_address1 = grp_riccati_forward_pass_fu_537_x_out_5_address1;
 
-assign x_out_6_ce0 = grp_riccati_forward_pass_fu_653_x_out_6_ce0;
+assign x_out_5_ce0 = grp_riccati_forward_pass_fu_537_x_out_5_ce0;
 
-assign x_out_6_ce1 = grp_riccati_forward_pass_fu_653_x_out_6_ce1;
+assign x_out_5_ce1 = grp_riccati_forward_pass_fu_537_x_out_5_ce1;
 
-assign x_out_6_d1 = grp_riccati_forward_pass_fu_653_x_out_6_d1;
+assign x_out_5_d1 = grp_riccati_forward_pass_fu_537_x_out_5_d1;
 
-assign x_out_6_we1 = grp_riccati_forward_pass_fu_653_x_out_6_we1;
+assign x_out_5_we1 = grp_riccati_forward_pass_fu_537_x_out_5_we1;
 
-assign x_out_7_address0 = grp_riccati_forward_pass_fu_653_x_out_7_address0;
+assign x_out_6_address0 = grp_riccati_forward_pass_fu_537_x_out_6_address0;
 
-assign x_out_7_address1 = grp_riccati_forward_pass_fu_653_x_out_7_address1;
+assign x_out_6_address1 = grp_riccati_forward_pass_fu_537_x_out_6_address1;
 
-assign x_out_7_ce0 = grp_riccati_forward_pass_fu_653_x_out_7_ce0;
+assign x_out_6_ce0 = grp_riccati_forward_pass_fu_537_x_out_6_ce0;
 
-assign x_out_7_ce1 = grp_riccati_forward_pass_fu_653_x_out_7_ce1;
+assign x_out_6_ce1 = grp_riccati_forward_pass_fu_537_x_out_6_ce1;
 
-assign x_out_7_d1 = grp_riccati_forward_pass_fu_653_x_out_7_d1;
+assign x_out_6_d1 = grp_riccati_forward_pass_fu_537_x_out_6_d1;
 
-assign x_out_7_we1 = grp_riccati_forward_pass_fu_653_x_out_7_we1;
+assign x_out_6_we1 = grp_riccati_forward_pass_fu_537_x_out_6_we1;
 
-assign y_u_0_address0 = grp_riccati_backward_pass_fu_400_y_u_0_address0;
+assign x_out_7_address0 = grp_riccati_forward_pass_fu_537_x_out_7_address0;
 
-assign y_u_0_ce0 = grp_riccati_backward_pass_fu_400_y_u_0_ce0;
+assign x_out_7_address1 = grp_riccati_forward_pass_fu_537_x_out_7_address1;
 
-assign y_u_1_address0 = grp_riccati_backward_pass_fu_400_y_u_1_address0;
+assign x_out_7_ce0 = grp_riccati_forward_pass_fu_537_x_out_7_ce0;
 
-assign y_u_1_ce0 = grp_riccati_backward_pass_fu_400_y_u_1_ce0;
+assign x_out_7_ce1 = grp_riccati_forward_pass_fu_537_x_out_7_ce1;
 
-assign y_x_0_address0 = grp_riccati_backward_pass_fu_400_y_x_0_address0;
+assign x_out_7_d1 = grp_riccati_forward_pass_fu_537_x_out_7_d1;
 
-assign y_x_0_ce0 = grp_riccati_backward_pass_fu_400_y_x_0_ce0;
+assign x_out_7_we1 = grp_riccati_forward_pass_fu_537_x_out_7_we1;
 
-assign y_x_5_address0 = grp_riccati_backward_pass_fu_400_y_x_5_address0;
+assign y_u_0_address0 = grp_riccati_backward_pass_fu_342_y_u_0_address0;
 
-assign y_x_5_ce0 = grp_riccati_backward_pass_fu_400_y_x_5_ce0;
+assign y_u_0_ce0 = grp_riccati_backward_pass_fu_342_y_u_0_ce0;
 
-assign z_u_0_address0 = grp_riccati_backward_pass_fu_400_z_u_0_address0;
+assign y_u_1_address0 = grp_riccati_backward_pass_fu_342_y_u_1_address0;
 
-assign z_u_0_ce0 = grp_riccati_backward_pass_fu_400_z_u_0_ce0;
+assign y_u_1_ce0 = grp_riccati_backward_pass_fu_342_y_u_1_ce0;
 
-assign z_u_1_address0 = grp_riccati_backward_pass_fu_400_z_u_1_address0;
+assign y_x_0_address0 = grp_riccati_backward_pass_fu_342_y_x_0_address0;
 
-assign z_u_1_ce0 = grp_riccati_backward_pass_fu_400_z_u_1_ce0;
+assign y_x_0_ce0 = grp_riccati_backward_pass_fu_342_y_x_0_ce0;
 
-assign z_x_0_address0 = grp_riccati_backward_pass_fu_400_z_x_0_address0;
+assign y_x_5_address0 = grp_riccati_backward_pass_fu_342_y_x_5_address0;
 
-assign z_x_0_ce0 = grp_riccati_backward_pass_fu_400_z_x_0_ce0;
+assign y_x_5_ce0 = grp_riccati_backward_pass_fu_342_y_x_5_ce0;
 
-assign z_x_5_address0 = grp_riccati_backward_pass_fu_400_z_x_5_address0;
+assign z_u_0_address0 = grp_riccati_backward_pass_fu_342_z_u_0_address0;
 
-assign z_x_5_ce0 = grp_riccati_backward_pass_fu_400_z_x_5_ce0;
+assign z_u_0_ce0 = grp_riccati_backward_pass_fu_342_z_u_0_ce0;
+
+assign z_u_1_address0 = grp_riccati_backward_pass_fu_342_z_u_1_address0;
+
+assign z_u_1_ce0 = grp_riccati_backward_pass_fu_342_z_u_1_ce0;
+
+assign z_x_0_address0 = grp_riccati_backward_pass_fu_342_z_x_0_address0;
+
+assign z_x_0_ce0 = grp_riccati_backward_pass_fu_342_z_x_0_ce0;
+
+assign z_x_5_address0 = grp_riccati_backward_pass_fu_342_z_x_5_address0;
+
+assign z_x_5_ce0 = grp_riccati_backward_pass_fu_342_z_x_5_ce0;
 
 endmodule //mpc_fpga_top_opencl_riccati_pass_hls

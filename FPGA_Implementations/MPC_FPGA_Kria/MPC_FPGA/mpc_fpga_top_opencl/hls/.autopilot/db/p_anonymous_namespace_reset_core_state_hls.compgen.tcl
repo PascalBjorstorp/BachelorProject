@@ -18,7 +18,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_0 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_0_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_0_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_0'"
@@ -37,7 +37,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_1 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_1_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_1_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_1'"
@@ -56,7 +56,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_2 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_2_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_2_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_2_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_2_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_2_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_2_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_2'"
@@ -75,7 +75,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_3 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_3_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_3_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_3_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_3_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_3_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_3_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_3'"
@@ -94,7 +94,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_4 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_4_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_4_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_4_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_4_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_4_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_4_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_4'"
@@ -113,7 +113,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_5 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_5_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_5_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_5_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_5_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_5_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_5_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_5'"
@@ -132,7 +132,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_6 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_6_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_6_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_6_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_6_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_6_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_6_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_6'"
@@ -151,7 +151,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_x_7 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_x_7_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_7_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_7_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_x_7_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_7_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_x_7_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_x_7'"
@@ -170,7 +170,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_0 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_0_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_0_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_0'"
@@ -189,7 +189,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_1 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_1_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_1_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_1'"
@@ -208,7 +208,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_2 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_2_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_2_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_2_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_2_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_2_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_2_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_2'"
@@ -227,7 +227,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_3 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_3_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_3_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_3_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_3_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_3_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_3_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_3'"
@@ -246,7 +246,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_4 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_4_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_4_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_4_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_4_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_4_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_4_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_4'"
@@ -265,7 +265,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_5 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_5_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_5_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_5_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_5_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_5_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_5_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_5'"
@@ -284,7 +284,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_6 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_6_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_6_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_6_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_6_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_6_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_6_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_6'"
@@ -303,7 +303,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_x_7 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_x_7_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_7_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_7_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_x_7_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_7_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_x_7_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_x_7'"
@@ -322,7 +322,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_u_0 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_u_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_0_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_u_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_0_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_u_0'"
@@ -341,7 +341,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_z_u_1 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_z_u_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_1_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_z_u_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_z_u_1_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_z_u_1'"
@@ -360,7 +360,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_u_0 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_u_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_0_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_u_0_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_0_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_0_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_u_0'"
@@ -379,7 +379,7 @@ eval "::AESL_LIB_XILADAPTER::xil_bram_gen { \
     dir O \
     corename p_anonymous_namespace_g_core_state_admm_y_u_1 \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_y_u_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_1_d0 { O 32 vector } } \
+    ports { p_anonymous_namespace_g_core_state_admm_y_u_1_address0 { O 5 vector } p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_1_we0 { O 1 bit } p_anonymous_namespace_g_core_state_admm_y_u_1_d0 { O 26 vector } } \
 } "
 } else {
 puts "@W \[IMPL-110\] Cannot find bus interface model in the library. Ignored generation of bus interface for 'p_anonymous_namespace_g_core_state_admm_y_u_1'"
@@ -398,7 +398,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_admm_rho \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_rho { O 32 vector } p_anonymous_namespace_g_core_state_admm_rho_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_admm_rho { O 26 vector } p_anonymous_namespace_g_core_state_admm_rho_ap_vld { O 1 bit } } \
 } "
 }
 
@@ -413,7 +413,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_admm_rho_u \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_admm_rho_u { O 32 vector } p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_admm_rho_u { O 26 vector } p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld { O 1 bit } } \
 } "
 }
 
@@ -443,7 +443,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_steer_rate \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_steer_rate { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_steer_rate { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld { O 1 bit } } \
 } "
 }
 
@@ -458,7 +458,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_accel \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_accel { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_accel { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld { O 1 bit } } \
 } "
 }
 
@@ -473,7 +473,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_actual_steering \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_actual_steering { O 32 vector } p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_actual_steering { O 26 vector } p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld { O 1 bit } } \
 } "
 }
 
@@ -488,7 +488,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_curvature \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_curvature { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_curvature { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld { O 1 bit } } \
 } "
 }
 

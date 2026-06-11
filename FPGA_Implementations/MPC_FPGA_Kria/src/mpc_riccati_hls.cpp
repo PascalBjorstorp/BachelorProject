@@ -369,7 +369,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
   /* II floor is the single-instance compute_frenet_AB_and_next_hls latency*/
-MPC_HLS_PIPELINE(100)
+MPC_HLS_PIPELINE(74)
     StepData_t *sd = &step_data[k];
 
     const fp_QP_t uk0 = rollout_steer_rate;

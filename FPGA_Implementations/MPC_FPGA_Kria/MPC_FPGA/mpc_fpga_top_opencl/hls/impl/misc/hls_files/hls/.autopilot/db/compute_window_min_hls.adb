@@ -7,7 +7,7 @@
     <cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
       <name>compute_window_min_hls</name>
       <module_structure>Pipeline</module_structure>
-      <ret_bitwidth>32</ret_bitwidth>
+      <ret_bitwidth>26</ret_bitwidth>
       <ports class_id="2" tracking_level="0" version="0">
         <count>21</count>
         <item_version>0</item_version>
@@ -37,7 +37,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -73,7 +73,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -109,7 +109,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -145,7 +145,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -181,7 +181,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -217,7 +217,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -253,7 +253,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -289,7 +289,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -325,7 +325,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -361,7 +361,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -397,7 +397,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -433,7 +433,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -469,7 +469,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -505,7 +505,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -541,7 +541,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -577,7 +577,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -613,7 +613,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -649,7 +649,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -685,7 +685,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -721,7 +721,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <direction>0</direction>
           <if_type>0</if_type>
@@ -779,7 +779,7 @@
               <name>center_idx_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -795,7 +795,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -836,7 +836,7 @@
               <name>ref_wall_19_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -852,7 +852,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -868,7 +868,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -893,7 +893,7 @@
               <name>ref_wall_18_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -909,7 +909,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -925,7 +925,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -950,7 +950,7 @@
               <name>ref_wall_17_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -966,7 +966,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -982,7 +982,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1007,7 +1007,7 @@
               <name>ref_wall_16_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1023,7 +1023,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1039,7 +1039,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1064,7 +1064,7 @@
               <name>ref_wall_15_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1080,7 +1080,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1096,7 +1096,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1121,7 +1121,7 @@
               <name>ref_wall_14_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1137,7 +1137,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1153,7 +1153,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1178,7 +1178,7 @@
               <name>ref_wall_13_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1194,7 +1194,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1210,7 +1210,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1235,7 +1235,7 @@
               <name>ref_wall_12_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1251,7 +1251,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1267,7 +1267,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1292,7 +1292,7 @@
               <name>ref_wall_11_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1308,7 +1308,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1324,7 +1324,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1349,7 +1349,7 @@
               <name>ref_wall_10_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1365,7 +1365,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1381,7 +1381,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1406,7 +1406,7 @@
               <name>ref_wall_9_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1422,7 +1422,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1438,7 +1438,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1463,7 +1463,7 @@
               <name>ref_wall_8_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1479,7 +1479,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1495,7 +1495,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1520,7 +1520,7 @@
               <name>ref_wall_7_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1536,7 +1536,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1552,7 +1552,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1577,7 +1577,7 @@
               <name>ref_wall_6_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1593,7 +1593,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1609,7 +1609,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1634,7 +1634,7 @@
               <name>ref_wall_5_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1650,7 +1650,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1666,7 +1666,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1691,7 +1691,7 @@
               <name>ref_wall_4_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1707,7 +1707,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1723,7 +1723,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1748,7 +1748,7 @@
               <name>ref_wall_3_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1764,7 +1764,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1780,7 +1780,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1805,7 +1805,7 @@
               <name>ref_wall_2_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1821,7 +1821,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1837,7 +1837,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1862,7 +1862,7 @@
               <name>ref_wall_1_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1878,7 +1878,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1894,7 +1894,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1919,7 +1919,7 @@
               <name>ref_wall_0_val_read</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1935,7 +1935,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
@@ -1951,7 +1951,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>2</count>
@@ -1973,10 +1973,10 @@
             <Obj>
               <type>0</type>
               <id>43</id>
-              <name>zext_ln89</name>
+              <name>zext_ln87</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>89</lineNumber>
+              <lineNumber>87</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -1992,13 +1992,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>89</second>
+                      <second>87</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>zext_ln89_fu_236_p1</rtlName>
+              <rtlName>zext_ln87_fu_236_p1</rtlName>
               <control></control>
               <opType></opType>
               <implIndex></implIndex>
@@ -2032,7 +2032,7 @@
               <name>jj</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>95</lineNumber>
+              <lineNumber>93</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2048,7 +2048,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>95</second>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -2086,10 +2086,10 @@
             <Obj>
               <type>0</type>
               <id>45</id>
-              <name>icmp_ln97</name>
+              <name>icmp_ln95</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2105,13 +2105,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_fu_246_p2</rtlName>
+              <rtlName>icmp_ln95_fu_246_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -2146,7 +2146,7 @@
               <name>tmp</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2162,13 +2162,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_35_5_32_1_1_U183</rtlName>
+              <rtlName>sparsemux_35_5_26_1_1_U183</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -2178,7 +2178,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>37</count>
@@ -2238,64 +2238,6 @@
               <name>cand</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>97</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName>cand</originalName>
-              <rtlName>cand_fu_328_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>193</item>
-            <item>194</item>
-            <item>196</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>26</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_48">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>48</id>
-              <name>jj_1</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
               <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -2313,6 +2255,64 @@
                         <second>compute_window_min_hls</second>
                       </first>
                       <second>95</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>cand</originalName>
+              <rtlName>cand_fu_328_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>193</item>
+            <item>194</item>
+            <item>196</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>26</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_48">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>48</id>
+              <name>jj_1</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>93</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -2350,10 +2350,10 @@
             <Obj>
               <type>0</type>
               <id>49</id>
-              <name>icmp_ln97_1</name>
+              <name>icmp_ln95_1</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2369,13 +2369,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_1_fu_342_p2</rtlName>
+              <rtlName>icmp_ln95_1_fu_342_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -2410,7 +2410,7 @@
               <name>tmp_s</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2426,13 +2426,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_37_5_32_1_1_U184</rtlName>
+              <rtlName>sparsemux_37_5_26_1_1_U184</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -2442,7 +2442,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>39</count>
@@ -2504,64 +2504,6 @@
               <name>cand_1</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>97</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName>cand</originalName>
-              <rtlName>cand_1_fu_428_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>243</item>
-            <item>244</item>
-            <item>245</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>30</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_52">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>52</id>
-              <name>jj_2</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
               <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -2579,6 +2521,64 @@
                         <second>compute_window_min_hls</second>
                       </first>
                       <second>95</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>cand</originalName>
+              <rtlName>cand_1_fu_428_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>243</item>
+            <item>244</item>
+            <item>245</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>30</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_52">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>52</id>
+              <name>jj_2</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>93</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -2616,10 +2616,10 @@
             <Obj>
               <type>0</type>
               <id>53</id>
-              <name>icmp_ln97_2</name>
+              <name>icmp_ln95_2</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2635,13 +2635,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_2_fu_442_p2</rtlName>
+              <rtlName>icmp_ln95_2_fu_442_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -2676,7 +2676,7 @@
               <name>tmp_1</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2692,13 +2692,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_39_5_32_1_1_U185</rtlName>
+              <rtlName>sparsemux_39_5_26_1_1_U185</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -2708,7 +2708,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>41</count>
@@ -2772,7 +2772,7 @@
               <name>cand_2</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2788,7 +2788,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
@@ -2804,7 +2804,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -2818,7 +2818,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>34</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -2830,7 +2830,7 @@
               <name>cand_3</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2846,13 +2846,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName>cand</originalName>
-              <rtlName>sparsemux_41_5_32_1_1_U186</rtlName>
+              <rtlName>sparsemux_41_5_26_1_1_U186</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -2862,7 +2862,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>43</count>
@@ -2928,7 +2928,7 @@
               <name>jj_3</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>95</lineNumber>
+              <lineNumber>93</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -2944,7 +2944,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>95</second>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -2982,10 +2982,10 @@
             <Obj>
               <type>0</type>
               <id>58</id>
-              <name>icmp_ln97_3</name>
+              <name>icmp_ln95_3</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3001,13 +3001,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_3_fu_634_p2</rtlName>
+              <rtlName>icmp_ln95_3_fu_634_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -3042,7 +3042,7 @@
               <name>tmp_3</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3058,13 +3058,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_39_5_32_1_1_U187</rtlName>
+              <rtlName>sparsemux_39_5_26_1_1_U187</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -3074,7 +3074,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>41</count>
@@ -3138,64 +3138,6 @@
               <name>cand_4</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>97</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName>cand</originalName>
-              <rtlName>cand_4_fu_724_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>388</item>
-            <item>389</item>
-            <item>390</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>39</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_61">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>61</id>
-              <name>jj_4</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
               <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -3213,6 +3155,64 @@
                         <second>compute_window_min_hls</second>
                       </first>
                       <second>95</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>cand</originalName>
+              <rtlName>cand_4_fu_724_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>388</item>
+            <item>389</item>
+            <item>390</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>39</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_61">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>61</id>
+              <name>jj_4</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>93</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -3250,10 +3250,10 @@
             <Obj>
               <type>0</type>
               <id>62</id>
-              <name>icmp_ln97_4</name>
+              <name>icmp_ln95_4</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3269,13 +3269,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_4_fu_738_p2</rtlName>
+              <rtlName>icmp_ln95_4_fu_738_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -3310,7 +3310,7 @@
               <name>tmp_4</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3326,13 +3326,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_37_5_32_1_1_U188</rtlName>
+              <rtlName>sparsemux_37_5_26_1_1_U188</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -3342,7 +3342,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>39</count>
@@ -3404,64 +3404,6 @@
               <name>cand_5</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>97</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName>cand</originalName>
-              <rtlName>cand_5_fu_824_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>434</item>
-            <item>435</item>
-            <item>436</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>43</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_65">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>65</id>
-              <name>jj_5</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
               <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
@@ -3479,6 +3421,64 @@
                         <second>compute_window_min_hls</second>
                       </first>
                       <second>95</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>cand</originalName>
+              <rtlName>cand_5_fu_824_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>434</item>
+            <item>435</item>
+            <item>436</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>43</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_65">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>65</id>
+              <name>jj_5</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>93</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>93</second>
                     </item>
                   </second>
                 </item>
@@ -3516,10 +3516,10 @@
             <Obj>
               <type>0</type>
               <id>66</id>
-              <name>icmp_ln97_5</name>
+              <name>icmp_ln95_5</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3535,13 +3535,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln97_5_fu_838_p2</rtlName>
+              <rtlName>icmp_ln95_5_fu_838_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -3576,7 +3576,7 @@
               <name>tmp_5</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3592,13 +3592,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>sparsemux_35_5_32_1_1_U189</rtlName>
+              <rtlName>sparsemux_35_5_26_1_1_U189</rtlName>
               <control>auto</control>
               <opType>sparsemux</opType>
               <implIndex>compactencoding_dontcare</implIndex>
@@ -3608,7 +3608,7 @@
               <coreId>149</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>37</count>
@@ -3668,7 +3668,7 @@
               <name>cand_7</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>97</lineNumber>
+              <lineNumber>95</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3684,7 +3684,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>97</second>
+                      <second>95</second>
                     </item>
                   </second>
                 </item>
@@ -3700,7 +3700,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -3714,7 +3714,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>47</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -3723,10 +3723,10 @@
             <Obj>
               <type>0</type>
               <id>69</id>
-              <name>icmp_ln100</name>
+              <name>icmp_ln98</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>100</lineNumber>
+              <lineNumber>98</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3742,13 +3742,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>100</second>
+                      <second>98</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln100_fu_928_p2</rtlName>
+              <rtlName>icmp_ln98_fu_928_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -3771,7 +3771,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>48</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -3780,10 +3780,10 @@
             <Obj>
               <type>0</type>
               <id>70</id>
-              <name>xor_ln100</name>
+              <name>xor_ln98</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>100</lineNumber>
+              <lineNumber>98</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3799,13 +3799,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>100</second>
+                      <second>98</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>xor_ln100_fu_934_p2</rtlName>
+              <rtlName>xor_ln98_fu_934_p2</rtlName>
               <control>auto</control>
               <opType>xor</opType>
               <implIndex>auto</implIndex>
@@ -3840,7 +3840,7 @@
               <name>l2_0</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>100</lineNumber>
+              <lineNumber>98</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3856,7 +3856,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>100</second>
+                      <second>98</second>
                     </item>
                   </second>
                 </item>
@@ -3872,7 +3872,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -3886,7 +3886,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>50</m_topoIndex>
           <m_clusterGroupNumber>1</m_clusterGroupNumber>
         </item>
@@ -3895,10 +3895,10 @@
             <Obj>
               <type>0</type>
               <id>72</id>
-              <name>icmp_ln101</name>
+              <name>icmp_ln99</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>101</lineNumber>
+              <lineNumber>99</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3914,13 +3914,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>101</second>
+                      <second>99</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln101_fu_948_p2</rtlName>
+              <rtlName>icmp_ln99_fu_948_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -3943,7 +3943,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>51</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -3952,10 +3952,10 @@
             <Obj>
               <type>0</type>
               <id>73</id>
-              <name>xor_ln101</name>
+              <name>xor_ln99</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>101</lineNumber>
+              <lineNumber>99</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -3971,13 +3971,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>101</second>
+                      <second>99</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>xor_ln101_fu_954_p2</rtlName>
+              <rtlName>xor_ln99_fu_954_p2</rtlName>
               <control>auto</control>
               <opType>xor</opType>
               <implIndex>auto</implIndex>
@@ -4012,7 +4012,7 @@
               <name>l2_1</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>101</lineNumber>
+              <lineNumber>99</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -4028,7 +4028,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>101</second>
+                      <second>99</second>
                     </item>
                   </second>
                 </item>
@@ -4044,7 +4044,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -4058,7 +4058,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>53</m_topoIndex>
           <m_clusterGroupNumber>2</m_clusterGroupNumber>
         </item>
@@ -4067,10 +4067,10 @@
             <Obj>
               <type>0</type>
               <id>75</id>
-              <name>icmp_ln102</name>
+              <name>icmp_ln100</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>102</lineNumber>
+              <lineNumber>100</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -4086,13 +4086,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>102</second>
+                      <second>100</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln102_fu_968_p2</rtlName>
+              <rtlName>icmp_ln100_fu_968_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -4115,7 +4115,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
+          <m_delay>0.95</m_delay>
           <m_topoIndex>54</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -4124,10 +4124,10 @@
             <Obj>
               <type>0</type>
               <id>76</id>
-              <name>xor_ln102</name>
+              <name>xor_ln100</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>102</lineNumber>
+              <lineNumber>100</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -4143,13 +4143,13 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>102</second>
+                      <second>100</second>
                     </item>
                   </second>
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>xor_ln102_fu_974_p2</rtlName>
+              <rtlName>xor_ln100_fu_974_p2</rtlName>
               <control>auto</control>
               <opType>xor</opType>
               <implIndex>auto</implIndex>
@@ -4184,7 +4184,7 @@
               <name>l2_2</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>102</lineNumber>
+              <lineNumber>100</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -4200,7 +4200,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>102</second>
+                      <second>100</second>
                     </item>
                   </second>
                 </item>
@@ -4216,7 +4216,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -4230,7 +4230,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>56</m_topoIndex>
           <m_clusterGroupNumber>3</m_clusterGroupNumber>
         </item>
@@ -4239,6 +4239,236 @@
             <Obj>
               <type>0</type>
               <id>78</id>
+              <name>icmp_ln103</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>103</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>103</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName></originalName>
+              <rtlName>icmp_ln103_fu_988_p2</rtlName>
+              <control>auto</control>
+              <opType>setlt</opType>
+              <implIndex>auto</implIndex>
+              <coreName>Cmp</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>9</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>1</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>2</count>
+            <item_version>0</item_version>
+            <item>503</item>
+            <item>504</item>
+          </oprand_edges>
+          <opcode>icmp</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.95</m_delay>
+          <m_topoIndex>57</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_79">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>79</id>
+              <name>l3_0</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>103</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>103</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>l3_0</originalName>
+              <rtlName>l3_0_fu_994_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>505</item>
+            <item>506</item>
+            <item>507</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>58</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_80">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>80</id>
+              <name>icmp_ln104</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>104</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>104</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName></originalName>
+              <rtlName>icmp_ln104_fu_1002_p2</rtlName>
+              <control>auto</control>
+              <opType>setlt</opType>
+              <implIndex>auto</implIndex>
+              <coreName>Cmp</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>9</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>1</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>2</count>
+            <item_version>0</item_version>
+            <item>508</item>
+            <item>509</item>
+          </oprand_edges>
+          <opcode>icmp</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.95</m_delay>
+          <m_topoIndex>59</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_81">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>81</id>
+              <name>l3_1</name>
+              <fileName>../src/mpc_riccati_hls.cpp</fileName>
+              <fileDirectory>../.</fileDirectory>
+              <lineNumber>104</lineNumber>
+              <contextFuncName>compute_window_min_hls</contextFuncName>
+              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
+              <inlineStackInfo>
+                <count>1</count>
+                <item_version>0</item_version>
+                <item>
+                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+                  <second>
+                    <count>1</count>
+                    <item_version>0</item_version>
+                    <item>
+                      <first>
+                        <first>../src/mpc_riccati_hls.cpp</first>
+                        <second>compute_window_min_hls</second>
+                      </first>
+                      <second>104</second>
+                    </item>
+                  </second>
+                </item>
+              </inlineStackInfo>
+              <originalName>l3_1</originalName>
+              <rtlName>l3_1_fu_1008_p3</rtlName>
+              <control>auto</control>
+              <opType>select</opType>
+              <implIndex>auto_sel</implIndex>
+              <coreName>Sel</coreName>
+              <isStorage>0</isStorage>
+              <storageDepth>0</storageDepth>
+              <coreId>73</coreId>
+              <rtlModuleName></rtlModuleName>
+            </Obj>
+            <bitwidth>26</bitwidth>
+          </Value>
+          <oprand_edges>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>510</item>
+            <item>511</item>
+            <item>512</item>
+          </oprand_edges>
+          <opcode>select</opcode>
+          <m_Display>0</m_Display>
+          <m_isOnCriticalPath>0</m_isOnCriticalPath>
+          <m_isLCDNode>0</m_isLCDNode>
+          <m_isStartOfPath>0</m_isStartOfPath>
+          <m_delay>0.32</m_delay>
+          <m_topoIndex>60</m_topoIndex>
+          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
+        </item>
+        <item class_id_reference="9" object_id="_82">
+          <Value>
+            <Obj>
+              <type>0</type>
+              <id>82</id>
               <name>icmp_ln105</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
@@ -4264,7 +4494,7 @@
                 </item>
               </inlineStackInfo>
               <originalName></originalName>
-              <rtlName>icmp_ln105_fu_988_p2</rtlName>
+              <rtlName>icmp_ln105_fu_1016_p2</rtlName>
               <control>auto</control>
               <opType>setlt</opType>
               <implIndex>auto</implIndex>
@@ -4279,24 +4509,24 @@
           <oprand_edges>
             <count>2</count>
             <item_version>0</item_version>
-            <item>503</item>
-            <item>504</item>
+            <item>513</item>
+            <item>514</item>
           </oprand_edges>
           <opcode>icmp</opcode>
           <m_Display>0</m_Display>
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
-          <m_topoIndex>57</m_topoIndex>
+          <m_delay>0.95</m_delay>
+          <m_topoIndex>61</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
-        <item class_id_reference="9" object_id="_79">
+        <item class_id_reference="9" object_id="_83">
           <Value>
             <Obj>
               <type>0</type>
-              <id>79</id>
-              <name>l3_0</name>
+              <id>83</id>
+              <name>select_ln105</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
               <lineNumber>105</lineNumber>
@@ -4320,236 +4550,6 @@
                   </second>
                 </item>
               </inlineStackInfo>
-              <originalName>l3_0</originalName>
-              <rtlName>l3_0_fu_992_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>505</item>
-            <item>506</item>
-            <item>507</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>58</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_80">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>80</id>
-              <name>icmp_ln106</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
-              <lineNumber>106</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>106</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName></originalName>
-              <rtlName>icmp_ln106_fu_998_p2</rtlName>
-              <control>auto</control>
-              <opType>setlt</opType>
-              <implIndex>auto</implIndex>
-              <coreName>Cmp</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>9</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>1</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>2</count>
-            <item_version>0</item_version>
-            <item>508</item>
-            <item>509</item>
-          </oprand_edges>
-          <opcode>icmp</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
-          <m_topoIndex>59</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_81">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>81</id>
-              <name>l3_1</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
-              <lineNumber>106</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>106</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName>l3_1</originalName>
-              <rtlName>l3_1_fu_1002_p3</rtlName>
-              <control>auto</control>
-              <opType>select</opType>
-              <implIndex>auto_sel</implIndex>
-              <coreName>Sel</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>73</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>32</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>510</item>
-            <item>511</item>
-            <item>512</item>
-          </oprand_edges>
-          <opcode>select</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
-          <m_topoIndex>60</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_82">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>82</id>
-              <name>icmp_ln107</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
-              <lineNumber>107</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>107</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
-              <originalName></originalName>
-              <rtlName>icmp_ln107_fu_1008_p2</rtlName>
-              <control>auto</control>
-              <opType>setlt</opType>
-              <implIndex>auto</implIndex>
-              <coreName>Cmp</coreName>
-              <isStorage>0</isStorage>
-              <storageDepth>0</storageDepth>
-              <coreId>9</coreId>
-              <rtlModuleName></rtlModuleName>
-            </Obj>
-            <bitwidth>1</bitwidth>
-          </Value>
-          <oprand_edges>
-            <count>2</count>
-            <item_version>0</item_version>
-            <item>513</item>
-            <item>514</item>
-          </oprand_edges>
-          <opcode>icmp</opcode>
-          <m_Display>0</m_Display>
-          <m_isOnCriticalPath>0</m_isOnCriticalPath>
-          <m_isLCDNode>0</m_isLCDNode>
-          <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>1.01</m_delay>
-          <m_topoIndex>61</m_topoIndex>
-          <m_clusterGroupNumber>-1</m_clusterGroupNumber>
-        </item>
-        <item class_id_reference="9" object_id="_83">
-          <Value>
-            <Obj>
-              <type>0</type>
-              <id>83</id>
-              <name>select_ln107</name>
-              <fileName>../src/mpc_riccati_hls.cpp</fileName>
-              <fileDirectory>../.</fileDirectory>
-              <lineNumber>107</lineNumber>
-              <contextFuncName>compute_window_min_hls</contextFuncName>
-              <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
-              <inlineStackInfo>
-                <count>1</count>
-                <item_version>0</item_version>
-                <item>
-                  <first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-                  <second>
-                    <count>1</count>
-                    <item_version>0</item_version>
-                    <item>
-                      <first>
-                        <first>../src/mpc_riccati_hls.cpp</first>
-                        <second>compute_window_min_hls</second>
-                      </first>
-                      <second>107</second>
-                    </item>
-                  </second>
-                </item>
-              </inlineStackInfo>
               <originalName></originalName>
               <rtlName>ap_return</rtlName>
               <control>auto</control>
@@ -4561,7 +4561,7 @@
               <coreId>73</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <oprand_edges>
             <count>3</count>
@@ -4575,7 +4575,7 @@
           <m_isOnCriticalPath>0</m_isOnCriticalPath>
           <m_isLCDNode>0</m_isLCDNode>
           <m_isStartOfPath>0</m_isStartOfPath>
-          <m_delay>0.44</m_delay>
+          <m_delay>0.32</m_delay>
           <m_topoIndex>62</m_topoIndex>
           <m_clusterGroupNumber>-1</m_clusterGroupNumber>
         </item>
@@ -4584,10 +4584,10 @@
             <Obj>
               <type>0</type>
               <id>84</id>
-              <name>_ln108</name>
+              <name>_ln106</name>
               <fileName>../src/mpc_riccati_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
-              <lineNumber>108</lineNumber>
+              <lineNumber>106</lineNumber>
               <contextFuncName>compute_window_min_hls</contextFuncName>
               <contextNormFuncName>compute_window_min_hls</contextNormFuncName>
               <inlineStackInfo>
@@ -4603,7 +4603,7 @@
                         <first>../src/mpc_riccati_hls.cpp</first>
                         <second>compute_window_min_hls</second>
                       </first>
-                      <second>108</second>
+                      <second>106</second>
                     </item>
                   </second>
                 </item>
@@ -5254,7 +5254,7 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <const_type>5</const_type>
           <content>0</content>
@@ -5285,10 +5285,10 @@
               <coreId>4294967295</coreId>
               <rtlModuleName></rtlModuleName>
             </Obj>
-            <bitwidth>32</bitwidth>
+            <bitwidth>26</bitwidth>
           </Value>
           <const_type>0</const_type>
-          <content>13107200</content>
+          <content>819200</content>
         </item>
         <item class_id_reference="16" object_id="_106">
           <Value>
@@ -8241,7 +8241,7 @@
         <item class_id="26" tracking_level="1" version="0" object_id="_487">
           <id>1</id>
           <operations class_id="27" tracking_level="0" version="0">
-            <count>56</count>
+            <count>60</count>
             <item_version>0</item_version>
             <item class_id="28" tracking_level="1" version="0" object_id="_488">
               <id>22</id>
@@ -8523,33 +8523,33 @@
               <stage>1</stage>
               <latency>1</latency>
             </item>
-          </operations>
-        </item>
-        <item class_id_reference="26" object_id="_544">
-          <id>2</id>
-          <operations>
-            <count>7</count>
-            <item_version>0</item_version>
-            <item class_id_reference="28" object_id="_545">
+            <item class_id_reference="28" object_id="_544">
               <id>78</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_546">
+            <item class_id_reference="28" object_id="_545">
               <id>79</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_547">
+            <item class_id_reference="28" object_id="_546">
               <id>80</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
-            <item class_id_reference="28" object_id="_548">
+            <item class_id_reference="28" object_id="_547">
               <id>81</id>
               <stage>1</stage>
               <latency>1</latency>
             </item>
+          </operations>
+        </item>
+        <item class_id_reference="26" object_id="_548">
+          <id>2</id>
+          <operations>
+            <count>3</count>
+            <item_version>0</item_version>
             <item class_id_reference="28" object_id="_549">
               <id>82</id>
               <stage>1</stage>
@@ -8593,7 +8593,7 @@
         <count>7</count>
         <item_version>0</item_version>
         <item class_id="36" tracking_level="0" version="0">
-          <first>sparsemux_35_5_32_1_1_U183 (sparsemux_35_5_32_1_1)</first>
+          <first>sparsemux_35_5_26_1_1_U183 (sparsemux_35_5_26_1_1)</first>
           <second class_id="37" tracking_level="0" version="0">
             <count>2</count>
             <item_version>0</item_version>
@@ -8608,7 +8608,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_35_5_32_1_1_U189 (sparsemux_35_5_32_1_1)</first>
+          <first>sparsemux_35_5_26_1_1_U189 (sparsemux_35_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8623,7 +8623,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U184 (sparsemux_37_5_32_1_1)</first>
+          <first>sparsemux_37_5_26_1_1_U184 (sparsemux_37_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8638,7 +8638,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U188 (sparsemux_37_5_32_1_1)</first>
+          <first>sparsemux_37_5_26_1_1_U188 (sparsemux_37_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8653,7 +8653,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U185 (sparsemux_39_5_32_1_1)</first>
+          <first>sparsemux_39_5_26_1_1_U185 (sparsemux_39_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8668,7 +8668,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U187 (sparsemux_39_5_32_1_1)</first>
+          <first>sparsemux_39_5_26_1_1_U187 (sparsemux_39_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8683,7 +8683,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_41_5_32_1_1_U186 (sparsemux_41_5_32_1_1)</first>
+          <first>sparsemux_41_5_26_1_1_U186 (sparsemux_41_5_26_1_1)</first>
           <second>
             <count>2</count>
             <item_version>0</item_version>
@@ -8735,11 +8735,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -8747,7 +8747,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8762,11 +8762,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8774,7 +8774,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8789,11 +8789,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8801,7 +8801,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8816,11 +8816,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8828,7 +8828,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8843,11 +8843,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8855,7 +8855,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8870,11 +8870,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8882,7 +8882,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -8897,11 +8897,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>24</second>
+              <second>20</second>
             </item>
             <item>
               <first>FF</first>
@@ -8909,22 +8909,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln100_fu_928_p2 ( icmp ) </first>
+          <first>icmp_ln100_fu_968_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -8932,22 +8932,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln101_fu_948_p2 ( icmp ) </first>
+          <first>icmp_ln103_fu_988_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -8955,22 +8955,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln102_fu_968_p2 ( icmp ) </first>
+          <first>icmp_ln104_fu_1002_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -8978,22 +8978,22 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln105_fu_988_p2 ( icmp ) </first>
+          <first>icmp_ln105_fu_1016_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
             <item>
               <first>(0P0)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9001,58 +9001,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>39</second>
+              <second>33</second>
             </item>
           </second>
         </item>
         <item>
-          <first>icmp_ln106_fu_998_p2 ( icmp ) </first>
-          <second>
-            <count>4</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(0P0)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>(1P1)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>LUT</first>
-              <second>39</second>
-            </item>
-          </second>
-        </item>
-        <item>
-          <first>icmp_ln107_fu_1008_p2 ( icmp ) </first>
-          <second>
-            <count>4</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(0P0)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>(1P1)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>LUT</first>
-              <second>39</second>
-            </item>
-          </second>
-        </item>
-        <item>
-          <first>icmp_ln97_1_fu_342_p2 ( icmp ) </first>
+          <first>icmp_ln95_1_fu_342_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9075,7 +9029,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_2_fu_442_p2 ( icmp ) </first>
+          <first>icmp_ln95_2_fu_442_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9098,7 +9052,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_3_fu_634_p2 ( icmp ) </first>
+          <first>icmp_ln95_3_fu_634_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9121,7 +9075,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_4_fu_738_p2 ( icmp ) </first>
+          <first>icmp_ln95_4_fu_738_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9144,7 +9098,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_5_fu_838_p2 ( icmp ) </first>
+          <first>icmp_ln95_5_fu_838_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9167,7 +9121,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_fu_246_p2 ( icmp ) </first>
+          <first>icmp_ln95_fu_246_p2 ( icmp ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9186,6 +9140,52 @@
             <item>
               <first>LUT</first>
               <second>13</second>
+            </item>
+          </second>
+        </item>
+        <item>
+          <first>icmp_ln98_fu_928_p2 ( icmp ) </first>
+          <second>
+            <count>4</count>
+            <item_version>0</item_version>
+            <item>
+              <first>(0P0)</first>
+              <second>26</second>
+            </item>
+            <item>
+              <first>(1P1)</first>
+              <second>26</second>
+            </item>
+            <item>
+              <first>FF</first>
+              <second>0</second>
+            </item>
+            <item>
+              <first>LUT</first>
+              <second>33</second>
+            </item>
+          </second>
+        </item>
+        <item>
+          <first>icmp_ln99_fu_948_p2 ( icmp ) </first>
+          <second>
+            <count>4</count>
+            <item_version>0</item_version>
+            <item>
+              <first>(0P0)</first>
+              <second>26</second>
+            </item>
+            <item>
+              <first>(1P1)</first>
+              <second>26</second>
+            </item>
+            <item>
+              <first>FF</first>
+              <second>0</second>
+            </item>
+            <item>
+              <first>LUT</first>
+              <second>33</second>
             </item>
           </second>
         </item>
@@ -9338,11 +9338,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9350,7 +9350,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -9365,11 +9365,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9377,7 +9377,7 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -9392,11 +9392,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9404,12 +9404,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>l3_0_fu_992_p3 ( select ) </first>
+          <first>l3_0_fu_994_p3 ( select ) </first>
           <second>
             <count>5</count>
             <item_version>0</item_version>
@@ -9419,11 +9419,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9431,12 +9431,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>l3_1_fu_1002_p3 ( select ) </first>
+          <first>l3_1_fu_1008_p3 ( select ) </first>
           <second>
             <count>5</count>
             <item_version>0</item_version>
@@ -9446,11 +9446,11 @@
             </item>
             <item>
               <first>(1P1)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(2P2)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>FF</first>
@@ -9458,12 +9458,12 @@
             </item>
             <item>
               <first>LUT</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>xor_ln100_fu_934_p2 ( xor ) </first>
+          <first>xor_ln100_fu_974_p2 ( xor ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9486,7 +9486,7 @@
           </second>
         </item>
         <item>
-          <first>xor_ln101_fu_954_p2 ( xor ) </first>
+          <first>xor_ln98_fu_934_p2 ( xor ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9509,7 +9509,7 @@
           </second>
         </item>
         <item>
-          <first>xor_ln102_fu_974_p2 ( xor ) </first>
+          <first>xor_ln99_fu_954_p2 ( xor ) </first>
           <second>
             <count>4</count>
             <item_version>0</item_version>
@@ -9545,7 +9545,7 @@
         <item_version>0</item_version>
       </dp_multiplexer_resource>
       <dp_register_resource>
-        <count>6</count>
+        <count>4</count>
         <item_version>0</item_version>
         <item>
           <first>ap_CS_fsm</first>
@@ -9586,13 +9586,13 @@
           </second>
         </item>
         <item>
-          <first>cand_7_reg_1022</first>
+          <first>l3_0_reg_1026</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
             <item>
               <first>(Bits)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(Consts)</first>
@@ -9600,18 +9600,18 @@
             </item>
             <item>
               <first>FF</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
         <item>
-          <first>l2_0_reg_1028</first>
+          <first>l3_1_reg_1032</first>
           <second>
             <count>3</count>
             <item_version>0</item_version>
             <item>
               <first>(Bits)</first>
-              <second>32</second>
+              <second>26</second>
             </item>
             <item>
               <first>(Consts)</first>
@@ -9619,45 +9619,7 @@
             </item>
             <item>
               <first>FF</first>
-              <second>32</second>
-            </item>
-          </second>
-        </item>
-        <item>
-          <first>l2_1_reg_1034</first>
-          <second>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(Bits)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>(Consts)</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>32</second>
-            </item>
-          </second>
-        </item>
-        <item>
-          <first>l2_2_reg_1040</first>
-          <second>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(Bits)</first>
-              <second>32</second>
-            </item>
-            <item>
-              <first>(Consts)</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>32</second>
+              <second>26</second>
             </item>
           </second>
         </item>
@@ -9666,49 +9628,49 @@
         <count>7</count>
         <item_version>0</item_version>
         <item>
-          <first>sparsemux_35_5_32_1_1_U183</first>
+          <first>sparsemux_35_5_26_1_1_U183</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_35_5_32_1_1_U189</first>
+          <first>sparsemux_35_5_26_1_1_U189</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U184</first>
+          <first>sparsemux_37_5_26_1_1_U184</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U188</first>
+          <first>sparsemux_37_5_26_1_1_U188</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U185</first>
+          <first>sparsemux_39_5_26_1_1_U185</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U187</first>
+          <first>sparsemux_39_5_26_1_1_U187</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
           </second>
         </item>
         <item>
-          <first>sparsemux_41_5_32_1_1_U186</first>
+          <first>sparsemux_41_5_26_1_1_U186</first>
           <second>
             <count>0</count>
             <item_version>0</item_version>
@@ -9719,7 +9681,7 @@
         <count>7</count>
         <item_version>0</item_version>
         <item class_id="40" tracking_level="0" version="0">
-          <first>sparsemux_35_5_32_1_1_U183 (sparsemux_35_5_32_1_1)</first>
+          <first>sparsemux_35_5_26_1_1_U183 (sparsemux_35_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9727,7 +9689,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_35_5_32_1_1_U189 (sparsemux_35_5_32_1_1)</first>
+          <first>sparsemux_35_5_26_1_1_U189 (sparsemux_35_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9735,7 +9697,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U184 (sparsemux_37_5_32_1_1)</first>
+          <first>sparsemux_37_5_26_1_1_U184 (sparsemux_37_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9743,7 +9705,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_37_5_32_1_1_U188 (sparsemux_37_5_32_1_1)</first>
+          <first>sparsemux_37_5_26_1_1_U188 (sparsemux_37_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9751,7 +9713,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U185 (sparsemux_39_5_32_1_1)</first>
+          <first>sparsemux_39_5_26_1_1_U185 (sparsemux_39_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9759,7 +9721,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_39_5_32_1_1_U187 (sparsemux_39_5_32_1_1)</first>
+          <first>sparsemux_39_5_26_1_1_U187 (sparsemux_39_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9767,7 +9729,7 @@
           </second>
         </item>
         <item>
-          <first>sparsemux_41_5_32_1_1_U186 (sparsemux_41_5_32_1_1)</first>
+          <first>sparsemux_41_5_26_1_1_U186 (sparsemux_41_5_26_1_1)</first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9835,23 +9797,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln100_fu_928_p2 ( icmp ) </first>
-          <second>
-            <count>1</count>
-            <item_version>0</item_version>
-            <item>69</item>
-          </second>
-        </item>
-        <item>
-          <first>icmp_ln101_fu_948_p2 ( icmp ) </first>
-          <second>
-            <count>1</count>
-            <item_version>0</item_version>
-            <item>72</item>
-          </second>
-        </item>
-        <item>
-          <first>icmp_ln102_fu_968_p2 ( icmp ) </first>
+          <first>icmp_ln100_fu_968_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9859,7 +9805,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln105_fu_988_p2 ( icmp ) </first>
+          <first>icmp_ln103_fu_988_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9867,7 +9813,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln106_fu_998_p2 ( icmp ) </first>
+          <first>icmp_ln104_fu_1002_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9875,7 +9821,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln107_fu_1008_p2 ( icmp ) </first>
+          <first>icmp_ln105_fu_1016_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9883,7 +9829,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_1_fu_342_p2 ( icmp ) </first>
+          <first>icmp_ln95_1_fu_342_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9891,7 +9837,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_2_fu_442_p2 ( icmp ) </first>
+          <first>icmp_ln95_2_fu_442_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9899,7 +9845,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_3_fu_634_p2 ( icmp ) </first>
+          <first>icmp_ln95_3_fu_634_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9907,7 +9853,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_4_fu_738_p2 ( icmp ) </first>
+          <first>icmp_ln95_4_fu_738_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9915,7 +9861,7 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_5_fu_838_p2 ( icmp ) </first>
+          <first>icmp_ln95_5_fu_838_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -9923,11 +9869,27 @@
           </second>
         </item>
         <item>
-          <first>icmp_ln97_fu_246_p2 ( icmp ) </first>
+          <first>icmp_ln95_fu_246_p2 ( icmp ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
             <item>45</item>
+          </second>
+        </item>
+        <item>
+          <first>icmp_ln98_fu_928_p2 ( icmp ) </first>
+          <second>
+            <count>1</count>
+            <item_version>0</item_version>
+            <item>69</item>
+          </second>
+        </item>
+        <item>
+          <first>icmp_ln99_fu_948_p2 ( icmp ) </first>
+          <second>
+            <count>1</count>
+            <item_version>0</item_version>
+            <item>72</item>
           </second>
         </item>
         <item>
@@ -10003,7 +9965,7 @@
           </second>
         </item>
         <item>
-          <first>l3_0_fu_992_p3 ( select ) </first>
+          <first>l3_0_fu_994_p3 ( select ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -10011,7 +9973,7 @@
           </second>
         </item>
         <item>
-          <first>l3_1_fu_1002_p3 ( select ) </first>
+          <first>l3_1_fu_1008_p3 ( select ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -10019,7 +9981,15 @@
           </second>
         </item>
         <item>
-          <first>xor_ln100_fu_934_p2 ( xor ) </first>
+          <first>xor_ln100_fu_974_p2 ( xor ) </first>
+          <second>
+            <count>1</count>
+            <item_version>0</item_version>
+            <item>76</item>
+          </second>
+        </item>
+        <item>
+          <first>xor_ln98_fu_934_p2 ( xor ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
@@ -10027,19 +9997,11 @@
           </second>
         </item>
         <item>
-          <first>xor_ln101_fu_954_p2 ( xor ) </first>
+          <first>xor_ln99_fu_954_p2 ( xor ) </first>
           <second>
             <count>1</count>
             <item_version>0</item_version>
             <item>73</item>
-          </second>
-        </item>
-        <item>
-          <first>xor_ln102_fu_974_p2 ( xor ) </first>
-          <second>
-            <count>1</count>
-            <item_version>0</item_version>
-            <item>76</item>
           </second>
         </item>
       </dp_expression_map>
@@ -10450,28 +10412,28 @@
       <item>
         <first>78</first>
         <second>
-          <first>1</first>
+          <first>0</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>79</first>
         <second>
-          <first>1</first>
+          <first>0</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>80</first>
         <second>
-          <first>1</first>
+          <first>0</first>
           <second>0</second>
         </second>
       </item>
       <item>
         <first>81</first>
         <second>
-          <first>1</first>
+          <first>0</first>
           <second>0</second>
         </second>
       </item>
@@ -10992,7 +10954,7 @@
         </second>
       </item>
       <item>
-        <first>992</first>
+        <first>994</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11000,7 +10962,7 @@
         </second>
       </item>
       <item>
-        <first>998</first>
+        <first>1002</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11008,7 +10970,7 @@
         </second>
       </item>
       <item>
-        <first>1002</first>
+        <first>1008</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11016,7 +10978,7 @@
         </second>
       </item>
       <item>
-        <first>1008</first>
+        <first>1016</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11024,7 +10986,7 @@
         </second>
       </item>
       <item>
-        <first>1014</first>
+        <first>1020</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11092,23 +11054,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln100_fu_928</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>69</item>
-        </second>
-      </item>
-      <item>
-        <first>icmp_ln101_fu_948</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>72</item>
-        </second>
-      </item>
-      <item>
-        <first>icmp_ln102_fu_968</first>
+        <first>icmp_ln100_fu_968</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11116,7 +11062,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln105_fu_988</first>
+        <first>icmp_ln103_fu_988</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11124,7 +11070,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln106_fu_998</first>
+        <first>icmp_ln104_fu_1002</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11132,7 +11078,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln107_fu_1008</first>
+        <first>icmp_ln105_fu_1016</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11140,7 +11086,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_1_fu_342</first>
+        <first>icmp_ln95_1_fu_342</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11148,7 +11094,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_2_fu_442</first>
+        <first>icmp_ln95_2_fu_442</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11156,7 +11102,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_3_fu_634</first>
+        <first>icmp_ln95_3_fu_634</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11164,7 +11110,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_4_fu_738</first>
+        <first>icmp_ln95_4_fu_738</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11172,7 +11118,7 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_5_fu_838</first>
+        <first>icmp_ln95_5_fu_838</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11180,11 +11126,27 @@
         </second>
       </item>
       <item>
-        <first>icmp_ln97_fu_246</first>
+        <first>icmp_ln95_fu_246</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
           <item>45</item>
+        </second>
+      </item>
+      <item>
+        <first>icmp_ln98_fu_928</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>69</item>
+        </second>
+      </item>
+      <item>
+        <first>icmp_ln99_fu_948</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>72</item>
         </second>
       </item>
       <item>
@@ -11260,7 +11222,7 @@
         </second>
       </item>
       <item>
-        <first>l3_0_fu_992</first>
+        <first>l3_0_fu_994</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11268,7 +11230,7 @@
         </second>
       </item>
       <item>
-        <first>l3_1_fu_1002</first>
+        <first>l3_1_fu_1008</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11276,7 +11238,7 @@
         </second>
       </item>
       <item>
-        <first>select_ln107_fu_1014</first>
+        <first>select_ln105_fu_1020</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11332,23 +11294,7 @@
         </second>
       </item>
       <item>
-        <first>xor_ln100_fu_934</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>70</item>
-        </second>
-      </item>
-      <item>
-        <first>xor_ln101_fu_954</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>73</item>
-        </second>
-      </item>
-      <item>
-        <first>xor_ln102_fu_974</first>
+        <first>xor_ln100_fu_974</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11356,7 +11302,23 @@
         </second>
       </item>
       <item>
-        <first>zext_ln89_fu_236</first>
+        <first>xor_ln98_fu_934</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>70</item>
+        </second>
+      </item>
+      <item>
+        <first>xor_ln99_fu_954</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>73</item>
+        </second>
+      </item>
+      <item>
+        <first>zext_ln87_fu_236</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
@@ -11557,74 +11519,42 @@
       <item_version>0</item_version>
     </dp_mem_port_nodes>
     <dp_reg_nodes>
-      <count>4</count>
+      <count>2</count>
       <item_version>0</item_version>
       <item>
-        <first>1022</first>
+        <first>1026</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>68</item>
+          <item>79</item>
         </second>
       </item>
       <item>
-        <first>1028</first>
+        <first>1032</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>71</item>
-        </second>
-      </item>
-      <item>
-        <first>1034</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>74</item>
-        </second>
-      </item>
-      <item>
-        <first>1040</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>77</item>
+          <item>81</item>
         </second>
       </item>
     </dp_reg_nodes>
     <dp_regname_nodes>
-      <count>4</count>
+      <count>2</count>
       <item_version>0</item_version>
       <item>
-        <first>cand_7_reg_1022</first>
+        <first>l3_0_reg_1026</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>68</item>
+          <item>79</item>
         </second>
       </item>
       <item>
-        <first>l2_0_reg_1028</first>
+        <first>l3_1_reg_1032</first>
         <second>
           <count>1</count>
           <item_version>0</item_version>
-          <item>71</item>
-        </second>
-      </item>
-      <item>
-        <first>l2_1_reg_1034</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>74</item>
-        </second>
-      </item>
-      <item>
-        <first>l2_2_reg_1040</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>77</item>
+          <item>81</item>
         </second>
       </item>
     </dp_regname_nodes>

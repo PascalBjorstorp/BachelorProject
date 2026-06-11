@@ -1,1 +1,0 @@
- {CheckOptions: [ {key: xilinx-tb-process.TopFunctionName, value: 'mpc_fpga_top_opencl'}, {key: xilinx-tb-process.KeepTopName, value: 1}, {key: xilinx-tb-process.BCSim, value: '0'} ] } 

@@ -23,38 +23,38 @@ module mpc_fpga_top_opencl_sum8_K_QP_raw (
 
 
 output   ap_ready;
-input  [43:0] a0;
-input  [43:0] a1;
-input  [43:0] a2;
-input  [43:0] a3;
-input  [43:0] a4;
-input  [43:0] a5;
-input  [43:0] a6;
-input  [43:0] a7;
-output  [43:0] ap_return;
+input  [31:0] a0;
+input  [31:0] a1;
+input  [31:0] a2;
+input  [31:0] a3;
+input  [31:0] a4;
+input  [31:0] a5;
+input  [31:0] a6;
+input  [31:0] a7;
+output  [31:0] ap_return;
 input   ap_rst;
 
-wire   [43:0] add_ln328_1_fu_90_p2;
-wire   [43:0] add_ln328_fu_84_p2;
-wire   [43:0] add_ln328_4_fu_108_p2;
-wire   [43:0] add_ln328_3_fu_102_p2;
-wire   [43:0] add_ln328_5_fu_114_p2;
-wire   [43:0] add_ln328_2_fu_96_p2;
+wire   [31:0] add_ln343_1_fu_82_p2;
+wire   [31:0] add_ln343_fu_76_p2;
+wire   [31:0] add_ln343_5_fu_100_p2;
+wire   [31:0] add_ln343_4_fu_94_p2;
+wire   [31:0] add_ln343_6_fu_106_p2;
+wire   [31:0] add_ln343_3_fu_88_p2;
 
-assign add_ln328_1_fu_90_p2 = (a2 + a3);
+assign add_ln343_1_fu_82_p2 = (a6 + a7);
 
-assign add_ln328_2_fu_96_p2 = (add_ln328_1_fu_90_p2 + add_ln328_fu_84_p2);
+assign add_ln343_3_fu_88_p2 = (add_ln343_1_fu_82_p2 + add_ln343_fu_76_p2);
 
-assign add_ln328_3_fu_102_p2 = (a4 + a5);
+assign add_ln343_4_fu_94_p2 = (a3 + a2);
 
-assign add_ln328_4_fu_108_p2 = (a6 + a7);
+assign add_ln343_5_fu_100_p2 = (a0 + a1);
 
-assign add_ln328_5_fu_114_p2 = (add_ln328_4_fu_108_p2 + add_ln328_3_fu_102_p2);
+assign add_ln343_6_fu_106_p2 = (add_ln343_5_fu_100_p2 + add_ln343_4_fu_94_p2);
 
-assign add_ln328_fu_84_p2 = (a1 + a0);
+assign add_ln343_fu_76_p2 = (a5 + a4);
 
 assign ap_ready = 1'b1;
 
-assign ap_return = (add_ln328_5_fu_114_p2 + add_ln328_2_fu_96_p2);
+assign ap_return = (add_ln343_6_fu_106_p2 + add_ln343_3_fu_88_p2);
 
 endmodule //mpc_fpga_top_opencl_sum8_K_QP_raw

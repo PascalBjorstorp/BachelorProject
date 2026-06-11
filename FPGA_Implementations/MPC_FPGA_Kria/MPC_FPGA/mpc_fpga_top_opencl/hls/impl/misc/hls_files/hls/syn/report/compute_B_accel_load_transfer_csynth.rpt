@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'compute_B_accel_load_transfer'
 ================================================================
-* Date:           Thu May 21 15:23:09 2026
+* Date:           Thu Jun 11 16:07:00 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  4.351 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  4.376 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -29,7 +29,7 @@
     |  Latency (cycles) |  Latency (absolute) |  Interval | Pipeline|
     |   min   |   max   |    min   |    max   | min | max |   Type  |
     +---------+---------+----------+----------+-----+-----+---------+
-    |       25|       25|  0.125 us|  0.125 us|   26|   26|      yes|
+    |       22|       22|  0.110 us|  0.110 us|   23|   23|      yes|
     +---------+---------+----------+----------+-----+-----+---------+
 
     + Detail: 
@@ -38,7 +38,7 @@
         |                        |             |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
         |        Instance        |    Module   |   min   |   max   |    min    |    max    | min | max |   Type  |
         +------------------------+-------------+---------+---------+-----------+-----------+-----+-----+---------+
-        |grp_fp_recip_fn_fu_140  |fp_recip_fn  |        6|        6|  30.000 ns|  30.000 ns|    1|    1|      yes|
+        |grp_fp_recip_fn_fu_138  |fp_recip_fn  |        5|        5|  25.000 ns|  25.000 ns|    1|    1|      yes|
         +------------------------+-------------+---------+---------+-----------+-----------+-----+-----+---------+
 
         * Loop: 
@@ -53,19 +53,19 @@
 +-----------------+---------+------+--------+--------+-----+
 |       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
 +-----------------+---------+------+--------+--------+-----+
-|DSP              |        -|     2|       -|       -|    -|
-|Expression       |        -|     -|       0|     174|    -|
+|DSP              |        -|     -|       -|       -|    -|
+|Expression       |        -|     -|       0|     177|    -|
 |FIFO             |        -|     -|       -|       -|    -|
-|Instance         |        1|    13|    2582|    2971|    -|
+|Instance         |        1|    13|    1663|    2202|    -|
 |Memory           |        -|     -|       -|       -|    -|
-|Multiplexer      |        -|     -|       0|     239|    -|
-|Register         |        -|     -|     574|       -|    -|
+|Multiplexer      |        -|     -|       0|     225|    -|
+|Register         |        -|     -|     564|       -|    -|
 +-----------------+---------+------+--------+--------+-----+
-|Total            |        1|    15|    3156|    3384|    0|
+|Total            |        1|    13|    2227|    2604|    0|
 +-----------------+---------+------+--------+--------+-----+
 |Available        |      288|  1248|  234240|  117120|   64|
 +-----------------+---------+------+--------+--------+-----+
-|Utilization (%)  |       ~0|     1|       1|       2|    0|
+|Utilization (%)  |       ~0|     1|      ~0|       2|    0|
 +-----------------+---------+------+--------+--------+-----+
 
 + Detail: 
@@ -73,27 +73,23 @@
     +---------------------------+----------------------+---------+----+------+------+-----+
     |          Instance         |        Module        | BRAM_18K| DSP|  FF  |  LUT | URAM|
     +---------------------------+----------------------+---------+----+------+------+-----+
-    |grp_fp_recip_fn_fu_140     |fp_recip_fn           |        1|   1|  2033|  2710|    0|
-    |mul_23s_26s_49_4_1_U500    |mul_23s_26s_49_4_1    |        0|   2|    61|    29|    0|
-    |mul_26s_16ns_42_4_1_U507   |mul_26s_16ns_42_4_1   |        0|   1|    61|    29|    0|
-    |mul_26s_16ns_42_4_1_U508   |mul_26s_16ns_42_4_1   |        0|   1|    61|    29|    0|
-    |mul_26s_16s_42_4_1_U506    |mul_26s_16s_42_4_1    |        0|   1|    61|    29|    0|
-    |mul_26s_18ns_44_4_1_U505   |mul_26s_18ns_44_4_1   |        0|   1|    61|    29|    0|
-    |mul_26s_18s_44_4_1_U503    |mul_26s_18s_44_4_1    |        0|   1|    61|    29|    0|
-    |mul_26s_18s_44_4_1_U504    |mul_26s_18s_44_4_1    |        0|   1|    61|    29|    0|
-    |mul_26s_23s_49_4_1_U501    |mul_26s_23s_49_4_1    |        0|   2|    61|    29|    0|
-    |mul_26s_26s_43_4_1_x_U502  |mul_26s_26s_43_4_1_x  |        0|   2|    61|    29|    0|
+    |grp_fp_recip_fn_fu_138     |fp_recip_fn           |        1|   0|  1573|  2061|    0|
+    |mul_20s_21s_41_3_1_U497    |mul_20s_21s_41_3_1    |        0|   2|    10|    14|    0|
+    |mul_21s_11ns_32_3_1_U504   |mul_21s_11ns_32_3_1   |        0|   1|    10|    14|    0|
+    |mul_21s_11ns_32_3_1_U506   |mul_21s_11ns_32_3_1   |        0|   1|    10|    14|    0|
+    |mul_21s_11s_32_3_1_U503    |mul_21s_11s_32_3_1    |        0|   1|    10|    14|    0|
+    |mul_21s_13ns_34_3_1_U502   |mul_21s_13ns_34_3_1   |        0|   1|    10|    14|    0|
+    |mul_21s_13s_34_3_1_U500    |mul_21s_13s_34_3_1    |        0|   1|    10|    14|    0|
+    |mul_21s_13s_34_3_1_U501    |mul_21s_13s_34_3_1    |        0|   1|    10|    14|    0|
+    |mul_21s_20s_41_3_1_U498    |mul_21s_20s_41_3_1    |        0|   2|    10|    14|    0|
+    |mul_21s_21s_42_3_1_x_U499  |mul_21s_21s_42_3_1_x  |        0|   2|    10|    14|    0|
+    |mul_21s_7ns_28_1_1_U505    |mul_21s_7ns_28_1_1    |        0|   1|     0|    15|    0|
     +---------------------------+----------------------+---------+----+------+------+-----+
-    |Total                      |                      |        1|  13|  2582|  2971|    0|
+    |Total                      |                      |        1|  13|  1663|  2202|    0|
     +---------------------------+----------------------+---------+----+------+------+-----+
 
     * DSP: 
-    +------------------------------------+-------------------------------+----------------+
-    |              Instance              |             Module            |   Expression   |
-    +------------------------------------+-------------------------------+----------------+
-    |am_addmul_26s_26s_11ns_38_4_1_U509  |am_addmul_26s_26s_11ns_38_4_1  |  (i0 + i1) * i2|
-    |am_addmul_26s_26s_11ns_38_4_1_U510  |am_addmul_26s_26s_11ns_38_4_1  |  (i0 + i1) * i2|
-    +------------------------------------+-------------------------------+----------------+
+    N/A
 
     * Memory: 
     N/A
@@ -105,56 +101,61 @@
     +-------------------------+----------+----+---+----+------------+------------+
     |      Variable Name      | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
     +-------------------------+----------+----+---+----+------------+------------+
-    |F_zr_fu_194_p2           |         +|   0|  0|  33|          26|          22|
-    |add_ln566_fu_422_p2      |         +|   0|  0|  32|          25|          25|
-    |F_zf_fu_187_p2           |         -|   0|  0|  33|          21|          26|
-    |use_front_raw_fu_215_p2  |      icmp|   0|  0|  33|          26|          26|
-    |select_ln559_fu_437_p3   |    select|   0|  0|  19|           1|          20|
-    |select_ln566_fu_411_p3   |    select|   0|  0|  24|           1|          24|
+    |F_zr_fu_196_p2           |         +|   0|  0|  28|          21|          17|
+    |add_ln559_fu_355_p2      |         +|   0|  0|  28|          21|          21|
+    |add_ln566_fu_445_p2      |         +|   0|  0|  27|          20|          20|
+    |F_zf_fu_189_p2           |         -|   0|  0|  28|          16|          21|
+    |use_front_raw_fu_217_p2  |      icmp|   0|  0|  28|          21|          21|
+    |select_ln559_fu_348_p3   |    select|   0|  0|  20|           1|          21|
+    |select_ln566_fu_434_p3   |    select|   0|  0|  18|           1|          19|
     +-------------------------+----------+----+---+----+------------+------------+
-    |Total                    |          |   0|  0| 174|         100|         143|
+    |Total                    |          |   0|  0| 177|         101|         140|
     +-------------------------+----------+----+---+----+------------+------------+
 
     * Multiplexer: 
     +--------------------------+-----+-----------+-----+-----------+
     |           Name           | LUT | Input Size| Bits| Total Bits|
     +--------------------------+-----+-----------+-----+-----------+
-    |ap_NS_fsm                 |  135|         27|    1|         27|
-    |grp_fp_recip_fn_fu_140_x  |   14|          3|   26|         78|
-    |grp_fu_147_p0             |   14|          3|   23|         69|
-    |grp_fu_147_p1             |   14|          3|   26|         78|
-    |grp_fu_155_p0             |   31|          6|   26|        156|
-    |grp_fu_155_p1             |   31|          6|   26|        156|
+    |ap_NS_fsm                 |  121|         24|    1|         24|
+    |grp_fp_recip_fn_fu_138_x  |   14|          3|   21|         63|
+    |grp_fu_145_p0             |   14|          3|   20|         60|
+    |grp_fu_145_p1             |   14|          3|   21|         63|
+    |grp_fu_153_p0             |   31|          6|   21|        126|
+    |grp_fu_153_p1             |   31|          6|   21|        126|
     +--------------------------+-----+-----------+-----+-----------+
-    |Total                     |  239|         48|  128|        564|
+    |Total                     |  225|         45|  105|        462|
     +--------------------------+-----+-----------+-----+-----------+
 
     * Register: 
     +---------------------------------+----+----+-----+-----------+
     |               Name              | FF | LUT| Bits| Const Bits|
     +---------------------------------+----+----+-----+-----------+
-    |add_ln566_reg_623                |  25|   0|   25|          0|
-    |ap_CS_fsm                        |  26|   0|   26|          0|
-    |ap_port_reg_tr_C_eff_f_raw_val   |  26|   0|   26|          0|
-    |ap_port_reg_tr_C_eff_r_val       |  26|   0|   26|          0|
-    |ap_port_reg_tr_C_min_f_val       |  26|   0|   26|          0|
-    |ap_port_reg_tr_alpha_f_op_val    |  26|   0|   26|          0|
-    |ap_port_reg_tr_alpha_r_op_val    |  26|   0|   26|          0|
-    |ap_port_reg_tr_cos_delta_val     |  26|   0|   26|          0|
-    |mul_ln671_87_reg_608             |  42|   0|   42|          0|
-    |mul_ln671_88_reg_613             |  42|   0|   42|          0|
-    |product_q_119_reg_587            |  26|   0|   26|          0|
-    |reg_179                          |  23|   0|   23|          0|
-    |reg_183                          |  26|   0|   26|          0|
-    |sext_ln671_117_reg_503           |  49|   0|   49|          0|
-    |sext_ln671_122_reg_535           |  43|   0|   43|          0|
-    |sext_ln671_130_reg_576           |  43|   0|   43|          0|
-    |tmp_reg_618                      |  20|   0|   20|          0|
-    |tr_C_eff_f_raw_val_read_reg_493  |  26|   0|   26|          0|
-    |tr_Fz_transfer_val_read_reg_478  |  26|   0|   26|          0|
-    |use_front_raw_reg_514            |   1|   0|    1|          0|
+    |add_ln559_reg_602                |  21|   0|   21|          0|
+    |ap_CS_fsm                        |  23|   0|   23|          0|
+    |ap_port_reg_tr_C_eff_f_raw_val   |  21|   0|   21|          0|
+    |ap_port_reg_tr_C_eff_r_val       |  21|   0|   21|          0|
+    |ap_port_reg_tr_C_min_f_val       |  21|   0|   21|          0|
+    |ap_port_reg_tr_alpha_f_op_val    |  21|   0|   21|          0|
+    |ap_port_reg_tr_alpha_r_op_val    |  21|   0|   21|          0|
+    |ap_port_reg_tr_cos_delta_val     |  21|   0|   21|          0|
+    |mul_ln574_68_reg_617             |  32|   0|   32|          0|
+    |mul_ln574_69_reg_627             |  32|   0|   32|          0|
+    |product_q_108_reg_519            |  21|   0|   21|          0|
+    |product_q_111_reg_560            |  21|   0|   21|          0|
+    |product_q_113_reg_570            |  21|   0|   21|          0|
+    |product_q_115_reg_586            |  21|   0|   21|          0|
+    |reg_177                          |  20|   0|   20|          0|
+    |reg_181                          |  21|   0|   21|          0|
+    |reg_185                          |  21|   0|   21|          0|
+    |sext_ln574_72_reg_492            |  41|   0|   41|          0|
+    |sext_ln574_77_reg_529            |  42|   0|   42|          0|
+    |sext_ln574_85_reg_580            |  42|   0|   42|          0|
+    |tr_C_eff_f_raw_val_read_reg_482  |  21|   0|   21|          0|
+    |tr_Fz_transfer_val_read_reg_467  |  21|   0|   21|          0|
+    |trunc_ln_reg_612                 |  16|   0|   16|          0|
+    |use_front_raw_reg_503            |   1|   0|    1|          0|
     +---------------------------------+----+----+-----+-----------+
-    |Total                            | 574|   0|  574|          0|
+    |Total                            | 564|   0|  564|          0|
     +---------------------------------+----+----+-----+-----------+
 
 
@@ -172,14 +173,14 @@
 |ap_done             |  out|    1|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
 |ap_idle             |  out|    1|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
 |ap_ready            |  out|    1|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
-|ap_return_0         |  out|   26|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
-|ap_return_1         |  out|   26|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
-|tr_C_eff_f_raw_val  |   in|   26|     ap_none|             tr_C_eff_f_raw_val|        scalar|
-|tr_C_eff_r_val      |   in|   26|     ap_none|                 tr_C_eff_r_val|        scalar|
-|tr_C_min_f_val      |   in|   26|     ap_none|                 tr_C_min_f_val|        scalar|
-|tr_cos_delta_val    |   in|   26|     ap_none|               tr_cos_delta_val|        scalar|
-|tr_alpha_f_op_val   |   in|   26|     ap_none|              tr_alpha_f_op_val|        scalar|
-|tr_alpha_r_op_val   |   in|   26|     ap_none|              tr_alpha_r_op_val|        scalar|
-|tr_Fz_transfer_val  |   in|   26|     ap_none|             tr_Fz_transfer_val|        scalar|
+|ap_return_0         |  out|   21|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
+|ap_return_1         |  out|   21|  ap_ctrl_hs|  compute_B_accel_load_transfer|  return value|
+|tr_C_eff_f_raw_val  |   in|   21|     ap_none|             tr_C_eff_f_raw_val|        scalar|
+|tr_C_eff_r_val      |   in|   21|     ap_none|                 tr_C_eff_r_val|        scalar|
+|tr_C_min_f_val      |   in|   21|     ap_none|                 tr_C_min_f_val|        scalar|
+|tr_cos_delta_val    |   in|   21|     ap_none|               tr_cos_delta_val|        scalar|
+|tr_alpha_f_op_val   |   in|   21|     ap_none|              tr_alpha_f_op_val|        scalar|
+|tr_alpha_r_op_val   |   in|   21|     ap_none|              tr_alpha_r_op_val|        scalar|
+|tr_Fz_transfer_val  |   in|   21|     ap_none|             tr_Fz_transfer_val|        scalar|
 +--------------------+-----+-----+------------+-------------------------------+--------------+
 

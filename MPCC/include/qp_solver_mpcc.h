@@ -129,6 +129,11 @@ typedef struct
      *  When > 0, tightens the global vx_max at each stage. */
     float vx_max_stage[MPCC_MAX_HORIZON + 1];
 
+    /** Per-stage upper bound on virtual progress speed [m/s].
+     *  Couples ds/dt to feasible forward path motion so the optimizer
+     *  cannot "teleport" progress far beyond the car's tangent speed. */
+    float vtheta_max_stage[MPCC_MAX_HORIZON];
+
     /*--- Problem size ---*/
 
     /** Prediction horizon length (0 < N <= MPCC_MAX_HORIZON) */

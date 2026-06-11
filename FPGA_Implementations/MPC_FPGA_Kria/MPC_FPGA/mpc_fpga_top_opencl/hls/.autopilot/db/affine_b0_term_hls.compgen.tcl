@@ -1,8 +1,8 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_18s_32s_50_4_1
+set name mpc_fpga_top_opencl_mul_14s_26s_40_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
@@ -16,7 +16,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 548 \
+    id 544 \
     name b0_coeff_raw \
     type other \
     dir I \
@@ -24,14 +24,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_b0_coeff_raw \
     op interface \
-    ports { b0_coeff_raw { I 32 vector } } \
+    ports { b0_coeff_raw { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 549 \
+    id 545 \
     name lin_delta_k_raw \
     type other \
     dir I \
@@ -39,7 +39,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_lin_delta_k_raw \
     op interface \
-    ports { lin_delta_k_raw { I 18 vector } } \
+    ports { lin_delta_k_raw { I 14 vector } } \
 } "
 }
 
@@ -67,7 +67,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 25 vector } } \
+    ports { ap_return { O 23 vector } } \
 } "
 }
 

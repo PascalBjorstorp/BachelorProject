@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_persist_writeback_hls'
 ================================================================
-* Date:           Thu May 21 15:23:07 2026
+* Date:           Thu Jun 11 16:06:55 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -75,15 +75,15 @@ IsGatedGlobalClock: 0
 * FSM state operations: 
 
 State 1 <SV = 0> <Delay = 0.00>
-ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%prev_curvature_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_curvature" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 2 'read' 'prev_curvature_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%prev_accel_read = read i22 @_ssdm_op_Read.ap_auto.i22, i22 %prev_accel" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 3 'read' 'prev_accel_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%prev_steer_rate_read = read i32 @_ssdm_op_Read.ap_auto.i32, i32 %prev_steer_rate" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 4 'read' 'prev_steer_rate_read' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%sext_ln259 = sext i22 %prev_accel_read" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 5 'sext' 'sext_ln259' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%store_ln261 = store i32 %prev_steer_rate_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_riccati_hls.cpp:261]   --->   Operation 6 'store' 'store_ln261' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln262 = store i32 %sext_ln259, i32 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_riccati_hls.cpp:262]   --->   Operation 7 'store' 'store_ln262' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln263 = store i32 %prev_curvature_read, i32 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_riccati_hls.cpp:263]   --->   Operation 8 'store' 'store_ln263' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln264 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_riccati_hls.cpp:264]   --->   Operation 9 'store' 'store_ln264' <Predicate = true> <Delay = 0.00>
-ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln265 = ret" [../src/mpc_riccati_hls.cpp:265]   --->   Operation 10 'ret' 'ret_ln265' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 2 [1/1] (0.00ns)   --->   "%prev_curvature_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_curvature" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 2 'read' 'prev_curvature_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 3 [1/1] (0.00ns)   --->   "%prev_accel_read = read i19 @_ssdm_op_Read.ap_auto.i19, i19 %prev_accel" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 3 'read' 'prev_accel_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 4 [1/1] (0.00ns)   --->   "%prev_steer_rate_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %prev_steer_rate" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 4 'read' 'prev_steer_rate_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%sext_ln257 = sext i19 %prev_accel_read" [../src/mpc_riccati_hls.cpp:257]   --->   Operation 5 'sext' 'sext_ln257' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%store_ln259 = store i26 %prev_steer_rate_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_riccati_hls.cpp:259]   --->   Operation 6 'store' 'store_ln259' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln260 = store i26 %sext_ln257, i26 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_riccati_hls.cpp:260]   --->   Operation 7 'store' 'store_ln260' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln261 = store i26 %prev_curvature_read, i26 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_riccati_hls.cpp:261]   --->   Operation 8 'store' 'store_ln261' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln262 = store i1 1, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_riccati_hls.cpp:262]   --->   Operation 9 'store' 'store_ln262' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%ret_ln263 = ret" [../src/mpc_riccati_hls.cpp:263]   --->   Operation 10 'ret' 'ret_ln263' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================
@@ -113,12 +113,12 @@ Port [ p_anonymous_namespace_g_core_state_persist_prev_model_signature]:  wired=
 prev_curvature_read  (read ) [ 00]
 prev_accel_read      (read ) [ 00]
 prev_steer_rate_read (read ) [ 00]
-sext_ln259           (sext ) [ 00]
+sext_ln257           (sext ) [ 00]
+store_ln259          (store) [ 00]
+store_ln260          (store) [ 00]
 store_ln261          (store) [ 00]
 store_ln262          (store) [ 00]
-store_ln263          (store) [ 00]
-store_ln264          (store) [ 00]
-ret_ln265            (ret  ) [ 00]
+ret_ln263            (ret  ) [ 00]
 </LifeTime>
 
 <model>
@@ -192,7 +192,7 @@ ret_ln265            (ret  ) [ 00]
 <pin id="15" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i32"/></StgValue>
+<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i26"/></StgValue>
 </bind>
 </comp>
 
@@ -201,7 +201,7 @@ ret_ln265            (ret  ) [ 00]
 <pin id="17" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i22"/></StgValue>
+<StgValue><ssdm name="_ssdm_op_Read.ap_auto.i19"/></StgValue>
 </bind>
 </comp>
 
@@ -216,9 +216,9 @@ ret_ln265            (ret  ) [ 00]
 
 <comp id="20" class="1004" name="prev_curvature_read_read_fu_20">
 <pin_list>
-<pin id="21" dir="0" index="0" bw="32" slack="0"/>
-<pin id="22" dir="0" index="1" bw="32" slack="0"/>
-<pin id="23" dir="1" index="2" bw="32" slack="0"/>
+<pin id="21" dir="0" index="0" bw="26" slack="0"/>
+<pin id="22" dir="0" index="1" bw="26" slack="0"/>
+<pin id="23" dir="1" index="2" bw="26" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -228,9 +228,9 @@ ret_ln265            (ret  ) [ 00]
 
 <comp id="26" class="1004" name="prev_accel_read_read_fu_26">
 <pin_list>
-<pin id="27" dir="0" index="0" bw="22" slack="0"/>
-<pin id="28" dir="0" index="1" bw="22" slack="0"/>
-<pin id="29" dir="1" index="2" bw="22" slack="0"/>
+<pin id="27" dir="0" index="0" bw="19" slack="0"/>
+<pin id="28" dir="0" index="1" bw="19" slack="0"/>
+<pin id="29" dir="1" index="2" bw="19" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -240,9 +240,9 @@ ret_ln265            (ret  ) [ 00]
 
 <comp id="32" class="1004" name="prev_steer_rate_read_read_fu_32">
 <pin_list>
-<pin id="33" dir="0" index="0" bw="32" slack="0"/>
-<pin id="34" dir="0" index="1" bw="32" slack="0"/>
-<pin id="35" dir="1" index="2" bw="32" slack="0"/>
+<pin id="33" dir="0" index="0" bw="26" slack="0"/>
+<pin id="34" dir="0" index="1" bw="26" slack="0"/>
+<pin id="35" dir="1" index="2" bw="26" slack="0"/>
 </pin_list>
 <bind>
 <opcode="read(1150) " fcode="read"/>
@@ -250,22 +250,46 @@ ret_ln265            (ret  ) [ 00]
 </bind>
 </comp>
 
-<comp id="38" class="1004" name="sext_ln259_fu_38">
+<comp id="38" class="1004" name="sext_ln257_fu_38">
 <pin_list>
-<pin id="39" dir="0" index="0" bw="22" slack="0"/>
-<pin id="40" dir="1" index="1" bw="32" slack="0"/>
+<pin id="39" dir="0" index="0" bw="19" slack="0"/>
+<pin id="40" dir="1" index="1" bw="26" slack="0"/>
 </pin_list>
 <bind>
 <opcode="sext(35) " fcode="sext"/>
-<opset="sext_ln259/1 "/>
+<opset="sext_ln257/1 "/>
 </bind>
 </comp>
 
-<comp id="42" class="1004" name="store_ln261_store_fu_42">
+<comp id="42" class="1004" name="store_ln259_store_fu_42">
 <pin_list>
-<pin id="43" dir="0" index="0" bw="32" slack="0"/>
-<pin id="44" dir="0" index="1" bw="32" slack="0"/>
+<pin id="43" dir="0" index="0" bw="26" slack="0"/>
+<pin id="44" dir="0" index="1" bw="26" slack="0"/>
 <pin id="45" dir="1" index="2" bw="0" slack="2147483647"/>
+</pin_list>
+<bind>
+<opcode="store(28) " fcode="store"/>
+<opset="store_ln259/1 "/>
+</bind>
+</comp>
+
+<comp id="48" class="1004" name="store_ln260_store_fu_48">
+<pin_list>
+<pin id="49" dir="0" index="0" bw="19" slack="0"/>
+<pin id="50" dir="0" index="1" bw="26" slack="0"/>
+<pin id="51" dir="1" index="2" bw="0" slack="2147483647"/>
+</pin_list>
+<bind>
+<opcode="store(28) " fcode="store"/>
+<opset="store_ln260/1 "/>
+</bind>
+</comp>
+
+<comp id="54" class="1004" name="store_ln261_store_fu_54">
+<pin_list>
+<pin id="55" dir="0" index="0" bw="26" slack="0"/>
+<pin id="56" dir="0" index="1" bw="26" slack="0"/>
+<pin id="57" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
@@ -273,31 +297,7 @@ ret_ln265            (ret  ) [ 00]
 </bind>
 </comp>
 
-<comp id="48" class="1004" name="store_ln262_store_fu_48">
-<pin_list>
-<pin id="49" dir="0" index="0" bw="22" slack="0"/>
-<pin id="50" dir="0" index="1" bw="32" slack="0"/>
-<pin id="51" dir="1" index="2" bw="0" slack="2147483647"/>
-</pin_list>
-<bind>
-<opcode="store(28) " fcode="store"/>
-<opset="store_ln262/1 "/>
-</bind>
-</comp>
-
-<comp id="54" class="1004" name="store_ln263_store_fu_54">
-<pin_list>
-<pin id="55" dir="0" index="0" bw="32" slack="0"/>
-<pin id="56" dir="0" index="1" bw="32" slack="0"/>
-<pin id="57" dir="1" index="2" bw="0" slack="2147483647"/>
-</pin_list>
-<bind>
-<opcode="store(28) " fcode="store"/>
-<opset="store_ln263/1 "/>
-</bind>
-</comp>
-
-<comp id="60" class="1004" name="store_ln264_store_fu_60">
+<comp id="60" class="1004" name="store_ln262_store_fu_60">
 <pin_list>
 <pin id="61" dir="0" index="0" bw="1" slack="0"/>
 <pin id="62" dir="0" index="1" bw="1" slack="0"/>
@@ -305,7 +305,7 @@ ret_ln265            (ret  ) [ 00]
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln264/1 "/>
+<opset="store_ln262/1 "/>
 </bind>
 </comp>
 
@@ -359,7 +359,7 @@ ret_ln265            (ret  ) [ 00]
 	Port: mpc_persist_writeback_hls : prev_curvature | {1 }
   - Chain level:
 	State 1
-		store_ln262 : 1
+		store_ln260 : 1
 
 
 ============================================================
@@ -374,7 +374,7 @@ ret_ln265            (ret  ) [ 00]
 |   read   |    prev_accel_read_read_fu_26   |
 |          | prev_steer_rate_read_read_fu_32 |
 |----------|---------------------------------|
-|   sext   |         sext_ln259_fu_38        |
+|   sext   |         sext_ln257_fu_38        |
 |----------|---------------------------------|
 |   Total  |                                 |
 |----------|---------------------------------|

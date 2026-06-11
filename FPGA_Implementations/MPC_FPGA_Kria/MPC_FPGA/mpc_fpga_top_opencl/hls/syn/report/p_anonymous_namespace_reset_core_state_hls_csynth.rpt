@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'p_anonymous_namespace_reset_core_state_hls'
 ================================================================
-* Date:           Thu May 21 15:23:08 2026
+* Date:           Thu Jun 11 16:06:57 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -38,8 +38,8 @@
         |                                                                                 |                                                                      |  Latency (cycles) |  Latency (absolute) |  Interval |      Pipeline     |
         |                                     Instance                                    |                                Module                                |   min   |   max   |    min   |    max   | min | max |        Type       |
         +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
-        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
-        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
+        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
+        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
         +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
 
         * Loop: 
@@ -74,8 +74,8 @@
     +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+----+---+----+-----+
     |                                     Instance                                    |                                Module                                | BRAM_18K| DSP| FF| LUT| URAM|
     +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+----+---+----+-----+
-    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1  |        0|   0|  7|  51|    0|
-    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3  |        0|   0|  7|  51|    0|
+    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1  |        0|   0|  7|  51|    0|
+    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3  |        0|   0|  7|  51|    0|
     +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+----+---+----+-----+
     |Total                                                                            |                                                                      |        0|   0| 14| 102|    0|
     +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+----+---+----+-----+
@@ -112,8 +112,8 @@
     |                                             Name                                             | FF| LUT| Bits| Const Bits|
     +----------------------------------------------------------------------------------------------+---+----+-----+-----------+
     |ap_CS_fsm                                                                                     |  2|   0|    2|          0|
-    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68_ap_start_reg   |  1|   0|    1|          0|
-    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104_ap_start_reg  |  1|   0|    1|          0|
+    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70_ap_start_reg   |  1|   0|    1|          0|
+    |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106_ap_start_reg  |  1|   0|    1|          0|
     +----------------------------------------------------------------------------------------------+---+----+-----+-----------+
     |Total                                                                                         |  4|   0|    4|          0|
     +----------------------------------------------------------------------------------------------+---+----+-----+-----------+
@@ -136,96 +136,96 @@
 |p_anonymous_namespace_g_core_state_admm_z_x_0_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_0_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_0_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_0_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_0_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_1_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_1_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_1_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_2_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_2_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_2_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_3_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_3_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_3_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_4_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_4_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_4_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_5_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_5_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_5_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_6_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_6_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_6_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_x_7_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
-|p_anonymous_namespace_g_core_state_admm_z_x_7_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
+|p_anonymous_namespace_g_core_state_admm_z_x_7_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_0_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_0_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_0_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_1_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_1_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_1_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_2_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_2_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_2_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_2|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_3_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_3_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_3_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_3|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_4_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_4_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_4_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_4|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_5_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_5_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_5_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_5|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_6_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_6_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_6_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_6|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_y_x_7_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
-|p_anonymous_namespace_g_core_state_admm_y_x_7_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
+|p_anonymous_namespace_g_core_state_admm_y_x_7_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_x_7|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_0_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
-|p_anonymous_namespace_g_core_state_admm_z_u_0_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
+|p_anonymous_namespace_g_core_state_admm_z_u_0_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_z_u_1_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_z_u_1_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
+|p_anonymous_namespace_g_core_state_admm_z_u_1_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_z_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_0_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
-|p_anonymous_namespace_g_core_state_admm_y_u_0_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
+|p_anonymous_namespace_g_core_state_admm_y_u_0_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_0|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_address0                  |  out|    5|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_ce0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
 |p_anonymous_namespace_g_core_state_admm_y_u_1_we0                       |  out|    1|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_y_u_1_d0                        |  out|   32|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
-|p_anonymous_namespace_g_core_state_admm_rho                             |  out|   32|      ap_vld|                      p_anonymous_namespace_g_core_state_admm_rho|       pointer|
+|p_anonymous_namespace_g_core_state_admm_y_u_1_d0                        |  out|   26|   ap_memory|                    p_anonymous_namespace_g_core_state_admm_y_u_1|         array|
+|p_anonymous_namespace_g_core_state_admm_rho                             |  out|   26|      ap_vld|                      p_anonymous_namespace_g_core_state_admm_rho|       pointer|
 |p_anonymous_namespace_g_core_state_admm_rho_ap_vld                      |  out|    1|      ap_vld|                      p_anonymous_namespace_g_core_state_admm_rho|       pointer|
-|p_anonymous_namespace_g_core_state_admm_rho_u                           |  out|   32|      ap_vld|                    p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
+|p_anonymous_namespace_g_core_state_admm_rho_u                           |  out|   26|      ap_vld|                    p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
 |p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld                    |  out|    1|      ap_vld|                    p_anonymous_namespace_g_core_state_admm_rho_u|       pointer|
 |p_anonymous_namespace_g_core_state_admm_initialized                     |  out|    1|      ap_vld|              p_anonymous_namespace_g_core_state_admm_initialized|       pointer|
 |p_anonymous_namespace_g_core_state_admm_initialized_ap_vld              |  out|    1|      ap_vld|              p_anonymous_namespace_g_core_state_admm_initialized|       pointer|
-|p_anonymous_namespace_g_core_state_persist_prev_steer_rate              |  out|   32|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
+|p_anonymous_namespace_g_core_state_persist_prev_steer_rate              |  out|   26|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld       |  out|    1|      ap_vld|       p_anonymous_namespace_g_core_state_persist_prev_steer_rate|       pointer|
-|p_anonymous_namespace_g_core_state_persist_prev_accel                   |  out|   32|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
+|p_anonymous_namespace_g_core_state_persist_prev_accel                   |  out|   26|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld            |  out|    1|      ap_vld|            p_anonymous_namespace_g_core_state_persist_prev_accel|       pointer|
-|p_anonymous_namespace_g_core_state_persist_actual_steering              |  out|   32|      ap_vld|       p_anonymous_namespace_g_core_state_persist_actual_steering|       pointer|
+|p_anonymous_namespace_g_core_state_persist_actual_steering              |  out|   26|      ap_vld|       p_anonymous_namespace_g_core_state_persist_actual_steering|       pointer|
 |p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld       |  out|    1|      ap_vld|       p_anonymous_namespace_g_core_state_persist_actual_steering|       pointer|
-|p_anonymous_namespace_g_core_state_persist_prev_curvature               |  out|   32|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
+|p_anonymous_namespace_g_core_state_persist_prev_curvature               |  out|   26|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld        |  out|    1|      ap_vld|        p_anonymous_namespace_g_core_state_persist_prev_curvature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_model_signature         |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_persist_prev_model_signature|       pointer|
 |p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld  |  out|    1|      ap_vld|  p_anonymous_namespace_g_core_state_persist_prev_model_signature|       pointer|

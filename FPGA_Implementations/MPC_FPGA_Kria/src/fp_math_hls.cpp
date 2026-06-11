@@ -154,14 +154,14 @@ fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_QP_WIDTH, MPC_HLS_QP_WIDTH)
   return product;
 }
 
 static inline fp_QP_raw_t fp_mul_QP_raw_q(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_QP_WIDTH, MPC_HLS_QP_WIDTH)
   return fp_shift_right_cast_to_qp_site(product, FP_FRAC_BITS,
                                         FP_CAST_SITE_MUL_FP_MUL_QP_RAW_Q);
 }
@@ -206,7 +206,7 @@ static inline fp_fn_raw_t fp_mul_fn_raw_q(fp_fn_raw_t a, fp_fn_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_FN_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_fn_accum_t product = (fp_fn_accum_t)a * (fp_fn_accum_t)b;
-#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_FN_WIDTH, MPC_HLS_FN_WIDTH)
   return (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
 }
 
@@ -254,7 +254,7 @@ fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_P_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_P_WIDTH, MPC_HLS_QP_WIDTH)
   return product;
 }
 
@@ -262,7 +262,7 @@ fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_P_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_QP_WIDTH, MPC_HLS_P_WIDTH)
   return product;
 }
 
@@ -270,7 +270,7 @@ fp_MG_QP_mul_t fp_mul_MG_QP(fp_MG_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_MG_WIDTH, MPC_HLS_QP_WIDTH)
   return product;
 }
 
@@ -278,7 +278,7 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_QP_WIDTH, MPC_HLS_MG_WIDTH)
   return product;
 }
 
@@ -286,14 +286,14 @@ fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_K_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_MG_WIDTH, MPC_HLS_K_WIDTH)
   return product;
 }
 
 fp_MG_K_mul_t fp_mul_K_MG(fp_K_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_K_WIDTH, MPC_HLS_MG_WIDTH)
   return product;
 }
 
@@ -301,14 +301,14 @@ fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_K_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_K_WIDTH, MPC_HLS_QP_WIDTH)
   return product;
 }
 
 fp_K_QP_mul_t fp_mul_QP_K(fp_QP_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_QP_WIDTH, MPC_HLS_K_WIDTH)
   return product;
 }
 
@@ -510,16 +510,24 @@ MPC_HLS_UNROLL()
   if (lut_idx > (FP_RECIP_LUT_SIZE - 1))
     lut_idx = FP_RECIP_LUT_SIZE - 1;
 
-  /* 1/x_norm by accurate LUT + linear interpolation, NO Newton-Raphson.
-   * recip_lut[i] = 2^F / x_norm at x_norm=(L+i)/(2L), L=FP_RECIP_LUT_SIZE
-   * (+1 guard for the lerp neighbour). Sub-grid weight = the lut_lo low
-   * mantissa bits. 256 segments were measured to beat larger tables after
-   * table-value quantization and integer lerp truncation are included. */
+  /* 1/x_norm by LUT + linear interpolation. recip_lut[i] = 2^F/x_norm at
+   * x_norm=(L+i)/(2L), L=FP_RECIP_LUT_SIZE (+1 guard kept in the table).
+   * SLOPE-LUT form: slope_lut[i] = recip_lut[i+1]-recip_lut[i] is precomputed
+   * (a parallel ROM), so the runtime (v1-v0) subtract is OFF the critical path
+   * -- only slope_lut[idx]*frac feeds the DSP. This was previously pipelined at
+   * latency=2 to break the recip_lut(BRAM)->sub->DSP single-cycle path that
+   * missed MPC_system timing by WNS -0.18ns; removing the subtract should let
+   * the multiply close at latency=1 and reclaim the ~3k recurrence cycles the
+   * extra stage cost. Numerically IDENTICAL to the (v1-v0)*frac interp (full
+   * fidelity, no per-step reshuffling). IF a synth still misses timing at
+   * latency=1, bump this BIND_OP latency back to 2 (= the prior closing config,
+   * +3k cycles); do NOT drop interpolation (the 256 staircase reshuffles control
+   * up to ~7-9deg on ~5% of steps and can cut convergence). */
   const int frac = (int)(norm_raw_u.range(lut_lo - 1, 0));
   const fp_QP_raw_t v0 = (fp_QP_raw_t)recip_lut[lut_idx];
-  const fp_QP_raw_t v1 = (fp_QP_raw_t)recip_lut[lut_idx + 1];
-  const fp_QP_raw_t est_raw =
-      (fp_QP_raw_t)(v0 + ((((long long)(v1 - v0)) * (long long)frac) >> lut_lo));
+  long long lerp_prod = (long long)slope_lut[lut_idx] * (long long)frac;
+#pragma HLS BIND_OP variable = lerp_prod op = mul impl = dsp latency = 1
+  const fp_QP_raw_t est_raw = (fp_QP_raw_t)(v0 + (lerp_prod >> lut_lo));
 
   const fp_QP_raw_t est_denorm_raw = fp_shift_qp_raw_cast_sel(est_raw, shift);
   return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-est_denorm_raw))
@@ -565,7 +573,23 @@ fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b) {
                 (__int128)fp_fn_raw_from_FN(b).to_int64());
   fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
                           (fp_fn_accum_t)fp_fn_raw_from_FN(b);
-#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LAT(MPC_HLS_FN_WIDTH, MPC_HLS_FN_WIDTH)
+  fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
+  return fp_FN_from_fn_raw(product_q);
+}
+
+/* Constant-operand FN multiply. Deliberately carries NO BIND_OP: when one
+ * operand is a compile-time constant, HLS strength-reduces this to a LUT
+ * shift-add (0 DSP) at its natural (short) latency, instead of an
+ * underutilized, latency-padded DSP. Numerically identical to fp_mul_fn.
+ * Use ONLY where one argument is a compile-time constant. */
+fp_FN_t fp_mul_fn_const(fp_FN_t a, fp_FN_t b) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_FN_MUL,
+            (__int128)fp_fn_raw_from_FN(a).to_int64() *
+                (__int128)fp_fn_raw_from_FN(b).to_int64());
+  fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
+                          (fp_fn_accum_t)fp_fn_raw_from_FN(b);
   fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
   return fp_FN_from_fn_raw(product_q);
 }

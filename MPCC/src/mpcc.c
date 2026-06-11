@@ -33,6 +33,7 @@
 #define _GNU_SOURCE
 
 #include <math.h>
+#include <stdio.h>
 #include "mpcc_types.h"
 #include "mpcc.h"
 #include "mpcc_vehicle_model.h"
@@ -60,9 +61,18 @@ static MPCCObstacleSet_t obstacle_set;
 static uint8_t mpcc_initialized = 0;
 
 /** Previous solution for warm-starting */
+/* Tunables for the curvature speed cap (compute_speed_limit). Override via
+ * env vars MPCC_KAPPA_THRESH / MPCC_CURV_SAFETY / MPCC_AX_BRAKE_CURV at
+ * controller init. */
+float MPCC_KAPPA_THRESH = 0.05f;
+float MPCC_CURV_SAFETY  = 0.85f;
+float MPCC_AX_BRAKE_CURV = 3.5f;  /* assumed braking deceleration approaching corners */
+float MPCC_SHORTCUT_AUTH = 0.65f; /* 0 disables the outside-line kappa relaxation */
+
 static MPCCState_t prev_predicted_states[MPCC_MAX_HORIZON + 1];
 static MPCCControl_t prev_predicted_controls[MPCC_MAX_HORIZON];
 static uint8_t warm_start_available = 0;
+static float warm_start_stage_carry = 0.0f;
 
 /** Previous applied control (for rate penalties) */
 static MPCCControl_t prev_control;
@@ -210,6 +220,7 @@ void mpcc_initialize(void)
     memset(&ref_path, 0, sizeof(ref_path));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
     warm_start_available = 0;
+    warm_start_stage_carry = 0.0f;
     mpcc_initialized = 1;
 }
 
@@ -238,6 +249,7 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
     memset(&prev_control, 0, sizeof(prev_control));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
     warm_start_available = 0;
+    warm_start_stage_carry = 0.0f;
     mpcc_initialized = 1;
 }
 
@@ -249,6 +261,7 @@ void mpcc_set_reference_path(const MPCCReferencePath_t *path)
 {
     ref_path = *path;
     warm_start_available = 0;
+    warm_start_stage_carry = 0.0f;
     last_closest_idx = 0; /* Reset path tracking when new path is loaded */
 }
 
@@ -500,10 +513,14 @@ static uint16_t mpcc_warm_start_stage_advance(void)
     if (config.cross_call_rate_scale <= 0.0f)
         return 1;
 
-    if (config.cross_call_rate_scale < 1.0f)
+    warm_start_stage_carry += config.cross_call_rate_scale;
+    uint16_t advance = (uint16_t)floorf(warm_start_stage_carry);
+    if (advance > 0)
+        warm_start_stage_carry -= (float)advance;
+
+    if (advance == 0)
         return 0;
 
-    uint16_t advance = (uint16_t)floorf(config.cross_call_rate_scale);
     if (advance < 1) advance = 1;
     if (advance > N) advance = N;
     return advance;
@@ -918,6 +935,154 @@ static void add_wall_clearance_cost(
     }
 }
 
+static void add_progress_sync_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float v_safe_stage)
+{
+    if (!cost || !z_bar || !path_pt)
+        return;
+
+    float heading_err = remainderf(z_bar->psi - path_pt->phi_ref,
+                                   2.0f * (float)M_PI);
+    float cos_err = cosf(heading_err);
+    float sin_err = sinf(heading_err);
+    float v_tangent = z_bar->vx * cos_err - z_bar->vy * sin_err;
+    if (v_tangent < 0.0f)
+        v_tangent = 0.0f;
+
+    float v_theta_ref = v_tangent + 0.75f;
+    if (v_theta_ref > v_safe_stage)
+        v_theta_ref = v_safe_stage;
+    if (v_theta_ref < config.v_theta_min)
+        v_theta_ref = config.v_theta_min;
+
+    float sync_weight = 12.0f;
+    if (v_tangent < 1.0f)
+        sync_weight *= 0.5f;
+    if (fabsf(heading_err) > 0.20f)
+        sync_weight += 4.0f;
+    if (v_safe_stage < (config.v_theta_max - 0.5f))
+        sync_weight += 4.0f;
+
+    cost->R[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] += 2.0f * sync_weight;
+    cost->r[MPCC_IDX_VTHETA] += -2.0f * sync_weight * v_theta_ref;
+}
+
+static void add_speed_safety_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    float v_safe_stage)
+{
+    if (!cost || !z_bar)
+        return;
+
+    float vx_target = v_safe_stage - 0.25f;
+    if (vx_target < config.vx_min)
+        vx_target = config.vx_min;
+
+    if (z_bar->vx <= vx_target)
+        return;
+
+    float overspeed = z_bar->vx - vx_target;
+    float safety_weight = 8.0f + 10.0f * overspeed;
+    if (safety_weight > 30.0f)
+        safety_weight = 30.0f;
+
+    cost->Q[MPCC_IDX_VX][MPCC_IDX_VX] += 2.0f * safety_weight;
+    cost->q[MPCC_IDX_VX] += -2.0f * safety_weight * vx_target;
+}
+
+static void add_heading_alignment_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt)
+{
+    if (!cost || !z_bar || !path_pt)
+        return;
+
+    float heading_err = remainderf(z_bar->psi - path_pt->phi_ref,
+                                   2.0f * (float)M_PI);
+    float psi_target = z_bar->psi - heading_err;
+    float heading_weight = 2.0f + 20.0f * fabsf(path_pt->kappa_ref);
+
+    if (heading_weight > 10.0f)
+        heading_weight = 10.0f;
+    if (fabsf(z_bar->vx) < 1.0f)
+        heading_weight *= 0.5f;
+    if (fabsf(heading_err) > 0.15f)
+        heading_weight += 2.0f;
+
+    cost->Q[MPCC_IDX_PSI][MPCC_IDX_PSI] += 2.0f * heading_weight;
+    cost->q[MPCC_IDX_PSI] += -2.0f * heading_weight * psi_target;
+}
+
+static void add_steering_feedforward_cost(
+    MPCCStageCost_t *cost,
+    const MPCCPathPoint_t *path_pt)
+{
+    if (!cost || !path_pt)
+        return;
+
+    const float wheelbase =
+        F110_DIST_CG_TO_FRONT_AXLE_METERS + F110_DIST_CG_TO_REAR_AXLE_METERS;
+    float delta_ref = atanf(wheelbase * path_pt->kappa_ref);
+    if (delta_ref > config.delta_max) delta_ref = config.delta_max;
+    if (delta_ref < -config.delta_max) delta_ref = -config.delta_max;
+
+    /* Add a modest curvature feedforward instead of centering all steering
+     * effort around zero. This improves corner entry without removing the
+     * optimizer's ability to deviate from the path when beneficial. */
+    float ff_weight = 0.35f * config.weight_delta;
+    if (ff_weight < 2.0f)
+        ff_weight = 2.0f;
+
+    cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] += 2.0f * ff_weight;
+    cost->r[MPCC_IDX_DELTA] += -2.0f * ff_weight * delta_ref;
+}
+
+static float compute_progress_tangent_speed(
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float *heading_error_out)
+{
+    float heading_err = remainderf(z_bar->psi - path_pt->phi_ref,
+                                   2.0f * (float)M_PI);
+    float cos_err = cosf(heading_err);
+    float sin_err = sinf(heading_err);
+    float v_tangent = z_bar->vx * cos_err - z_bar->vy * sin_err;
+    if (v_tangent < 0.0f)
+        v_tangent = 0.0f;
+    if (heading_error_out)
+        *heading_error_out = heading_err;
+    return v_tangent;
+}
+
+static float compute_vtheta_stage_cap(
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float v_safe_stage)
+{
+    float heading_err = 0.0f;
+    float v_tangent = compute_progress_tangent_speed(z_bar, path_pt,
+                                                     &heading_err);
+
+    float v_cap = v_tangent + 0.75f;
+    if (fabsf(heading_err) > 0.15f)
+        v_cap -= 2.0f * (fabsf(heading_err) - 0.15f);
+
+    if (v_cap < 1.0f)
+        v_cap = 1.0f;
+    if (v_cap > v_safe_stage)
+        v_cap = v_safe_stage;
+    if (v_cap > config.v_theta_max)
+        v_cap = config.v_theta_max;
+    if (v_cap < config.v_theta_min)
+        v_cap = config.v_theta_min;
+    return v_cap;
+}
+
 /*===========================================================================
  * Curvature-Based Speed Limiter
  *===========================================================================
@@ -936,11 +1101,18 @@ static float compute_speed_limit(float s, float lookahead_m)
     const float mu = config.mu;
     const float vx_max = config.vx_max;
     const float ax_brake_ref = 4.0f;   /* braking for optional vx_ref limit */
-    const float ax_brake_curv = 2.0f;  /* conservative braking for curvature limit */
+    const float ax_brake_curv = MPCC_AX_BRAKE_CURV; /* env-tunable approach braking */
     const float vx_ref_scale = config.raceline_vx_limit_scale;
-    const float curv_safety = 0.95f;   /* keep cornering margin, but less conservative */
-    const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
-    const float shortcut_authority = 0.65f;
+    /* Curvature speed cap.
+     * kappa_thresh=0.5 used to gate this so it only fired in hairpins, but
+     * with a permissive V_THETA_MAX the optimizer happily ran 5+ m/s through
+     * mild curves (kappa~0.04) and spun out because the friction-circle
+     * model-prediction mismatch let the rear tires saturate. Apply the
+     * cornering limit for any non-trivial curvature; v_corner is large for
+     * gentle curves so straights are unaffected. */
+    const float curv_safety = MPCC_CURV_SAFETY;
+    const float kappa_thresh = MPCC_KAPPA_THRESH;
+    const float shortcut_authority = MPCC_SHORTCUT_AUTH;
     const uint8_t use_shortcut_relaxation =
         (config.weight_vx <= 0.0f) &&
         (config.use_raceline_vx_limit == 0);
@@ -1146,6 +1318,8 @@ static void build_qp_problem(
         add_wall_clearance_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                     config.weight_wall_clearance,
                     config.wall_clearance_margin);
+        add_heading_alignment_cost(&qp->stage_cost[k], &z_bar, &path_pt);
+        add_steering_feedforward_cost(&qp->stage_cost[k], &path_pt);
 
         /* Optional velocity tracking. In racing mode, keep the constant
          * config.vx_ref target or set Q_VX=0; do not let CSV vx_mps dictate
@@ -1226,6 +1400,12 @@ static void build_qp_problem(
             float v_safe_stage = compute_speed_limit(z_bar.s, 5.0f);
             qp->vx_max_stage[k] =
                 (v_safe_stage < config.vx_max) ? v_safe_stage : config.vx_max;
+            qp->vtheta_max_stage[k] =
+                compute_vtheta_stage_cap(&z_bar, &path_pt, qp->vx_max_stage[k]);
+            add_speed_safety_cost(&qp->stage_cost[k], &z_bar,
+                                  qp->vx_max_stage[k]);
+            add_progress_sync_cost(&qp->stage_cost[k], &z_bar, &path_pt,
+                                   qp->vx_max_stage[k]);
         }
 
         /* Per-stage friction circle: tighten a_x bound based on
@@ -1324,6 +1504,7 @@ static void build_qp_problem(
         add_wall_clearance_cost(&qp->terminal_cost, &z_terminal, &path_pt,
                                 config.weight_wall_clearance,
                                 config.wall_clearance_margin);
+        add_heading_alignment_cost(&qp->terminal_cost, &z_terminal, &path_pt);
 
         if (config.weight_vx > 0) {
             float vx_ref_N = mpcc_stage_vx_ref(&path_pt);
@@ -1522,6 +1703,7 @@ MPCCStatus_t mpcc_compute_control(
             && s_jump < -(ref_path.total_length * 0.5f)) {
             keep_warm_start = 0;
             warm_start_available = 0;
+            warm_start_stage_carry = 0.0f;
 #ifdef MPCC_DEBUG_PRINT
             printf("[MPCC] s-wrap detected (%.2f → %.2f), dropping warm-start for this cycle\n",
                    (double)(prev_predicted_states[0].s),
@@ -1663,17 +1845,6 @@ MPCCStatus_t mpcc_compute_control(
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
         result->optimal_control.v_theta = admm_result.u_opt[0][MPCC_IDX_VTHETA];
 
-        /* Steering rate clamp: prevent physically impossible steering jumps.
-         * sv_max ≈ 2.85 rad/s → max change = sv_max * dt per call. */
-        {
-            float max_delta_change = 2.85f * config.dt;
-            float delta_diff = result->optimal_control.delta - prev_control.delta;
-            if (delta_diff > max_delta_change)
-                result->optimal_control.delta = prev_control.delta + max_delta_change;
-            else if (delta_diff < -max_delta_change)
-                result->optimal_control.delta = prev_control.delta - max_delta_change;
-        }
-
         uint16_t N = config.horizon_steps;
         if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
         for (uint16_t k = 0; k <= N; k++)
@@ -1732,10 +1903,48 @@ MPCCStatus_t mpcc_compute_control(
             admm_solver_initialize(&admm_workspace);
 #endif
             warm_start_available = 0;
+            warm_start_stage_carry = 0.0f;
         }
         else
         {
             warm_start_available = 1;
+        }
+
+        /* One-shot blow-up logger: if the predicted terminal state magnitude
+         * exceeds a sane bound, the dynamics linearization is unstable
+         * (typically caused by vx_safe set below the unit-circle threshold)
+         * and warm-start will be poisoned next cycle. Emit one log line so
+         * the failure mode is visible in mpcc.log instead of silently
+         * cascading into NaN solves and a wall collision. */
+        {
+            uint16_t N_check = config.horizon_steps;
+            if (N_check > MPCC_MAX_HORIZON) N_check = MPCC_MAX_HORIZON;
+            const MPCCState_t *xN = &result->predicted_states[N_check];
+            float worst = fabsf(xN->X);
+            if (fabsf(xN->Y) > worst)     worst = fabsf(xN->Y);
+            if (fabsf(xN->vx) > worst)    worst = fabsf(xN->vx);
+            if (fabsf(xN->vy) > worst)    worst = fabsf(xN->vy);
+            if (fabsf(xN->omega) > worst) worst = fabsf(xN->omega);
+            if (!isfinite((double)worst) || worst > 1.0e3f) {
+                fprintf(stderr,
+                    "[MPCC] WARN: predicted x_N magnitude=%.3e exploded "
+                    "(vx0=%.3f vy0=%.3f w0=%.3f X_N=%.2e Y_N=%.2e vx_N=%.2e "
+                    "w_N=%.2e) — dynamics linearization unstable, warm-start "
+                    "will be reset.\n",
+                    (double)worst,
+                    (double)current_state->vx,
+                    (double)current_state->vy,
+                    (double)current_state->omega,
+                    (double)xN->X, (double)xN->Y,
+                    (double)xN->vx, (double)xN->omega);
+                fflush(stderr);
+                /* Treat as hard failure: drop warm-start so the next solve
+                 * cold-starts cleanly instead of propagating garbage. */
+#ifndef USE_OSQP
+                admm_solver_initialize(&admm_workspace);
+#endif
+                warm_start_available = 0;
+            }
         }
     }
 
@@ -1815,11 +2024,13 @@ void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
     admm_config.rho_u = config.admm_rho_u;
     admm_config.adaptive_rho = config.admm_adaptive_rho;
     admm_config.alpha_relax = config.admm_alpha_relax;
+    warm_start_stage_carry = 0.0f;
 }
 
 void mpcc_reset(void)
 {
     warm_start_available = 0;
+    warm_start_stage_carry = 0.0f;
     last_closest_idx = 0; /* Reset path tracking */
     memset(&prev_control, 0, sizeof(prev_control));
 #ifndef USE_OSQP

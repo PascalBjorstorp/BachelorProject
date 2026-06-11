@@ -1,0 +1,345 @@
+
+
+================================================================
+== Vitis HLS Report for 'riccati_forward_pass_Pipeline_VITIS_LOOP_399_4'
+================================================================
+* Date:           Thu Jun 11 16:06:54 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  4.175 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+-----------+-----------+-----+-----+-------------------+
+    |  Latency (cycles) |   Latency (absolute)  |  Interval |      Pipeline     |
+    |   min   |   max   |    min    |    max    | min | max |        Type       |
+    +---------+---------+-----------+-----------+-----+-----+-------------------+
+    |       11|       11|  55.000 ns|  55.000 ns|    0|    0|  loop pipeline stp|
+    +---------+---------+-----------+-----------+-----+-----+-------------------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |                    |  Latency (cycles) | Iteration|  Initiation Interval  | Trip |          |
+        |      Loop Name     |   min   |   max   |  Latency |  achieved |   target  | Count| Pipelined|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |- VITIS_LOOP_399_4  |        9|        9|         5|          1|          1|     6|       yes|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 1
+IsPipeline: 0
+IsRtlPipelined: 0
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 1, depth = 5
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 5
+* Pipeline : 1
+  Pipeline-0 : II = 1, D = 5, States = { 1 2 3 4 5 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 3 
+3 --> 4 
+4 --> 5 
+5 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 2.43>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%i = alloca i32 1" [../src/riccati_solver_hls.cpp:340]   --->   Operation 8 'alloca' 'i' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%sext_ln436_read = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %sext_ln436"   --->   Operation 9 'read' 'sext_ln436_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%sext_ln156_14_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_14"   --->   Operation 10 'read' 'sext_ln156_14_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%sext_ln156_13_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_13"   --->   Operation 11 'read' 'sext_ln156_13_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%sext_ln156_12_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_12"   --->   Operation 12 'read' 'sext_ln156_12_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%sext_ln425_read = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %sext_ln425"   --->   Operation 13 'read' 'sext_ln425_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 14 [1/1] (0.00ns)   --->   "%sext_ln156_11_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_11"   --->   Operation 14 'read' 'sext_ln156_11_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 15 [1/1] (0.00ns)   --->   "%sext_ln422_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln422"   --->   Operation 15 'read' 'sext_ln422_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 16 [1/1] (0.00ns)   --->   "%sext_ln156_4_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_4"   --->   Operation 16 'read' 'sext_ln156_4_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 17 [1/1] (0.00ns)   --->   "%sext_ln156_3_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_3"   --->   Operation 17 'read' 'sext_ln156_3_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 18 [1/1] (0.00ns)   --->   "%sext_ln156_2_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_2"   --->   Operation 18 'read' 'sext_ln156_2_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 19 [1/1] (0.00ns)   --->   "%sext_ln156_1_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156_1"   --->   Operation 19 'read' 'sext_ln156_1_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 20 [1/1] (0.00ns)   --->   "%sext_ln156_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %sext_ln156"   --->   Operation 20 'read' 'sext_ln156_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 21 [1/1] (0.00ns)   --->   "%tmp = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty"   --->   Operation 21 'read' 'tmp' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 22 [1/1] (0.00ns)   --->   "%tmp_1 = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty_568"   --->   Operation 22 'read' 'tmp_1' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 23 [1/1] (0.00ns)   --->   "%tmp_2 = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty_567"   --->   Operation 23 'read' 'tmp_2' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 24 [1/1] (0.00ns)   --->   "%tmp_3 = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty_566"   --->   Operation 24 'read' 'tmp_3' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 25 [1/1] (0.00ns)   --->   "%tmp_4 = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty_565"   --->   Operation 25 'read' 'tmp_4' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 26 [1/1] (0.00ns)   --->   "%tmp_5 = read i25 @_ssdm_op_Read.ap_auto.i25, i25 %empty_564"   --->   Operation 26 'read' 'tmp_5' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 27 [1/1] (0.00ns)   --->   "%mul_ln409_1_read = read i7 @_ssdm_op_Read.ap_auto.i7, i7 %mul_ln409_1"   --->   Operation 27 'read' 'mul_ln409_1_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 28 [1/1] (0.00ns)   --->   "%zext_ln428_read = read i5 @_ssdm_op_Read.ap_auto.i5, i5 %zext_ln428"   --->   Operation 28 'read' 'zext_ln428_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 29 [1/1] (0.00ns)   --->   "%sext_ln436_cast = sext i25 %sext_ln436_read"   --->   Operation 29 'sext' 'sext_ln436_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 30 [1/1] (0.00ns)   --->   "%sext_ln156_14_cast = sext i26 %sext_ln156_14_read"   --->   Operation 30 'sext' 'sext_ln156_14_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 31 [1/1] (0.00ns)   --->   "%sext_ln156_13_cast = sext i26 %sext_ln156_13_read"   --->   Operation 31 'sext' 'sext_ln156_13_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 32 [1/1] (0.00ns)   --->   "%sext_ln156_12_cast = sext i26 %sext_ln156_12_read"   --->   Operation 32 'sext' 'sext_ln156_12_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 33 [1/1] (0.00ns)   --->   "%sext_ln425_cast = sext i25 %sext_ln425_read"   --->   Operation 33 'sext' 'sext_ln425_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 34 [1/1] (0.00ns)   --->   "%sext_ln156_11_cast = sext i26 %sext_ln156_11_read"   --->   Operation 34 'sext' 'sext_ln156_11_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 35 [1/1] (0.00ns)   --->   "%sext_ln422_cast = sext i26 %sext_ln422_read"   --->   Operation 35 'sext' 'sext_ln422_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 36 [1/1] (0.00ns)   --->   "%sext_ln156_4_cast = sext i26 %sext_ln156_4_read"   --->   Operation 36 'sext' 'sext_ln156_4_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 37 [1/1] (0.00ns)   --->   "%sext_ln156_3_cast = sext i26 %sext_ln156_3_read"   --->   Operation 37 'sext' 'sext_ln156_3_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 38 [1/1] (0.00ns)   --->   "%sext_ln156_2_cast = sext i26 %sext_ln156_2_read"   --->   Operation 38 'sext' 'sext_ln156_2_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 39 [1/1] (0.00ns)   --->   "%sext_ln156_1_cast = sext i26 %sext_ln156_1_read"   --->   Operation 39 'sext' 'sext_ln156_1_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 40 [1/1] (0.00ns)   --->   "%sext_ln156_cast = sext i26 %sext_ln156_read"   --->   Operation 40 'sext' 'sext_ln156_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 41 [1/1] (0.00ns)   --->   "%zext_ln428_cast = zext i5 %zext_ln428_read"   --->   Operation 41 'zext' 'zext_ln428_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 42 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_0, i64 666, i64 23, i64 1, i1 0"   --->   Operation 42 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 43 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_1, i64 666, i64 23, i64 1, i1 0"   --->   Operation 43 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 44 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_2, i64 666, i64 23, i64 1, i1 0"   --->   Operation 44 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 45 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_3, i64 666, i64 23, i64 1, i1 0"   --->   Operation 45 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 46 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_4, i64 666, i64 23, i64 1, i1 0"   --->   Operation 46 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 47 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %x_out_5, i64 666, i64 23, i64 1, i1 0"   --->   Operation 47 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 48 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_0, i64 666, i64 22, i64 1, i1 0"   --->   Operation 48 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 49 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_1, i64 666, i64 22, i64 1, i1 0"   --->   Operation 49 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 50 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_2, i64 666, i64 22, i64 1, i1 0"   --->   Operation 50 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 51 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_3, i64 666, i64 22, i64 1, i1 0"   --->   Operation 51 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 52 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_4, i64 666, i64 22, i64 1, i1 0"   --->   Operation 52 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 53 [1/1] (0.00ns)   --->   "%specmemcore_ln0 = specmemcore void @_ssdm_op_SpecMemCore, i26 %step_data_0_5, i64 666, i64 22, i64 1, i1 0"   --->   Operation 53 'specmemcore' 'specmemcore_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 54 [1/1] (0.42ns)   --->   "%store_ln340 = store i3 0, i3 %i" [../src/riccati_solver_hls.cpp:340]   --->   Operation 54 'store' 'store_ln340' <Predicate = true> <Delay = 0.42>
+ST_1 : Operation 55 [1/1] (0.00ns)   --->   "%br_ln0 = br void %for.body184"   --->   Operation 55 'br' 'br_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 56 [1/1] (0.00ns)   --->   "%i_1 = load i3 %i" [../src/riccati_solver_hls.cpp:399]   --->   Operation 56 'load' 'i_1' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 57 [1/1] (0.67ns)   --->   "%icmp_ln399 = icmp_eq  i3 %i_1, i3 6" [../src/riccati_solver_hls.cpp:399]   --->   Operation 57 'icmp' 'icmp_ln399' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 58 [1/1] (0.67ns)   --->   "%add_ln399 = add i3 %i_1, i3 1" [../src/riccati_solver_hls.cpp:399]   --->   Operation 58 'add' 'add_ln399' <Predicate = true> <Delay = 0.67> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 59 [1/1] (0.00ns)   --->   "%br_ln399 = br i1 %icmp_ln399, void %fpga_resource_hint.if.end200.495, void %for.inc323.exitStub" [../src/riccati_solver_hls.cpp:399]   --->   Operation 59 'br' 'br_ln399' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 60 [1/1] (0.00ns)   --->   "%zext_ln409 = zext i3 %i_1" [../src/riccati_solver_hls.cpp:409]   --->   Operation 60 'zext' 'zext_ln409' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 61 [1/1] (0.77ns)   --->   "%add_ln409 = add i7 %mul_ln409_1_read, i7 %zext_ln409" [../src/riccati_solver_hls.cpp:409]   --->   Operation 61 'add' 'add_ln409' <Predicate = (!icmp_ln399)> <Delay = 0.77> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.77> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 62 [1/1] (0.00ns)   --->   "%zext_ln409_1 = zext i7 %add_ln409" [../src/riccati_solver_hls.cpp:409]   --->   Operation 62 'zext' 'zext_ln409_1' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 63 [1/1] (0.00ns)   --->   "%step_data_0_0_addr = getelementptr i26 %step_data_0_0, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:409]   --->   Operation 63 'getelementptr' 'step_data_0_0_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 64 [1/1] (0.00ns)   --->   "%step_data_0_1_addr = getelementptr i26 %step_data_0_1, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:410]   --->   Operation 64 'getelementptr' 'step_data_0_1_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 65 [1/1] (0.00ns)   --->   "%step_data_0_2_addr = getelementptr i26 %step_data_0_2, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:411]   --->   Operation 65 'getelementptr' 'step_data_0_2_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 66 [1/1] (0.00ns)   --->   "%step_data_0_3_addr = getelementptr i26 %step_data_0_3, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:412]   --->   Operation 66 'getelementptr' 'step_data_0_3_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 67 [1/1] (0.00ns)   --->   "%step_data_0_4_addr = getelementptr i26 %step_data_0_4, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:413]   --->   Operation 67 'getelementptr' 'step_data_0_4_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 68 [1/1] (0.00ns)   --->   "%step_data_0_5_addr = getelementptr i26 %step_data_0_5, i64 0, i64 %zext_ln409_1" [../src/riccati_solver_hls.cpp:414]   --->   Operation 68 'getelementptr' 'step_data_0_5_addr' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+ST_1 : Operation 69 [2/2] (1.23ns)   --->   "%a = load i7 %step_data_0_0_addr" [../src/riccati_solver_hls.cpp:409]   --->   Operation 69 'load' 'a' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 70 [2/2] (1.23ns)   --->   "%a_1 = load i7 %step_data_0_1_addr" [../src/riccati_solver_hls.cpp:410]   --->   Operation 70 'load' 'a_1' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 71 [2/2] (1.23ns)   --->   "%a_2 = load i7 %step_data_0_2_addr" [../src/riccati_solver_hls.cpp:411]   --->   Operation 71 'load' 'a_2' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 72 [2/2] (1.23ns)   --->   "%a_3 = load i7 %step_data_0_3_addr" [../src/riccati_solver_hls.cpp:412]   --->   Operation 72 'load' 'a_3' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 73 [2/2] (1.23ns)   --->   "%a_4 = load i7 %step_data_0_4_addr" [../src/riccati_solver_hls.cpp:413]   --->   Operation 73 'load' 'a_4' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 74 [2/2] (1.23ns)   --->   "%a_5 = load i7 %step_data_0_5_addr" [../src/riccati_solver_hls.cpp:414]   --->   Operation 74 'load' 'a_5' <Predicate = (!icmp_ln399)> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_1 : Operation 75 [1/1] (0.67ns)   --->   "%switch_ln436 = switch i3 %i_1, void %arrayidx31173118.case.5, i3 0, void %arrayidx31173118.case.0, i3 1, void %arrayidx31173118.case.1, i3 2, void %arrayidx31173118.case.2, i3 3, void %arrayidx31173118.case.3, i3 4, void %arrayidx31173118.case.4" [../src/riccati_solver_hls.cpp:436]   --->   Operation 75 'switch' 'switch_ln436' <Predicate = (!icmp_ln399)> <Delay = 0.67>
+ST_1 : Operation 76 [1/1] (0.42ns)   --->   "%store_ln340 = store i3 %add_ln399, i3 %i" [../src/riccati_solver_hls.cpp:340]   --->   Operation 76 'store' 'store_ln340' <Predicate = (!icmp_ln399)> <Delay = 0.42>
+ST_1 : Operation 77 [1/1] (0.00ns)   --->   "%br_ln399 = br void %for.body184" [../src/riccati_solver_hls.cpp:399]   --->   Operation 77 'br' 'br_ln399' <Predicate = (!icmp_ln399)> <Delay = 0.00>
+
+State 2 <SV = 1> <Delay = 3.17>
+ST_2 : Operation 78 [1/1] (0.67ns)   --->   "%icmp_ln402 = icmp_eq  i3 %i_1, i3 1" [../src/riccati_solver_hls.cpp:402]   --->   Operation 78 'icmp' 'icmp_ln402' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 79 [1/1] (0.67ns)   --->   "%icmp_ln403 = icmp_eq  i3 %i_1, i3 2" [../src/riccati_solver_hls.cpp:403]   --->   Operation 79 'icmp' 'icmp_ln403' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 80 [1/1] (0.28ns)   --->   "%xor_ln402 = xor i1 %icmp_ln402, i1 1" [../src/riccati_solver_hls.cpp:402]   --->   Operation 80 'xor' 'xor_ln402' <Predicate = true> <Delay = 0.28> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 81 [1/1] (0.28ns)   --->   "%and_ln403 = and i1 %icmp_ln403, i1 %xor_ln402" [../src/riccati_solver_hls.cpp:403]   --->   Operation 81 'and' 'and_ln403' <Predicate = true> <Delay = 0.28> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 82 [1/1] (0.67ns)   --->   "%icmp_ln403_1 = icmp_eq  i3 %i_1, i3 3" [../src/riccati_solver_hls.cpp:403]   --->   Operation 82 'icmp' 'icmp_ln403_1' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 83 [1/1] (0.28ns)   --->   "%and_ln403_1 = and i1 %icmp_ln403_1, i1 %xor_ln402" [../src/riccati_solver_hls.cpp:403]   --->   Operation 83 'and' 'and_ln403_1' <Predicate = true> <Delay = 0.28> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 84 [1/1] (0.67ns)   --->   "%icmp_ln403_2 = icmp_eq  i3 %i_1, i3 4" [../src/riccati_solver_hls.cpp:403]   --->   Operation 84 'icmp' 'icmp_ln403_2' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 85 [1/1] (0.28ns)   --->   "%and_ln403_2 = and i1 %icmp_ln403_2, i1 %xor_ln402" [../src/riccati_solver_hls.cpp:403]   --->   Operation 85 'and' 'and_ln403_2' <Predicate = true> <Delay = 0.28> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 86 [1/1] (0.67ns)   --->   "%icmp_ln403_3 = icmp_eq  i3 %i_1, i3 5" [../src/riccati_solver_hls.cpp:403]   --->   Operation 86 'icmp' 'icmp_ln403_3' <Predicate = true> <Delay = 0.67> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.67> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 87 [1/1] (0.28ns)   --->   "%and_ln403_3 = and i1 %icmp_ln403_3, i1 %xor_ln402" [../src/riccati_solver_hls.cpp:403]   --->   Operation 87 'and' 'and_ln403_3' <Predicate = true> <Delay = 0.28> <CoreInst = "LogicGate">   --->   Core 74 'LogicGate' <Latency = 0> <II = 1> <Delay = 0.28> <FuncUnit> <Opcode : 'and' 'or' 'xor'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 88 [1/1] (0.00ns)   --->   "%sel_tmp = bitconcatenate i5 @_ssdm_op_BitConcatenate.i5.i1.i1.i1.i1.i1, i1 %icmp_ln402, i1 %and_ln403, i1 %and_ln403_1, i1 %and_ln403_2, i1 %and_ln403_3" [../src/riccati_solver_hls.cpp:402]   --->   Operation 88 'bitconcatenate' 'sel_tmp' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 89 [1/1] (0.57ns)   --->   "%d_i = sparsemux i25 @_ssdm_op_SparseMux.ap_auto.6i25.i25.i5, i5 16, i25 %tmp_5, i5 8, i25 %tmp_4, i5 4, i25 %tmp_3, i5 2, i25 %tmp_2, i5 1, i25 %tmp_1, i5 0, i25 %tmp, i25 0, i5 %sel_tmp" [../src/riccati_solver_hls.cpp:402]   --->   Operation 89 'sparsemux' 'd_i' <Predicate = true> <Delay = 0.57> <CoreInst = "OneHotSparseMux_HasDef">   --->   Core 152 'OneHotSparseMux_HasDef' <Latency = 0> <II = 1> <Delay = 0.57> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 90 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a = load i7 %step_data_0_0_addr" [../src/riccati_solver_hls.cpp:409]   --->   Operation 90 'load' 'a' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 91 [1/1] (0.00ns)   --->   "%sext_ln156_5 = sext i26 %a" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:409]   --->   Operation 91 'sext' 'sext_ln156_5' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 92 [3/3] (1.94ns)   --->   "%mul_ln409 = mul i39 %sext_ln156_5, i39 %sext_ln156_cast" [../src/riccati_solver_hls.cpp:409]   --->   Operation 92 'mul' 'mul_ln409' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 93 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a_1 = load i7 %step_data_0_1_addr" [../src/riccati_solver_hls.cpp:410]   --->   Operation 93 'load' 'a_1' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 94 [1/1] (0.00ns)   --->   "%sext_ln156_6 = sext i26 %a_1" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:410]   --->   Operation 94 'sext' 'sext_ln156_6' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 95 [3/3] (1.94ns)   --->   "%mul_ln410 = mul i39 %sext_ln156_6, i39 %sext_ln156_1_cast" [../src/riccati_solver_hls.cpp:410]   --->   Operation 95 'mul' 'mul_ln410' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 96 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a_2 = load i7 %step_data_0_2_addr" [../src/riccati_solver_hls.cpp:411]   --->   Operation 96 'load' 'a_2' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 97 [1/1] (0.00ns)   --->   "%sext_ln156_7 = sext i26 %a_2" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:411]   --->   Operation 97 'sext' 'sext_ln156_7' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 98 [3/3] (1.94ns)   --->   "%mul_ln411 = mul i39 %sext_ln156_7, i39 %sext_ln156_2_cast" [../src/riccati_solver_hls.cpp:411]   --->   Operation 98 'mul' 'mul_ln411' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 99 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a_3 = load i7 %step_data_0_3_addr" [../src/riccati_solver_hls.cpp:412]   --->   Operation 99 'load' 'a_3' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 100 [1/1] (0.00ns)   --->   "%sext_ln156_8 = sext i26 %a_3" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:412]   --->   Operation 100 'sext' 'sext_ln156_8' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 101 [3/3] (1.94ns)   --->   "%mul_ln412 = mul i39 %sext_ln156_8, i39 %sext_ln156_3_cast" [../src/riccati_solver_hls.cpp:412]   --->   Operation 101 'mul' 'mul_ln412' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 102 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a_4 = load i7 %step_data_0_4_addr" [../src/riccati_solver_hls.cpp:413]   --->   Operation 102 'load' 'a_4' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 103 [1/1] (0.00ns)   --->   "%sext_ln156_9 = sext i26 %a_4" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:413]   --->   Operation 103 'sext' 'sext_ln156_9' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 104 [3/3] (1.94ns)   --->   "%mul_ln413 = mul i39 %sext_ln156_9, i39 %sext_ln156_4_cast" [../src/riccati_solver_hls.cpp:413]   --->   Operation 104 'mul' 'mul_ln413' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 105 [1/2] ( I:1.23ns O:1.23ns )   --->   "%a_5 = load i7 %step_data_0_5_addr" [../src/riccati_solver_hls.cpp:414]   --->   Operation 105 'load' 'a_5' <Predicate = true> <Delay = 1.23> <CoreInst = "RAM_2P_BRAM">   --->   Core 93 'RAM_2P_BRAM' <Latency = 1> <II = 1> <Delay = 1.23> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 120> <RAM>
+ST_2 : Operation 106 [1/1] (0.00ns)   --->   "%sext_ln156_10 = sext i26 %a_5" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:414]   --->   Operation 106 'sext' 'sext_ln156_10' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 107 [3/3] (1.94ns)   --->   "%mul_ln414 = mul i39 %sext_ln156_10, i39 %sext_ln422_cast" [../src/riccati_solver_hls.cpp:414]   --->   Operation 107 'mul' 'mul_ln414' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_2 : Operation 108 [1/1] (0.00ns)   --->   "%sel_tmp1 = bitconcatenate i4 @_ssdm_op_BitConcatenate.i4.i1.i1.i1.i1, i1 %icmp_ln403, i1 %icmp_ln403_1, i1 %icmp_ln403_2, i1 %icmp_ln403_3" [../src/riccati_solver_hls.cpp:403]   --->   Operation 108 'bitconcatenate' 'sel_tmp1' <Predicate = true> <Delay = 0.00>
+
+State 3 <SV = 2> <Delay = 1.94>
+ST_3 : Operation 109 [2/3] (1.94ns)   --->   "%mul_ln409 = mul i39 %sext_ln156_5, i39 %sext_ln156_cast" [../src/riccati_solver_hls.cpp:409]   --->   Operation 109 'mul' 'mul_ln409' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 110 [2/3] (1.94ns)   --->   "%mul_ln410 = mul i39 %sext_ln156_6, i39 %sext_ln156_1_cast" [../src/riccati_solver_hls.cpp:410]   --->   Operation 110 'mul' 'mul_ln410' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 111 [2/3] (1.94ns)   --->   "%mul_ln411 = mul i39 %sext_ln156_7, i39 %sext_ln156_2_cast" [../src/riccati_solver_hls.cpp:411]   --->   Operation 111 'mul' 'mul_ln411' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 112 [2/3] (1.94ns)   --->   "%mul_ln412 = mul i39 %sext_ln156_8, i39 %sext_ln156_3_cast" [../src/riccati_solver_hls.cpp:412]   --->   Operation 112 'mul' 'mul_ln412' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 113 [2/3] (1.94ns)   --->   "%mul_ln413 = mul i39 %sext_ln156_9, i39 %sext_ln156_4_cast" [../src/riccati_solver_hls.cpp:413]   --->   Operation 113 'mul' 'mul_ln413' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 114 [2/3] (1.94ns)   --->   "%mul_ln414 = mul i39 %sext_ln156_10, i39 %sext_ln422_cast" [../src/riccati_solver_hls.cpp:414]   --->   Operation 114 'mul' 'mul_ln414' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 115 [3/3] (1.94ns)   --->   "%mul_ln156 = mul i51 %sext_ln156_11_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421]   --->   Operation 115 'mul' 'mul_ln156' <Predicate = (sel_tmp1 == 8)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 116 [3/3] (1.94ns)   --->   "%mul_ln156_1 = mul i51 %sext_ln156_12_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:424]   --->   Operation 116 'mul' 'mul_ln156_1' <Predicate = (sel_tmp1 == 4)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 117 [3/3] (1.94ns)   --->   "%mul_ln156_2 = mul i51 %sext_ln156_13_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:427]   --->   Operation 117 'mul' 'mul_ln156_2' <Predicate = (sel_tmp1 == 2)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_3 : Operation 118 [3/3] (1.94ns)   --->   "%mul_ln156_3 = mul i51 %sext_ln156_14_cast, i51 %sext_ln436_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:430]   --->   Operation 118 'mul' 'mul_ln156_3' <Predicate = (sel_tmp1 == 1)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+
+State 4 <SV = 3> <Delay = 3.72>
+ST_4 : Operation 119 [1/3] (1.94ns)   --->   "%mul_ln409 = mul i39 %sext_ln156_5, i39 %sext_ln156_cast" [../src/riccati_solver_hls.cpp:409]   --->   Operation 119 'mul' 'mul_ln409' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 120 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln409, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:409]   --->   Operation 120 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 121 [1/3] (1.94ns)   --->   "%mul_ln410 = mul i39 %sext_ln156_6, i39 %sext_ln156_1_cast" [../src/riccati_solver_hls.cpp:410]   --->   Operation 121 'mul' 'mul_ln410' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 122 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln410, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:410]   --->   Operation 122 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 123 [1/3] (1.94ns)   --->   "%mul_ln411 = mul i39 %sext_ln156_7, i39 %sext_ln156_2_cast" [../src/riccati_solver_hls.cpp:411]   --->   Operation 123 'mul' 'mul_ln411' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 124 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln411, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:411]   --->   Operation 124 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 125 [1/3] (1.94ns)   --->   "%mul_ln412 = mul i39 %sext_ln156_8, i39 %sext_ln156_3_cast" [../src/riccati_solver_hls.cpp:412]   --->   Operation 125 'mul' 'mul_ln412' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 126 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln412, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:412]   --->   Operation 126 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 127 [1/3] (1.94ns)   --->   "%mul_ln413 = mul i39 %sext_ln156_9, i39 %sext_ln156_4_cast" [../src/riccati_solver_hls.cpp:413]   --->   Operation 127 'mul' 'mul_ln413' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 128 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln413, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:413]   --->   Operation 128 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 129 [1/3] (1.94ns)   --->   "%mul_ln414 = mul i39 %sext_ln156_10, i39 %sext_ln422_cast" [../src/riccati_solver_hls.cpp:414]   --->   Operation 129 'mul' 'mul_ln414' <Predicate = true> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 130 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i39 %mul_ln414, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:414]   --->   Operation 130 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_4 : Operation 131 [1/1] (1.78ns)   --->   "%ax_sum = call i39 @sum6_QP_raw, i39 %mul_ln409, i39 %mul_ln410, i39 %mul_ln411, i39 %mul_ln412, i39 %mul_ln413, i39 %mul_ln414" [../src/riccati_solver_hls.cpp:408]   --->   Operation 131 'call' 'ax_sum' <Predicate = (!icmp_ln399)> <Delay = 1.78> <CoreType = "Generic">   --->   Generic Core
+ST_4 : Operation 132 [2/3] (1.94ns)   --->   "%mul_ln156 = mul i51 %sext_ln156_11_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421]   --->   Operation 132 'mul' 'mul_ln156' <Predicate = (sel_tmp1 == 8)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 133 [2/3] (1.94ns)   --->   "%mul_ln156_1 = mul i51 %sext_ln156_12_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:424]   --->   Operation 133 'mul' 'mul_ln156_1' <Predicate = (sel_tmp1 == 4)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 134 [2/3] (1.94ns)   --->   "%mul_ln156_2 = mul i51 %sext_ln156_13_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:427]   --->   Operation 134 'mul' 'mul_ln156_2' <Predicate = (sel_tmp1 == 2)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 135 [2/3] (1.94ns)   --->   "%mul_ln156_3 = mul i51 %sext_ln156_14_cast, i51 %sext_ln436_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:430]   --->   Operation 135 'mul' 'mul_ln156_3' <Predicate = (sel_tmp1 == 1)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_4 : Operation 198 [1/1] (0.42ns)   --->   "%ret_ln0 = ret"   --->   Operation 198 'ret' 'ret_ln0' <Predicate = (icmp_ln399)> <Delay = 0.42>
+
+State 5 <SV = 4> <Delay = 4.17>
+ST_5 : Operation 136 [1/1] (0.00ns)   --->   "%x_out_0_addr = getelementptr i26 %x_out_0, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 136 'getelementptr' 'x_out_0_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 137 [1/1] (0.00ns)   --->   "%x_out_1_addr = getelementptr i26 %x_out_1, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 137 'getelementptr' 'x_out_1_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 138 [1/1] (0.00ns)   --->   "%x_out_2_addr = getelementptr i26 %x_out_2, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 138 'getelementptr' 'x_out_2_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 139 [1/1] (0.00ns)   --->   "%x_out_3_addr = getelementptr i26 %x_out_3, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 139 'getelementptr' 'x_out_3_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 140 [1/1] (0.00ns)   --->   "%x_out_4_addr = getelementptr i26 %x_out_4, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 140 'getelementptr' 'x_out_4_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 141 [1/1] (0.00ns)   --->   "%x_out_5_addr = getelementptr i26 %x_out_5, i64 0, i64 %zext_ln428_cast" [../src/riccati_solver_hls.cpp:436]   --->   Operation 141 'getelementptr' 'x_out_5_addr' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 142 [1/1] (0.00ns)   --->   "%specpipeline_ln400 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, i32 4294967295, void @empty_524" [../src/riccati_solver_hls.cpp:400]   --->   Operation 142 'specpipeline' 'specpipeline_ln400' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 143 [1/1] (0.00ns)   --->   "%speclooptripcount_ln401 = speclooptripcount void @_ssdm_op_SpecLoopTripCount, i64 6, i64 6, i64 6" [../src/riccati_solver_hls.cpp:401]   --->   Operation 143 'speclooptripcount' 'speclooptripcount_ln401' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 144 [1/1] (0.00ns)   --->   "%specloopname_ln399 = specloopname void @_ssdm_op_SpecLoopName, void @empty_96" [../src/riccati_solver_hls.cpp:399]   --->   Operation 144 'specloopname' 'specloopname_ln399' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 145 [1/1] (0.00ns)   --->   "%rbegin = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_494" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:409]   --->   Operation 145 'specregionbegin' 'rbegin' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 146 [1/1] (0.00ns)   --->   "%rend42 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_494, i32 %rbegin" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:409]   --->   Operation 146 'specregionend' 'rend42' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 147 [1/1] (0.00ns)   --->   "%rbegin1 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_531" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:410]   --->   Operation 147 'specregionbegin' 'rbegin1' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 148 [1/1] (0.00ns)   --->   "%rend40 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_531, i32 %rbegin1" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:410]   --->   Operation 148 'specregionend' 'rend40' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 149 [1/1] (0.00ns)   --->   "%rbegin2 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_539" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:411]   --->   Operation 149 'specregionbegin' 'rbegin2' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 150 [1/1] (0.00ns)   --->   "%rend38 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_539, i32 %rbegin2" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:411]   --->   Operation 150 'specregionend' 'rend38' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 151 [1/1] (0.00ns)   --->   "%rbegin3 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_435" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:412]   --->   Operation 151 'specregionbegin' 'rbegin3' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 152 [1/1] (0.00ns)   --->   "%rend36 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_435, i32 %rbegin3" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:412]   --->   Operation 152 'specregionend' 'rend36' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 153 [1/1] (0.00ns)   --->   "%rbegin4 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_478" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:413]   --->   Operation 153 'specregionbegin' 'rbegin4' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 154 [1/1] (0.00ns)   --->   "%rend34 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_478, i32 %rbegin4" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:413]   --->   Operation 154 'specregionend' 'rend34' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 155 [1/1] (0.00ns)   --->   "%rbegin5 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_527" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:414]   --->   Operation 155 'specregionbegin' 'rbegin5' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 156 [1/1] (0.00ns)   --->   "%rend32 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_527, i32 %rbegin5" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:414]   --->   Operation 156 'specregionend' 'rend32' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 157 [1/1] (0.00ns)   --->   "%shl_ln = bitconcatenate i39 @_ssdm_op_BitConcatenate.i39.i25.i14, i25 %d_i, i14 0" [../src/riccati_solver_hls.cpp:417]   --->   Operation 157 'bitconcatenate' 'shl_ln' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 158 [1/1] (1.03ns)   --->   "%sum = add i39 %ax_sum, i39 %shl_ln" [../src/riccati_solver_hls.cpp:417]   --->   Operation 158 'add' 'sum' <Predicate = true> <Delay = 1.03> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.03> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 159 [1/1] (0.00ns)   --->   "%rbegin6 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_446" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421]   --->   Operation 159 'specregionbegin' 'rbegin6' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 160 [1/3] (1.94ns)   --->   "%mul_ln156 = mul i51 %sext_ln156_11_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421]   --->   Operation 160 'mul' 'mul_ln156' <Predicate = (sel_tmp1 == 8)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 161 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i51 %mul_ln156, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:421]   --->   Operation 161 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 162 [1/1] (0.00ns)   --->   "%rend44 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_446, i32 %rbegin6" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421]   --->   Operation 162 'specregionend' 'rend44' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 163 [1/1] (0.00ns)   --->   "%trunc_ln421 = trunc i51 %mul_ln156" [../src/riccati_solver_hls.cpp:421]   --->   Operation 163 'trunc' 'trunc_ln421' <Predicate = (sel_tmp1 == 8)> <Delay = 0.00>
+ST_5 : Operation 164 [1/1] (1.03ns)   --->   "%sum_1 = add i39 %trunc_ln421, i39 %sum" [../src/riccati_solver_hls.cpp:421]   --->   Operation 164 'add' 'sum_1' <Predicate = (sel_tmp1 == 8)> <Delay = 1.03> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.03> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 165 [1/1] (0.00ns)   --->   "%rbegin7 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_516" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:424]   --->   Operation 165 'specregionbegin' 'rbegin7' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 166 [1/3] (1.94ns)   --->   "%mul_ln156_1 = mul i51 %sext_ln156_12_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:424]   --->   Operation 166 'mul' 'mul_ln156_1' <Predicate = (sel_tmp1 == 4)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 167 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i51 %mul_ln156_1, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:424]   --->   Operation 167 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 168 [1/1] (0.00ns)   --->   "%rend46 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_516, i32 %rbegin7" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:424]   --->   Operation 168 'specregionend' 'rend46' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 169 [1/1] (0.00ns)   --->   "%trunc_ln424 = trunc i51 %mul_ln156_1" [../src/riccati_solver_hls.cpp:424]   --->   Operation 169 'trunc' 'trunc_ln424' <Predicate = (sel_tmp1 == 4)> <Delay = 0.00>
+ST_5 : Operation 170 [1/1] (1.03ns)   --->   "%sum_2 = add i39 %trunc_ln424, i39 %sum" [../src/riccati_solver_hls.cpp:424]   --->   Operation 170 'add' 'sum_2' <Predicate = (sel_tmp1 == 4)> <Delay = 1.03> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.03> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 171 [1/1] (0.00ns)   --->   "%rbegin8 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_484" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:427]   --->   Operation 171 'specregionbegin' 'rbegin8' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 172 [1/3] (1.94ns)   --->   "%mul_ln156_2 = mul i51 %sext_ln156_13_cast, i51 %sext_ln425_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:427]   --->   Operation 172 'mul' 'mul_ln156_2' <Predicate = (sel_tmp1 == 2)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 173 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i51 %mul_ln156_2, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:427]   --->   Operation 173 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 174 [1/1] (0.00ns)   --->   "%rend48 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_484, i32 %rbegin8" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:427]   --->   Operation 174 'specregionend' 'rend48' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 175 [1/1] (0.00ns)   --->   "%trunc_ln427 = trunc i51 %mul_ln156_2" [../src/riccati_solver_hls.cpp:427]   --->   Operation 175 'trunc' 'trunc_ln427' <Predicate = (sel_tmp1 == 2)> <Delay = 0.00>
+ST_5 : Operation 176 [1/1] (1.03ns)   --->   "%sum_3 = add i39 %trunc_ln427, i39 %sum" [../src/riccati_solver_hls.cpp:427]   --->   Operation 176 'add' 'sum_3' <Predicate = (sel_tmp1 == 2)> <Delay = 1.03> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.03> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 177 [1/1] (0.00ns)   --->   "%rbegin9 = specregionbegin i32 @_ssdm_op_SpecRegionBegin, void @empty_483" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:430]   --->   Operation 177 'specregionbegin' 'rbegin9' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 178 [1/3] (1.94ns)   --->   "%mul_ln156_3 = mul i51 %sext_ln156_14_cast, i51 %sext_ln436_cast" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:430]   --->   Operation 178 'mul' 'mul_ln156_3' <Predicate = (sel_tmp1 == 1)> <Delay = 1.94> <CoreInst = "Mul_DSP">   --->   Core 5 'Mul_DSP' <Latency = 2> <II = 1> <Delay = 1.94> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 179 [1/1] (0.00ns)   --->   "%specfucore_ln157 = specfucore void @_ssdm_op_SpecFUCore, i51 %mul_ln156_3, i64 12, i64 3, i64 2, i1 0" [../src/fp_math_hls.cpp:157->../src/riccati_solver_hls.cpp:430]   --->   Operation 179 'specfucore' 'specfucore_ln157' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 180 [1/1] (0.00ns)   --->   "%rend50 = specregionend i32 @_ssdm_op_SpecRegionEnd, void @empty_483, i32 %rbegin9" [../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:430]   --->   Operation 180 'specregionend' 'rend50' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 181 [1/1] (0.00ns)   --->   "%trunc_ln430 = trunc i51 %mul_ln156_3" [../src/riccati_solver_hls.cpp:430]   --->   Operation 181 'trunc' 'trunc_ln430' <Predicate = (sel_tmp1 == 1)> <Delay = 0.00>
+ST_5 : Operation 182 [1/1] (1.03ns)   --->   "%sum_4 = add i39 %trunc_ln430, i39 %sum" [../src/riccati_solver_hls.cpp:430]   --->   Operation 182 'add' 'sum_4' <Predicate = (sel_tmp1 == 1)> <Delay = 1.03> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 1.03> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 183 [1/1] (0.52ns)   --->   "%sum_6 = sparsemux i39 @_ssdm_op_SparseMux.ap_auto.5i39.i39.i4, i4 8, i39 %sum_1, i4 4, i39 %sum_2, i4 2, i39 %sum_3, i4 1, i39 %sum_4, i4 0, i39 %sum, i39 0, i4 %sel_tmp1" [../src/riccati_solver_hls.cpp:421]   --->   Operation 183 'sparsemux' 'sum_6' <Predicate = true> <Delay = 0.52> <CoreInst = "OneHotSparseMux_HasDef">   --->   Core 152 'OneHotSparseMux_HasDef' <Latency = 0> <II = 1> <Delay = 0.52> <FuncUnit> <Opcode : 'sparsemux'> <InPorts = 2> <OutPorts = 1>
+ST_5 : Operation 184 [1/1] (0.00ns)   --->   "%result = partselect i25 @_ssdm_op_PartSelect.i25.i39.i32.i32, i39 %sum_6, i32 14, i32 38" [include/fp_math_hls.h:182->../src/riccati_solver_hls.cpp:435]   --->   Operation 184 'partselect' 'result' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 185 [1/1] (0.00ns)   --->   "%sext_ln182 = sext i25 %result" [include/fp_math_hls.h:182->../src/riccati_solver_hls.cpp:435]   --->   Operation 185 'sext' 'sext_ln182' <Predicate = true> <Delay = 0.00>
+ST_5 : Operation 186 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_4_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 186 'store' 'store_ln436' <Predicate = (i_1 == 4)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 187 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 187 'br' 'br_ln436' <Predicate = (i_1 == 4)> <Delay = 0.00>
+ST_5 : Operation 188 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_3_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 188 'store' 'store_ln436' <Predicate = (i_1 == 3)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 189 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 189 'br' 'br_ln436' <Predicate = (i_1 == 3)> <Delay = 0.00>
+ST_5 : Operation 190 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_2_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 190 'store' 'store_ln436' <Predicate = (i_1 == 2)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 191 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 191 'br' 'br_ln436' <Predicate = (i_1 == 2)> <Delay = 0.00>
+ST_5 : Operation 192 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_1_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 192 'store' 'store_ln436' <Predicate = (i_1 == 1)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 193 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 193 'br' 'br_ln436' <Predicate = (i_1 == 1)> <Delay = 0.00>
+ST_5 : Operation 194 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_0_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 194 'store' 'store_ln436' <Predicate = (i_1 == 0)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 195 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 195 'br' 'br_ln436' <Predicate = (i_1 == 0)> <Delay = 0.00>
+ST_5 : Operation 196 [1/1] ( I:0.67ns O:0.67ns )   --->   "%store_ln436 = store i26 %sext_ln182, i5 %x_out_5_addr" [../src/riccati_solver_hls.cpp:436]   --->   Operation 196 'store' 'store_ln436' <Predicate = (i_1 != 0 & i_1 != 1 & i_1 != 2 & i_1 != 3 & i_1 != 4)> <Delay = 0.67> <CoreInst = "RAM_2P_LUTRAM">   --->   Core 92 'RAM_2P_LUTRAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 26> <Depth = 21> <RAM>
+ST_5 : Operation 197 [1/1] (0.00ns)   --->   "%br_ln436 = br void %arrayidx31173118.exit" [../src/riccati_solver_hls.cpp:436]   --->   Operation 197 'br' 'br_ln436' <Predicate = (i_1 != 0 & i_1 != 1 & i_1 != 2 & i_1 != 3 & i_1 != 4)> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 5.000ns, clock uncertainty: 0.500ns.
+
+ <State 1>: 2.437ns
+The critical path consists of the following:
+	'store' operation ('store_ln340', ../src/riccati_solver_hls.cpp:340) of constant 0 3 bit on local variable 'i', ../src/riccati_solver_hls.cpp:340 [79]  (0.427 ns)
+	'load' operation 3 bit ('i', ../src/riccati_solver_hls.cpp:399) on local variable 'i', ../src/riccati_solver_hls.cpp:340 [82]  (0.000 ns)
+	'add' operation 7 bit ('add_ln409', ../src/riccati_solver_hls.cpp:409) [94]  (0.773 ns)
+	'getelementptr' operation 7 bit ('step_data_0_0_addr', ../src/riccati_solver_hls.cpp:409) [96]  (0.000 ns)
+	'load' operation 26 bit ('a', ../src/riccati_solver_hls.cpp:409) on array 'step_data_0_0' [117]  (1.237 ns)
+
+ <State 2>: 3.178ns
+The critical path consists of the following:
+	'load' operation 26 bit ('a', ../src/riccati_solver_hls.cpp:409) on array 'step_data_0_0' [117]  (1.237 ns)
+	'mul' operation 39 bit ('mul_ln409', ../src/riccati_solver_hls.cpp:409) [120]  (1.941 ns)
+
+ <State 3>: 1.941ns
+The critical path consists of the following:
+	'mul' operation 39 bit ('mul_ln409', ../src/riccati_solver_hls.cpp:409) [120]  (1.941 ns)
+
+ <State 4>: 3.723ns
+The critical path consists of the following:
+	'mul' operation 39 bit ('mul_ln409', ../src/riccati_solver_hls.cpp:409) [120]  (1.941 ns)
+	'call' operation 39 bit ('ax_sum', ../src/riccati_solver_hls.cpp:408) to 'sum6_QP_raw' [153]  (1.782 ns)
+
+ <State 5>: 4.175ns
+The critical path consists of the following:
+	'mul' operation 51 bit ('mul_ln156', ../src/fp_math_hls.cpp:156->../src/riccati_solver_hls.cpp:421) [157]  (1.941 ns)
+	'add' operation 39 bit ('sum', ../src/riccati_solver_hls.cpp:421) [161]  (1.032 ns)
+	'sparsemux' operation 39 bit ('sum', ../src/riccati_solver_hls.cpp:421) [181]  (0.525 ns)
+	'store' operation ('store_ln436', ../src/riccati_solver_hls.cpp:436) of variable 'sext_ln182', include/fp_math_hls.h:182->../src/riccati_solver_hls.cpp:435 26 bit on array 'x_out_4' [186]  (0.677 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+	State 3
+	State 4
+	State 5
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

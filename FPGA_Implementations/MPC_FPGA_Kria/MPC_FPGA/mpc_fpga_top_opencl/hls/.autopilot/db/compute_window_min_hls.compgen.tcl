@@ -1,37 +1,37 @@
 # This script segment is generated automatically by AutoPilot
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_35_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_35_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_37_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_37_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_39_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_39_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_41_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_41_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_39_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_39_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_37_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_37_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_35_5_32_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_sparsemux_35_5_26_1_1 BINDTYPE {op} TYPE {sparsemux} IMPL {compactencoding_dontcare}
 }
 
 
@@ -53,7 +53,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_0_val \
     op interface \
-    ports { ref_wall_0_val { I 32 vector } } \
+    ports { ref_wall_0_val { I 26 vector } } \
 } "
 }
 
@@ -68,7 +68,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_1_val \
     op interface \
-    ports { ref_wall_1_val { I 32 vector } } \
+    ports { ref_wall_1_val { I 26 vector } } \
 } "
 }
 
@@ -83,7 +83,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_2_val \
     op interface \
-    ports { ref_wall_2_val { I 32 vector } } \
+    ports { ref_wall_2_val { I 26 vector } } \
 } "
 }
 
@@ -98,7 +98,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_3_val \
     op interface \
-    ports { ref_wall_3_val { I 32 vector } } \
+    ports { ref_wall_3_val { I 26 vector } } \
 } "
 }
 
@@ -113,7 +113,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_4_val \
     op interface \
-    ports { ref_wall_4_val { I 32 vector } } \
+    ports { ref_wall_4_val { I 26 vector } } \
 } "
 }
 
@@ -128,7 +128,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_5_val \
     op interface \
-    ports { ref_wall_5_val { I 32 vector } } \
+    ports { ref_wall_5_val { I 26 vector } } \
 } "
 }
 
@@ -143,7 +143,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_6_val \
     op interface \
-    ports { ref_wall_6_val { I 32 vector } } \
+    ports { ref_wall_6_val { I 26 vector } } \
 } "
 }
 
@@ -158,7 +158,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_7_val \
     op interface \
-    ports { ref_wall_7_val { I 32 vector } } \
+    ports { ref_wall_7_val { I 26 vector } } \
 } "
 }
 
@@ -173,7 +173,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_8_val \
     op interface \
-    ports { ref_wall_8_val { I 32 vector } } \
+    ports { ref_wall_8_val { I 26 vector } } \
 } "
 }
 
@@ -188,7 +188,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_9_val \
     op interface \
-    ports { ref_wall_9_val { I 32 vector } } \
+    ports { ref_wall_9_val { I 26 vector } } \
 } "
 }
 
@@ -203,7 +203,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_10_val \
     op interface \
-    ports { ref_wall_10_val { I 32 vector } } \
+    ports { ref_wall_10_val { I 26 vector } } \
 } "
 }
 
@@ -218,7 +218,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_11_val \
     op interface \
-    ports { ref_wall_11_val { I 32 vector } } \
+    ports { ref_wall_11_val { I 26 vector } } \
 } "
 }
 
@@ -233,7 +233,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_12_val \
     op interface \
-    ports { ref_wall_12_val { I 32 vector } } \
+    ports { ref_wall_12_val { I 26 vector } } \
 } "
 }
 
@@ -248,7 +248,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_13_val \
     op interface \
-    ports { ref_wall_13_val { I 32 vector } } \
+    ports { ref_wall_13_val { I 26 vector } } \
 } "
 }
 
@@ -263,7 +263,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_14_val \
     op interface \
-    ports { ref_wall_14_val { I 32 vector } } \
+    ports { ref_wall_14_val { I 26 vector } } \
 } "
 }
 
@@ -278,7 +278,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_15_val \
     op interface \
-    ports { ref_wall_15_val { I 32 vector } } \
+    ports { ref_wall_15_val { I 26 vector } } \
 } "
 }
 
@@ -293,7 +293,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_16_val \
     op interface \
-    ports { ref_wall_16_val { I 32 vector } } \
+    ports { ref_wall_16_val { I 26 vector } } \
 } "
 }
 
@@ -308,7 +308,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_17_val \
     op interface \
-    ports { ref_wall_17_val { I 32 vector } } \
+    ports { ref_wall_17_val { I 26 vector } } \
 } "
 }
 
@@ -323,7 +323,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_18_val \
     op interface \
-    ports { ref_wall_18_val { I 32 vector } } \
+    ports { ref_wall_18_val { I 26 vector } } \
 } "
 }
 
@@ -338,7 +338,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ref_wall_19_val \
     op interface \
-    ports { ref_wall_19_val { I 32 vector } } \
+    ports { ref_wall_19_val { I 26 vector } } \
 } "
 }
 
@@ -381,7 +381,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename ap_return \
     op interface \
-    ports { ap_return { O 32 vector } } \
+    ports { ap_return { O 26 vector } } \
 } "
 }
 

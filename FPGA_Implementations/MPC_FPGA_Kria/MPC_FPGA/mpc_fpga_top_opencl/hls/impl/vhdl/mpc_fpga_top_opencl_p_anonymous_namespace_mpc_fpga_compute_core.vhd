@@ -16,41 +16,41 @@ port (
     ap_done : OUT STD_LOGIC;
     ap_idle : OUT STD_LOGIC;
     ap_ready : OUT STD_LOGIC;
-    ey : IN STD_LOGIC_VECTOR (31 downto 0);
-    epsi : IN STD_LOGIC_VECTOR (31 downto 0);
-    vx : IN STD_LOGIC_VECTOR (31 downto 0);
-    vy : IN STD_LOGIC_VECTOR (31 downto 0);
-    omega : IN STD_LOGIC_VECTOR (31 downto 0);
-    steering : IN STD_LOGIC_VECTOR (31 downto 0);
-    prev_accel : IN STD_LOGIC_VECTOR (31 downto 0);
+    ey : IN STD_LOGIC_VECTOR (25 downto 0);
+    epsi : IN STD_LOGIC_VECTOR (25 downto 0);
+    vx : IN STD_LOGIC_VECTOR (25 downto 0);
+    vy : IN STD_LOGIC_VECTOR (25 downto 0);
+    omega : IN STD_LOGIC_VECTOR (25 downto 0);
+    steering : IN STD_LOGIC_VECTOR (25 downto 0);
+    prev_accel : IN STD_LOGIC_VECTOR (25 downto 0);
     control_flags : IN STD_LOGIC_VECTOR (2 downto 0);
     ref_reference_heading_error_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_reference_heading_error_ce0 : OUT STD_LOGIC;
-    ref_reference_heading_error_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_reference_heading_error_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_reference_lateral_error_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_reference_lateral_error_ce0 : OUT STD_LOGIC;
-    ref_reference_lateral_error_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_reference_lateral_error_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_reference_velocity_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_reference_velocity_ce0 : OUT STD_LOGIC;
-    ref_reference_velocity_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_reference_velocity_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_reference_lateral_velocity_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_reference_lateral_velocity_ce0 : OUT STD_LOGIC;
-    ref_reference_lateral_velocity_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_reference_lateral_velocity_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_reference_yaw_rate_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_reference_yaw_rate_ce0 : OUT STD_LOGIC;
-    ref_reference_yaw_rate_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_reference_yaw_rate_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_path_curvature_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_path_curvature_ce0 : OUT STD_LOGIC;
-    ref_path_curvature_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_path_curvature_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_left_wall_bound_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_left_wall_bound_ce0 : OUT STD_LOGIC;
-    ref_left_wall_bound_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+    ref_left_wall_bound_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
     ref_right_wall_bound_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
     ref_right_wall_bound_ce0 : OUT STD_LOGIC;
-    ref_right_wall_bound_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
-    out_steering : OUT STD_LOGIC_VECTOR (31 downto 0);
+    ref_right_wall_bound_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
+    out_steering : OUT STD_LOGIC_VECTOR (25 downto 0);
     out_steering_ap_vld : OUT STD_LOGIC;
-    out_accel : OUT STD_LOGIC_VECTOR (31 downto 0);
+    out_accel : OUT STD_LOGIC_VECTOR (25 downto 0);
     out_accel_ap_vld : OUT STD_LOGIC;
     out_status : OUT STD_LOGIC_VECTOR (0 downto 0);
     out_status_ap_vld : OUT STD_LOGIC;
@@ -82,28 +82,30 @@ architecture behav of mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute
     constant ap_ST_fsm_state12 : STD_LOGIC_VECTOR (11 downto 0) := "100000000000";
     constant ap_const_boolean_1 : BOOLEAN := true;
     constant ap_const_lv32_0 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
+    constant ap_const_lv26_0 : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
     constant ap_const_lv1_0 : STD_LOGIC_VECTOR (0 downto 0) := "0";
     constant ap_const_lv32_2 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000010";
     constant ap_const_lv32_5 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000101";
+    constant ap_const_lv32_A : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001010";
     constant ap_const_lv1_1 : STD_LOGIC_VECTOR (0 downto 0) := "1";
     constant ap_const_lv32_3 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000011";
     constant ap_const_lv32_1 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000001";
     constant ap_const_lv32_4 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000100";
     constant ap_const_lv32_6 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000110";
-    constant ap_const_lv32_A : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001010";
-    constant ap_const_lv32_B : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001011";
     constant ap_const_lv32_9 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001001";
-    constant ap_const_boolean_0 : BOOLEAN := false;
-    constant ap_const_lv50_3200000 : STD_LOGIC_VECTOR (49 downto 0) := "00000000000000000000000011001000000000000000000000";
+    constant ap_const_lv32_8 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001000";
+    constant ap_const_lv32_B : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001011";
+    constant ap_const_lv49_320000 : STD_LOGIC_VECTOR (48 downto 0) := "0000000000000000000000000001100100000000000000000";
     constant ap_const_lv11_0 : STD_LOGIC_VECTOR (10 downto 0) := "00000000000";
-    constant ap_const_lv32_12 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000010010";
-    constant ap_const_lv32_31 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000110001";
-    constant ap_const_lv32_26 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000100110";
-    constant ap_const_lv32_FFF49AA0 : STD_LOGIC_VECTOR (31 downto 0) := "11111111111101001001101010100000";
-    constant ap_const_lv32_B6560 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000010110110010101100000";
-    constant ap_const_lv21_149AA0 : STD_LOGIC_VECTOR (20 downto 0) := "101001001101010100000";
-    constant ap_const_lv21_B6560 : STD_LOGIC_VECTOR (20 downto 0) := "010110110010101100000";
+    constant ap_const_lv32_E : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000001110";
+    constant ap_const_lv32_27 : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000100111";
+    constant ap_const_lv32_1E : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000011110";
+    constant ap_const_lv26_3FF49AA : STD_LOGIC_VECTOR (25 downto 0) := "11111111110100100110101010";
+    constant ap_const_lv26_B656 : STD_LOGIC_VECTOR (25 downto 0) := "00000000001011011001010110";
+    constant ap_const_lv17_149AA : STD_LOGIC_VECTOR (16 downto 0) := "10100100110101010";
+    constant ap_const_lv17_B656 : STD_LOGIC_VECTOR (16 downto 0) := "01011011001010110";
     constant ap_const_lv32_7FFFFFFF : STD_LOGIC_VECTOR (31 downto 0) := "01111111111111111111111111111111";
+    constant ap_const_boolean_0 : BOOLEAN := false;
 
 attribute shreg_extract : string;
     signal ap_CS_fsm : STD_LOGIC_VECTOR (11 downto 0) := "000000000001";
@@ -114,530 +116,535 @@ attribute shreg_extract : string;
     signal p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_0_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_0_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_0_q1 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_0_q1 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_1_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_1_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_2_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_2_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_3_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_3_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_4_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_4_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_5_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_5_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_6_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_6_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_x_7_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_x_7_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_0_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_0_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_1_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_1_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_2_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_2_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_3_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_3_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_4_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_4_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_5_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_5_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_6_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_6_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_x_7_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_x_7_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_u_0_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_u_0_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_z_u_1_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_z_u_1_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_u_0_q0 : STD_LOGIC_VECTOR (31 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_u_0_q0 : STD_LOGIC_VECTOR (25 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
     signal p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
     signal p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_y_u_1_q0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal p_anonymous_namespace_g_core_state_admm_rho : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
-    signal p_anonymous_namespace_g_core_state_admm_rho_u : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_y_u_1_q0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal p_anonymous_namespace_g_core_state_admm_rho : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_admm_rho_u : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
     signal p_anonymous_namespace_g_core_state_admm_initialized : STD_LOGIC_VECTOR (0 downto 0) := "0";
-    signal p_anonymous_namespace_g_core_state_persist_prev_steer_rate : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
-    signal p_anonymous_namespace_g_core_state_persist_prev_accel : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
-    signal p_anonymous_namespace_g_core_state_persist_actual_steering : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
-    signal p_anonymous_namespace_g_core_state_persist_prev_curvature : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_persist_prev_steer_rate : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_persist_prev_accel : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_persist_actual_steering : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
+    signal p_anonymous_namespace_g_core_state_persist_prev_curvature : STD_LOGIC_VECTOR (25 downto 0) := "00000000000000000000000000";
     signal p_anonymous_namespace_g_core_state_persist_prev_model_signature : STD_LOGIC_VECTOR (0 downto 0) := "0";
     signal p_anonymous_namespace_g_core_state_persist_max_iter_streak : STD_LOGIC_VECTOR (31 downto 0) := "00000000000000000000000000000000";
     signal p_anonymous_namespace_g_core_state_initialized : STD_LOGIC_VECTOR (0 downto 0) := "0";
-    signal and_ln279_2_fu_558_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal and_ln279_2_reg_835 : STD_LOGIC_VECTOR (0 downto 0);
-    signal p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 : STD_LOGIC_VECTOR (0 downto 0);
-    signal p_anonymous_namespace_g_core_state_initialized_load_reg_839 : STD_LOGIC_VECTOR (0 downto 0);
+    signal and_ln272_2_fu_568_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal and_ln272_2_reg_840 : STD_LOGIC_VECTOR (0 downto 0);
+    signal p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 : STD_LOGIC_VECTOR (0 downto 0);
+    signal p_anonymous_namespace_g_core_state_initialized_load_reg_844 : STD_LOGIC_VECTOR (0 downto 0);
     signal ap_CS_fsm_state3 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state3 : signal is "none";
-    signal tmp_fu_568_p3 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_reg_843 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_109_fu_575_p3 : STD_LOGIC_VECTOR (0 downto 0);
-    signal tmp_109_reg_847 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_fu_578_p3 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_reg_848 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_109_fu_585_p3 : STD_LOGIC_VECTOR (0 downto 0);
+    signal tmp_109_reg_852 : STD_LOGIC_VECTOR (0 downto 0);
     signal ap_CS_fsm_state6 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state6 : signal is "none";
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_idle : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_ready : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized_ap_vld : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_done : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_idle : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_ready : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_done : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_idle : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_ready : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_done : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_idle : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_ready : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_done : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_idle : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_ready : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ap_start : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ap_done : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ap_idle : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ap_ready : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_reference_heading_error_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_reference_heading_error_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_reference_velocity_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_reference_velocity_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_path_curvature_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_path_curvature_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_left_wall_bound_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_left_wall_bound_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ref_right_wall_bound_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ref_right_wall_bound_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address1 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld : STD_LOGIC;
-    signal grp_mpc_compute_hls_fu_404_ap_return_0 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ap_return_1 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ap_return_2 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_mpc_compute_hls_fu_404_ap_return_3 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg : STD_LOGIC := '0';
-    signal trunc_ln268_fu_502_p1 : STD_LOGIC_VECTOR (0 downto 0);
+    signal steer_out_reg_861 : STD_LOGIC_VECTOR (25 downto 0);
+    signal ap_CS_fsm_state11 : STD_LOGIC;
+    attribute fsm_encoding of ap_CS_fsm_state11 : signal is "none";
+    signal accel_out_reg_866 : STD_LOGIC_VECTOR (25 downto 0);
+    signal solver_status_reg_871 : STD_LOGIC_VECTOR (31 downto 0);
+    signal iters_reg_877 : STD_LOGIC_VECTOR (31 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_idle : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_ready : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak : STD_LOGIC_VECTOR (31 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized_ap_vld : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_done : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_idle : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_ready : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_done : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_idle : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_ready : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_done : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_idle : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_ready : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_done : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_idle : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_ready : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ap_start : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ap_done : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ap_idle : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ap_ready : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_reference_heading_error_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_reference_heading_error_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_reference_velocity_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_reference_velocity_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_path_curvature_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_path_curvature_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_left_wall_bound_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_left_wall_bound_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ref_right_wall_bound_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ref_right_wall_bound_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address1 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : STD_LOGIC_VECTOR (4 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld : STD_LOGIC;
+    signal grp_mpc_compute_hls_fu_412_ap_return_0 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ap_return_1 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ap_return_2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal grp_mpc_compute_hls_fu_412_ap_return_3 : STD_LOGIC_VECTOR (31 downto 0);
+    signal grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg : STD_LOGIC := '0';
+    signal trunc_ln265_fu_512_p1 : STD_LOGIC_VECTOR (0 downto 0);
     signal ap_CS_fsm_state4 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state4 : signal is "none";
     signal ap_CS_fsm_state2 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state2 : signal is "none";
     signal ap_CS_fsm_state5 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state5 : signal is "none";
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg : STD_LOGIC := '0';
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg : STD_LOGIC := '0';
     signal ap_CS_fsm_state7 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state7 : signal is "none";
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg : STD_LOGIC := '0';
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg : STD_LOGIC := '0';
-    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg : STD_LOGIC := '0';
-    signal grp_mpc_compute_hls_fu_404_ap_start_reg : STD_LOGIC := '0';
-    signal ap_CS_fsm_state11 : STD_LOGIC;
-    attribute fsm_encoding of ap_CS_fsm_state11 : signal is "none";
-    signal ap_CS_fsm_state12 : STD_LOGIC;
-    attribute fsm_encoding of ap_CS_fsm_state12 : signal is "none";
-    signal sext_ln307_fu_719_p1 : STD_LOGIC_VECTOR (31 downto 0);
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg : STD_LOGIC := '0';
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg : STD_LOGIC := '0';
+    signal grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg : STD_LOGIC := '0';
+    signal grp_mpc_compute_hls_fu_412_ap_start_reg : STD_LOGIC := '0';
     signal ap_CS_fsm_state10 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state10 : signal is "none";
-    signal ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load : STD_LOGIC_VECTOR (31 downto 0);
-    signal add_ln330_fu_770_p2 : STD_LOGIC_VECTOR (31 downto 0);
-    signal ap_block_state12_on_subcall_done : BOOLEAN;
-    signal icmp_ln328_fu_748_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln329_fu_764_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal grp_fu_497_p1 : STD_LOGIC_VECTOR (26 downto 0);
-    signal icmp_ln279_3_fu_540_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln279_2_fu_530_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln279_1_fu_520_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln279_fu_510_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal and_ln279_1_fu_552_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal and_ln279_fu_546_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal value_254_fu_645_p2 : STD_LOGIC_VECTOR (31 downto 0);
-    signal grp_fu_497_p2 : STD_LOGIC_VECTOR (49 downto 0);
-    signal product_q_fu_665_p4 : STD_LOGIC_VECTOR (31 downto 0);
-    signal icmp_ln128_fu_685_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal icmp_ln130_fu_691_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal empty_fu_705_p2 : STD_LOGIC_VECTOR (0 downto 0);
-    signal select_ln130_fu_697_p3 : STD_LOGIC_VECTOR (20 downto 0);
-    signal product_q_cast_fu_675_p4 : STD_LOGIC_VECTOR (20 downto 0);
-    signal measured_steer_rate_fu_711_p3 : STD_LOGIC_VECTOR (20 downto 0);
+    signal sext_ln300_fu_729_p1 : STD_LOGIC_VECTOR (25 downto 0);
+    signal ap_CS_fsm_state9 : STD_LOGIC;
+    attribute fsm_encoding of ap_CS_fsm_state9 : signal is "none";
+    signal ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load : STD_LOGIC_VECTOR (25 downto 0);
+    signal add_ln323_fu_776_p2 : STD_LOGIC_VECTOR (31 downto 0);
+    signal ap_CS_fsm_state12 : STD_LOGIC;
+    attribute fsm_encoding of ap_CS_fsm_state12 : signal is "none";
+    signal icmp_ln321_fu_755_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln322_fu_770_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal grp_fu_507_p1 : STD_LOGIC_VECTOR (22 downto 0);
+    signal icmp_ln272_3_fu_550_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln272_2_fu_540_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln272_1_fu_530_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln272_fu_520_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal and_ln272_1_fu_562_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal and_ln272_fu_556_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal value_fu_655_p2 : STD_LOGIC_VECTOR (25 downto 0);
+    signal grp_fu_507_p2 : STD_LOGIC_VECTOR (48 downto 0);
+    signal product_q_fu_675_p4 : STD_LOGIC_VECTOR (25 downto 0);
+    signal icmp_ln143_fu_695_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal icmp_ln145_fu_701_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal empty_fu_715_p2 : STD_LOGIC_VECTOR (0 downto 0);
+    signal select_ln145_fu_707_p3 : STD_LOGIC_VECTOR (16 downto 0);
+    signal product_q_cast_fu_685_p4 : STD_LOGIC_VECTOR (16 downto 0);
+    signal measured_steer_rate_fu_721_p3 : STD_LOGIC_VECTOR (16 downto 0);
     signal ap_NS_fsm : STD_LOGIC_VECTOR (11 downto 0);
     signal ap_ST_fsm_state1_blk : STD_LOGIC;
     signal ap_ST_fsm_state2_blk : STD_LOGIC;
@@ -667,96 +674,96 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_rho : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_rho_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_rho_u : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho_u : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_initialized : OUT STD_LOGIC_VECTOR (0 downto 0);
         p_anonymous_namespace_g_core_state_admm_initialized_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_prev_accel : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_accel : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_actual_steering : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_actual_steering : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_prev_curvature : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_curvature : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_persist_prev_model_signature : OUT STD_LOGIC_VECTOR (0 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld : OUT STD_LOGIC;
@@ -767,7 +774,7 @@ attribute shreg_extract : string;
     end component;
 
 
-    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1 IS
+    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -778,39 +785,39 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3 IS
+    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -821,15 +828,15 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1 IS
+    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -840,71 +847,71 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3 IS
+    component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3 IS
     port (
         ap_clk : IN STD_LOGIC;
         ap_rst : IN STD_LOGIC;
@@ -915,19 +922,19 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
@@ -939,44 +946,44 @@ attribute shreg_extract : string;
         ap_done : OUT STD_LOGIC;
         ap_idle : OUT STD_LOGIC;
         ap_ready : OUT STD_LOGIC;
-        state_ey : IN STD_LOGIC_VECTOR (31 downto 0);
-        state_epsi : IN STD_LOGIC_VECTOR (31 downto 0);
-        state_vx : IN STD_LOGIC_VECTOR (31 downto 0);
-        state_vy : IN STD_LOGIC_VECTOR (31 downto 0);
-        state_omega : IN STD_LOGIC_VECTOR (31 downto 0);
+        state_ey : IN STD_LOGIC_VECTOR (25 downto 0);
+        state_epsi : IN STD_LOGIC_VECTOR (25 downto 0);
+        state_vx : IN STD_LOGIC_VECTOR (25 downto 0);
+        state_vy : IN STD_LOGIC_VECTOR (25 downto 0);
+        state_omega : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_reference_heading_error_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_reference_heading_error_ce0 : OUT STD_LOGIC;
-        ref_reference_heading_error_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_reference_heading_error_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_reference_lateral_error_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_reference_lateral_error_ce0 : OUT STD_LOGIC;
-        ref_reference_lateral_error_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_reference_lateral_error_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_reference_velocity_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_reference_velocity_ce0 : OUT STD_LOGIC;
-        ref_reference_velocity_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_reference_velocity_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_reference_lateral_velocity_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_reference_lateral_velocity_ce0 : OUT STD_LOGIC;
-        ref_reference_lateral_velocity_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_reference_lateral_velocity_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_reference_yaw_rate_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_reference_yaw_rate_ce0 : OUT STD_LOGIC;
-        ref_reference_yaw_rate_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_reference_yaw_rate_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_path_curvature_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_path_curvature_ce0 : OUT STD_LOGIC;
-        ref_path_curvature_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_path_curvature_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_left_wall_bound_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_left_wall_bound_ce0 : OUT STD_LOGIC;
-        ref_left_wall_bound_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        ref_left_wall_bound_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         ref_right_wall_bound_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         ref_right_wall_bound_ce0 : OUT STD_LOGIC;
-        ref_right_wall_bound_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_persist_actual_steering : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_i : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o : OUT STD_LOGIC_VECTOR (31 downto 0);
+        ref_right_wall_bound_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_persist_actual_steering : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_i : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_prev_accel_i : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_persist_prev_accel_o : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_accel_i : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_accel_o : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_persist_prev_curvature_i : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_persist_prev_curvature_o : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_curvature_i : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_persist_prev_curvature_o : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_persist_prev_model_signature_i : IN STD_LOGIC_VECTOR (0 downto 0);
         p_anonymous_namespace_g_core_state_persist_prev_model_signature_o : OUT STD_LOGIC_VECTOR (0 downto 0);
@@ -987,120 +994,120 @@ attribute shreg_extract : string;
         p_anonymous_namespace_g_core_state_admm_z_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_0_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_address1 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_0_q1 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_0_q1 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_1_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_1_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_2_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_2_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_3_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_3_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_4_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_4_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_5_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_5_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_6_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_6_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_x_7_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_x_7_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_0_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_0_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_1_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_1_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_2_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_2_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_2_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_3_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_3_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_3_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_4_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_4_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_4_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_5_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_5_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_5_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_6_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_6_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_6_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_x_7_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_x_7_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_x_7_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_u_0_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_0_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_z_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_z_u_1_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_z_u_1_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_0_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_u_0_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_0_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_address0 : OUT STD_LOGIC_VECTOR (4 downto 0);
         p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 : OUT STD_LOGIC;
         p_anonymous_namespace_g_core_state_admm_y_u_1_we0 : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_y_u_1_q0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_rho_i : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_rho_o : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_y_u_1_q0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho_i : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho_o : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld : OUT STD_LOGIC;
-        p_anonymous_namespace_g_core_state_admm_rho_u_i : IN STD_LOGIC_VECTOR (31 downto 0);
-        p_anonymous_namespace_g_core_state_admm_rho_u_o : OUT STD_LOGIC_VECTOR (31 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho_u_i : IN STD_LOGIC_VECTOR (25 downto 0);
+        p_anonymous_namespace_g_core_state_admm_rho_u_o : OUT STD_LOGIC_VECTOR (25 downto 0);
         p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld : OUT STD_LOGIC;
-        ap_return_0 : OUT STD_LOGIC_VECTOR (31 downto 0);
-        ap_return_1 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        ap_return_0 : OUT STD_LOGIC_VECTOR (25 downto 0);
+        ap_return_1 : OUT STD_LOGIC_VECTOR (25 downto 0);
         ap_return_2 : OUT STD_LOGIC_VECTOR (31 downto 0);
         ap_return_3 : OUT STD_LOGIC_VECTOR (31 downto 0) );
     end component;
 
 
-    component mpc_fpga_top_opencl_mul_32s_27ns_50_4_1 IS
+    component mpc_fpga_top_opencl_mul_26s_23ns_49_3_1 IS
     generic (
         ID : INTEGER;
         NUM_STAGE : INTEGER;
@@ -1110,10 +1117,10 @@ attribute shreg_extract : string;
     port (
         clk : IN STD_LOGIC;
         reset : IN STD_LOGIC;
-        din0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        din1 : IN STD_LOGIC_VECTOR (26 downto 0);
+        din0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        din1 : IN STD_LOGIC_VECTOR (22 downto 0);
         ce : IN STD_LOGIC;
-        dout : OUT STD_LOGIC_VECTOR (49 downto 0) );
+        dout : OUT STD_LOGIC_VECTOR (48 downto 0) );
     end component;
 
 
@@ -1128,11 +1135,11 @@ attribute shreg_extract : string;
         address0 : IN STD_LOGIC_VECTOR (4 downto 0);
         ce0 : IN STD_LOGIC;
         we0 : IN STD_LOGIC;
-        d0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        q0 : OUT STD_LOGIC_VECTOR (31 downto 0);
+        d0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        q0 : OUT STD_LOGIC_VECTOR (25 downto 0);
         address1 : IN STD_LOGIC_VECTOR (4 downto 0);
         ce1 : IN STD_LOGIC;
-        q1 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        q1 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
@@ -1147,8 +1154,8 @@ attribute shreg_extract : string;
         address0 : IN STD_LOGIC_VECTOR (4 downto 0);
         ce0 : IN STD_LOGIC;
         we0 : IN STD_LOGIC;
-        d0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        q0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        d0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        q0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
@@ -1163,8 +1170,8 @@ attribute shreg_extract : string;
         address0 : IN STD_LOGIC_VECTOR (4 downto 0);
         ce0 : IN STD_LOGIC;
         we0 : IN STD_LOGIC;
-        d0 : IN STD_LOGIC_VECTOR (31 downto 0);
-        q0 : OUT STD_LOGIC_VECTOR (31 downto 0) );
+        d0 : IN STD_LOGIC_VECTOR (25 downto 0);
+        q0 : OUT STD_LOGIC_VECTOR (25 downto 0) );
     end component;
 
 
@@ -1172,7 +1179,7 @@ attribute shreg_extract : string;
 begin
     p_anonymous_namespace_g_core_state_admm_z_x_0_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statbkb
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1183,13 +1190,13 @@ begin
         we0 => p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
         d0 => p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
         q0 => p_anonymous_namespace_g_core_state_admm_z_x_0_q0,
-        address1 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address1,
+        address1 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address1,
         ce1 => p_anonymous_namespace_g_core_state_admm_z_x_0_ce1,
         q1 => p_anonymous_namespace_g_core_state_admm_z_x_0_q1);
 
     p_anonymous_namespace_g_core_state_admm_z_x_1_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1203,7 +1210,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_2_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1217,7 +1224,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_3_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1231,7 +1238,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_4_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1245,7 +1252,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_5_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1259,7 +1266,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_6_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1273,7 +1280,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_x_7_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1287,7 +1294,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_0_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1301,7 +1308,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_1_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1315,7 +1322,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_2_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1329,7 +1336,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_3_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1343,7 +1350,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_4_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1357,7 +1364,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_5_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1371,7 +1378,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_6_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1385,7 +1392,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_x_7_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statcud
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 21,
         AddressWidth => 5)
     port map (
@@ -1399,7 +1406,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_u_0_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 20,
         AddressWidth => 5)
     port map (
@@ -1413,7 +1420,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_z_u_1_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 20,
         AddressWidth => 5)
     port map (
@@ -1427,7 +1434,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_u_0_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 20,
         AddressWidth => 5)
     port map (
@@ -1441,7 +1448,7 @@ begin
 
     p_anonymous_namespace_g_core_state_admm_y_u_1_U : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_p_anonymous_namespace_g_core_statrcU
     generic map (
-        DataWidth => 32,
+        DataWidth => 26,
         AddressRange => 20,
         AddressWidth => 5)
     port map (
@@ -1453,452 +1460,452 @@ begin
         d0 => p_anonymous_namespace_g_core_state_admm_y_u_1_d0,
         q0 => p_anonymous_namespace_g_core_state_admm_y_u_1_q0);
 
-    grp_p_anonymous_namespace_reset_core_state_hls_fu_264 : component mpc_fpga_top_opencl_p_anonymous_namespace_reset_core_state_hls
+    grp_p_anonymous_namespace_reset_core_state_hls_fu_272 : component mpc_fpga_top_opencl_p_anonymous_namespace_reset_core_state_hls
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start,
-        ap_done => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done,
-        ap_idle => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_idle,
-        ap_ready => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_d0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_d0,
-        p_anonymous_namespace_g_core_state_admm_rho => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho,
-        p_anonymous_namespace_g_core_state_admm_rho_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_ap_vld,
-        p_anonymous_namespace_g_core_state_admm_rho_u => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u,
-        p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld,
-        p_anonymous_namespace_g_core_state_admm_initialized => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized,
-        p_anonymous_namespace_g_core_state_admm_initialized_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate,
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_prev_accel => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel,
-        p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_actual_steering => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering,
-        p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_prev_curvature => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature,
-        p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_prev_model_signature => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature,
-        p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld,
-        p_anonymous_namespace_g_core_state_persist_max_iter_streak => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak,
-        p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld,
-        p_anonymous_namespace_g_core_state_initialized => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized,
-        p_anonymous_namespace_g_core_state_initialized_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized_ap_vld);
+        ap_start => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start,
+        ap_done => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done,
+        ap_idle => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_idle,
+        ap_ready => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_rho => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho,
+        p_anonymous_namespace_g_core_state_admm_rho_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_ap_vld,
+        p_anonymous_namespace_g_core_state_admm_rho_u => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u,
+        p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld,
+        p_anonymous_namespace_g_core_state_admm_initialized => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized,
+        p_anonymous_namespace_g_core_state_admm_initialized_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate,
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_accel => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel,
+        p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_actual_steering => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering,
+        p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_curvature => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature,
+        p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_model_signature => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature,
+        p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_max_iter_streak => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak,
+        p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld,
+        p_anonymous_namespace_g_core_state_initialized => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized,
+        p_anonymous_namespace_g_core_state_initialized_ap_vld => grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized_ap_vld);
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start,
-        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_done,
-        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_idle,
-        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
+        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start,
+        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_done,
+        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_idle,
+        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start,
-        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_done,
-        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_idle,
-        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
+        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start,
+        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_done,
+        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_idle,
+        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start,
-        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_done,
-        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_idle,
-        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
+        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start,
+        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_done,
+        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_idle,
+        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_d0);
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400 : component mpc_fpga_top_opencl_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start,
-        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_done,
-        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_idle,
-        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_ready,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
+        ap_start => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start,
+        ap_done => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_done,
+        ap_idle => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_idle,
+        ap_ready => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_ready,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_d0);
 
-    grp_mpc_compute_hls_fu_404 : component mpc_fpga_top_opencl_mpc_compute_hls
+    grp_mpc_compute_hls_fu_412 : component mpc_fpga_top_opencl_mpc_compute_hls
     port map (
         ap_clk => ap_clk,
         ap_rst => ap_rst,
-        ap_start => grp_mpc_compute_hls_fu_404_ap_start,
-        ap_done => grp_mpc_compute_hls_fu_404_ap_done,
-        ap_idle => grp_mpc_compute_hls_fu_404_ap_idle,
-        ap_ready => grp_mpc_compute_hls_fu_404_ap_ready,
+        ap_start => grp_mpc_compute_hls_fu_412_ap_start,
+        ap_done => grp_mpc_compute_hls_fu_412_ap_done,
+        ap_idle => grp_mpc_compute_hls_fu_412_ap_idle,
+        ap_ready => grp_mpc_compute_hls_fu_412_ap_ready,
         state_ey => ey,
         state_epsi => epsi,
         state_vx => vx,
         state_vy => vy,
         state_omega => omega,
-        ref_reference_heading_error_address0 => grp_mpc_compute_hls_fu_404_ref_reference_heading_error_address0,
-        ref_reference_heading_error_ce0 => grp_mpc_compute_hls_fu_404_ref_reference_heading_error_ce0,
+        ref_reference_heading_error_address0 => grp_mpc_compute_hls_fu_412_ref_reference_heading_error_address0,
+        ref_reference_heading_error_ce0 => grp_mpc_compute_hls_fu_412_ref_reference_heading_error_ce0,
         ref_reference_heading_error_q0 => ref_reference_heading_error_q0,
-        ref_reference_lateral_error_address0 => grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_address0,
-        ref_reference_lateral_error_ce0 => grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_ce0,
+        ref_reference_lateral_error_address0 => grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_address0,
+        ref_reference_lateral_error_ce0 => grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_ce0,
         ref_reference_lateral_error_q0 => ref_reference_lateral_error_q0,
-        ref_reference_velocity_address0 => grp_mpc_compute_hls_fu_404_ref_reference_velocity_address0,
-        ref_reference_velocity_ce0 => grp_mpc_compute_hls_fu_404_ref_reference_velocity_ce0,
+        ref_reference_velocity_address0 => grp_mpc_compute_hls_fu_412_ref_reference_velocity_address0,
+        ref_reference_velocity_ce0 => grp_mpc_compute_hls_fu_412_ref_reference_velocity_ce0,
         ref_reference_velocity_q0 => ref_reference_velocity_q0,
-        ref_reference_lateral_velocity_address0 => grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_address0,
-        ref_reference_lateral_velocity_ce0 => grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_ce0,
+        ref_reference_lateral_velocity_address0 => grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_address0,
+        ref_reference_lateral_velocity_ce0 => grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_ce0,
         ref_reference_lateral_velocity_q0 => ref_reference_lateral_velocity_q0,
-        ref_reference_yaw_rate_address0 => grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_address0,
-        ref_reference_yaw_rate_ce0 => grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_ce0,
+        ref_reference_yaw_rate_address0 => grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_address0,
+        ref_reference_yaw_rate_ce0 => grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_ce0,
         ref_reference_yaw_rate_q0 => ref_reference_yaw_rate_q0,
-        ref_path_curvature_address0 => grp_mpc_compute_hls_fu_404_ref_path_curvature_address0,
-        ref_path_curvature_ce0 => grp_mpc_compute_hls_fu_404_ref_path_curvature_ce0,
+        ref_path_curvature_address0 => grp_mpc_compute_hls_fu_412_ref_path_curvature_address0,
+        ref_path_curvature_ce0 => grp_mpc_compute_hls_fu_412_ref_path_curvature_ce0,
         ref_path_curvature_q0 => ref_path_curvature_q0,
-        ref_left_wall_bound_address0 => grp_mpc_compute_hls_fu_404_ref_left_wall_bound_address0,
-        ref_left_wall_bound_ce0 => grp_mpc_compute_hls_fu_404_ref_left_wall_bound_ce0,
+        ref_left_wall_bound_address0 => grp_mpc_compute_hls_fu_412_ref_left_wall_bound_address0,
+        ref_left_wall_bound_ce0 => grp_mpc_compute_hls_fu_412_ref_left_wall_bound_ce0,
         ref_left_wall_bound_q0 => ref_left_wall_bound_q0,
-        ref_right_wall_bound_address0 => grp_mpc_compute_hls_fu_404_ref_right_wall_bound_address0,
-        ref_right_wall_bound_ce0 => grp_mpc_compute_hls_fu_404_ref_right_wall_bound_ce0,
+        ref_right_wall_bound_address0 => grp_mpc_compute_hls_fu_412_ref_right_wall_bound_address0,
+        ref_right_wall_bound_ce0 => grp_mpc_compute_hls_fu_412_ref_right_wall_bound_ce0,
         ref_right_wall_bound_q0 => ref_right_wall_bound_q0,
         p_anonymous_namespace_g_core_state_persist_actual_steering => p_anonymous_namespace_g_core_state_persist_actual_steering,
         p_anonymous_namespace_g_core_state_persist_prev_steer_rate_i => p_anonymous_namespace_g_core_state_persist_prev_steer_rate,
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o,
-        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o,
+        p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld,
         p_anonymous_namespace_g_core_state_persist_prev_accel_i => p_anonymous_namespace_g_core_state_persist_prev_accel,
-        p_anonymous_namespace_g_core_state_persist_prev_accel_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o,
-        p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_accel_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o,
+        p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld,
         p_anonymous_namespace_g_core_state_persist_prev_curvature_i => p_anonymous_namespace_g_core_state_persist_prev_curvature,
-        p_anonymous_namespace_g_core_state_persist_prev_curvature_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o,
-        p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_curvature_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o,
+        p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld,
         p_anonymous_namespace_g_core_state_persist_prev_model_signature_i => p_anonymous_namespace_g_core_state_persist_prev_model_signature,
-        p_anonymous_namespace_g_core_state_persist_prev_model_signature_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o,
-        p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld,
+        p_anonymous_namespace_g_core_state_persist_prev_model_signature_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o,
+        p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld,
         p_anonymous_namespace_g_core_state_admm_initialized_i => p_anonymous_namespace_g_core_state_admm_initialized,
-        p_anonymous_namespace_g_core_state_admm_initialized_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o,
-        p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_initialized_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o,
+        p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_0_q0 => p_anonymous_namespace_g_core_state_admm_z_x_0_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_address1 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address1,
-        p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_address1 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address1,
+        p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1,
         p_anonymous_namespace_g_core_state_admm_z_x_0_q1 => p_anonymous_namespace_g_core_state_admm_z_x_0_q1,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_1_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_1_q0 => p_anonymous_namespace_g_core_state_admm_z_x_1_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_2_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_2_q0 => p_anonymous_namespace_g_core_state_admm_z_x_2_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_3_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_3_q0 => p_anonymous_namespace_g_core_state_admm_z_x_3_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_4_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_4_q0 => p_anonymous_namespace_g_core_state_admm_z_x_4_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_5_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_5_q0 => p_anonymous_namespace_g_core_state_admm_z_x_5_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_6_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_6_q0 => p_anonymous_namespace_g_core_state_admm_z_x_6_q0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_z_x_7_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_d0,
         p_anonymous_namespace_g_core_state_admm_z_x_7_q0 => p_anonymous_namespace_g_core_state_admm_z_x_7_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_0_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_0_q0 => p_anonymous_namespace_g_core_state_admm_y_x_0_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_1_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_1_q0 => p_anonymous_namespace_g_core_state_admm_y_x_1_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_2_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_2_q0 => p_anonymous_namespace_g_core_state_admm_y_x_2_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_3_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_3_q0 => p_anonymous_namespace_g_core_state_admm_y_x_3_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_4_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_4_q0 => p_anonymous_namespace_g_core_state_admm_y_x_4_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_5_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_5_q0 => p_anonymous_namespace_g_core_state_admm_y_x_5_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_6_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_6_q0 => p_anonymous_namespace_g_core_state_admm_y_x_6_q0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
-        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_d0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_address0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_we0,
+        p_anonymous_namespace_g_core_state_admm_y_x_7_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_d0,
         p_anonymous_namespace_g_core_state_admm_y_x_7_q0 => p_anonymous_namespace_g_core_state_admm_y_x_7_q0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_0_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_d0,
         p_anonymous_namespace_g_core_state_admm_z_u_0_q0 => p_anonymous_namespace_g_core_state_admm_z_u_0_q0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_z_u_1_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_d0,
         p_anonymous_namespace_g_core_state_admm_z_u_1_q0 => p_anonymous_namespace_g_core_state_admm_z_u_1_q0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_0_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_d0,
         p_anonymous_namespace_g_core_state_admm_y_u_0_q0 => p_anonymous_namespace_g_core_state_admm_y_u_0_q0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
-        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_d0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_address0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_address0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_we0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_we0,
+        p_anonymous_namespace_g_core_state_admm_y_u_1_d0 => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_d0,
         p_anonymous_namespace_g_core_state_admm_y_u_1_q0 => p_anonymous_namespace_g_core_state_admm_y_u_1_q0,
         p_anonymous_namespace_g_core_state_admm_rho_i => p_anonymous_namespace_g_core_state_admm_rho,
-        p_anonymous_namespace_g_core_state_admm_rho_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o,
-        p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld,
+        p_anonymous_namespace_g_core_state_admm_rho_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o,
+        p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld,
         p_anonymous_namespace_g_core_state_admm_rho_u_i => p_anonymous_namespace_g_core_state_admm_rho_u,
-        p_anonymous_namespace_g_core_state_admm_rho_u_o => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o,
-        p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld => grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld,
-        ap_return_0 => grp_mpc_compute_hls_fu_404_ap_return_0,
-        ap_return_1 => grp_mpc_compute_hls_fu_404_ap_return_1,
-        ap_return_2 => grp_mpc_compute_hls_fu_404_ap_return_2,
-        ap_return_3 => grp_mpc_compute_hls_fu_404_ap_return_3);
+        p_anonymous_namespace_g_core_state_admm_rho_u_o => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o,
+        p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld => grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld,
+        ap_return_0 => grp_mpc_compute_hls_fu_412_ap_return_0,
+        ap_return_1 => grp_mpc_compute_hls_fu_412_ap_return_1,
+        ap_return_2 => grp_mpc_compute_hls_fu_412_ap_return_2,
+        ap_return_3 => grp_mpc_compute_hls_fu_412_ap_return_3);
 
-    mul_32s_27ns_50_4_1_U2233 : component mpc_fpga_top_opencl_mul_32s_27ns_50_4_1
+    mul_26s_23ns_49_3_1_U2127 : component mpc_fpga_top_opencl_mul_26s_23ns_49_3_1
     generic map (
         ID => 1,
-        NUM_STAGE => 4,
-        din0_WIDTH => 32,
-        din1_WIDTH => 27,
-        dout_WIDTH => 50)
+        NUM_STAGE => 3,
+        din0_WIDTH => 26,
+        din1_WIDTH => 23,
+        dout_WIDTH => 49)
     port map (
         clk => ap_clk,
         reset => ap_rst,
-        din0 => value_254_fu_645_p2,
-        din1 => grp_fu_497_p1,
+        din0 => value_fu_655_p2,
+        din1 => grp_fu_507_p1,
         ce => ap_const_logic_1,
-        dout => grp_fu_497_p2);
+        dout => grp_fu_507_p2);
 
 
 
@@ -1916,96 +1923,96 @@ begin
     end process;
 
 
-    grp_mpc_compute_hls_fu_404_ap_start_reg_assign_proc : process(ap_clk)
+    grp_mpc_compute_hls_fu_412_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_mpc_compute_hls_fu_404_ap_start_reg <= ap_const_logic_0;
+                grp_mpc_compute_hls_fu_412_ap_start_reg <= ap_const_logic_0;
             else
-                if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
-                    grp_mpc_compute_hls_fu_404_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_mpc_compute_hls_fu_404_ap_ready = ap_const_logic_1)) then 
-                    grp_mpc_compute_hls_fu_404_ap_start_reg <= ap_const_logic_0;
+                if ((ap_const_logic_1 = ap_CS_fsm_state10)) then 
+                    grp_mpc_compute_hls_fu_412_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_mpc_compute_hls_fu_412_ap_ready = ap_const_logic_1)) then 
+                    grp_mpc_compute_hls_fu_412_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg_assign_proc : process(ap_clk)
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg <= ap_const_logic_0;
+                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg <= ap_const_logic_0;
             else
-                if (((tmp_fu_568_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_ready = ap_const_logic_1)) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg <= ap_const_logic_0;
+                if (((tmp_fu_578_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_ready = ap_const_logic_1)) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg_assign_proc : process(ap_clk)
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg <= ap_const_logic_0;
+                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg <= ap_const_logic_0;
             else
-                if (((tmp_fu_568_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_ready = ap_const_logic_1)) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg <= ap_const_logic_0;
+                if (((tmp_fu_578_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_ready = ap_const_logic_1)) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg_assign_proc : process(ap_clk)
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg <= ap_const_logic_0;
+                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg <= ap_const_logic_0;
             else
-                if (((tmp_109_fu_575_p3 = ap_const_lv1_1) and (tmp_fu_568_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_ready = ap_const_logic_1)) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg <= ap_const_logic_0;
+                if (((tmp_109_fu_585_p3 = ap_const_lv1_1) and (tmp_fu_578_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_ready = ap_const_logic_1)) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg_assign_proc : process(ap_clk)
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg <= ap_const_logic_0;
+                grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg <= ap_const_logic_0;
             else
-                if (((tmp_109_fu_575_p3 = ap_const_lv1_1) and (tmp_fu_568_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_ready = ap_const_logic_1)) then 
-                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg <= ap_const_logic_0;
+                if (((tmp_109_fu_585_p3 = ap_const_lv1_1) and (tmp_fu_578_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_ready = ap_const_logic_1)) then 
+                    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
     end process;
 
 
-    grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg_assign_proc : process(ap_clk)
+    grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg_assign_proc : process(ap_clk)
     begin
         if (ap_clk'event and ap_clk =  '1') then
             if (ap_rst = '1') then
-                grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg <= ap_const_logic_0;
+                grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg <= ap_const_logic_0;
             else
-                if (((ap_const_logic_1 = ap_CS_fsm_state4) or ((trunc_ln268_fu_502_p1 = ap_const_lv1_1) and (ap_const_lv1_1 = and_ln279_2_fu_558_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1)))) then 
-                    grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg <= ap_const_logic_1;
-                elsif ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_ready = ap_const_logic_1)) then 
-                    grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg <= ap_const_logic_0;
+                if (((ap_const_logic_1 = ap_CS_fsm_state4) or ((trunc_ln265_fu_512_p1 = ap_const_lv1_1) and (ap_const_lv1_1 = and_ln272_2_fu_568_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1)))) then 
+                    grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg <= ap_const_logic_1;
+                elsif ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_ready = ap_const_logic_1)) then 
+                    grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg <= ap_const_logic_0;
                 end if; 
             end if;
         end if;
@@ -2015,14 +2022,14 @@ begin
     p_anonymous_namespace_g_core_state_admm_initialized_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((tmp_fu_568_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+            if (((tmp_fu_578_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
                 p_anonymous_namespace_g_core_state_admm_initialized <= ap_const_lv1_0;
-            elsif (((tmp_109_fu_575_p3 = ap_const_lv1_1) and (tmp_fu_568_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
+            elsif (((tmp_109_fu_585_p3 = ap_const_lv1_1) and (tmp_fu_578_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then 
                 p_anonymous_namespace_g_core_state_admm_initialized <= ap_const_lv1_1;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_admm_initialized <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_initialized_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_admm_initialized <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_initialized;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_admm_initialized <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_initialized_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_admm_initialized <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_initialized;
             end if; 
         end if;
     end process;
@@ -2030,12 +2037,12 @@ begin
     p_anonymous_namespace_g_core_state_admm_rho_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if ((((tmp_fu_568_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)) or ((tmp_109_fu_575_p3 = ap_const_lv1_1) and (tmp_fu_568_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)))) then 
-                p_anonymous_namespace_g_core_state_admm_rho <= ap_const_lv32_0;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_admm_rho <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_admm_rho <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho;
+            if ((((tmp_fu_578_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)) or ((tmp_109_fu_585_p3 = ap_const_lv1_1) and (tmp_fu_578_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)))) then 
+                p_anonymous_namespace_g_core_state_admm_rho <= ap_const_lv26_0;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_admm_rho <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_admm_rho <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho;
             end if; 
         end if;
     end process;
@@ -2043,12 +2050,12 @@ begin
     p_anonymous_namespace_g_core_state_admm_rho_u_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if ((((tmp_fu_568_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)) or ((tmp_109_fu_575_p3 = ap_const_lv1_1) and (tmp_fu_568_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)))) then 
-                p_anonymous_namespace_g_core_state_admm_rho_u <= ap_const_lv32_0;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_admm_rho_u <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_rho_u_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_admm_rho_u <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_rho_u;
+            if ((((tmp_fu_578_p3 = ap_const_lv1_1) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)) or ((tmp_109_fu_585_p3 = ap_const_lv1_1) and (tmp_fu_578_p3 = ap_const_lv1_0) and (p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3)))) then 
+                p_anonymous_namespace_g_core_state_admm_rho_u <= ap_const_lv26_0;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_admm_rho_u <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_rho_u_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_admm_rho_u <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_rho_u;
             end if; 
         end if;
     end process;
@@ -2056,10 +2063,10 @@ begin
     p_anonymous_namespace_g_core_state_initialized_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_839 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
+            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_844 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
                 p_anonymous_namespace_g_core_state_initialized <= ap_const_lv1_1;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_initialized <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_initialized;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_initialized <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_initialized;
             end if; 
         end if;
     end process;
@@ -2067,10 +2074,10 @@ begin
     p_anonymous_namespace_g_core_state_persist_actual_steering_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((ap_const_logic_1 = ap_CS_fsm_state6) or ((p_anonymous_namespace_g_core_state_initialized_load_reg_839 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6)))) then 
+            if (((ap_const_logic_1 = ap_CS_fsm_state6) or ((p_anonymous_namespace_g_core_state_initialized_load_reg_844 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6)))) then 
                 p_anonymous_namespace_g_core_state_persist_actual_steering <= steering;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_actual_steering <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_actual_steering;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_actual_steering <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_actual_steering;
             end if; 
         end if;
     end process;
@@ -2078,12 +2085,12 @@ begin
     p_anonymous_namespace_g_core_state_persist_max_iter_streak_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (icmp_ln329_fu_764_p2 = ap_const_lv1_0) and (icmp_ln328_fu_748_p2 = ap_const_lv1_1) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
-                p_anonymous_namespace_g_core_state_persist_max_iter_streak <= add_ln330_fu_770_p2;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (icmp_ln328_fu_748_p2 = ap_const_lv1_0) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+            if (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12) and (icmp_ln322_fu_770_p2 = ap_const_lv1_0) and (icmp_ln321_fu_755_p2 = ap_const_lv1_1))) then 
+                p_anonymous_namespace_g_core_state_persist_max_iter_streak <= add_ln323_fu_776_p2;
+            elsif (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12) and (icmp_ln321_fu_755_p2 = ap_const_lv1_0))) then 
                 p_anonymous_namespace_g_core_state_persist_max_iter_streak <= ap_const_lv32_0;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_max_iter_streak <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_max_iter_streak;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_max_iter_streak <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_max_iter_streak;
             end if; 
         end if;
     end process;
@@ -2093,10 +2100,10 @@ begin
         if (ap_clk'event and ap_clk = '1') then
             if ((ap_const_logic_1 = ap_CS_fsm_state6)) then 
                 p_anonymous_namespace_g_core_state_persist_prev_accel <= prev_accel;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_accel <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_accel_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_accel <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_accel;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_accel <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_accel_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_accel <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_accel;
             end if; 
         end if;
     end process;
@@ -2104,12 +2111,12 @@ begin
     p_anonymous_namespace_g_core_state_persist_prev_curvature_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_839 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_curvature <= ap_const_lv32_0;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_curvature <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_curvature_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_curvature <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_curvature;
+            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_844 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_curvature <= ap_const_lv26_0;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_curvature <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_curvature_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_curvature <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_curvature;
             end if; 
         end if;
     end process;
@@ -2117,12 +2124,12 @@ begin
     p_anonymous_namespace_g_core_state_persist_prev_model_signature_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_839 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
+            if (((p_anonymous_namespace_g_core_state_initialized_load_reg_844 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
                 p_anonymous_namespace_g_core_state_persist_prev_model_signature <= ap_const_lv1_1;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_model_signature <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_model_signature <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_model_signature;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_model_signature <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_model_signature_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_model_signature <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_model_signature;
             end if; 
         end if;
     end process;
@@ -2130,20 +2137,31 @@ begin
     p_anonymous_namespace_g_core_state_persist_prev_steer_rate_assign_proc : process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
-            if ((ap_const_logic_1 = ap_CS_fsm_state10)) then 
-                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= sext_ln307_fu_719_p1;
-            elsif (((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o;
-            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
-                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_persist_prev_steer_rate;
+            if ((ap_const_logic_1 = ap_CS_fsm_state9)) then 
+                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= sext_ln300_fu_729_p1;
+            elsif (((grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_o;
+            elsif ((((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5)) or ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2)))) then 
+                p_anonymous_namespace_g_core_state_persist_prev_steer_rate <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_persist_prev_steer_rate;
             end if; 
         end if;
     end process;
     process (ap_clk)
     begin
         if (ap_clk'event and ap_clk = '1') then
+            if ((ap_const_logic_1 = ap_CS_fsm_state11)) then
+                accel_out_reg_866 <= grp_mpc_compute_hls_fu_412_ap_return_1;
+                iters_reg_877 <= grp_mpc_compute_hls_fu_412_ap_return_3;
+                solver_status_reg_871 <= grp_mpc_compute_hls_fu_412_ap_return_2;
+                steer_out_reg_861 <= grp_mpc_compute_hls_fu_412_ap_return_0;
+            end if;
+        end if;
+    end process;
+    process (ap_clk)
+    begin
+        if (ap_clk'event and ap_clk = '1') then
             if ((ap_const_logic_1 = ap_CS_fsm_state1)) then
-                and_ln279_2_reg_835 <= and_ln279_2_fu_558_p2;
+                and_ln272_2_reg_840 <= and_ln272_2_fu_568_p2;
             end if;
         end if;
     end process;
@@ -2151,34 +2169,34 @@ begin
     begin
         if (ap_clk'event and ap_clk = '1') then
             if ((ap_const_logic_1 = ap_CS_fsm_state3)) then
-                p_anonymous_namespace_g_core_state_initialized_load_reg_839 <= p_anonymous_namespace_g_core_state_initialized;
-                tmp_109_reg_847 <= control_flags(2 downto 2);
-                tmp_reg_843 <= control_flags(1 downto 1);
+                p_anonymous_namespace_g_core_state_initialized_load_reg_844 <= p_anonymous_namespace_g_core_state_initialized;
+                tmp_109_reg_852 <= control_flags(2 downto 2);
+                tmp_reg_848 <= control_flags(1 downto 1);
             end if;
         end if;
     end process;
 
-    ap_NS_fsm_assign_proc : process (ap_start, ap_CS_fsm, ap_CS_fsm_state1, and_ln279_2_fu_558_p2, p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1, ap_CS_fsm_state3, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done, trunc_ln268_fu_502_p1, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12, ap_block_state12_on_subcall_done, ap_block_state7_on_subcall_done)
+    ap_NS_fsm_assign_proc : process (ap_start, ap_CS_fsm, ap_CS_fsm_state1, and_ln272_2_fu_568_p2, p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1, ap_CS_fsm_state3, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done, grp_mpc_compute_hls_fu_412_ap_done, trunc_ln265_fu_512_p1, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_block_state7_on_subcall_done)
     begin
         case ap_CS_fsm is
             when ap_ST_fsm_state1 => 
-                if (((trunc_ln268_fu_502_p1 = ap_const_lv1_0) and (ap_const_lv1_1 = and_ln279_2_fu_558_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
+                if (((trunc_ln265_fu_512_p1 = ap_const_lv1_0) and (ap_const_lv1_1 = and_ln272_2_fu_568_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
                     ap_NS_fsm <= ap_ST_fsm_state3;
-                elsif (((trunc_ln268_fu_502_p1 = ap_const_lv1_1) and (ap_const_lv1_1 = and_ln279_2_fu_558_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
+                elsif (((trunc_ln265_fu_512_p1 = ap_const_lv1_1) and (ap_const_lv1_1 = and_ln272_2_fu_568_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
                     ap_NS_fsm <= ap_ST_fsm_state2;
-                elsif (((ap_const_lv1_0 = and_ln279_2_fu_558_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
+                elsif (((ap_const_lv1_0 = and_ln272_2_fu_568_p2) and (ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_1))) then
                     ap_NS_fsm <= ap_ST_fsm_state12;
                 else
                     ap_NS_fsm <= ap_ST_fsm_state1;
                 end if;
             when ap_ST_fsm_state2 => 
-                if (((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2))) then
+                if (((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state2))) then
                     ap_NS_fsm <= ap_ST_fsm_state3;
                 else
                     ap_NS_fsm <= ap_ST_fsm_state2;
                 end if;
             when ap_ST_fsm_state3 => 
-                if (((p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then
+                if (((p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state3))) then
                     ap_NS_fsm <= ap_ST_fsm_state7;
                 else
                     ap_NS_fsm <= ap_ST_fsm_state4;
@@ -2186,7 +2204,7 @@ begin
             when ap_ST_fsm_state4 => 
                 ap_NS_fsm <= ap_ST_fsm_state5;
             when ap_ST_fsm_state5 => 
-                if (((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5))) then
+                if (((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state5))) then
                     ap_NS_fsm <= ap_ST_fsm_state6;
                 else
                     ap_NS_fsm <= ap_ST_fsm_state5;
@@ -2206,21 +2224,21 @@ begin
             when ap_ST_fsm_state10 => 
                 ap_NS_fsm <= ap_ST_fsm_state11;
             when ap_ST_fsm_state11 => 
-                ap_NS_fsm <= ap_ST_fsm_state12;
-            when ap_ST_fsm_state12 => 
-                if (((ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then
-                    ap_NS_fsm <= ap_ST_fsm_state1;
-                else
+                if (((grp_mpc_compute_hls_fu_412_ap_done = ap_const_logic_1) and (ap_const_logic_1 = ap_CS_fsm_state11))) then
                     ap_NS_fsm <= ap_ST_fsm_state12;
+                else
+                    ap_NS_fsm <= ap_ST_fsm_state11;
                 end if;
+            when ap_ST_fsm_state12 => 
+                ap_NS_fsm <= ap_ST_fsm_state1;
             when others =>  
                 ap_NS_fsm <= "XXXXXXXXXXXX";
         end case;
     end process;
-    add_ln330_fu_770_p2 <= std_logic_vector(unsigned(p_anonymous_namespace_g_core_state_persist_max_iter_streak) + unsigned(ap_const_lv32_1));
-    and_ln279_1_fu_552_p2 <= (icmp_ln279_fu_510_p2 and icmp_ln279_1_fu_520_p2);
-    and_ln279_2_fu_558_p2 <= (and_ln279_fu_546_p2 and and_ln279_1_fu_552_p2);
-    and_ln279_fu_546_p2 <= (icmp_ln279_3_fu_540_p2 and icmp_ln279_2_fu_530_p2);
+    add_ln323_fu_776_p2 <= std_logic_vector(unsigned(p_anonymous_namespace_g_core_state_persist_max_iter_streak) + unsigned(ap_const_lv32_1));
+    and_ln272_1_fu_562_p2 <= (icmp_ln272_fu_520_p2 and icmp_ln272_1_fu_530_p2);
+    and_ln272_2_fu_568_p2 <= (and_ln272_fu_556_p2 and and_ln272_1_fu_562_p2);
+    and_ln272_fu_556_p2 <= (icmp_ln272_3_fu_550_p2 and icmp_ln272_2_fu_540_p2);
     ap_CS_fsm_state1 <= ap_CS_fsm(0);
     ap_CS_fsm_state10 <= ap_CS_fsm(9);
     ap_CS_fsm_state11 <= ap_CS_fsm(10);
@@ -2231,18 +2249,19 @@ begin
     ap_CS_fsm_state5 <= ap_CS_fsm(4);
     ap_CS_fsm_state6 <= ap_CS_fsm(5);
     ap_CS_fsm_state7 <= ap_CS_fsm(6);
+    ap_CS_fsm_state9 <= ap_CS_fsm(8);
     ap_ST_fsm_state10_blk <= ap_const_logic_0;
-    ap_ST_fsm_state11_blk <= ap_const_logic_0;
 
-    ap_ST_fsm_state12_blk_assign_proc : process(ap_block_state12_on_subcall_done)
+    ap_ST_fsm_state11_blk_assign_proc : process(grp_mpc_compute_hls_fu_412_ap_done)
     begin
-        if ((ap_const_boolean_1 = ap_block_state12_on_subcall_done)) then 
-            ap_ST_fsm_state12_blk <= ap_const_logic_1;
+        if ((grp_mpc_compute_hls_fu_412_ap_done = ap_const_logic_0)) then 
+            ap_ST_fsm_state11_blk <= ap_const_logic_1;
         else 
-            ap_ST_fsm_state12_blk <= ap_const_logic_0;
+            ap_ST_fsm_state11_blk <= ap_const_logic_0;
         end if; 
     end process;
 
+    ap_ST_fsm_state12_blk <= ap_const_logic_0;
 
     ap_ST_fsm_state1_blk_assign_proc : process(ap_start)
     begin
@@ -2254,9 +2273,9 @@ begin
     end process;
 
 
-    ap_ST_fsm_state2_blk_assign_proc : process(grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done)
+    ap_ST_fsm_state2_blk_assign_proc : process(grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done)
     begin
-        if ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done = ap_const_logic_0)) then 
+        if ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done = ap_const_logic_0)) then 
             ap_ST_fsm_state2_blk <= ap_const_logic_1;
         else 
             ap_ST_fsm_state2_blk <= ap_const_logic_0;
@@ -2266,9 +2285,9 @@ begin
     ap_ST_fsm_state3_blk <= ap_const_logic_0;
     ap_ST_fsm_state4_blk <= ap_const_logic_0;
 
-    ap_ST_fsm_state5_blk_assign_proc : process(grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done)
+    ap_ST_fsm_state5_blk_assign_proc : process(grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done)
     begin
-        if ((grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_done = ap_const_logic_0)) then 
+        if ((grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_done = ap_const_logic_0)) then 
             ap_ST_fsm_state5_blk <= ap_const_logic_1;
         else 
             ap_ST_fsm_state5_blk <= ap_const_logic_0;
@@ -2289,21 +2308,15 @@ begin
     ap_ST_fsm_state8_blk <= ap_const_logic_0;
     ap_ST_fsm_state9_blk <= ap_const_logic_0;
 
-    ap_block_state12_on_subcall_done_assign_proc : process(and_ln279_2_reg_835, grp_mpc_compute_hls_fu_404_ap_done)
+    ap_block_state7_on_subcall_done_assign_proc : process(tmp_reg_848, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_done, ap_predicate_op67_call_state7, ap_predicate_op68_call_state7)
     begin
-                ap_block_state12_on_subcall_done <= ((ap_const_lv1_1 = and_ln279_2_reg_835) and (grp_mpc_compute_hls_fu_404_ap_done = ap_const_logic_0));
+                ap_block_state7_on_subcall_done <= (((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_done = ap_const_logic_0) and (tmp_reg_848 = ap_const_lv1_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_done = ap_const_logic_0) and (tmp_reg_848 = ap_const_lv1_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_done = ap_const_logic_0) and (ap_predicate_op68_call_state7 = ap_const_boolean_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_done = ap_const_logic_0) and (ap_predicate_op67_call_state7 = ap_const_boolean_1)));
     end process;
 
 
-    ap_block_state7_on_subcall_done_assign_proc : process(tmp_reg_843, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_done, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_done, ap_predicate_op67_call_state7, ap_predicate_op68_call_state7)
+    ap_done_assign_proc : process(ap_start, ap_CS_fsm_state1, ap_CS_fsm_state12)
     begin
-                ap_block_state7_on_subcall_done <= (((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_done = ap_const_logic_0) and (tmp_reg_843 = ap_const_lv1_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_done = ap_const_logic_0) and (tmp_reg_843 = ap_const_lv1_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_done = ap_const_logic_0) and (ap_predicate_op68_call_state7 = ap_const_boolean_1)) or ((grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_done = ap_const_logic_0) and (ap_predicate_op67_call_state7 = ap_const_boolean_1)));
-    end process;
-
-
-    ap_done_assign_proc : process(ap_start, ap_CS_fsm_state1, ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
-    begin
-        if ((((ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done)) or ((ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_0)))) then 
+        if (((ap_const_logic_1 = ap_CS_fsm_state12) or ((ap_const_logic_1 = ap_CS_fsm_state1) and (ap_start = ap_const_logic_0)))) then 
             ap_done <= ap_const_logic_1;
         else 
             ap_done <= ap_const_logic_0;
@@ -2321,21 +2334,21 @@ begin
     end process;
 
 
-    ap_predicate_op67_call_state7_assign_proc : process(tmp_reg_843, tmp_109_reg_847)
+    ap_predicate_op67_call_state7_assign_proc : process(tmp_reg_848, tmp_109_reg_852)
     begin
-                ap_predicate_op67_call_state7 <= ((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0));
+                ap_predicate_op67_call_state7 <= ((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0));
     end process;
 
 
-    ap_predicate_op68_call_state7_assign_proc : process(tmp_reg_843, tmp_109_reg_847)
+    ap_predicate_op68_call_state7_assign_proc : process(tmp_reg_848, tmp_109_reg_852)
     begin
-                ap_predicate_op68_call_state7 <= ((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0));
+                ap_predicate_op68_call_state7 <= ((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0));
     end process;
 
 
-    ap_ready_assign_proc : process(ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
+    ap_ready_assign_proc : process(ap_CS_fsm_state12)
     begin
-        if (((ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+        if ((ap_const_logic_1 = ap_CS_fsm_state12)) then 
             ap_ready <= ap_const_logic_1;
         else 
             ap_ready <= ap_const_logic_0;
@@ -2343,72 +2356,72 @@ begin
     end process;
 
 
-    ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load_assign_proc : process(steering, p_anonymous_namespace_g_core_state_persist_actual_steering, p_anonymous_namespace_g_core_state_initialized_load_reg_839, ap_CS_fsm_state6)
+    ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load_assign_proc : process(steering, p_anonymous_namespace_g_core_state_persist_actual_steering, p_anonymous_namespace_g_core_state_initialized_load_reg_844, ap_CS_fsm_state6)
     begin
-        if (((p_anonymous_namespace_g_core_state_initialized_load_reg_839 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
+        if (((p_anonymous_namespace_g_core_state_initialized_load_reg_844 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state6))) then 
             ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load <= steering;
         else 
             ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load <= p_anonymous_namespace_g_core_state_persist_actual_steering;
         end if; 
     end process;
 
-    empty_fu_705_p2 <= (icmp_ln130_fu_691_p2 or icmp_ln128_fu_685_p2);
-    grp_fu_497_p1 <= ap_const_lv50_3200000(27 - 1 downto 0);
-    grp_mpc_compute_hls_fu_404_ap_start <= grp_mpc_compute_hls_fu_404_ap_start_reg;
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_ap_start_reg;
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_ap_start_reg;
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_ap_start_reg;
-    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_ap_start_reg;
-    grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_ap_start_reg;
-    icmp_ln128_fu_685_p2 <= "1" when (signed(product_q_fu_665_p4) < signed(ap_const_lv32_FFF49AA0)) else "0";
-    icmp_ln130_fu_691_p2 <= "1" when (signed(product_q_fu_665_p4) > signed(ap_const_lv32_B6560)) else "0";
-    icmp_ln279_1_fu_520_p2 <= "0" when (out_accel_arg_index = ap_const_lv11_0) else "1";
-    icmp_ln279_2_fu_530_p2 <= "0" when (out_status_arg_index = ap_const_lv11_0) else "1";
-    icmp_ln279_3_fu_540_p2 <= "0" when (out_iters_arg_index = ap_const_lv11_0) else "1";
-    icmp_ln279_fu_510_p2 <= "0" when (out_steering_arg_index = ap_const_lv11_0) else "1";
-    icmp_ln328_fu_748_p2 <= "1" when (grp_mpc_compute_hls_fu_404_ap_return_2 = ap_const_lv32_1) else "0";
-    icmp_ln329_fu_764_p2 <= "1" when (p_anonymous_namespace_g_core_state_persist_max_iter_streak = ap_const_lv32_7FFFFFFF) else "0";
-    measured_steer_rate_fu_711_p3 <= 
-        select_ln130_fu_697_p3 when (empty_fu_705_p2(0) = '1') else 
-        product_q_cast_fu_675_p4;
-    out_accel <= grp_mpc_compute_hls_fu_404_ap_return_1;
+    empty_fu_715_p2 <= (icmp_ln145_fu_701_p2 or icmp_ln143_fu_695_p2);
+    grp_fu_507_p1 <= ap_const_lv49_320000(23 - 1 downto 0);
+    grp_mpc_compute_hls_fu_412_ap_start <= grp_mpc_compute_hls_fu_412_ap_start_reg;
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_ap_start_reg;
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_ap_start_reg;
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_ap_start_reg;
+    grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_ap_start_reg;
+    grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_ap_start_reg;
+    icmp_ln143_fu_695_p2 <= "1" when (signed(product_q_fu_675_p4) < signed(ap_const_lv26_3FF49AA)) else "0";
+    icmp_ln145_fu_701_p2 <= "1" when (signed(product_q_fu_675_p4) > signed(ap_const_lv26_B656)) else "0";
+    icmp_ln272_1_fu_530_p2 <= "0" when (out_accel_arg_index = ap_const_lv11_0) else "1";
+    icmp_ln272_2_fu_540_p2 <= "0" when (out_status_arg_index = ap_const_lv11_0) else "1";
+    icmp_ln272_3_fu_550_p2 <= "0" when (out_iters_arg_index = ap_const_lv11_0) else "1";
+    icmp_ln272_fu_520_p2 <= "0" when (out_steering_arg_index = ap_const_lv11_0) else "1";
+    icmp_ln321_fu_755_p2 <= "1" when (solver_status_reg_871 = ap_const_lv32_1) else "0";
+    icmp_ln322_fu_770_p2 <= "1" when (p_anonymous_namespace_g_core_state_persist_max_iter_streak = ap_const_lv32_7FFFFFFF) else "0";
+    measured_steer_rate_fu_721_p3 <= 
+        select_ln145_fu_707_p3 when (empty_fu_715_p2(0) = '1') else 
+        product_q_cast_fu_685_p4;
+    out_accel <= accel_out_reg_866;
 
-    out_accel_ap_vld_assign_proc : process(and_ln279_2_reg_835, ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
+    out_accel_ap_vld_assign_proc : process(and_ln272_2_reg_840, ap_CS_fsm_state12)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+        if (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
             out_accel_ap_vld <= ap_const_logic_1;
         else 
             out_accel_ap_vld <= ap_const_logic_0;
         end if; 
     end process;
 
-    out_iters <= grp_mpc_compute_hls_fu_404_ap_return_3;
+    out_iters <= iters_reg_877;
 
-    out_iters_ap_vld_assign_proc : process(and_ln279_2_reg_835, ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
+    out_iters_ap_vld_assign_proc : process(and_ln272_2_reg_840, ap_CS_fsm_state12)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+        if (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
             out_iters_ap_vld <= ap_const_logic_1;
         else 
             out_iters_ap_vld <= ap_const_logic_0;
         end if; 
     end process;
 
-    out_status <= "0" when (grp_mpc_compute_hls_fu_404_ap_return_2 = ap_const_lv32_0) else "1";
+    out_status <= "0" when (solver_status_reg_871 = ap_const_lv32_0) else "1";
 
-    out_status_ap_vld_assign_proc : process(and_ln279_2_reg_835, ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
+    out_status_ap_vld_assign_proc : process(and_ln272_2_reg_840, ap_CS_fsm_state12)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+        if (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
             out_status_ap_vld <= ap_const_logic_1;
         else 
             out_status_ap_vld <= ap_const_logic_0;
         end if; 
     end process;
 
-    out_steering <= grp_mpc_compute_hls_fu_404_ap_return_0;
+    out_steering <= steer_out_reg_861;
 
-    out_steering_ap_vld_assign_proc : process(and_ln279_2_reg_835, ap_CS_fsm_state12, ap_block_state12_on_subcall_done)
+    out_steering_ap_vld_assign_proc : process(and_ln272_2_reg_840, ap_CS_fsm_state12)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12) and (ap_const_boolean_0 = ap_block_state12_on_subcall_done))) then 
+        if (((ap_const_lv1_1 = and_ln272_2_reg_840) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
             out_steering_ap_vld <= ap_const_logic_1;
         else 
             out_steering_ap_vld <= ap_const_logic_0;
@@ -2416,1241 +2429,1241 @@ begin
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_0_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_0_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
+            p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_0_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_0_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_0_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_0_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_0_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_0_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
+            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_u_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_0_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_0_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
+            p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_0_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_0_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_1_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_1_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
+            p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_1_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_1_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_1_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_1_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_1_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_1_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
+            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_u_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_u_1_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_u_1_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_355_3_fu_356_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
+            p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_u_1_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_u_1_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_0_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_0_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_0_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_0_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_0_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_0_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_0_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_0_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_0_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_0_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_0_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_0_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_1_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_1_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_1_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_1_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_1_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_1_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_1_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_1_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_1_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_1_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_1_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_1_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_2_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_2_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_2_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_2_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_2_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_2_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_2_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_2_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_2_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_2_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_2_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_2_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_2_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_3_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_3_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_3_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_3_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_3_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_3_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_3_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_3_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_3_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_3_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_3_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_3_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_3_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_4_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_4_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_4_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_4_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_4_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_4_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_4_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_4_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_4_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_4_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_4_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_4_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_4_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_5_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_5_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_5_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_5_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_5_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_5_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_5_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_5_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_5_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_5_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_5_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_5_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_5_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_6_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_6_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_6_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_6_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_6_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_6_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_6_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_6_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_6_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_6_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_6_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_6_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_6_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_7_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_7_address0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
+            p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_7_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_7_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_7_ce0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
+            p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_7_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_7_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_7_d0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
+            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_y_x_7_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_y_x_7_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, tmp_109_reg_847, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_y_x_7_we0_assign_proc : process(tmp_reg_848, tmp_109_reg_852, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
-        elsif (((tmp_109_reg_847 = ap_const_lv1_1) and (tmp_reg_843 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
+        elsif (((tmp_109_reg_852 = ap_const_lv1_1) and (tmp_reg_848 = ap_const_lv1_0) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_348_1_fu_336_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
+            p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_y_x_7_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_y_x_7_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_0_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_0_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
+            p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_0_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_0_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_0_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_0_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_0_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_0_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
+            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_u_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_0_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_0_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
+            p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_0_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_0_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_1_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_1_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
+            p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_1_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_1_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_1_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_1_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_1_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_1_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
+            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_u_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_u_1_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_u_1_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_330_3_fu_400_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
+            p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_u_1_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_u_1_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_0_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_0_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_0_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_0_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_0_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_0_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_0_ce1_assign_proc : process(and_ln279_2_reg_835, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_0_ce1_assign_proc : process(ap_CS_fsm_state11, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_ce1;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_0_ce1 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_0_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_0_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_0_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_0_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_0_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_0_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_0_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_1_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_1_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_1_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_1_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_1_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_1_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_1_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_1_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_1_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_1_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_1_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_1_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_1_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_2_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_2_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_2_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_2_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_2_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_2_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_2_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_2_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_2_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_2_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_2_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_2_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_2_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_3_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_3_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_3_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_3_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_3_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_3_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_3_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_3_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_3_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_3_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_3_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_3_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_3_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_4_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_4_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_4_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_4_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_4_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_4_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_4_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_4_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_4_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_4_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_4_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_4_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_4_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_5_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_5_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_5_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_5_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_5_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_5_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_5_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_5_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_5_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_5_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_5_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_5_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_5_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_6_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_6_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_6_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_6_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_6_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_6_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_6_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_6_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_6_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_6_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_6_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_6_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_6_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_7_address0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_7_address0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_address0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
+            p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_address0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_7_address0 <= "XXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_7_ce0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_7_ce0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
+            p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_ce0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_7_ce0 <= ap_const_logic_0;
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_7_d0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_7_d0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_d0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
+            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_d0;
         else 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+            p_anonymous_namespace_g_core_state_admm_z_x_7_d0 <= "XXXXXXXXXXXXXXXXXXXXXXXXXX";
         end if; 
     end process;
 
 
-    p_anonymous_namespace_g_core_state_admm_z_x_7_we0_assign_proc : process(and_ln279_2_reg_835, tmp_reg_843, grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7, ap_CS_fsm_state12)
+    p_anonymous_namespace_g_core_state_admm_z_x_7_we0_assign_proc : process(tmp_reg_848, ap_CS_fsm_state11, grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_we0, ap_CS_fsm_state2, ap_CS_fsm_state5, ap_CS_fsm_state7)
     begin
-        if (((ap_const_lv1_1 = and_ln279_2_reg_835) and (ap_const_logic_1 = ap_CS_fsm_state12))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_mpc_compute_hls_fu_404_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
-        elsif (((tmp_reg_843 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
+        if ((ap_const_logic_1 = ap_CS_fsm_state11)) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_mpc_compute_hls_fu_412_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
+        elsif (((tmp_reg_848 = ap_const_lv1_1) and (ap_const_logic_1 = ap_CS_fsm_state7))) then 
+            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_322_1_fu_364_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
         elsif (((ap_const_logic_1 = ap_CS_fsm_state5) or (ap_const_logic_1 = ap_CS_fsm_state2))) then 
-            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_264_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
+            p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= grp_p_anonymous_namespace_reset_core_state_hls_fu_272_p_anonymous_namespace_g_core_state_admm_z_x_7_we0;
         else 
             p_anonymous_namespace_g_core_state_admm_z_x_7_we0 <= ap_const_logic_0;
         end if; 
     end process;
 
-    p_anonymous_namespace_g_core_state_initialized_load_load_fu_564_p1 <= p_anonymous_namespace_g_core_state_initialized;
-    product_q_cast_fu_675_p4 <= grp_fu_497_p2(38 downto 18);
-    product_q_fu_665_p4 <= grp_fu_497_p2(49 downto 18);
-    ref_left_wall_bound_address0 <= grp_mpc_compute_hls_fu_404_ref_left_wall_bound_address0;
-    ref_left_wall_bound_ce0 <= grp_mpc_compute_hls_fu_404_ref_left_wall_bound_ce0;
-    ref_path_curvature_address0 <= grp_mpc_compute_hls_fu_404_ref_path_curvature_address0;
-    ref_path_curvature_ce0 <= grp_mpc_compute_hls_fu_404_ref_path_curvature_ce0;
-    ref_reference_heading_error_address0 <= grp_mpc_compute_hls_fu_404_ref_reference_heading_error_address0;
-    ref_reference_heading_error_ce0 <= grp_mpc_compute_hls_fu_404_ref_reference_heading_error_ce0;
-    ref_reference_lateral_error_address0 <= grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_address0;
-    ref_reference_lateral_error_ce0 <= grp_mpc_compute_hls_fu_404_ref_reference_lateral_error_ce0;
-    ref_reference_lateral_velocity_address0 <= grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_address0;
-    ref_reference_lateral_velocity_ce0 <= grp_mpc_compute_hls_fu_404_ref_reference_lateral_velocity_ce0;
-    ref_reference_velocity_address0 <= grp_mpc_compute_hls_fu_404_ref_reference_velocity_address0;
-    ref_reference_velocity_ce0 <= grp_mpc_compute_hls_fu_404_ref_reference_velocity_ce0;
-    ref_reference_yaw_rate_address0 <= grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_address0;
-    ref_reference_yaw_rate_ce0 <= grp_mpc_compute_hls_fu_404_ref_reference_yaw_rate_ce0;
-    ref_right_wall_bound_address0 <= grp_mpc_compute_hls_fu_404_ref_right_wall_bound_address0;
-    ref_right_wall_bound_ce0 <= grp_mpc_compute_hls_fu_404_ref_right_wall_bound_ce0;
-    select_ln130_fu_697_p3 <= 
-        ap_const_lv21_149AA0 when (icmp_ln128_fu_685_p2(0) = '1') else 
-        ap_const_lv21_B6560;
-        sext_ln307_fu_719_p1 <= std_logic_vector(IEEE.numeric_std.resize(signed(measured_steer_rate_fu_711_p3),32));
+    p_anonymous_namespace_g_core_state_initialized_load_load_fu_574_p1 <= p_anonymous_namespace_g_core_state_initialized;
+    product_q_cast_fu_685_p4 <= grp_fu_507_p2(30 downto 14);
+    product_q_fu_675_p4 <= grp_fu_507_p2(39 downto 14);
+    ref_left_wall_bound_address0 <= grp_mpc_compute_hls_fu_412_ref_left_wall_bound_address0;
+    ref_left_wall_bound_ce0 <= grp_mpc_compute_hls_fu_412_ref_left_wall_bound_ce0;
+    ref_path_curvature_address0 <= grp_mpc_compute_hls_fu_412_ref_path_curvature_address0;
+    ref_path_curvature_ce0 <= grp_mpc_compute_hls_fu_412_ref_path_curvature_ce0;
+    ref_reference_heading_error_address0 <= grp_mpc_compute_hls_fu_412_ref_reference_heading_error_address0;
+    ref_reference_heading_error_ce0 <= grp_mpc_compute_hls_fu_412_ref_reference_heading_error_ce0;
+    ref_reference_lateral_error_address0 <= grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_address0;
+    ref_reference_lateral_error_ce0 <= grp_mpc_compute_hls_fu_412_ref_reference_lateral_error_ce0;
+    ref_reference_lateral_velocity_address0 <= grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_address0;
+    ref_reference_lateral_velocity_ce0 <= grp_mpc_compute_hls_fu_412_ref_reference_lateral_velocity_ce0;
+    ref_reference_velocity_address0 <= grp_mpc_compute_hls_fu_412_ref_reference_velocity_address0;
+    ref_reference_velocity_ce0 <= grp_mpc_compute_hls_fu_412_ref_reference_velocity_ce0;
+    ref_reference_yaw_rate_address0 <= grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_address0;
+    ref_reference_yaw_rate_ce0 <= grp_mpc_compute_hls_fu_412_ref_reference_yaw_rate_ce0;
+    ref_right_wall_bound_address0 <= grp_mpc_compute_hls_fu_412_ref_right_wall_bound_address0;
+    ref_right_wall_bound_ce0 <= grp_mpc_compute_hls_fu_412_ref_right_wall_bound_ce0;
+    select_ln145_fu_707_p3 <= 
+        ap_const_lv17_149AA when (icmp_ln143_fu_695_p2(0) = '1') else 
+        ap_const_lv17_B656;
+        sext_ln300_fu_729_p1 <= std_logic_vector(IEEE.numeric_std.resize(signed(measured_steer_rate_fu_721_p3),26));
 
-    tmp_109_fu_575_p3 <= control_flags(2 downto 2);
-    tmp_fu_568_p3 <= control_flags(1 downto 1);
-    trunc_ln268_fu_502_p1 <= control_flags(1 - 1 downto 0);
-    value_254_fu_645_p2 <= std_logic_vector(unsigned(steering) - unsigned(ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load));
+    tmp_109_fu_585_p3 <= control_flags(2 downto 2);
+    tmp_fu_578_p3 <= control_flags(1 downto 1);
+    trunc_ln265_fu_512_p1 <= control_flags(1 - 1 downto 0);
+    value_fu_655_p2 <= std_logic_vector(unsigned(steering) - unsigned(ap_sig_allocacmp_p_anonymous_namespace_g_core_state_persist_actual_steering_load));
 end behav;

@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'sum8_K_QP_raw'" level="0">
-<item name = "Date">Thu May 21 15:23:12 2026
+<item name = "Date">Thu Jun 11 16:07:06 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 2.586 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 2.478 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -47,7 +47,7 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 329, -</column>
+<column name="Expression">-, -, 0, 245, -</column>
 <column name="FIFO">-, -, -, -, -</column>
 <column name="Instance">-, -, -, -, -</column>
 <column name="Memory">-, -, -, -, -</column>
@@ -77,13 +77,13 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="add_ln328_1_fu_90_p2">+, 0, 0, 51, 44, 44</column>
-<column name="add_ln328_2_fu_96_p2">+, 0, 0, 44, 44, 44</column>
-<column name="add_ln328_3_fu_102_p2">+, 0, 0, 44, 44, 44</column>
-<column name="add_ln328_4_fu_108_p2">+, 0, 0, 51, 44, 44</column>
-<column name="add_ln328_5_fu_114_p2">+, 0, 0, 44, 44, 44</column>
-<column name="add_ln328_fu_84_p2">+, 0, 0, 51, 44, 44</column>
-<column name="ap_return">+, 0, 0, 44, 44, 44</column>
+<column name="add_ln343_1_fu_82_p2">+, 0, 0, 39, 32, 32</column>
+<column name="add_ln343_3_fu_88_p2">+, 0, 0, 32, 32, 32</column>
+<column name="add_ln343_4_fu_94_p2">+, 0, 0, 32, 32, 32</column>
+<column name="add_ln343_5_fu_100_p2">+, 0, 0, 39, 32, 32</column>
+<column name="add_ln343_6_fu_106_p2">+, 0, 0, 32, 32, 32</column>
+<column name="add_ln343_fu_76_p2">+, 0, 0, 39, 32, 32</column>
+<column name="ap_return">+, 0, 0, 32, 32, 32</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
@@ -102,16 +102,16 @@
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
 <column name="ap_ready">out, 1, ap_ctrl_hs, sum8_K_QP_raw, return value</column>
-<column name="ap_return">out, 44, ap_ctrl_hs, sum8_K_QP_raw, return value</column>
+<column name="ap_return">out, 32, ap_ctrl_hs, sum8_K_QP_raw, return value</column>
 <column name="ap_rst">in, 1, ap_ctrl_hs, sum8_K_QP_raw, return value</column>
-<column name="a0">in, 44, ap_none, a0, scalar</column>
-<column name="a1">in, 44, ap_none, a1, scalar</column>
-<column name="a2">in, 44, ap_none, a2, scalar</column>
-<column name="a3">in, 44, ap_none, a3, scalar</column>
-<column name="a4">in, 44, ap_none, a4, scalar</column>
-<column name="a5">in, 44, ap_none, a5, scalar</column>
-<column name="a6">in, 44, ap_none, a6, scalar</column>
-<column name="a7">in, 44, ap_none, a7, scalar</column>
+<column name="a0">in, 32, ap_none, a0, scalar</column>
+<column name="a1">in, 32, ap_none, a1, scalar</column>
+<column name="a2">in, 32, ap_none, a2, scalar</column>
+<column name="a3">in, 32, ap_none, a3, scalar</column>
+<column name="a4">in, 32, ap_none, a4, scalar</column>
+<column name="a5">in, 32, ap_none, a5, scalar</column>
+<column name="a6">in, 32, ap_none, a6, scalar</column>
+<column name="a7">in, 32, ap_none, a7, scalar</column>
 </table>
 </item>
 </section>

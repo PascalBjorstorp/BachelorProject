@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>22</bitwidth>
+					<bitwidth>19</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -109,7 +109,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -145,7 +145,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>0</if_type>
@@ -181,7 +181,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>0</if_type>
@@ -217,7 +217,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<direction>1</direction>
 				<if_type>0</if_type>
@@ -275,7 +275,7 @@
 						<name>prev_curvature_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>259</lineNumber>
+						<lineNumber>257</lineNumber>
 						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
 						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -291,7 +291,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>mpc_persist_writeback_hls</second>
 										</first>
-										<second>259</second>
+										<second>257</second>
 									</item>
 								</second>
 							</item>
@@ -307,7 +307,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -332,7 +332,7 @@
 						<name>prev_accel_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>259</lineNumber>
+						<lineNumber>257</lineNumber>
 						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
 						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -348,7 +348,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>mpc_persist_writeback_hls</second>
 										</first>
-										<second>259</second>
+										<second>257</second>
 									</item>
 								</second>
 							</item>
@@ -364,7 +364,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>22</bitwidth>
+					<bitwidth>19</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -389,7 +389,7 @@
 						<name>prev_steer_rate_read</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>259</lineNumber>
+						<lineNumber>257</lineNumber>
 						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
 						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
 						<inlineStackInfo>
@@ -405,7 +405,7 @@
 											<first>../src/mpc_riccati_hls.cpp</first>
 											<second>mpc_persist_writeback_hls</second>
 										</first>
-										<second>259</second>
+										<second>257</second>
 									</item>
 								</second>
 							</item>
@@ -421,7 +421,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>26</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -443,7 +443,63 @@
 					<Obj>
 						<type>0</type>
 						<id>11</id>
-						<name>sext_ln259</name>
+						<name>sext_ln257</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>257</lineNumber>
+						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
+						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>mpc_persist_writeback_hls</second>
+										</first>
+										<second>257</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>26</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>1</count>
+					<item_version>0</item_version>
+					<item>26</item>
+				</oprand_edges>
+				<opcode>sext</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.00</m_delay>
+				<m_topoIndex>4</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_12">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>12</id>
+						<name>p_anonymous_namespace_g_core_state_persist_prev_steer_rate_write_ln259</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>259</lineNumber>
@@ -478,28 +534,86 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>32</bitwidth>
+					<bitwidth>0</bitwidth>
 				</Value>
 				<oprand_edges>
-					<count>1</count>
+					<count>2</count>
 					<item_version>0</item_version>
-					<item>26</item>
+					<item>27</item>
+					<item>28</item>
 				</oprand_edges>
-				<opcode>sext</opcode>
+				<opcode>store</opcode>
 				<m_Display>0</m_Display>
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
 				<m_delay>0.00</m_delay>
-				<m_topoIndex>4</m_topoIndex>
+				<m_topoIndex>5</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
-			<item class_id_reference="9" object_id="_12">
+			<item class_id_reference="9" object_id="_13">
 				<Value>
 					<Obj>
 						<type>0</type>
-						<id>12</id>
-						<name>p_anonymous_namespace_g_core_state_persist_prev_steer_rate_write_ln261</name>
+						<id>13</id>
+						<name>p_anonymous_namespace_g_core_state_persist_prev_accel_write_ln260</name>
+						<fileName>../src/mpc_riccati_hls.cpp</fileName>
+						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
+						<lineNumber>260</lineNumber>
+						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
+						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
+						<inlineStackInfo>
+							<count>1</count>
+							<item_version>0</item_version>
+							<item>
+								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
+								<second>
+									<count>1</count>
+									<item_version>0</item_version>
+									<item>
+										<first>
+											<first>../src/mpc_riccati_hls.cpp</first>
+											<second>mpc_persist_writeback_hls</second>
+										</first>
+										<second>260</second>
+									</item>
+								</second>
+							</item>
+						</inlineStackInfo>
+						<originalName></originalName>
+						<rtlName></rtlName>
+						<control></control>
+						<opType></opType>
+						<implIndex></implIndex>
+						<coreName></coreName>
+						<isStorage>0</isStorage>
+						<storageDepth>0</storageDepth>
+						<coreId>4294967295</coreId>
+						<rtlModuleName></rtlModuleName>
+					</Obj>
+					<bitwidth>0</bitwidth>
+				</Value>
+				<oprand_edges>
+					<count>2</count>
+					<item_version>0</item_version>
+					<item>29</item>
+					<item>30</item>
+				</oprand_edges>
+				<opcode>store</opcode>
+				<m_Display>0</m_Display>
+				<m_isOnCriticalPath>0</m_isOnCriticalPath>
+				<m_isLCDNode>0</m_isLCDNode>
+				<m_isStartOfPath>0</m_isStartOfPath>
+				<m_delay>0.00</m_delay>
+				<m_topoIndex>6</m_topoIndex>
+				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
+			</item>
+			<item class_id_reference="9" object_id="_14">
+				<Value>
+					<Obj>
+						<type>0</type>
+						<id>14</id>
+						<name>p_anonymous_namespace_g_core_state_persist_prev_curvature_write_ln261</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>261</lineNumber>
@@ -539,8 +653,8 @@
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>27</item>
-					<item>28</item>
+					<item>31</item>
+					<item>32</item>
 				</oprand_edges>
 				<opcode>store</opcode>
 				<m_Display>0</m_Display>
@@ -548,15 +662,15 @@
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
 				<m_delay>0.00</m_delay>
-				<m_topoIndex>5</m_topoIndex>
+				<m_topoIndex>7</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
-			<item class_id_reference="9" object_id="_13">
+			<item class_id_reference="9" object_id="_15">
 				<Value>
 					<Obj>
 						<type>0</type>
-						<id>13</id>
-						<name>p_anonymous_namespace_g_core_state_persist_prev_accel_write_ln262</name>
+						<id>15</id>
+						<name>p_anonymous_namespace_g_core_state_persist_prev_model_signature_write_ln262</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>262</lineNumber>
@@ -596,8 +710,8 @@
 				<oprand_edges>
 					<count>2</count>
 					<item_version>0</item_version>
-					<item>29</item>
-					<item>30</item>
+					<item>34</item>
+					<item>35</item>
 				</oprand_edges>
 				<opcode>store</opcode>
 				<m_Display>0</m_Display>
@@ -605,15 +719,15 @@
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
 				<m_delay>0.00</m_delay>
-				<m_topoIndex>6</m_topoIndex>
+				<m_topoIndex>8</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
-			<item class_id_reference="9" object_id="_14">
+			<item class_id_reference="9" object_id="_16">
 				<Value>
 					<Obj>
 						<type>0</type>
-						<id>14</id>
-						<name>p_anonymous_namespace_g_core_state_persist_prev_curvature_write_ln263</name>
+						<id>16</id>
+						<name>_ln263</name>
 						<fileName>../src/mpc_riccati_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>263</lineNumber>
@@ -633,120 +747,6 @@
 											<second>mpc_persist_writeback_hls</second>
 										</first>
 										<second>263</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName></originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>0</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>2</count>
-					<item_version>0</item_version>
-					<item>31</item>
-					<item>32</item>
-				</oprand_edges>
-				<opcode>store</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.00</m_delay>
-				<m_topoIndex>7</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_15">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>15</id>
-						<name>p_anonymous_namespace_g_core_state_persist_prev_model_signature_write_ln264</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>264</lineNumber>
-						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
-						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>mpc_persist_writeback_hls</second>
-										</first>
-										<second>264</second>
-									</item>
-								</second>
-							</item>
-						</inlineStackInfo>
-						<originalName></originalName>
-						<rtlName></rtlName>
-						<control></control>
-						<opType></opType>
-						<implIndex></implIndex>
-						<coreName></coreName>
-						<isStorage>0</isStorage>
-						<storageDepth>0</storageDepth>
-						<coreId>4294967295</coreId>
-						<rtlModuleName></rtlModuleName>
-					</Obj>
-					<bitwidth>0</bitwidth>
-				</Value>
-				<oprand_edges>
-					<count>2</count>
-					<item_version>0</item_version>
-					<item>34</item>
-					<item>35</item>
-				</oprand_edges>
-				<opcode>store</opcode>
-				<m_Display>0</m_Display>
-				<m_isOnCriticalPath>0</m_isOnCriticalPath>
-				<m_isLCDNode>0</m_isLCDNode>
-				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>0.00</m_delay>
-				<m_topoIndex>8</m_topoIndex>
-				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
-			</item>
-			<item class_id_reference="9" object_id="_16">
-				<Value>
-					<Obj>
-						<type>0</type>
-						<id>16</id>
-						<name>_ln265</name>
-						<fileName>../src/mpc_riccati_hls.cpp</fileName>
-						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
-						<lineNumber>265</lineNumber>
-						<contextFuncName>mpc_persist_writeback_hls</contextFuncName>
-						<contextNormFuncName>mpc_persist_writeback_hls</contextNormFuncName>
-						<inlineStackInfo>
-							<count>1</count>
-							<item_version>0</item_version>
-							<item>
-								<first>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</first>
-								<second>
-									<count>1</count>
-									<item_version>0</item_version>
-									<item>
-										<first>
-											<first>../src/mpc_riccati_hls.cpp</first>
-											<second>mpc_persist_writeback_hls</second>
-										</first>
-										<second>265</second>
 									</item>
 								</second>
 							</item>
@@ -1189,7 +1189,7 @@
 		<count>1</count>
 		<item_version>0</item_version>
 		<item class_id="42" tracking_level="0" version="0">
-			<first>sext_ln259_fu_38</first>
+			<first>sext_ln257_fu_38</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1229,7 +1229,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln261_store_fu_42</first>
+			<first>store_ln259_store_fu_42</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1237,7 +1237,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln262_store_fu_48</first>
+			<first>store_ln260_store_fu_48</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1245,7 +1245,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln263_store_fu_54</first>
+			<first>store_ln261_store_fu_54</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -1253,7 +1253,7 @@
 			</second>
 		</item>
 		<item>
-			<first>store_ln264_store_fu_60</first>
+			<first>store_ln262_store_fu_60</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>

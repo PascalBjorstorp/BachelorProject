@@ -803,6 +803,9 @@ void admm_projection_step(
                     val = problem->delta_lower_stage[k];
                 if (val > problem->delta_upper_stage[k])
                     val = problem->delta_upper_stage[k];
+            } else if (i == MPCC_IDX_VTHETA) {
+                if (val < problem->u_lower[i]) val = problem->u_lower[i];
+                if (val > problem->vtheta_max_stage[k]) val = problem->vtheta_max_stage[k];
             } else {
                 if (val < problem->u_lower[i]) val = problem->u_lower[i];
                 if (val > problem->u_upper[i]) val = problem->u_upper[i];

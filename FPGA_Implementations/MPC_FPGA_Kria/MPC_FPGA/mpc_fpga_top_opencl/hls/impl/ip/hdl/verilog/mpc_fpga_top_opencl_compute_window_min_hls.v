@@ -46,28 +46,28 @@ input   ap_start;
 output   ap_done;
 output   ap_idle;
 output   ap_ready;
-input  [31:0] ref_wall_0_val;
-input  [31:0] ref_wall_1_val;
-input  [31:0] ref_wall_2_val;
-input  [31:0] ref_wall_3_val;
-input  [31:0] ref_wall_4_val;
-input  [31:0] ref_wall_5_val;
-input  [31:0] ref_wall_6_val;
-input  [31:0] ref_wall_7_val;
-input  [31:0] ref_wall_8_val;
-input  [31:0] ref_wall_9_val;
-input  [31:0] ref_wall_10_val;
-input  [31:0] ref_wall_11_val;
-input  [31:0] ref_wall_12_val;
-input  [31:0] ref_wall_13_val;
-input  [31:0] ref_wall_14_val;
-input  [31:0] ref_wall_15_val;
-input  [31:0] ref_wall_16_val;
-input  [31:0] ref_wall_17_val;
-input  [31:0] ref_wall_18_val;
-input  [31:0] ref_wall_19_val;
+input  [25:0] ref_wall_0_val;
+input  [25:0] ref_wall_1_val;
+input  [25:0] ref_wall_2_val;
+input  [25:0] ref_wall_3_val;
+input  [25:0] ref_wall_4_val;
+input  [25:0] ref_wall_5_val;
+input  [25:0] ref_wall_6_val;
+input  [25:0] ref_wall_7_val;
+input  [25:0] ref_wall_8_val;
+input  [25:0] ref_wall_9_val;
+input  [25:0] ref_wall_10_val;
+input  [25:0] ref_wall_11_val;
+input  [25:0] ref_wall_12_val;
+input  [25:0] ref_wall_13_val;
+input  [25:0] ref_wall_14_val;
+input  [25:0] ref_wall_15_val;
+input  [25:0] ref_wall_16_val;
+input  [25:0] ref_wall_17_val;
+input  [25:0] ref_wall_18_val;
+input  [25:0] ref_wall_19_val;
 input  [4:0] center_idx;
-output  [31:0] ap_return;
+output  [25:0] ap_return;
 
 reg ap_done;
 reg ap_idle;
@@ -79,59 +79,57 @@ wire    ap_enable_reg_pp0_iter0;
 reg    ap_enable_reg_pp0_iter1;
 reg    ap_idle_pp0;
 wire    ap_block_pp0_stage0_subdone;
-wire   [31:0] cand_7_fu_920_p3;
-reg   [31:0] cand_7_reg_1022;
+wire   [25:0] l3_0_fu_994_p3;
+reg   [25:0] l3_0_reg_1026;
 wire    ap_block_pp0_stage0_11001;
-wire   [31:0] l2_0_fu_940_p3;
-reg   [31:0] l2_0_reg_1028;
-wire   [31:0] l2_1_fu_960_p3;
-reg   [31:0] l2_1_reg_1034;
-wire   [31:0] l2_2_fu_980_p3;
-reg   [31:0] l2_2_reg_1040;
+wire   [25:0] l3_1_fu_1008_p3;
+reg   [25:0] l3_1_reg_1032;
 wire    ap_block_pp0_stage0;
-wire   [5:0] zext_ln89_fu_236_p1;
+wire   [5:0] zext_ln87_fu_236_p1;
 wire   [5:0] jj_fu_240_p2;
-wire   [31:0] tmp_fu_252_p35;
-wire   [0:0] icmp_ln97_fu_246_p2;
-wire   [31:0] tmp_fu_252_p37;
+wire   [25:0] tmp_fu_252_p35;
+wire   [0:0] icmp_ln95_fu_246_p2;
+wire   [25:0] tmp_fu_252_p37;
 wire   [5:0] jj_1_fu_336_p2;
-wire   [31:0] tmp_s_fu_348_p37;
-wire   [0:0] icmp_ln97_1_fu_342_p2;
-wire   [31:0] tmp_s_fu_348_p39;
+wire   [25:0] tmp_s_fu_348_p37;
+wire   [0:0] icmp_ln95_1_fu_342_p2;
+wire   [25:0] tmp_s_fu_348_p39;
 wire   [5:0] jj_2_fu_436_p2;
-wire   [31:0] tmp_1_fu_448_p39;
-wire   [0:0] icmp_ln97_2_fu_442_p2;
-wire   [31:0] tmp_1_fu_448_p41;
-wire   [31:0] cand_3_fu_540_p41;
+wire   [25:0] tmp_1_fu_448_p39;
+wire   [0:0] icmp_ln95_2_fu_442_p2;
+wire   [25:0] tmp_1_fu_448_p41;
+wire   [25:0] cand_3_fu_540_p41;
 wire   [4:0] jj_3_fu_628_p2;
-wire   [31:0] tmp_3_fu_640_p39;
-wire   [0:0] icmp_ln97_3_fu_634_p2;
-wire   [31:0] tmp_3_fu_640_p41;
+wire   [25:0] tmp_3_fu_640_p39;
+wire   [0:0] icmp_ln95_3_fu_634_p2;
+wire   [25:0] tmp_3_fu_640_p41;
 wire   [4:0] jj_4_fu_732_p2;
-wire   [31:0] tmp_4_fu_744_p37;
-wire   [0:0] icmp_ln97_4_fu_738_p2;
-wire   [31:0] tmp_4_fu_744_p39;
+wire   [25:0] tmp_4_fu_744_p37;
+wire   [0:0] icmp_ln95_4_fu_738_p2;
+wire   [25:0] tmp_4_fu_744_p39;
 wire   [4:0] jj_5_fu_832_p2;
-wire   [31:0] tmp_5_fu_844_p35;
-wire   [0:0] icmp_ln97_5_fu_838_p2;
-wire   [31:0] tmp_5_fu_844_p37;
-wire   [31:0] cand_fu_328_p3;
-wire   [31:0] cand_1_fu_428_p3;
-wire   [0:0] icmp_ln100_fu_928_p2;
-wire   [0:0] xor_ln100_fu_934_p2;
-wire   [31:0] cand_2_fu_532_p3;
-wire   [31:0] cand_3_fu_540_p43;
-wire   [0:0] icmp_ln101_fu_948_p2;
-wire   [0:0] xor_ln101_fu_954_p2;
-wire   [31:0] cand_4_fu_724_p3;
-wire   [31:0] cand_5_fu_824_p3;
-wire   [0:0] icmp_ln102_fu_968_p2;
-wire   [0:0] xor_ln102_fu_974_p2;
-wire   [0:0] icmp_ln105_fu_988_p2;
-wire   [0:0] icmp_ln106_fu_998_p2;
-wire   [31:0] l3_0_fu_992_p3;
-wire   [31:0] l3_1_fu_1002_p3;
-wire   [0:0] icmp_ln107_fu_1008_p2;
+wire   [25:0] tmp_5_fu_844_p35;
+wire   [0:0] icmp_ln95_5_fu_838_p2;
+wire   [25:0] tmp_5_fu_844_p37;
+wire   [25:0] cand_fu_328_p3;
+wire   [25:0] cand_1_fu_428_p3;
+wire   [0:0] icmp_ln98_fu_928_p2;
+wire   [0:0] xor_ln98_fu_934_p2;
+wire   [25:0] cand_2_fu_532_p3;
+wire   [25:0] cand_3_fu_540_p43;
+wire   [0:0] icmp_ln99_fu_948_p2;
+wire   [0:0] xor_ln99_fu_954_p2;
+wire   [25:0] cand_4_fu_724_p3;
+wire   [25:0] cand_5_fu_824_p3;
+wire   [0:0] icmp_ln100_fu_968_p2;
+wire   [0:0] xor_ln100_fu_974_p2;
+wire   [25:0] l2_0_fu_940_p3;
+wire   [25:0] l2_1_fu_960_p3;
+wire   [0:0] icmp_ln103_fu_988_p2;
+wire   [25:0] l2_2_fu_980_p3;
+wire   [25:0] cand_7_fu_920_p3;
+wire   [0:0] icmp_ln104_fu_1002_p2;
+wire   [0:0] icmp_ln105_fu_1016_p2;
 reg   [0:0] ap_NS_fsm;
 reg    ap_idle_pp0_0to0;
 reg    ap_reset_init_pp0;
@@ -272,47 +270,47 @@ initial begin
 #0 ap_enable_reg_pp0_iter1 = 1'b0;
 end
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_35_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_35_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h3 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h4 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h5 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h6 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h7 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h8 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h9 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'hA ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'hB ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'hC ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hD ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hE ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hF ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'h10 ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'h11 ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'h12 ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h13 ),
-    .din16_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_35_5_32_1_1_U183(
+    .dout_WIDTH( 26 ))
+sparsemux_35_5_26_1_1_U183(
     .din0(ref_wall_0_val),
     .din1(ref_wall_1_val),
     .din2(ref_wall_2_val),
@@ -335,49 +333,49 @@ sparsemux_35_5_32_1_1_U183(
     .dout(tmp_fu_252_p37)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_37_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_37_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h2 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h3 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h4 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h5 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h6 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h7 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h8 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h9 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'hA ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'hB ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hC ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hD ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hE ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hF ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'h10 ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'h11 ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h12 ),
-    .din16_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
     .CASE17( 5'h13 ),
-    .din17_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din17_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_37_5_32_1_1_U184(
+    .dout_WIDTH( 26 ))
+sparsemux_37_5_26_1_1_U184(
     .din0(ref_wall_0_val),
     .din1(ref_wall_1_val),
     .din2(ref_wall_2_val),
@@ -401,51 +399,51 @@ sparsemux_37_5_32_1_1_U184(
     .dout(tmp_s_fu_348_p39)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_39_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_39_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h1 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h2 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h3 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h4 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h5 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h6 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h7 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h8 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'h9 ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'hA ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hB ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hC ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hD ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hE ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'hF ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'h10 ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h11 ),
-    .din16_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
     .CASE17( 5'h12 ),
-    .din17_WIDTH( 32 ),
+    .din17_WIDTH( 26 ),
     .CASE18( 5'h13 ),
-    .din18_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din18_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_39_5_32_1_1_U185(
+    .dout_WIDTH( 26 ))
+sparsemux_39_5_26_1_1_U185(
     .din0(ref_wall_0_val),
     .din1(ref_wall_1_val),
     .din2(ref_wall_2_val),
@@ -470,53 +468,53 @@ sparsemux_39_5_32_1_1_U185(
     .dout(tmp_1_fu_448_p41)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_41_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_41_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h0 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h1 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h2 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h3 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h4 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h5 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h6 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h7 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'h8 ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'h9 ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hA ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hB ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hC ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hD ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'hE ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'hF ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h10 ),
-    .din16_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
     .CASE17( 5'h11 ),
-    .din17_WIDTH( 32 ),
+    .din17_WIDTH( 26 ),
     .CASE18( 5'h12 ),
-    .din18_WIDTH( 32 ),
+    .din18_WIDTH( 26 ),
     .CASE19( 5'h13 ),
-    .din19_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din19_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_41_5_32_1_1_U186(
+    .dout_WIDTH( 26 ))
+sparsemux_41_5_26_1_1_U186(
     .din0(ref_wall_0_val),
     .din1(ref_wall_1_val),
     .din2(ref_wall_2_val),
@@ -542,51 +540,51 @@ sparsemux_41_5_32_1_1_U186(
     .dout(cand_3_fu_540_p43)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_39_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_39_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h0 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h1 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h2 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h3 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h4 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h5 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h6 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h7 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'h8 ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'h9 ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hA ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hB ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hC ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hD ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'hE ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'hF ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h10 ),
-    .din16_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
     .CASE17( 5'h11 ),
-    .din17_WIDTH( 32 ),
+    .din17_WIDTH( 26 ),
     .CASE18( 5'h12 ),
-    .din18_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din18_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_39_5_32_1_1_U187(
+    .dout_WIDTH( 26 ))
+sparsemux_39_5_26_1_1_U187(
     .din0(ref_wall_1_val),
     .din1(ref_wall_2_val),
     .din2(ref_wall_3_val),
@@ -611,49 +609,49 @@ sparsemux_39_5_32_1_1_U187(
     .dout(tmp_3_fu_640_p41)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_37_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_37_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h0 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h1 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h2 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h3 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h4 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h5 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h6 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h7 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'h8 ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'h9 ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hA ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hB ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hC ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hD ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'hE ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'hF ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h10 ),
-    .din16_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
     .CASE17( 5'h11 ),
-    .din17_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din17_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_37_5_32_1_1_U188(
+    .dout_WIDTH( 26 ))
+sparsemux_37_5_26_1_1_U188(
     .din0(ref_wall_2_val),
     .din1(ref_wall_3_val),
     .din2(ref_wall_4_val),
@@ -677,47 +675,47 @@ sparsemux_37_5_32_1_1_U188(
     .dout(tmp_4_fu_744_p39)
 );
 
-(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_35_5_32_1_1 #(
+(* dissolve_hierarchy = "yes" *) mpc_fpga_top_opencl_sparsemux_35_5_26_1_1 #(
     .ID( 1 ),
     .NUM_STAGE( 1 ),
     .CASE0( 5'h0 ),
-    .din0_WIDTH( 32 ),
+    .din0_WIDTH( 26 ),
     .CASE1( 5'h1 ),
-    .din1_WIDTH( 32 ),
+    .din1_WIDTH( 26 ),
     .CASE2( 5'h2 ),
-    .din2_WIDTH( 32 ),
+    .din2_WIDTH( 26 ),
     .CASE3( 5'h3 ),
-    .din3_WIDTH( 32 ),
+    .din3_WIDTH( 26 ),
     .CASE4( 5'h4 ),
-    .din4_WIDTH( 32 ),
+    .din4_WIDTH( 26 ),
     .CASE5( 5'h5 ),
-    .din5_WIDTH( 32 ),
+    .din5_WIDTH( 26 ),
     .CASE6( 5'h6 ),
-    .din6_WIDTH( 32 ),
+    .din6_WIDTH( 26 ),
     .CASE7( 5'h7 ),
-    .din7_WIDTH( 32 ),
+    .din7_WIDTH( 26 ),
     .CASE8( 5'h8 ),
-    .din8_WIDTH( 32 ),
+    .din8_WIDTH( 26 ),
     .CASE9( 5'h9 ),
-    .din9_WIDTH( 32 ),
+    .din9_WIDTH( 26 ),
     .CASE10( 5'hA ),
-    .din10_WIDTH( 32 ),
+    .din10_WIDTH( 26 ),
     .CASE11( 5'hB ),
-    .din11_WIDTH( 32 ),
+    .din11_WIDTH( 26 ),
     .CASE12( 5'hC ),
-    .din12_WIDTH( 32 ),
+    .din12_WIDTH( 26 ),
     .CASE13( 5'hD ),
-    .din13_WIDTH( 32 ),
+    .din13_WIDTH( 26 ),
     .CASE14( 5'hE ),
-    .din14_WIDTH( 32 ),
+    .din14_WIDTH( 26 ),
     .CASE15( 5'hF ),
-    .din15_WIDTH( 32 ),
+    .din15_WIDTH( 26 ),
     .CASE16( 5'h10 ),
-    .din16_WIDTH( 32 ),
-    .def_WIDTH( 32 ),
+    .din16_WIDTH( 26 ),
+    .def_WIDTH( 26 ),
     .sel_WIDTH( 5 ),
-    .dout_WIDTH( 32 ))
-sparsemux_35_5_32_1_1_U189(
+    .dout_WIDTH( 26 ))
+sparsemux_35_5_26_1_1_U189(
     .din0(ref_wall_3_val),
     .din1(ref_wall_4_val),
     .din2(ref_wall_5_val),
@@ -760,10 +758,8 @@ end
 
 always @ (posedge ap_clk) begin
     if (((1'b0 == ap_block_pp0_stage0_11001) & (1'b1 == ap_CS_fsm_pp0_stage0))) begin
-        cand_7_reg_1022 <= cand_7_fu_920_p3;
-        l2_0_reg_1028 <= l2_0_fu_940_p3;
-        l2_1_reg_1034 <= l2_1_fu_960_p3;
-        l2_2_reg_1040 <= l2_2_fu_980_p3;
+        l3_0_reg_1026 <= l3_0_fu_994_p3;
+        l3_1_reg_1032 <= l3_1_fu_1008_p3;
     end
 end
 
@@ -838,49 +834,49 @@ assign ap_enable_pp0 = (ap_idle_pp0 ^ 1'b1);
 
 assign ap_enable_reg_pp0_iter0 = ap_start;
 
-assign ap_return = ((icmp_ln107_fu_1008_p2[0:0] == 1'b1) ? l3_0_fu_992_p3 : l3_1_fu_1002_p3);
+assign ap_return = ((icmp_ln105_fu_1016_p2[0:0] == 1'b1) ? l3_0_reg_1026 : l3_1_reg_1032);
 
-assign cand_1_fu_428_p3 = ((icmp_ln97_1_fu_342_p2[0:0] == 1'b1) ? tmp_s_fu_348_p39 : 32'd13107200);
+assign cand_1_fu_428_p3 = ((icmp_ln95_1_fu_342_p2[0:0] == 1'b1) ? tmp_s_fu_348_p39 : 26'd819200);
 
-assign cand_2_fu_532_p3 = ((icmp_ln97_2_fu_442_p2[0:0] == 1'b1) ? tmp_1_fu_448_p41 : 32'd13107200);
+assign cand_2_fu_532_p3 = ((icmp_ln95_2_fu_442_p2[0:0] == 1'b1) ? tmp_1_fu_448_p41 : 26'd819200);
 
 assign cand_3_fu_540_p41 = 'bx;
 
-assign cand_4_fu_724_p3 = ((icmp_ln97_3_fu_634_p2[0:0] == 1'b1) ? tmp_3_fu_640_p41 : 32'd13107200);
+assign cand_4_fu_724_p3 = ((icmp_ln95_3_fu_634_p2[0:0] == 1'b1) ? tmp_3_fu_640_p41 : 26'd819200);
 
-assign cand_5_fu_824_p3 = ((icmp_ln97_4_fu_738_p2[0:0] == 1'b1) ? tmp_4_fu_744_p39 : 32'd13107200);
+assign cand_5_fu_824_p3 = ((icmp_ln95_4_fu_738_p2[0:0] == 1'b1) ? tmp_4_fu_744_p39 : 26'd819200);
 
-assign cand_7_fu_920_p3 = ((icmp_ln97_5_fu_838_p2[0:0] == 1'b1) ? tmp_5_fu_844_p37 : 32'd13107200);
+assign cand_7_fu_920_p3 = ((icmp_ln95_5_fu_838_p2[0:0] == 1'b1) ? tmp_5_fu_844_p37 : 26'd819200);
 
-assign cand_fu_328_p3 = ((icmp_ln97_fu_246_p2[0:0] == 1'b1) ? tmp_fu_252_p37 : 32'd13107200);
+assign cand_fu_328_p3 = ((icmp_ln95_fu_246_p2[0:0] == 1'b1) ? tmp_fu_252_p37 : 26'd819200);
 
-assign icmp_ln100_fu_928_p2 = (($signed(cand_fu_328_p3) < $signed(cand_1_fu_428_p3)) ? 1'b1 : 1'b0);
+assign icmp_ln100_fu_968_p2 = (($signed(cand_4_fu_724_p3) < $signed(cand_5_fu_824_p3)) ? 1'b1 : 1'b0);
 
-assign icmp_ln101_fu_948_p2 = (($signed(cand_2_fu_532_p3) < $signed(cand_3_fu_540_p43)) ? 1'b1 : 1'b0);
+assign icmp_ln103_fu_988_p2 = (($signed(l2_0_fu_940_p3) < $signed(l2_1_fu_960_p3)) ? 1'b1 : 1'b0);
 
-assign icmp_ln102_fu_968_p2 = (($signed(cand_4_fu_724_p3) < $signed(cand_5_fu_824_p3)) ? 1'b1 : 1'b0);
+assign icmp_ln104_fu_1002_p2 = (($signed(l2_2_fu_980_p3) < $signed(cand_7_fu_920_p3)) ? 1'b1 : 1'b0);
 
-assign icmp_ln105_fu_988_p2 = (($signed(l2_0_reg_1028) < $signed(l2_1_reg_1034)) ? 1'b1 : 1'b0);
+assign icmp_ln105_fu_1016_p2 = (($signed(l3_0_reg_1026) < $signed(l3_1_reg_1032)) ? 1'b1 : 1'b0);
 
-assign icmp_ln106_fu_998_p2 = (($signed(l2_2_reg_1040) < $signed(cand_7_reg_1022)) ? 1'b1 : 1'b0);
+assign icmp_ln95_1_fu_342_p2 = ((jj_1_fu_336_p2 < 6'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln107_fu_1008_p2 = (($signed(l3_0_fu_992_p3) < $signed(l3_1_fu_1002_p3)) ? 1'b1 : 1'b0);
+assign icmp_ln95_2_fu_442_p2 = ((jj_2_fu_436_p2 < 6'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_1_fu_342_p2 = ((jj_1_fu_336_p2 < 6'd20) ? 1'b1 : 1'b0);
+assign icmp_ln95_3_fu_634_p2 = ((jj_3_fu_628_p2 < 5'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_2_fu_442_p2 = ((jj_2_fu_436_p2 < 6'd20) ? 1'b1 : 1'b0);
+assign icmp_ln95_4_fu_738_p2 = ((jj_4_fu_732_p2 < 5'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_3_fu_634_p2 = ((jj_3_fu_628_p2 < 5'd20) ? 1'b1 : 1'b0);
+assign icmp_ln95_5_fu_838_p2 = ((jj_5_fu_832_p2 < 5'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_4_fu_738_p2 = ((jj_4_fu_732_p2 < 5'd20) ? 1'b1 : 1'b0);
+assign icmp_ln95_fu_246_p2 = ((jj_fu_240_p2 < 6'd20) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_5_fu_838_p2 = ((jj_5_fu_832_p2 < 5'd20) ? 1'b1 : 1'b0);
+assign icmp_ln98_fu_928_p2 = (($signed(cand_fu_328_p3) < $signed(cand_1_fu_428_p3)) ? 1'b1 : 1'b0);
 
-assign icmp_ln97_fu_246_p2 = ((jj_fu_240_p2 < 6'd20) ? 1'b1 : 1'b0);
+assign icmp_ln99_fu_948_p2 = (($signed(cand_2_fu_532_p3) < $signed(cand_3_fu_540_p43)) ? 1'b1 : 1'b0);
 
-assign jj_1_fu_336_p2 = ($signed(zext_ln89_fu_236_p1) + $signed(6'd62));
+assign jj_1_fu_336_p2 = ($signed(zext_ln87_fu_236_p1) + $signed(6'd62));
 
-assign jj_2_fu_436_p2 = ($signed(zext_ln89_fu_236_p1) + $signed(6'd63));
+assign jj_2_fu_436_p2 = ($signed(zext_ln87_fu_236_p1) + $signed(6'd63));
 
 assign jj_3_fu_628_p2 = (center_idx + 5'd1);
 
@@ -888,17 +884,17 @@ assign jj_4_fu_732_p2 = (center_idx + 5'd2);
 
 assign jj_5_fu_832_p2 = (center_idx + 5'd3);
 
-assign jj_fu_240_p2 = ($signed(zext_ln89_fu_236_p1) + $signed(6'd61));
+assign jj_fu_240_p2 = ($signed(zext_ln87_fu_236_p1) + $signed(6'd61));
 
-assign l2_0_fu_940_p3 = ((xor_ln100_fu_934_p2[0:0] == 1'b1) ? cand_1_fu_428_p3 : cand_fu_328_p3);
+assign l2_0_fu_940_p3 = ((xor_ln98_fu_934_p2[0:0] == 1'b1) ? cand_1_fu_428_p3 : cand_fu_328_p3);
 
-assign l2_1_fu_960_p3 = ((xor_ln101_fu_954_p2[0:0] == 1'b1) ? cand_3_fu_540_p43 : cand_2_fu_532_p3);
+assign l2_1_fu_960_p3 = ((xor_ln99_fu_954_p2[0:0] == 1'b1) ? cand_3_fu_540_p43 : cand_2_fu_532_p3);
 
-assign l2_2_fu_980_p3 = ((xor_ln102_fu_974_p2[0:0] == 1'b1) ? cand_5_fu_824_p3 : cand_4_fu_724_p3);
+assign l2_2_fu_980_p3 = ((xor_ln100_fu_974_p2[0:0] == 1'b1) ? cand_5_fu_824_p3 : cand_4_fu_724_p3);
 
-assign l3_0_fu_992_p3 = ((icmp_ln105_fu_988_p2[0:0] == 1'b1) ? l2_0_reg_1028 : l2_1_reg_1034);
+assign l3_0_fu_994_p3 = ((icmp_ln103_fu_988_p2[0:0] == 1'b1) ? l2_0_fu_940_p3 : l2_1_fu_960_p3);
 
-assign l3_1_fu_1002_p3 = ((icmp_ln106_fu_998_p2[0:0] == 1'b1) ? l2_2_reg_1040 : cand_7_reg_1022);
+assign l3_1_fu_1008_p3 = ((icmp_ln104_fu_1002_p2[0:0] == 1'b1) ? l2_2_fu_980_p3 : cand_7_fu_920_p3);
 
 assign tmp_1_fu_448_p39 = 'bx;
 
@@ -912,12 +908,12 @@ assign tmp_fu_252_p35 = 'bx;
 
 assign tmp_s_fu_348_p37 = 'bx;
 
-assign xor_ln100_fu_934_p2 = (icmp_ln100_fu_928_p2 ^ 1'd1);
+assign xor_ln100_fu_974_p2 = (icmp_ln100_fu_968_p2 ^ 1'd1);
 
-assign xor_ln101_fu_954_p2 = (icmp_ln101_fu_948_p2 ^ 1'd1);
+assign xor_ln98_fu_934_p2 = (icmp_ln98_fu_928_p2 ^ 1'd1);
 
-assign xor_ln102_fu_974_p2 = (icmp_ln102_fu_968_p2 ^ 1'd1);
+assign xor_ln99_fu_954_p2 = (icmp_ln99_fu_948_p2 ^ 1'd1);
 
-assign zext_ln89_fu_236_p1 = center_idx;
+assign zext_ln87_fu_236_p1 = center_idx;
 
 endmodule //mpc_fpga_top_opencl_compute_window_min_hls

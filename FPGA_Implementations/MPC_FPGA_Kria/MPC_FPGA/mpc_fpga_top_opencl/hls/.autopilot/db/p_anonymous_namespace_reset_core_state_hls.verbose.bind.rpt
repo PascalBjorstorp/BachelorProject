@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'p_anonymous_namespace_reset_core_state_hls'
 ================================================================
-* Date:           Thu May 21 15:23:03 2026
+* Date:           Thu Jun 11 16:06:47 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -38,8 +38,8 @@
         |                                                                                 |                                                                      |  Latency (cycles) |  Latency (absolute) |  Interval |      Pipeline     |
         |                                     Instance                                    |                                Module                                |   min   |   max   |    min   |    max   | min | max |        Type       |
         +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
-        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
-        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
+        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70   |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1  |       23|       23|  0.115 us|  0.115 us|    0|    0|  loop pipeline stp|
+        |grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106  |p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3  |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
         +---------------------------------------------------------------------------------+----------------------------------------------------------------------+---------+---------+----------+----------+-----+-----+-------------------+
 
         * Loop: 
@@ -82,23 +82,23 @@ IsGatedGlobalClock: 0
 * FSM state operations: 
 
 State 1 <SV = 0> <Delay = 0.00>
-ST_1 : Operation 3 [2/2] (0.00ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 3 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
-ST_1 : Operation 4 [2/2] (0.00ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 4 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
+ST_1 : Operation 3 [2/2] (0.00ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_322_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_0, i26 %p_anonymous_namespace_g_core_state_admm_z_x_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_2, i26 %p_anonymous_namespace_g_core_state_admm_z_x_3, i26 %p_anonymous_namespace_g_core_state_admm_z_x_4, i26 %p_anonymous_namespace_g_core_state_admm_z_x_5, i26 %p_anonymous_namespace_g_core_state_admm_z_x_6, i26 %p_anonymous_namespace_g_core_state_admm_z_x_7, i26 %p_anonymous_namespace_g_core_state_admm_y_x_0, i26 %p_anonymous_namespace_g_core_state_admm_y_x_1, i26 %p_anonymous_namespace_g_core_state_admm_y_x_2, i26 %p_anonymous_namespace_g_core_state_admm_y_x_3, i26 %p_anonymous_namespace_g_core_state_admm_y_x_4, i26 %p_anonymous_namespace_g_core_state_admm_y_x_5, i26 %p_anonymous_namespace_g_core_state_admm_y_x_6, i26 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 3 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
+ST_1 : Operation 4 [2/2] (0.00ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_330_3, i26 %p_anonymous_namespace_g_core_state_admm_z_u_0, i26 %p_anonymous_namespace_g_core_state_admm_z_u_1, i26 %p_anonymous_namespace_g_core_state_admm_y_u_0, i26 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 4 'call' 'call_ln0' <Predicate = true> <Delay = 0.00> <CoreType = "Generic">   --->   Generic Core
 
 State 2 <SV = 1> <Delay = 1.64>
-ST_2 : Operation 5 [1/2] (1.64ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 5 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
-ST_2 : Operation 6 [1/2] (1.64ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 6 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
-ST_2 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln380 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho" [../src/../include/mpc_fpga_types.h:380->../src/mpc_fpga_top.cpp:88->../src/mpc_fpga_top.cpp:110]   --->   Operation 7 'store' 'store_ln380' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln381 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho_u" [../src/../include/mpc_fpga_types.h:381->../src/mpc_fpga_top.cpp:88->../src/mpc_fpga_top.cpp:110]   --->   Operation 8 'store' 'store_ln381' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln382 = store i1 0, i1 %p_anonymous_namespace_g_core_state_admm_initialized" [../src/../include/mpc_fpga_types.h:382->../src/mpc_fpga_top.cpp:88->../src/mpc_fpga_top.cpp:110]   --->   Operation 9 'store' 'store_ln382' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 10 [1/1] (0.00ns)   --->   "%store_ln112 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_fpga_top.cpp:112]   --->   Operation 10 'store' 'store_ln112' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 11 [1/1] (0.00ns)   --->   "%store_ln113 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_fpga_top.cpp:113]   --->   Operation 11 'store' 'store_ln113' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 12 [1/1] (0.00ns)   --->   "%store_ln115 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_actual_steering" [../src/mpc_fpga_top.cpp:115]   --->   Operation 12 'store' 'store_ln115' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 13 [1/1] (0.00ns)   --->   "%store_ln117 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_fpga_top.cpp:117]   --->   Operation 13 'store' 'store_ln117' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 14 [1/1] (0.00ns)   --->   "%store_ln122 = store i1 0, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_fpga_top.cpp:122]   --->   Operation 14 'store' 'store_ln122' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 15 [1/1] (0.00ns)   --->   "%store_ln125 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_max_iter_streak" [../src/mpc_fpga_top.cpp:125]   --->   Operation 15 'store' 'store_ln125' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 16 [1/1] (0.00ns)   --->   "%store_ln127 = store i1 0, i1 %p_anonymous_namespace_g_core_state_initialized" [../src/mpc_fpga_top.cpp:127]   --->   Operation 16 'store' 'store_ln127' <Predicate = true> <Delay = 0.00>
-ST_2 : Operation 17 [1/1] (0.00ns)   --->   "%ret_ln128 = ret" [../src/mpc_fpga_top.cpp:128]   --->   Operation 17 'ret' 'ret_ln128' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 5 [1/2] (1.64ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_322_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_0, i26 %p_anonymous_namespace_g_core_state_admm_z_x_1, i26 %p_anonymous_namespace_g_core_state_admm_z_x_2, i26 %p_anonymous_namespace_g_core_state_admm_z_x_3, i26 %p_anonymous_namespace_g_core_state_admm_z_x_4, i26 %p_anonymous_namespace_g_core_state_admm_z_x_5, i26 %p_anonymous_namespace_g_core_state_admm_z_x_6, i26 %p_anonymous_namespace_g_core_state_admm_z_x_7, i26 %p_anonymous_namespace_g_core_state_admm_y_x_0, i26 %p_anonymous_namespace_g_core_state_admm_y_x_1, i26 %p_anonymous_namespace_g_core_state_admm_y_x_2, i26 %p_anonymous_namespace_g_core_state_admm_y_x_3, i26 %p_anonymous_namespace_g_core_state_admm_y_x_4, i26 %p_anonymous_namespace_g_core_state_admm_y_x_5, i26 %p_anonymous_namespace_g_core_state_admm_y_x_6, i26 %p_anonymous_namespace_g_core_state_admm_y_x_7"   --->   Operation 5 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
+ST_2 : Operation 6 [1/2] (1.64ns)   --->   "%call_ln0 = call void @(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_330_3, i26 %p_anonymous_namespace_g_core_state_admm_z_u_0, i26 %p_anonymous_namespace_g_core_state_admm_z_u_1, i26 %p_anonymous_namespace_g_core_state_admm_y_u_0, i26 %p_anonymous_namespace_g_core_state_admm_y_u_1"   --->   Operation 6 'call' 'call_ln0' <Predicate = true> <Delay = 1.64> <CoreType = "Generic">   --->   Generic Core
+ST_2 : Operation 7 [1/1] (0.00ns)   --->   "%store_ln338 = store i26 0, i26 %p_anonymous_namespace_g_core_state_admm_rho" [../src/../include/mpc_fpga_types.h:338->../src/mpc_fpga_top.cpp:85->../src/mpc_fpga_top.cpp:107]   --->   Operation 7 'store' 'store_ln338' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 8 [1/1] (0.00ns)   --->   "%store_ln339 = store i26 0, i26 %p_anonymous_namespace_g_core_state_admm_rho_u" [../src/../include/mpc_fpga_types.h:339->../src/mpc_fpga_top.cpp:85->../src/mpc_fpga_top.cpp:107]   --->   Operation 8 'store' 'store_ln339' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 9 [1/1] (0.00ns)   --->   "%store_ln340 = store i1 0, i1 %p_anonymous_namespace_g_core_state_admm_initialized" [../src/../include/mpc_fpga_types.h:340->../src/mpc_fpga_top.cpp:85->../src/mpc_fpga_top.cpp:107]   --->   Operation 9 'store' 'store_ln340' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 10 [1/1] (0.00ns)   --->   "%store_ln109 = store i26 0, i26 %p_anonymous_namespace_g_core_state_persist_prev_steer_rate" [../src/mpc_fpga_top.cpp:109]   --->   Operation 10 'store' 'store_ln109' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 11 [1/1] (0.00ns)   --->   "%store_ln110 = store i26 0, i26 %p_anonymous_namespace_g_core_state_persist_prev_accel" [../src/mpc_fpga_top.cpp:110]   --->   Operation 11 'store' 'store_ln110' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 12 [1/1] (0.00ns)   --->   "%store_ln112 = store i26 0, i26 %p_anonymous_namespace_g_core_state_persist_actual_steering" [../src/mpc_fpga_top.cpp:112]   --->   Operation 12 'store' 'store_ln112' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 13 [1/1] (0.00ns)   --->   "%store_ln114 = store i26 0, i26 %p_anonymous_namespace_g_core_state_persist_prev_curvature" [../src/mpc_fpga_top.cpp:114]   --->   Operation 13 'store' 'store_ln114' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 14 [1/1] (0.00ns)   --->   "%store_ln119 = store i1 0, i1 %p_anonymous_namespace_g_core_state_persist_prev_model_signature" [../src/mpc_fpga_top.cpp:119]   --->   Operation 14 'store' 'store_ln119' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 15 [1/1] (0.00ns)   --->   "%store_ln122 = store i32 0, i32 %p_anonymous_namespace_g_core_state_persist_max_iter_streak" [../src/mpc_fpga_top.cpp:122]   --->   Operation 15 'store' 'store_ln122' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 16 [1/1] (0.00ns)   --->   "%store_ln124 = store i1 0, i1 %p_anonymous_namespace_g_core_state_initialized" [../src/mpc_fpga_top.cpp:124]   --->   Operation 16 'store' 'store_ln124' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 17 [1/1] (0.00ns)   --->   "%ret_ln125 = ret" [../src/mpc_fpga_top.cpp:125]   --->   Operation 17 'ret' 'ret_ln125' <Predicate = true> <Delay = 0.00>
 
 
 ============================================================
@@ -150,17 +150,17 @@ Port [ p_anonymous_namespace_g_core_state_initialized]:  wired=1; compound=0; hi
 <method=bitvector/>
 call_ln0    (call ) [ 000]
 call_ln0    (call ) [ 000]
-store_ln380 (store) [ 000]
-store_ln381 (store) [ 000]
-store_ln382 (store) [ 000]
+store_ln338 (store) [ 000]
+store_ln339 (store) [ 000]
+store_ln340 (store) [ 000]
+store_ln109 (store) [ 000]
+store_ln110 (store) [ 000]
 store_ln112 (store) [ 000]
-store_ln113 (store) [ 000]
-store_ln115 (store) [ 000]
-store_ln117 (store) [ 000]
+store_ln114 (store) [ 000]
+store_ln119 (store) [ 000]
 store_ln122 (store) [ 000]
-store_ln125 (store) [ 000]
-store_ln127 (store) [ 000]
-ret_ln128   (ret  ) [ 000]
+store_ln124 (store) [ 000]
+ret_ln125   (ret  ) [ 000]
 </LifeTime>
 
 <model>
@@ -461,7 +461,7 @@ ret_ln128   (ret  ) [ 000]
 <pin id="61" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_364_1"/></StgValue>
+<StgValue><ssdm name="(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_322_1"/></StgValue>
 </bind>
 </comp>
 
@@ -470,7 +470,7 @@ ret_ln128   (ret  ) [ 000]
 <pin id="63" dir="1" index="0" bw="1" slack="0"/>
 </pin_list>
 <bind>
-<StgValue><ssdm name="(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_372_3"/></StgValue>
+<StgValue><ssdm name="(anonymous namespace)reset_core_state_hls_Pipeline_VITIS_LOOP_330_3"/></StgValue>
 </bind>
 </comp>
 
@@ -492,26 +492,35 @@ ret_ln128   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="68" class="1004" name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68">
+<comp id="68" class="1001" name="const_68">
 <pin_list>
-<pin id="69" dir="0" index="0" bw="0" slack="0"/>
-<pin id="70" dir="0" index="1" bw="32" slack="0"/>
-<pin id="71" dir="0" index="2" bw="32" slack="0"/>
-<pin id="72" dir="0" index="3" bw="32" slack="0"/>
-<pin id="73" dir="0" index="4" bw="32" slack="0"/>
-<pin id="74" dir="0" index="5" bw="32" slack="0"/>
-<pin id="75" dir="0" index="6" bw="32" slack="0"/>
-<pin id="76" dir="0" index="7" bw="32" slack="0"/>
-<pin id="77" dir="0" index="8" bw="32" slack="0"/>
-<pin id="78" dir="0" index="9" bw="32" slack="0"/>
-<pin id="79" dir="0" index="10" bw="32" slack="0"/>
-<pin id="80" dir="0" index="11" bw="32" slack="0"/>
-<pin id="81" dir="0" index="12" bw="32" slack="0"/>
-<pin id="82" dir="0" index="13" bw="32" slack="0"/>
-<pin id="83" dir="0" index="14" bw="32" slack="0"/>
-<pin id="84" dir="0" index="15" bw="32" slack="0"/>
-<pin id="85" dir="0" index="16" bw="32" slack="0"/>
-<pin id="86" dir="1" index="17" bw="0" slack="2147483647"/>
+<pin id="69" dir="1" index="0" bw="1" slack="0"/>
+</pin_list>
+<bind>
+<StgValue><ssdm name=""/></StgValue>
+</bind>
+</comp>
+
+<comp id="70" class="1004" name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70">
+<pin_list>
+<pin id="71" dir="0" index="0" bw="0" slack="0"/>
+<pin id="72" dir="0" index="1" bw="26" slack="0"/>
+<pin id="73" dir="0" index="2" bw="26" slack="0"/>
+<pin id="74" dir="0" index="3" bw="26" slack="0"/>
+<pin id="75" dir="0" index="4" bw="26" slack="0"/>
+<pin id="76" dir="0" index="5" bw="26" slack="0"/>
+<pin id="77" dir="0" index="6" bw="26" slack="0"/>
+<pin id="78" dir="0" index="7" bw="26" slack="0"/>
+<pin id="79" dir="0" index="8" bw="26" slack="0"/>
+<pin id="80" dir="0" index="9" bw="26" slack="0"/>
+<pin id="81" dir="0" index="10" bw="26" slack="0"/>
+<pin id="82" dir="0" index="11" bw="26" slack="0"/>
+<pin id="83" dir="0" index="12" bw="26" slack="0"/>
+<pin id="84" dir="0" index="13" bw="26" slack="0"/>
+<pin id="85" dir="0" index="14" bw="26" slack="0"/>
+<pin id="86" dir="0" index="15" bw="26" slack="0"/>
+<pin id="87" dir="0" index="16" bw="26" slack="0"/>
+<pin id="88" dir="1" index="17" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="call(48) " fcode="call"/>
@@ -519,14 +528,14 @@ ret_ln128   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="104" class="1004" name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104">
+<comp id="106" class="1004" name="grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106">
 <pin_list>
-<pin id="105" dir="0" index="0" bw="0" slack="0"/>
-<pin id="106" dir="0" index="1" bw="32" slack="0"/>
-<pin id="107" dir="0" index="2" bw="32" slack="0"/>
-<pin id="108" dir="0" index="3" bw="32" slack="0"/>
-<pin id="109" dir="0" index="4" bw="32" slack="0"/>
-<pin id="110" dir="1" index="5" bw="0" slack="2147483647"/>
+<pin id="107" dir="0" index="0" bw="0" slack="0"/>
+<pin id="108" dir="0" index="1" bw="26" slack="0"/>
+<pin id="109" dir="0" index="2" bw="26" slack="0"/>
+<pin id="110" dir="0" index="3" bw="26" slack="0"/>
+<pin id="111" dir="0" index="4" bw="26" slack="0"/>
+<pin id="112" dir="1" index="5" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="call(48) " fcode="call"/>
@@ -534,47 +543,71 @@ ret_ln128   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="116" class="1004" name="store_ln380_store_fu_116">
+<comp id="118" class="1004" name="store_ln338_store_fu_118">
 <pin_list>
-<pin id="117" dir="0" index="0" bw="1" slack="0"/>
-<pin id="118" dir="0" index="1" bw="32" slack="0"/>
-<pin id="119" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="119" dir="0" index="0" bw="1" slack="0"/>
+<pin id="120" dir="0" index="1" bw="26" slack="0"/>
+<pin id="121" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln380/2 "/>
+<opset="store_ln338/2 "/>
 </bind>
 </comp>
 
-<comp id="122" class="1004" name="store_ln381_store_fu_122">
+<comp id="124" class="1004" name="store_ln339_store_fu_124">
 <pin_list>
-<pin id="123" dir="0" index="0" bw="1" slack="0"/>
-<pin id="124" dir="0" index="1" bw="32" slack="0"/>
-<pin id="125" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="125" dir="0" index="0" bw="1" slack="0"/>
+<pin id="126" dir="0" index="1" bw="26" slack="0"/>
+<pin id="127" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln381/2 "/>
+<opset="store_ln339/2 "/>
 </bind>
 </comp>
 
-<comp id="128" class="1004" name="store_ln382_store_fu_128">
+<comp id="130" class="1004" name="store_ln340_store_fu_130">
 <pin_list>
-<pin id="129" dir="0" index="0" bw="1" slack="0"/>
-<pin id="130" dir="0" index="1" bw="1" slack="0"/>
-<pin id="131" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="131" dir="0" index="0" bw="1" slack="0"/>
+<pin id="132" dir="0" index="1" bw="1" slack="0"/>
+<pin id="133" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln382/2 "/>
+<opset="store_ln340/2 "/>
 </bind>
 </comp>
 
-<comp id="134" class="1004" name="store_ln112_store_fu_134">
+<comp id="136" class="1004" name="store_ln109_store_fu_136">
 <pin_list>
-<pin id="135" dir="0" index="0" bw="1" slack="0"/>
-<pin id="136" dir="0" index="1" bw="32" slack="0"/>
-<pin id="137" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="137" dir="0" index="0" bw="1" slack="0"/>
+<pin id="138" dir="0" index="1" bw="26" slack="0"/>
+<pin id="139" dir="1" index="2" bw="0" slack="2147483647"/>
+</pin_list>
+<bind>
+<opcode="store(28) " fcode="store"/>
+<opset="store_ln109/2 "/>
+</bind>
+</comp>
+
+<comp id="142" class="1004" name="store_ln110_store_fu_142">
+<pin_list>
+<pin id="143" dir="0" index="0" bw="1" slack="0"/>
+<pin id="144" dir="0" index="1" bw="26" slack="0"/>
+<pin id="145" dir="1" index="2" bw="0" slack="2147483647"/>
+</pin_list>
+<bind>
+<opcode="store(28) " fcode="store"/>
+<opset="store_ln110/2 "/>
+</bind>
+</comp>
+
+<comp id="148" class="1004" name="store_ln112_store_fu_148">
+<pin_list>
+<pin id="149" dir="0" index="0" bw="1" slack="0"/>
+<pin id="150" dir="0" index="1" bw="26" slack="0"/>
+<pin id="151" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
@@ -582,47 +615,35 @@ ret_ln128   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="140" class="1004" name="store_ln113_store_fu_140">
+<comp id="154" class="1004" name="store_ln114_store_fu_154">
 <pin_list>
-<pin id="141" dir="0" index="0" bw="1" slack="0"/>
-<pin id="142" dir="0" index="1" bw="32" slack="0"/>
-<pin id="143" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="155" dir="0" index="0" bw="1" slack="0"/>
+<pin id="156" dir="0" index="1" bw="26" slack="0"/>
+<pin id="157" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln113/2 "/>
+<opset="store_ln114/2 "/>
 </bind>
 </comp>
 
-<comp id="146" class="1004" name="store_ln115_store_fu_146">
+<comp id="160" class="1004" name="store_ln119_store_fu_160">
 <pin_list>
-<pin id="147" dir="0" index="0" bw="1" slack="0"/>
-<pin id="148" dir="0" index="1" bw="32" slack="0"/>
-<pin id="149" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="161" dir="0" index="0" bw="1" slack="0"/>
+<pin id="162" dir="0" index="1" bw="1" slack="0"/>
+<pin id="163" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln115/2 "/>
+<opset="store_ln119/2 "/>
 </bind>
 </comp>
 
-<comp id="152" class="1004" name="store_ln117_store_fu_152">
+<comp id="166" class="1004" name="store_ln122_store_fu_166">
 <pin_list>
-<pin id="153" dir="0" index="0" bw="1" slack="0"/>
-<pin id="154" dir="0" index="1" bw="32" slack="0"/>
-<pin id="155" dir="1" index="2" bw="0" slack="2147483647"/>
-</pin_list>
-<bind>
-<opcode="store(28) " fcode="store"/>
-<opset="store_ln117/2 "/>
-</bind>
-</comp>
-
-<comp id="158" class="1004" name="store_ln122_store_fu_158">
-<pin_list>
-<pin id="159" dir="0" index="0" bw="1" slack="0"/>
-<pin id="160" dir="0" index="1" bw="1" slack="0"/>
-<pin id="161" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="167" dir="0" index="0" bw="1" slack="0"/>
+<pin id="168" dir="0" index="1" bw="32" slack="0"/>
+<pin id="169" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
@@ -630,116 +651,104 @@ ret_ln128   (ret  ) [ 000]
 </bind>
 </comp>
 
-<comp id="164" class="1004" name="store_ln125_store_fu_164">
+<comp id="172" class="1004" name="store_ln124_store_fu_172">
 <pin_list>
-<pin id="165" dir="0" index="0" bw="1" slack="0"/>
-<pin id="166" dir="0" index="1" bw="32" slack="0"/>
-<pin id="167" dir="1" index="2" bw="0" slack="2147483647"/>
+<pin id="173" dir="0" index="0" bw="1" slack="0"/>
+<pin id="174" dir="0" index="1" bw="1" slack="0"/>
+<pin id="175" dir="1" index="2" bw="0" slack="2147483647"/>
 </pin_list>
 <bind>
 <opcode="store(28) " fcode="store"/>
-<opset="store_ln125/2 "/>
-</bind>
-</comp>
-
-<comp id="170" class="1004" name="store_ln127_store_fu_170">
-<pin_list>
-<pin id="171" dir="0" index="0" bw="1" slack="0"/>
-<pin id="172" dir="0" index="1" bw="1" slack="0"/>
-<pin id="173" dir="1" index="2" bw="0" slack="2147483647"/>
-</pin_list>
-<bind>
-<opcode="store(28) " fcode="store"/>
-<opset="store_ln127/2 "/>
+<opset="store_ln124/2 "/>
 </bind>
 </comp>
 
 </comp_list>
 
 <net_list>
-<net id="87"><net_src comp="60" pin="0"/><net_sink comp="68" pin=0"/></net>
+<net id="89"><net_src comp="60" pin="0"/><net_sink comp="70" pin=0"/></net>
 
-<net id="88"><net_src comp="0" pin="0"/><net_sink comp="68" pin=1"/></net>
+<net id="90"><net_src comp="0" pin="0"/><net_sink comp="70" pin=1"/></net>
 
-<net id="89"><net_src comp="2" pin="0"/><net_sink comp="68" pin=2"/></net>
+<net id="91"><net_src comp="2" pin="0"/><net_sink comp="70" pin=2"/></net>
 
-<net id="90"><net_src comp="4" pin="0"/><net_sink comp="68" pin=3"/></net>
+<net id="92"><net_src comp="4" pin="0"/><net_sink comp="70" pin=3"/></net>
 
-<net id="91"><net_src comp="6" pin="0"/><net_sink comp="68" pin=4"/></net>
+<net id="93"><net_src comp="6" pin="0"/><net_sink comp="70" pin=4"/></net>
 
-<net id="92"><net_src comp="8" pin="0"/><net_sink comp="68" pin=5"/></net>
+<net id="94"><net_src comp="8" pin="0"/><net_sink comp="70" pin=5"/></net>
 
-<net id="93"><net_src comp="10" pin="0"/><net_sink comp="68" pin=6"/></net>
+<net id="95"><net_src comp="10" pin="0"/><net_sink comp="70" pin=6"/></net>
 
-<net id="94"><net_src comp="12" pin="0"/><net_sink comp="68" pin=7"/></net>
+<net id="96"><net_src comp="12" pin="0"/><net_sink comp="70" pin=7"/></net>
 
-<net id="95"><net_src comp="14" pin="0"/><net_sink comp="68" pin=8"/></net>
+<net id="97"><net_src comp="14" pin="0"/><net_sink comp="70" pin=8"/></net>
 
-<net id="96"><net_src comp="16" pin="0"/><net_sink comp="68" pin=9"/></net>
+<net id="98"><net_src comp="16" pin="0"/><net_sink comp="70" pin=9"/></net>
 
-<net id="97"><net_src comp="18" pin="0"/><net_sink comp="68" pin=10"/></net>
+<net id="99"><net_src comp="18" pin="0"/><net_sink comp="70" pin=10"/></net>
 
-<net id="98"><net_src comp="20" pin="0"/><net_sink comp="68" pin=11"/></net>
+<net id="100"><net_src comp="20" pin="0"/><net_sink comp="70" pin=11"/></net>
 
-<net id="99"><net_src comp="22" pin="0"/><net_sink comp="68" pin=12"/></net>
+<net id="101"><net_src comp="22" pin="0"/><net_sink comp="70" pin=12"/></net>
 
-<net id="100"><net_src comp="24" pin="0"/><net_sink comp="68" pin=13"/></net>
+<net id="102"><net_src comp="24" pin="0"/><net_sink comp="70" pin=13"/></net>
 
-<net id="101"><net_src comp="26" pin="0"/><net_sink comp="68" pin=14"/></net>
+<net id="103"><net_src comp="26" pin="0"/><net_sink comp="70" pin=14"/></net>
 
-<net id="102"><net_src comp="28" pin="0"/><net_sink comp="68" pin=15"/></net>
+<net id="104"><net_src comp="28" pin="0"/><net_sink comp="70" pin=15"/></net>
 
-<net id="103"><net_src comp="30" pin="0"/><net_sink comp="68" pin=16"/></net>
+<net id="105"><net_src comp="30" pin="0"/><net_sink comp="70" pin=16"/></net>
 
-<net id="111"><net_src comp="62" pin="0"/><net_sink comp="104" pin=0"/></net>
+<net id="113"><net_src comp="62" pin="0"/><net_sink comp="106" pin=0"/></net>
 
-<net id="112"><net_src comp="32" pin="0"/><net_sink comp="104" pin=1"/></net>
+<net id="114"><net_src comp="32" pin="0"/><net_sink comp="106" pin=1"/></net>
 
-<net id="113"><net_src comp="34" pin="0"/><net_sink comp="104" pin=2"/></net>
+<net id="115"><net_src comp="34" pin="0"/><net_sink comp="106" pin=2"/></net>
 
-<net id="114"><net_src comp="36" pin="0"/><net_sink comp="104" pin=3"/></net>
+<net id="116"><net_src comp="36" pin="0"/><net_sink comp="106" pin=3"/></net>
 
-<net id="115"><net_src comp="38" pin="0"/><net_sink comp="104" pin=4"/></net>
+<net id="117"><net_src comp="38" pin="0"/><net_sink comp="106" pin=4"/></net>
 
-<net id="120"><net_src comp="64" pin="0"/><net_sink comp="116" pin=0"/></net>
+<net id="122"><net_src comp="64" pin="0"/><net_sink comp="118" pin=0"/></net>
 
-<net id="121"><net_src comp="40" pin="0"/><net_sink comp="116" pin=1"/></net>
+<net id="123"><net_src comp="40" pin="0"/><net_sink comp="118" pin=1"/></net>
 
-<net id="126"><net_src comp="64" pin="0"/><net_sink comp="122" pin=0"/></net>
+<net id="128"><net_src comp="64" pin="0"/><net_sink comp="124" pin=0"/></net>
 
-<net id="127"><net_src comp="42" pin="0"/><net_sink comp="122" pin=1"/></net>
+<net id="129"><net_src comp="42" pin="0"/><net_sink comp="124" pin=1"/></net>
 
-<net id="132"><net_src comp="66" pin="0"/><net_sink comp="128" pin=0"/></net>
+<net id="134"><net_src comp="66" pin="0"/><net_sink comp="130" pin=0"/></net>
 
-<net id="133"><net_src comp="44" pin="0"/><net_sink comp="128" pin=1"/></net>
+<net id="135"><net_src comp="44" pin="0"/><net_sink comp="130" pin=1"/></net>
 
-<net id="138"><net_src comp="64" pin="0"/><net_sink comp="134" pin=0"/></net>
+<net id="140"><net_src comp="64" pin="0"/><net_sink comp="136" pin=0"/></net>
 
-<net id="139"><net_src comp="46" pin="0"/><net_sink comp="134" pin=1"/></net>
+<net id="141"><net_src comp="46" pin="0"/><net_sink comp="136" pin=1"/></net>
 
-<net id="144"><net_src comp="64" pin="0"/><net_sink comp="140" pin=0"/></net>
+<net id="146"><net_src comp="64" pin="0"/><net_sink comp="142" pin=0"/></net>
 
-<net id="145"><net_src comp="48" pin="0"/><net_sink comp="140" pin=1"/></net>
+<net id="147"><net_src comp="48" pin="0"/><net_sink comp="142" pin=1"/></net>
 
-<net id="150"><net_src comp="64" pin="0"/><net_sink comp="146" pin=0"/></net>
+<net id="152"><net_src comp="64" pin="0"/><net_sink comp="148" pin=0"/></net>
 
-<net id="151"><net_src comp="50" pin="0"/><net_sink comp="146" pin=1"/></net>
+<net id="153"><net_src comp="50" pin="0"/><net_sink comp="148" pin=1"/></net>
 
-<net id="156"><net_src comp="64" pin="0"/><net_sink comp="152" pin=0"/></net>
+<net id="158"><net_src comp="64" pin="0"/><net_sink comp="154" pin=0"/></net>
 
-<net id="157"><net_src comp="52" pin="0"/><net_sink comp="152" pin=1"/></net>
+<net id="159"><net_src comp="52" pin="0"/><net_sink comp="154" pin=1"/></net>
 
-<net id="162"><net_src comp="66" pin="0"/><net_sink comp="158" pin=0"/></net>
+<net id="164"><net_src comp="66" pin="0"/><net_sink comp="160" pin=0"/></net>
 
-<net id="163"><net_src comp="54" pin="0"/><net_sink comp="158" pin=1"/></net>
+<net id="165"><net_src comp="54" pin="0"/><net_sink comp="160" pin=1"/></net>
 
-<net id="168"><net_src comp="64" pin="0"/><net_sink comp="164" pin=0"/></net>
+<net id="170"><net_src comp="68" pin="0"/><net_sink comp="166" pin=0"/></net>
 
-<net id="169"><net_src comp="56" pin="0"/><net_sink comp="164" pin=1"/></net>
+<net id="171"><net_src comp="56" pin="0"/><net_sink comp="166" pin=1"/></net>
 
-<net id="174"><net_src comp="66" pin="0"/><net_sink comp="170" pin=0"/></net>
+<net id="176"><net_src comp="66" pin="0"/><net_sink comp="172" pin=0"/></net>
 
-<net id="175"><net_src comp="58" pin="0"/><net_sink comp="170" pin=1"/></net>
+<net id="177"><net_src comp="58" pin="0"/><net_sink comp="172" pin=1"/></net>
 
 </net_list>
 
@@ -792,8 +801,8 @@ ret_ln128   (ret  ) [ 000]
 |----------|---------------------------------------------------------------------------------|---------|---------|
 | Operation|                                 Functional Unit                                 |    FF   |   LUT   |
 |----------|---------------------------------------------------------------------------------|---------|---------|
-|   call   |  grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68 |    5    |    24   |
-|          | grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104 |    5    |    24   |
+|   call   |  grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_322_1_fu_70 |    5    |    24   |
+|          | grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_330_3_fu_106 |    5    |    24   |
 |----------|---------------------------------------------------------------------------------|---------|---------|
 |   Total  |                                                                                 |    10   |    48   |
 |----------|---------------------------------------------------------------------------------|---------|---------|

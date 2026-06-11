@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'sum6_P_QP_raw'" level="0">
-<item name = "Date">Thu May 21 15:23:11 2026
+<item name = "Date">Thu Jun 11 16:07:03 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 1.893 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 1.796 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -47,7 +47,7 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 297, -</column>
+<column name="Expression">-, -, 0, 212, -</column>
 <column name="FIFO">-, -, -, -, -</column>
 <column name="Instance">-, -, -, -, -</column>
 <column name="Memory">-, -, -, -, -</column>
@@ -77,11 +77,11 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="add_ln187_1_fu_74_p2">+, 0, 0, 58, 58, 58</column>
-<column name="add_ln187_2_fu_80_p2">+, 0, 0, 58, 58, 58</column>
-<column name="add_ln187_3_fu_86_p2">+, 0, 0, 58, 58, 58</column>
-<column name="add_ln187_fu_68_p2">+, 0, 0, 65, 58, 58</column>
-<column name="ap_return">+, 0, 0, 58, 58, 58</column>
+<column name="add_ln202_1_fu_66_p2">+, 0, 0, 41, 41, 41</column>
+<column name="add_ln202_2_fu_72_p2">+, 0, 0, 41, 41, 41</column>
+<column name="add_ln202_3_fu_78_p2">+, 0, 0, 41, 41, 41</column>
+<column name="add_ln202_fu_60_p2">+, 0, 0, 48, 41, 41</column>
+<column name="ap_return">+, 0, 0, 41, 41, 41</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
@@ -100,14 +100,14 @@
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
 <column name="ap_ready">out, 1, ap_ctrl_hs, sum6_P_QP_raw, return value</column>
-<column name="ap_return">out, 58, ap_ctrl_hs, sum6_P_QP_raw, return value</column>
+<column name="ap_return">out, 41, ap_ctrl_hs, sum6_P_QP_raw, return value</column>
 <column name="ap_rst">in, 1, ap_ctrl_hs, sum6_P_QP_raw, return value</column>
-<column name="a0">in, 58, ap_none, a0, scalar</column>
-<column name="a1">in, 58, ap_none, a1, scalar</column>
-<column name="a2">in, 58, ap_none, a2, scalar</column>
-<column name="a3">in, 58, ap_none, a3, scalar</column>
-<column name="a4">in, 58, ap_none, a4, scalar</column>
-<column name="a5">in, 58, ap_none, a5, scalar</column>
+<column name="a0">in, 41, ap_none, a0, scalar</column>
+<column name="a1">in, 41, ap_none, a1, scalar</column>
+<column name="a2">in, 41, ap_none, a2, scalar</column>
+<column name="a3">in, 41, ap_none, a3, scalar</column>
+<column name="a4">in, 41, ap_none, a4, scalar</column>
+<column name="a5">in, 41, ap_none, a5, scalar</column>
 </table>
 </item>
 </section>

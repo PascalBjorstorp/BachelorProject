@@ -31,7 +31,7 @@ def emit_qp_header() -> None:
     sin_vals, cos_vals = trig_tables()
     atan_vals = [math.atan(ATAN_DOMAIN * i / N) for i in range(N + 1)]
 
-    fp_frac_bits = 18
+    fp_frac_bits = 14  # QP now Q12.14
     one_raw = 1 << fp_frac_bits
     recip_vals = [int((one_raw * (2 * RECIP_N)) // (RECIP_N + i))
                   for i in range(RECIP_N + 1)]
@@ -84,7 +84,7 @@ def emit_fn_header() -> None:
     sin_vals, cos_vals = trig_tables()
     atan_vals = [math.atan(ATAN_DOMAIN * i / N) for i in range(N + 1)]
 
-    fp_frac_bits = 17
+    fp_frac_bits = 14  # FN unified to F=14
     one_raw = 1 << fp_frac_bits
     recip_vals = [int((one_raw * (2 * RECIP_N)) // (RECIP_N + i))
                   for i in range(RECIP_N + 1)]

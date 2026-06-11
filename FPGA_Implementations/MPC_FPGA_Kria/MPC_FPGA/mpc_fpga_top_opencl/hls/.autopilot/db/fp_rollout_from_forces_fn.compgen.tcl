@@ -1,19 +1,24 @@
 # This script segment is generated automatically by AutoPilot
 
-set name mpc_fpga_top_opencl_mul_26s_23ns_49_4_1
+set name mpc_fpga_top_opencl_mul_21s_12ns_33_1_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {auto} LATENCY 0 ALLOW_PRAGMA 1
 }
 
 
-set name mpc_fpga_top_opencl_mul_26s_17ns_43_4_1
+set name mpc_fpga_top_opencl_mul_21s_8ns_29_3_1
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 3 ALLOW_PRAGMA 1
+	::AP::rtl_comp_handler $name BINDTYPE {op} TYPE {mul} IMPL {dsp} LATENCY 2 ALLOW_PRAGMA 1
 }
 
 
 if {${::AESL::PGuard_rtl_comp_handler}} {
-	::AP::rtl_comp_handler mpc_fpga_top_opencl_am_addmul_26s_26s_16ns_43_4_1 BINDTYPE {op} TYPE {all} IMPL {dsp_slice} LATENCY 3
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_am_addmul_21s_21s_11ns_33_4_1 BINDTYPE {op} TYPE {all} IMPL {dsp_slice} LATENCY 3
+}
+
+
+if {${::AESL::PGuard_rtl_comp_handler}} {
+	::AP::rtl_comp_handler mpc_fpga_top_opencl_am_submul_20s_20s_17ns_33_4_1 BINDTYPE {op} TYPE {all} IMPL {dsp_slice} LATENCY 3
 }
 
 
@@ -27,7 +32,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 450 \
+    id 448 \
     name ey \
     type other \
     dir I \
@@ -35,14 +40,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_ey \
     op interface \
-    ports { ey { I 26 vector } } \
+    ports { ey { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 451 \
+    id 449 \
     name epsi \
     type other \
     dir I \
@@ -50,14 +55,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_epsi \
     op interface \
-    ports { epsi { I 26 vector } } \
+    ports { epsi { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 452 \
+    id 450 \
     name sin_epsi \
     type other \
     dir I \
@@ -65,14 +70,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_sin_epsi \
     op interface \
-    ports { sin_epsi { I 26 vector } } \
+    ports { sin_epsi { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 453 \
+    id 451 \
     name cos_epsi \
     type other \
     dir I \
@@ -80,14 +85,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_cos_epsi \
     op interface \
-    ports { cos_epsi { I 26 vector } } \
+    ports { cos_epsi { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 454 \
+    id 452 \
     name vx_safe \
     type other \
     dir I \
@@ -95,14 +100,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vx_safe \
     op interface \
-    ports { vx_safe { I 26 vector } } \
+    ports { vx_safe { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 455 \
+    id 453 \
     name vy \
     type other \
     dir I \
@@ -110,14 +115,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_vy \
     op interface \
-    ports { vy { I 26 vector } } \
+    ports { vy { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 456 \
+    id 454 \
     name omega \
     type other \
     dir I \
@@ -125,14 +130,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_omega \
     op interface \
-    ports { omega { I 26 vector } } \
+    ports { omega { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 457 \
+    id 455 \
     name kappa \
     type other \
     dir I \
@@ -140,14 +145,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_kappa \
     op interface \
-    ports { kappa { I 26 vector } } \
+    ports { kappa { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 458 \
+    id 456 \
     name Fx \
     type other \
     dir I \
@@ -155,14 +160,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_Fx \
     op interface \
-    ports { Fx { I 26 vector } } \
+    ports { Fx { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 459 \
+    id 457 \
     name F_yf \
     type other \
     dir I \
@@ -170,14 +175,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_F_yf \
     op interface \
-    ports { F_yf { I 26 vector } } \
+    ports { F_yf { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 460 \
+    id 458 \
     name F_yr \
     type other \
     dir I \
@@ -185,14 +190,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_F_yr \
     op interface \
-    ports { F_yr { I 26 vector } } \
+    ports { F_yr { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 461 \
+    id 459 \
     name sin_delta \
     type other \
     dir I \
@@ -200,14 +205,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_sin_delta \
     op interface \
-    ports { sin_delta { I 26 vector } } \
+    ports { sin_delta { I 21 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 462 \
+    id 460 \
     name cos_delta \
     type other \
     dir I \
@@ -215,7 +220,7 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_cos_delta \
     op interface \
-    ports { cos_delta { I 26 vector } } \
+    ports { cos_delta { I 21 vector } } \
 } "
 }
 

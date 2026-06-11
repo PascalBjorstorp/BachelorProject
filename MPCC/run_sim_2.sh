@@ -56,11 +56,21 @@ cleanup() {
     pkill -f 'ros2 launch f1tenth_gym_ros gym_bridge_launch.py' 2>/dev/null || true
     pkill -f '/mpcc_f1_10th/mpcc_node' 2>/dev/null || true
     pkill -f '/f1tenth_gym_ros/gym_bridge' 2>/dev/null || true
-    pkill -f 'rviz2.*gym_bridge.rviz' 2>/dev/null || true
+    pkill -f 'mpcc_node' 2>/dev/null || true
+    pkill -f 'gym_bridge' 2>/dev/null || true
+    pkill -f 'rviz2' 2>/dev/null || true
     pkill -f 'lifecycle_manager_localization' 2>/dev/null || true
     pkill -f 'nav2_map_server' 2>/dev/null || true
     pkill -f 'ego_robot_state_publisher' 2>/dev/null || true
+    pkill -f 'robot_state_publisher' 2>/dev/null || true
     sleep 0.5
+    # Hard-kill any stragglers and clear ROS2 daemon cache so no DDS
+    # entries from a crashed prior run can leak phantom data into the new run.
+    pkill -9 -f 'mpcc_node\|gym_bridge\|rviz2\|lifecycle_manager_localization\|nav2_map_server\|robot_state_publisher' 2>/dev/null || true
+    ros2 daemon stop 2>/dev/null || true
+    # DDS lease timeout is multi-second; sleep long enough that stale subs/pubs
+    # from a previous crashed run aren't still in the network discovery cache.
+    sleep 3
     if [[ "${had_errexit}" -eq 1 ]]; then
         set -e
     fi
@@ -324,6 +334,17 @@ case "${MPCC_PROFILE}" in
         ;;
 esac
 
+if [[ -z "${MPCC_CROSS_CALL_SCALE:-}" ]]; then
+    if [[ -z "${CROSS_CALL_SCALE:-}" || "${CROSS_CALL_SCALE}" == "0.166667" ]]; then
+        CROSS_CALL_SCALE="$(
+            awk -v control_dt="0.05" -v pred_dt="${DT}" 'BEGIN {
+                if (pred_dt > 0.0) printf "%.6f", control_dt / pred_dt;
+                else printf "%.6f", 1.0;
+            }'
+        )"
+    fi
+fi
+
 export MPCC_PROFILE
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
 export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.0}"
@@ -411,10 +432,27 @@ MPCC_PID=$!
 echo "Running for up to ${DURATION_SECONDS}s (stops early on collision)..."
 END_TIME=$((SECONDS + DURATION_SECONDS))
 COLLISION_SEEN=0
+LAP_TARGET="${LAP_TARGET:-0}"  # If > 0, stop early once this many laps detected
 while [ "${SECONDS}" -lt "${END_TIME}" ]; do
     if grep -q 'Ego vehicle collision detected!' "${GYM_LOG}" 2>/dev/null; then
         COLLISION_SEEN=1
         break
+    fi
+
+    if [[ "${LAP_TARGET}" -gt 0 ]]; then
+        # grep -c returns 1 when no matches; with set -e/pipefail that aborts
+        # the script, so isolate the call and default to 0 on any failure.
+        if [[ -s "${MPCC_LOG}" ]]; then
+            LAPS_NOW=$(grep -c '\[LAP ' "${MPCC_LOG}" 2>/dev/null || true)
+        else
+            LAPS_NOW=0
+        fi
+        LAPS_NOW=$(printf '%s' "${LAPS_NOW}" | tr -d '[:space:]')
+        LAPS_NOW="${LAPS_NOW:-0}"
+        if [[ "${LAPS_NOW}" =~ ^[0-9]+$ ]] && [[ "${LAPS_NOW}" -ge "${LAP_TARGET}" ]]; then
+            echo "Lap target reached: ${LAPS_NOW} >= ${LAP_TARGET}"
+            break
+        fi
     fi
 
     if [[ -n "${MPCC_PID}" ]] && ! kill -0 "${MPCC_PID}" 2>/dev/null; then
@@ -453,13 +491,46 @@ if first_rviz_crash_line is None:
     first_rviz_crash_line, first_rviz_crash_text = first_line(rviz_lines, "process has died")
 if first_rviz_crash_line is None:
     first_rviz_crash_line, first_rviz_crash_text = first_line(rviz_lines, "GLSL link result")
-first_status2_line, first_status2_text = first_line(mpcc, "status=2")
-if first_status2_line is None:
-    first_status2_line, first_status2_text = first_line(mpcc, "status=3")
+# Parser supports two log formats:
+#   1) Verbose debug build: "[MPCC] status=N iter=M prim=... dual=... rho=... ..."
+#   2) Runtime per-tick line from mpcc_ros2_node.c:
+#      "[MPCC   1] s=... vx=... X=... Y=... psi=... | d=... ax=... vt=... | st=N it=M"
+# Status semantics (MPCCStatus_t): 0=SUCCESS, 1=MAX_ITERATIONS, 2=INFEASIBLE, 3=ERROR
+status_re_debug = re.compile(r"\[MPCC\]\s+status=(\d+)")
+status_re_tick  = re.compile(r"\[MPCC\s+\d+\].*\bst=(\d+)\s+it=(\d+)")
 
-status2_count = sum(("status=2" in line) or ("status=3" in line) for line in mpcc)
-status1_count = sum("status=1" in line for line in mpcc)
-status0_count = sum("status=0" in line for line in mpcc)
+def status_of(line):
+    m = status_re_debug.search(line)
+    if m:
+        return int(m.group(1))
+    m = status_re_tick.search(line)
+    if m:
+        return int(m.group(1))
+    return None
+
+first_status2_line = None
+first_status2_text = None
+for i, line in enumerate(mpcc, start=1):
+    s = status_of(line)
+    if s in (2, 3):
+        first_status2_line = i
+        first_status2_text = line
+        break
+
+status0_count = 0
+status1_count = 0
+status2_count = 0
+for line in mpcc:
+    s = status_of(line)
+    if s == 0:
+        status0_count += 1
+    elif s == 1:
+        status1_count += 1
+    elif s in (2, 3):
+        status2_count += 1
+
+blowup_count = sum(1 for line in mpcc if "predicted x_N magnitude" in line)
+first_blowup_line, first_blowup_text = first_line(mpcc, "predicted x_N magnitude")
 
 clip_vals = []
 rho_update_vals = []
@@ -473,8 +544,6 @@ saturated_ax = 0
 saturated_vtheta0 = 0
 saturated_vthetamax = 0
 for line in mpcc:
-    if "[MPCC] status=" not in line:
-        continue
     m_main = re.search(
         r"status=(\d+)\s+iter=(\d+)\s+prim=([0-9.]+)\s+dual=([0-9.]+)\s+rho=([0-9.]+)\s+rho_u=([0-9.]+).*delta=([-.0-9]+)\s+a_x=([-.0-9]+)\s+v_theta=([-.0-9]+)",
         line,
@@ -488,14 +557,25 @@ for line in mpcc:
         delta = float(m_main.group(7))
         a_x = float(m_main.group(8))
         v_theta = float(m_main.group(9))
-        if abs(abs(delta) - 0.4189) < 0.01:
-            saturated_delta += 1
-        if abs(abs(a_x) - 7.308) < 0.1:
-            saturated_ax += 1
-        if abs(v_theta) < 1e-3:
-            saturated_vtheta0 += 1
-        if abs(v_theta - 10.0) < 0.1:
-            saturated_vthetamax += 1
+    else:
+        m_tick = re.search(
+            r"\[MPCC\s+\d+\].*\bd=([-.0-9]+)\s+ax=([-.0-9]+)\s+vt=([-.0-9]+)\s+\|\s+st=\d+\s+it=(\d+)",
+            line,
+        )
+        if not m_tick:
+            continue
+        delta   = float(m_tick.group(1))
+        a_x     = float(m_tick.group(2))
+        v_theta = float(m_tick.group(3))
+        iter_vals.append(int(m_tick.group(4)))
+    if abs(abs(delta) - 0.4189) < 0.01:
+        saturated_delta += 1
+    if abs(abs(a_x) - 7.308) < 0.1:
+        saturated_ax += 1
+    if abs(v_theta) < 1e-3:
+        saturated_vtheta0 += 1
+    if abs(v_theta - 10.0) < 0.1:
+        saturated_vthetamax += 1
     m_clip = re.search(r"clip=(\d+)", line)
     if m_clip:
         clip_vals.append(int(m_clip.group(1)))
@@ -545,6 +625,26 @@ print(f"saturated_delta_count: {saturated_delta}")
 print(f"saturated_ax_count: {saturated_ax}")
 print(f"vtheta_zero_count: {saturated_vtheta0}")
 print(f"vtheta_max_count: {saturated_vthetamax}")
+print(f"blowup_count: {blowup_count}")
+print(f"first_blowup_line: {first_blowup_line}")
+if first_blowup_text:
+    print(f"first_blowup_text: {first_blowup_text}")
+
+# Lap detection
+lap_lines = [line for line in mpcc if "[LAP " in line]
+lap_count_total = len(lap_lines)
+lap_times = []
+for line in lap_lines:
+    m = re.search(r"time=([0-9.]+)s", line)
+    if m:
+        lap_times.append(float(m.group(1)))
+best_lap = min(lap_times) if lap_times else 0.0
+last_lap = lap_times[-1] if lap_times else 0.0
+print(f"lap_count: {lap_count_total}")
+print(f"best_lap_time: {best_lap:.3f}")
+print(f"last_lap_time: {last_lap:.3f}")
+if lap_lines:
+    print(f"last_lap_line: {lap_lines[-1]}")
 
 if first_collision_text:
     print(f"first_collision_text: {first_collision_text}")

@@ -57,7 +57,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>510</integer>
+      <integer>581</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -73,7 +73,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>517</integer>
+      <integer>588</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -89,7 +89,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>524</integer>
+      <integer>595</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -105,7 +105,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>532</integer>
+      <integer>603</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -121,11 +121,11 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>543</integer>
+      <integer>626</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_raw_from_P_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=go_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
       <key>WarningOption</key>
@@ -137,11 +137,11 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>550</integer>
+      <integer>633</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_from_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=go_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
       <key>WarningOption</key>
@@ -153,203 +153,11 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>557</integer>
+      <integer>640</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_raw_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>562</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>567</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_raw_from_MG_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>574</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_from_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>581</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_raw_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>586</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>591</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_raw_from_K_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>598</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_from_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>605</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_raw_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>610</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>619</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_cast_K_raw_to_qp_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>629</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=cast_sum2_qp_raw_to_qp_site_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>636</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=add_cast_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_rescale_raw_frac_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
       <key>WarningOption</key>
@@ -365,6 +173,262 @@
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_product_shift_to_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>658</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_QP_raw_to_P_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>662</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_QP_raw_to_MG_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>666</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_raw_to_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>671</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_raw_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>676</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_raw_from_QP_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>682</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_QP_sum_to_MG_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>687</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_P_QP_sum4_to_MG_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>692</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_QP_sum_to_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>697</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_QP_sum4_to_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>702</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_QP_MG_sum_to_K_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>707</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_K_QP_sum_to_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>712</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_K_sum_to_P_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>718</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_MG_K_mul_to_PQP_mix_item_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>731</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=cast_sum2_qp_raw_to_qp_site_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>738</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=add_cast_QP_raw_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
+      <key>line</key>
+      <integer>750</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
       <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_to_qp_site_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
@@ -377,23 +441,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>655</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_to_qp_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
-      <key>line</key>
-      <integer>664</integer>
+      <integer>760</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -409,7 +457,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>672</integer>
+      <integer>768</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -425,7 +473,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>679</integer>
+      <integer>775</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -441,7 +489,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_types_hls.hpp</string>
       <key>line</key>
-      <integer>684</integer>
+      <integer>780</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -457,23 +505,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>110</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_div_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>117</integer>
+      <integer>132</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -489,7 +521,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>122</integer>
+      <integer>137</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -505,7 +537,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>127</integer>
+      <integer>142</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -521,7 +553,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>136</integer>
+      <integer>151</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -537,7 +569,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>144</integer>
+      <integer>159</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -553,7 +585,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>150</integer>
+      <integer>165</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -569,7 +601,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>157</integer>
+      <integer>172</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -585,7 +617,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>166</integer>
+      <integer>181</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -601,7 +633,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>176</integer>
+      <integer>191</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -617,7 +649,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>177</integer>
+      <integer>192</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -633,7 +665,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>198</integer>
+      <integer>213</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -649,7 +681,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>199</integer>
+      <integer>214</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -665,7 +697,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>229</integer>
+      <integer>244</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -681,7 +713,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>230</integer>
+      <integer>245</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -697,7 +729,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>238</integer>
+      <integer>253</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -713,7 +745,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>266</integer>
+      <integer>281</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -729,7 +761,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>267</integer>
+      <integer>282</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -745,7 +777,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>286</integer>
+      <integer>301</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -761,7 +793,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>287</integer>
+      <integer>302</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -777,7 +809,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>308</integer>
+      <integer>323</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -793,7 +825,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>309</integer>
+      <integer>324</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -809,7 +841,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>334</integer>
+      <integer>349</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -825,7 +857,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>345</integer>
+      <integer>360</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -841,7 +873,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>350</integer>
+      <integer>365</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -857,103 +889,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
       <key>line</key>
-      <integer>356</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_max4_qp_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>368</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_to_P_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>374</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_PQ_to_MG_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>380</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_to_MG_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>386</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_MGK_to_P_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>392</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=inline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=fp_shift_right_cast_KQ_to_qp_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/fp_math_hls.h</string>
-      <key>line</key>
-      <integer>407</integer>
+      <integer>379</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -969,7 +905,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>360</integer>
+      <integer>318</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -985,7 +921,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>365</integer>
+      <integer>323</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1001,7 +937,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>373</integer>
+      <integer>331</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1017,7 +953,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>386</integer>
+      <integer>344</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1033,7 +969,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>391</integer>
+      <integer>349</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1049,7 +985,7 @@
       <key>filename</key>
       <string>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/include/mpc_fpga_types.h</string>
       <key>line</key>
-      <integer>398</integer>
+      <integer>356</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1065,7 +1001,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>103</integer>
+      <integer>120</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1081,7 +1017,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>108</integer>
+      <integer>125</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1097,7 +1033,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>113</integer>
+      <integer>130</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1113,7 +1049,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>118</integer>
+      <integer>135</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1129,7 +1065,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>124</integer>
+      <integer>141</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1145,7 +1081,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>130</integer>
+      <integer>147</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1161,7 +1097,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>136</integer>
+      <integer>153</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1177,7 +1113,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>142</integer>
+      <integer>159</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1193,7 +1129,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>148</integer>
+      <integer>165</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1209,7 +1145,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>154</integer>
+      <integer>171</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1225,7 +1161,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>160</integer>
+      <integer>177</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1241,7 +1177,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>166</integer>
+      <integer>183</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1257,7 +1193,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>172</integer>
+      <integer>189</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1273,7 +1209,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>178</integer>
+      <integer>195</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1289,7 +1225,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>188</integer>
+      <integer>205</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1305,7 +1241,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>237</integer>
+      <integer>254</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1321,7 +1257,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>314</integer>
+      <integer>331</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1337,7 +1273,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>315</integer>
+      <integer>332</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1353,7 +1289,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>316</integer>
+      <integer>333</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1369,7 +1305,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>317</integer>
+      <integer>334</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1385,7 +1321,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>318</integer>
+      <integer>335</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1401,7 +1337,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>319</integer>
+      <integer>336</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1417,7 +1353,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>320</integer>
+      <integer>337</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1433,7 +1369,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>321</integer>
+      <integer>338</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1449,7 +1385,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>326</integer>
+      <integer>343</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1465,7 +1401,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>333</integer>
+      <integer>350</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1481,7 +1417,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>343</integer>
+      <integer>360</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1497,7 +1433,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>345</integer>
+      <integer>362</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1513,7 +1449,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>384</integer>
+      <integer>400</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1529,7 +1465,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>454</integer>
+      <integer>470</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1545,7 +1481,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>455</integer>
+      <integer>471</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1561,7 +1497,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>456</integer>
+      <integer>472</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1577,7 +1513,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>457</integer>
+      <integer>473</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1593,7 +1529,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>458</integer>
+      <integer>474</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1609,7 +1545,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>459</integer>
+      <integer>475</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1625,7 +1561,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>460</integer>
+      <integer>476</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1641,7 +1577,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>461</integer>
+      <integer>477</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1657,7 +1593,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>462</integer>
+      <integer>478</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1673,7 +1609,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>463</integer>
+      <integer>479</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1689,7 +1625,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>471</integer>
+      <integer>487</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1705,7 +1641,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>472</integer>
+      <integer>488</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1721,7 +1657,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>473</integer>
+      <integer>489</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1737,7 +1673,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>478</integer>
+      <integer>494</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1753,7 +1689,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>480</integer>
+      <integer>496</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1769,75 +1705,11 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>487</integer>
+      <integer>503</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
       <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=unroll_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>536</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=loop_flatten_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=off_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>549</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = q_aug_diag complete dim = 1_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>550</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = q_aug_linear complete dim = 1_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>551</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = r_aug_diag complete dim = 1_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
       <key>WarningOption</key>
@@ -1853,6 +1725,70 @@
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=loop_flatten_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=off_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>565</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = q_aug_diag complete dim = 1_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>566</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = q_aug_linear complete dim = 1_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>567</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = r_aug_diag complete dim = 1_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>568</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
       <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = r_aug_linear complete dim = 1_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
@@ -1865,7 +1801,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>616</integer>
+      <integer>632</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1881,7 +1817,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>643</integer>
+      <integer>659</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1897,7 +1833,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>644</integer>
+      <integer>660</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1913,7 +1849,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>652</integer>
+      <integer>668</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1929,7 +1865,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>724</integer>
+      <integer>740</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1945,7 +1881,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>725</integer>
+      <integer>741</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1961,7 +1897,23 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>728</integer>
+      <integer>744</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=unroll_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=factor = 6_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>745</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1977,7 +1929,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>751</integer>
+      <integer>768</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -1993,7 +1945,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>765</integer>
+      <integer>782</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2009,7 +1961,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>767</integer>
+      <integer>784</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2025,7 +1977,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>781</integer>
+      <integer>798</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2041,7 +1993,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>823</integer>
+      <integer>840</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2057,7 +2009,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>824</integer>
+      <integer>841</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2073,7 +2025,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>827</integer>
+      <integer>844</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2089,7 +2041,23 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>833</integer>
+      <integer>850</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=unroll_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=factor = 5_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>851</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2105,7 +2073,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>962</integer>
+      <integer>980</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2121,7 +2089,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>963</integer>
+      <integer>981</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2137,7 +2105,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>966</integer>
+      <integer>984</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2153,43 +2121,11 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>997</integer>
+      <integer>1015</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
       <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=unroll_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>1012</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = p_new complete dim = 1_XLX_SEP_</string>
-      <key>ID</key>
-      <integer>6999</integer>
-      <key>WarningOption</key>
-      <string>dump-hls-pragmas</string>
-    </dict>
-    <dict>
-      <key>level</key>
-      <string>warning</string>
-      <key>filename</key>
-      <string>../src/riccati_solver_hls.cpp</string>
-      <key>line</key>
-      <integer>1014</integer>
-      <key>column</key>
-      <integer>1</integer>
-      <key>message</key>
-      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=pipeline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=II = 1_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
       <key>WarningOption</key>
@@ -2205,6 +2141,38 @@
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=array_partition_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=variable = p_new complete dim = 1_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>1032</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=unroll_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=factor = 6_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>1033</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
       <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=pipeline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=II = 1_XLX_SEP_</string>
       <key>ID</key>
       <integer>6999</integer>
@@ -2217,7 +2185,23 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1041</integer>
+      <integer>1049</integer>
+      <key>column</key>
+      <integer>1</integer>
+      <key>message</key>
+      <string>HLS pragma dump _XLX_SEP_ PragmaIsValid=1_XLX_SEP_ PragmaType=pipeline_XLX_SEP_ PragmaContext=hls_XLX_SEP_ PragmaFunction=riccati_backward_pass_XLX_SEP_ PragmaOptions=II = 1_XLX_SEP_</string>
+      <key>ID</key>
+      <integer>6999</integer>
+      <key>WarningOption</key>
+      <string>dump-hls-pragmas</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>../src/riccati_solver_hls.cpp</string>
+      <key>line</key>
+      <integer>1060</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2233,7 +2217,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1068</integer>
+      <integer>1087</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2249,7 +2233,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1069</integer>
+      <integer>1088</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2265,7 +2249,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1070</integer>
+      <integer>1089</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2281,7 +2265,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1071</integer>
+      <integer>1090</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2297,7 +2281,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1072</integer>
+      <integer>1091</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2313,7 +2297,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1073</integer>
+      <integer>1092</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2329,7 +2313,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1096</integer>
+      <integer>1115</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2345,7 +2329,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1097</integer>
+      <integer>1116</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2361,7 +2345,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1098</integer>
+      <integer>1117</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2377,7 +2361,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1103</integer>
+      <integer>1122</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2393,7 +2377,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1148</integer>
+      <integer>1167</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2409,7 +2393,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1149</integer>
+      <integer>1168</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2425,7 +2409,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1150</integer>
+      <integer>1169</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2441,7 +2425,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1151</integer>
+      <integer>1170</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2457,7 +2441,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1152</integer>
+      <integer>1171</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2473,7 +2457,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1153</integer>
+      <integer>1172</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2489,7 +2473,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1154</integer>
+      <integer>1173</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2505,7 +2489,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1155</integer>
+      <integer>1174</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2521,7 +2505,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1156</integer>
+      <integer>1175</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2537,7 +2521,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1157</integer>
+      <integer>1176</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2553,7 +2537,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1166</integer>
+      <integer>1185</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2569,7 +2553,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1167</integer>
+      <integer>1186</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2585,7 +2569,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1168</integer>
+      <integer>1187</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2601,7 +2585,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1185</integer>
+      <integer>1204</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2617,7 +2601,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1191</integer>
+      <integer>1210</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2633,7 +2617,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1197</integer>
+      <integer>1216</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2649,7 +2633,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1205</integer>
+      <integer>1224</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2665,7 +2649,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1211</integer>
+      <integer>1230</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2681,7 +2665,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1217</integer>
+      <integer>1236</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2697,7 +2681,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1232</integer>
+      <integer>1251</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2713,7 +2697,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1248</integer>
+      <integer>1267</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2729,7 +2713,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1284</integer>
+      <integer>1303</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2745,7 +2729,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1307</integer>
+      <integer>1326</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2761,7 +2745,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1512</integer>
+      <integer>1532</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2777,7 +2761,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1526</integer>
+      <integer>1546</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2793,7 +2777,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1556</integer>
+      <integer>1576</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2809,7 +2793,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1563</integer>
+      <integer>1583</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2825,7 +2809,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1574</integer>
+      <integer>1594</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>
@@ -2841,7 +2825,7 @@
       <key>filename</key>
       <string>../src/riccati_solver_hls.cpp</string>
       <key>line</key>
-      <integer>1581</integer>
+      <integer>1601</integer>
       <key>column</key>
       <integer>1</integer>
       <key>message</key>

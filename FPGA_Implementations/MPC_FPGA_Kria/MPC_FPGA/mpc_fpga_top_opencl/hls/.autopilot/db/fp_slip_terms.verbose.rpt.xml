@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'fp_slip_terms'" level="0">
-<item name = "Date">Thu May 21 15:23:08 2026
+<item name = "Date">Thu Jun 11 16:06:59 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -15,7 +15,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="4">Clock, Target, Estimated, Uncertainty</keys>
-<column name="ap_clk">5.00 ns, 2.736 ns, 0.50 ns</column>
+<column name="ap_clk">5.00 ns, 2.560 ns, 0.50 ns</column>
 </table>
 </item>
 </section>
@@ -24,7 +24,7 @@
 <section name = "" level="1">
 <item name = "Summary"><table name="" hasTotal="0">
 <keys size="8">, min, max, min, max, min, max, Type</keys>
-<column name="">8, 8, 40.000 ns, 40.000 ns, 9, 9, yes</column>
+<column name="">4, 4, 20.000 ns, 20.000 ns, 5, 5, yes</column>
 </table>
 </item>
 <item name = "Detail">
@@ -47,12 +47,12 @@
 <item name = "Summary"><table name="" hasTotal="1">
 <keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
 <column name="DSP">-, -, -, -, -</column>
-<column name="Expression">-, -, 0, 66, -</column>
+<column name="Expression">-, -, 0, 56, -</column>
 <column name="FIFO">-, -, -, -, -</column>
-<column name="Instance">-, 6, 244, 116, -</column>
+<column name="Instance">-, 6, 20, 58, -</column>
 <column name="Memory">-, -, -, -, -</column>
-<column name="Multiplexer">-, -, 0, 54, -</column>
-<column name="Register">-, -, 355, -, -</column>
+<column name="Multiplexer">-, -, 0, 31, -</column>
+<column name="Register">-, -, 285, -, -</column>
 <specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
 <specialColumn name="Utilization (%)">0, ~0, ~0, ~0, 0</specialColumn>
 </table>
@@ -61,10 +61,10 @@
 <section name = "" level="1">
 <item name = "Instance"><table name="" hasTotal="1">
 <keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
-<column name="mul_23s_26s_49_4_1_U319">mul_23s_26s_49_4_1, 0, 2, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U321">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_16ns_42_4_1_U322">mul_26s_16ns_42_4_1, 0, 1, 61, 29, 0</column>
-<column name="mul_26s_23s_49_4_1_U320">mul_26s_23s_49_4_1, 0, 2, 61, 29, 0</column>
+<column name="mul_20s_21s_41_3_1_U319">mul_20s_21s_41_3_1, 0, 2, 10, 14, 0</column>
+<column name="mul_21s_11ns_32_1_1_U321">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_11ns_32_1_1_U322">mul_21s_11ns_32_1_1, 0, 1, 0, 15, 0</column>
+<column name="mul_21s_20s_41_3_1_U320">mul_21s_20s_41_3_1, 0, 2, 10, 14, 0</column>
 </table>
 </item>
 <item name = "DSP"><table name="" hasTotal="0">
@@ -81,30 +81,30 @@
 </item>
 <item name = "Expression"><table name="" hasTotal="1">
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
-<column name="front_num_local_fu_110_p2">+, 0, 0, 33, 26, 26</column>
-<column name="rear_num_local_fu_129_p2">-, 0, 0, 33, 26, 26</column>
+<column name="front_num_local_fu_108_p2">+, 0, 0, 28, 21, 21</column>
+<column name="rear_num_local_fu_127_p2">-, 0, 0, 28, 21, 21</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
 <keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
-<column name="ap_NS_fsm">54, 10, 1, 10</column>
+<column name="ap_NS_fsm">31, 6, 1, 6</column>
 </table>
 </item>
 <item name = "Register"><table name="" hasTotal="1">
 <keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
-<column name="ap_CS_fsm">9, 0, 9, 0</column>
-<column name="ap_port_reg_inv_vx">23, 0, 23, 0</column>
-<column name="ap_port_reg_vy">26, 0, 26, 0</column>
-<column name="front_num_local_reg_216">26, 0, 26, 0</column>
-<column name="product_q_23_reg_211">25, 0, 25, 0</column>
-<column name="product_q_24_reg_247">26, 0, 26, 0</column>
-<column name="product_q_reg_196">25, 0, 25, 0</column>
-<column name="rear_num_local_reg_237">26, 0, 26, 0</column>
-<column name="sext_ln671_2_reg_226">49, 0, 49, 0</column>
-<column name="sext_ln671_reg_190">42, 0, 42, 0</column>
-<column name="sext_ln674_1_reg_232">26, 0, 26, 0</column>
-<column name="sext_ln674_reg_206">26, 0, 26, 0</column>
-<column name="vy_read_reg_201">26, 0, 26, 0</column>
+<column name="ap_CS_fsm">5, 0, 5, 0</column>
+<column name="ap_port_reg_inv_vx">20, 0, 20, 0</column>
+<column name="ap_port_reg_vy">21, 0, 21, 0</column>
+<column name="front_num_local_reg_213">21, 0, 21, 0</column>
+<column name="product_q_21_reg_208">20, 0, 20, 0</column>
+<column name="product_q_22_reg_244">21, 0, 21, 0</column>
+<column name="product_q_reg_193">20, 0, 20, 0</column>
+<column name="rear_num_local_reg_234">21, 0, 21, 0</column>
+<column name="sext_ln574_1_reg_223">41, 0, 41, 0</column>
+<column name="sext_ln591_reg_188">32, 0, 32, 0</column>
+<column name="sext_ln593_1_reg_229">21, 0, 21, 0</column>
+<column name="sext_ln593_reg_203">21, 0, 21, 0</column>
+<column name="vy_read_reg_198">21, 0, 21, 0</column>
 </table>
 </item>
 </section>
@@ -120,15 +120,15 @@
 <column name="ap_done">out, 1, ap_ctrl_hs, fp_slip_terms, return value</column>
 <column name="ap_idle">out, 1, ap_ctrl_hs, fp_slip_terms, return value</column>
 <column name="ap_ready">out, 1, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_0">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_1">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_2">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_3">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_4">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="ap_return_5">out, 26, ap_ctrl_hs, fp_slip_terms, return value</column>
-<column name="vy">in, 26, ap_none, vy, scalar</column>
-<column name="omega">in, 26, ap_none, omega, scalar</column>
-<column name="inv_vx">in, 23, ap_none, inv_vx, scalar</column>
+<column name="ap_return_0">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="ap_return_1">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="ap_return_2">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="ap_return_3">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="ap_return_4">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="ap_return_5">out, 21, ap_ctrl_hs, fp_slip_terms, return value</column>
+<column name="vy">in, 21, ap_none, vy, scalar</column>
+<column name="omega">in, 21, ap_none, omega, scalar</column>
+<column name="inv_vx">in, 20, ap_none, inv_vx, scalar</column>
 </table>
 </item>
 </section>

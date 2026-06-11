@@ -10,7 +10,7 @@ if {${::AESL::PGuard_autoexp_gen}} {
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2154 \
+    id 2053 \
     name prev_steer_rate \
     type other \
     dir I \
@@ -18,14 +18,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_prev_steer_rate \
     op interface \
-    ports { prev_steer_rate { I 32 vector } } \
+    ports { prev_steer_rate { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2155 \
+    id 2054 \
     name prev_accel \
     type other \
     dir I \
@@ -33,14 +33,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_prev_accel \
     op interface \
-    ports { prev_accel { I 22 vector } } \
+    ports { prev_accel { I 19 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2156 \
+    id 2055 \
     name prev_curvature \
     type other \
     dir I \
@@ -48,14 +48,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_prev_curvature \
     op interface \
-    ports { prev_curvature { I 32 vector } } \
+    ports { prev_curvature { I 26 vector } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2157 \
+    id 2056 \
     name p_anonymous_namespace_g_core_state_persist_prev_steer_rate \
     type other \
     dir O \
@@ -63,14 +63,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_steer_rate \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_steer_rate { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_steer_rate { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld { O 1 bit } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2158 \
+    id 2057 \
     name p_anonymous_namespace_g_core_state_persist_prev_accel \
     type other \
     dir O \
@@ -78,14 +78,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_accel \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_accel { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_accel { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld { O 1 bit } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2159 \
+    id 2058 \
     name p_anonymous_namespace_g_core_state_persist_prev_curvature \
     type other \
     dir O \
@@ -93,14 +93,14 @@ eval "cg_default_interface_gen_dc { \
     sync_rst true \
     corename dc_p_anonymous_namespace_g_core_state_persist_prev_curvature \
     op interface \
-    ports { p_anonymous_namespace_g_core_state_persist_prev_curvature { O 32 vector } p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld { O 1 bit } } \
+    ports { p_anonymous_namespace_g_core_state_persist_prev_curvature { O 26 vector } p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld { O 1 bit } } \
 } "
 }
 
 # Direct connection:
 if {${::AESL::PGuard_autoexp_gen}} {
 eval "cg_default_interface_gen_dc { \
-    id 2160 \
+    id 2059 \
     name p_anonymous_namespace_g_core_state_persist_prev_model_signature \
     type other \
     dir O \

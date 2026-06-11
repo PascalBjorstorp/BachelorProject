@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'fp_rear_force_jacobians_fn'
 ================================================================
-* Date:           Thu May 21 15:23:09 2026
+* Date:           Thu Jun 11 16:06:59 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -20,7 +20,7 @@
     +--------+---------+----------+------------+
     |  Clock |  Target | Estimated| Uncertainty|
     +--------+---------+----------+------------+
-    |ap_clk  |  5.00 ns|  3.563 ns|     0.50 ns|
+    |ap_clk  |  5.00 ns|  4.152 ns|     0.50 ns|
     +--------+---------+----------+------------+
 
 + Latency: 
@@ -29,7 +29,7 @@
     |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
     |   min   |   max   |    min    |    max    | min | max |   Type  |
     +---------+---------+-----------+-----------+-----+-----+---------+
-    |        9|        9|  45.000 ns|  45.000 ns|   10|   10|      yes|
+    |        6|        6|  30.000 ns|  30.000 ns|    7|    7|      yes|
     +---------+---------+-----------+-----------+-----+-----+---------+
 
     + Detail: 
@@ -49,14 +49,14 @@
 |       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
 +-----------------+---------+------+--------+--------+-----+
 |DSP              |        -|     -|       -|       -|    -|
-|Expression       |        -|     -|       0|      33|    -|
+|Expression       |        -|     -|       0|      28|    -|
 |FIFO             |        -|     -|       -|       -|    -|
-|Instance         |        -|     9|     299|     142|    -|
+|Instance         |        -|     9|      38|      68|    -|
 |Memory           |        -|     -|       -|       -|    -|
-|Multiplexer      |        -|     -|       0|      87|    -|
-|Register         |        -|     -|     206|       -|    -|
+|Multiplexer      |        -|     -|       0|      71|    -|
+|Register         |        -|     -|     194|       -|    -|
 +-----------------+---------+------+--------+--------+-----+
-|Total            |        0|     9|     505|     262|    0|
+|Total            |        0|     9|     232|     167|    0|
 +-----------------+---------+------+--------+--------+-----+
 |Available        |      288|  1248|  234240|  117120|   64|
 +-----------------+---------+------+--------+--------+-----+
@@ -68,13 +68,13 @@
     +---------------------------+----------------------+---------+----+----+----+-----+
     |          Instance         |        Module        | BRAM_18K| DSP| FF | LUT| URAM|
     +---------------------------+----------------------+---------+----+----+----+-----+
-    |mul_23s_25ns_48_4_1_U368   |mul_23s_25ns_48_4_1   |        0|   2|  55|  26|    0|
-    |mul_25s_26s_43_4_1_U369    |mul_25s_26s_43_4_1    |        0|   2|  61|  29|    0|
-    |mul_26s_16ns_42_4_1_U372   |mul_26s_16ns_42_4_1   |        0|   1|  61|  29|    0|
-    |mul_26s_23s_49_4_1_U370    |mul_26s_23s_49_4_1    |        0|   2|  61|  29|    0|
-    |mul_26s_26s_43_4_1_x_U371  |mul_26s_26s_43_4_1_x  |        0|   2|  61|  29|    0|
+    |mul_20s_20ns_40_3_1_U368   |mul_20s_20ns_40_3_1   |        0|   2|   8|  11|    0|
+    |mul_20s_21s_41_3_1_U369    |mul_20s_21s_41_3_1    |        0|   2|  10|  14|    0|
+    |mul_21s_11ns_32_1_1_U372   |mul_21s_11ns_32_1_1   |        0|   1|   0|  15|    0|
+    |mul_21s_20s_41_3_1_U370    |mul_21s_20s_41_3_1    |        0|   2|  10|  14|    0|
+    |mul_21s_21s_42_3_1_x_U371  |mul_21s_21s_42_3_1_x  |        0|   2|  10|  14|    0|
     +---------------------------+----------------------+---------+----+----+----+-----+
-    |Total                      |                      |        0|   9| 299| 142|    0|
+    |Total                      |                      |        0|   9|  38|  68|    0|
     +---------------------------+----------------------+---------+----+----+----+-----+
 
     * DSP: 
@@ -90,36 +90,37 @@
     +-------------------+----------+----+---+----+------------+------------+
     |   Variable Name   | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
     +-------------------+----------+----+---+----+------------+------------+
-    |dar_dvy_fu_167_p2  |         -|   0|  0|  33|           1|          26|
+    |dar_dvy_fu_135_p2  |         -|   0|  0|  28|           1|          21|
     +-------------------+----------+----+---+----+------------+------------+
-    |Total              |          |   0|  0|  33|           1|          26|
+    |Total              |          |   0|  0|  28|           1|          21|
     +-------------------+----------+----+---+----+------------+------------+
 
     * Multiplexer: 
     +--------------+----+-----------+-----+-----------+
     |     Name     | LUT| Input Size| Bits| Total Bits|
     +--------------+----+-----------+-----+-----------+
-    |ap_NS_fsm     |  59|         11|    1|         11|
-    |grp_fu_94_p0  |  14|          3|   26|         78|
-    |grp_fu_94_p1  |  14|          3|   26|         78|
+    |ap_NS_fsm     |  43|          8|    1|          8|
+    |grp_fu_92_p0  |  14|          3|   21|         63|
+    |grp_fu_92_p1  |  14|          3|   21|         63|
     +--------------+----+-----------+-----+-----------+
-    |Total         |  87|         17|   53|        167|
+    |Total         |  71|         14|   43|        134|
     +--------------+----+-----------+-----+-----------+
 
     * Register: 
     +-----------------------+----+----+-----+-----------+
     |          Name         | FF | LUT| Bits| Const Bits|
     +-----------------------+----+----+-----+-----------+
-    |ap_CS_fsm              |  10|   0|   10|          0|
-    |ap_port_reg_C_eff_r    |  26|   0|   26|          0|
-    |ap_port_reg_rear_num   |  26|   0|   26|          0|
-    |inv_D_r_read_reg_218   |  23|   0|   23|          0|
-    |product_q_48_reg_274   |  26|   0|   26|          0|
-    |product_q_49_reg_279   |  26|   0|   26|          0|
-    |product_q_reg_243      |  26|   0|   26|          0|
-    |sext_ln671_31_reg_253  |  43|   0|   43|          0|
+    |C_eff_r_read_reg_245   |  21|   0|   21|          0|
+    |ap_CS_fsm              |   7|   0|    7|          0|
+    |ap_port_reg_C_eff_r    |  21|   0|   21|          0|
+    |ap_port_reg_rear_num   |  21|   0|   21|          0|
+    |inv_D_r_read_reg_220   |  20|   0|   20|          0|
+    |product_q_46_reg_285   |  21|   0|   21|          0|
+    |product_q_47_reg_275   |  21|   0|   21|          0|
+    |sext_ln574_24_reg_255  |  42|   0|   42|          0|
+    |trunc_ln_reg_250       |  20|   0|   20|          0|
     +-----------------------+----+----+-----+-----------+
-    |Total                  | 206|   0|  206|          0|
+    |Total                  | 194|   0|  194|          0|
     +-----------------------+----+----+-----+-----------+
 
 
@@ -137,12 +138,12 @@
 |ap_done      |  out|    1|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
 |ap_idle      |  out|    1|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
 |ap_ready     |  out|    1|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
-|ap_return_0  |  out|   26|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
-|ap_return_1  |  out|   26|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
-|ap_return_2  |  out|   26|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
-|C_eff_r      |   in|   26|     ap_none|                     C_eff_r|        scalar|
-|rear_num     |   in|   26|     ap_none|                    rear_num|        scalar|
-|vx_safe      |   in|   25|     ap_none|                     vx_safe|        scalar|
-|inv_D_r      |   in|   23|     ap_none|                     inv_D_r|        scalar|
+|ap_return_0  |  out|   21|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
+|ap_return_1  |  out|   21|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
+|ap_return_2  |  out|   21|  ap_ctrl_hs|  fp_rear_force_jacobians_fn|  return value|
+|C_eff_r      |   in|   21|     ap_none|                     C_eff_r|        scalar|
+|rear_num     |   in|   21|     ap_none|                    rear_num|        scalar|
+|vx_safe      |   in|   20|     ap_none|                     vx_safe|        scalar|
+|inv_D_r      |   in|   20|     ap_none|                     inv_D_r|        scalar|
 +-------------+-----+-----+------------+----------------------------+--------------+
 

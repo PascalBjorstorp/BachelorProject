@@ -7,7 +7,7 @@
 	<cdfg class_id="1" tracking_level="1" version="0" object_id="_0">
 		<name>compute_frenet_AB_and_next_hls</name>
 		<module_structure>Pipeline</module_structure>
-		<ret_bitwidth>1280</ret_bitwidth>
+		<ret_bitwidth>1040</ret_bitwidth>
 		<ports class_id="2" tracking_level="0" version="0">
 			<count>8</count>
 			<item_version>0</item_version>
@@ -37,7 +37,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -73,7 +73,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -109,7 +109,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -145,7 +145,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -181,7 +181,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -217,7 +217,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -253,7 +253,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -289,7 +289,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<direction>0</direction>
 				<if_type>0</if_type>
@@ -343,7 +343,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -400,7 +400,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -457,7 +457,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>18</bitwidth>
+					<bitwidth>14</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -514,7 +514,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -571,7 +571,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -628,7 +628,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -685,7 +685,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -742,7 +742,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>27</bitwidth>
+					<bitwidth>23</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>2</count>
@@ -799,7 +799,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>1280</bitwidth>
+					<bitwidth>1040</bitwidth>
 				</Value>
 				<oprand_edges>
 					<count>13</count>
@@ -823,7 +823,7 @@
 				<m_isOnCriticalPath>0</m_isOnCriticalPath>
 				<m_isLCDNode>0</m_isLCDNode>
 				<m_isStartOfPath>0</m_isStartOfPath>
-				<m_delay>4.00</m_delay>
+				<m_delay>3.97</m_delay>
 				<m_topoIndex>9</m_topoIndex>
 				<m_clusterGroupNumber>-1</m_clusterGroupNumber>
 			</item>
@@ -913,7 +913,7 @@
 						<coreId>4294967295</coreId>
 						<rtlModuleName></rtlModuleName>
 					</Obj>
-					<bitwidth>1280</bitwidth>
+					<bitwidth>1040</bitwidth>
 				</Value>
 				<const_type>6</const_type>
 				<content>&lt;constant:compute_frenet_AB_hls&gt;</content>
@@ -1139,12 +1139,12 @@
 				<item_version>0</item_version>
 				<item>23</item>
 			</basic_blocks>
-			<mII>100</mII>
-			<mDepth>100</mDepth>
+			<mII>73</mII>
+			<mDepth>73</mDepth>
 			<mMinTripCount>-1</mMinTripCount>
 			<mMaxTripCount>-1</mMaxTripCount>
-			<mMinLatency>99</mMinLatency>
-			<mMaxLatency>99</mMaxLatency>
+			<mMinLatency>72</mMinLatency>
+			<mMaxLatency>72</mMaxLatency>
 			<mIsDfPipe>0</mIsDfPipe>
 			<mDfPipe class_id="-1"></mDfPipe>
 		</item>
@@ -1214,13 +1214,13 @@
 			<first>21</first>
 			<second>
 				<first>0</first>
-				<second>99</second>
+				<second>72</second>
 			</second>
 		</item>
 		<item>
 			<first>22</first>
 			<second>
-				<first>99</first>
+				<first>72</first>
 				<second>0</second>
 			</second>
 		</item>
@@ -1232,7 +1232,7 @@
 			<first>23</first>
 			<second class_id="31" tracking_level="0" version="0">
 				<first>0</first>
-				<second>99</second>
+				<second>72</second>
 			</second>
 		</item>
 	</bblk_ent_exit>
@@ -1252,8 +1252,8 @@
 			</nodes>
 			<anchor_node>-1</anchor_node>
 			<region_type>8</region_type>
-			<interval>100</interval>
-			<pipe_depth>100</pipe_depth>
+			<interval>73</interval>
+			<pipe_depth>73</pipe_depth>
 			<mDBIIViolationVec class_id="34" tracking_level="0" version="0">
 				<count>0</count>
 				<item_version>0</item_version>
@@ -1314,7 +1314,7 @@
 	</node2core>
 	<sched_res class_id="39" tracking_level="1" version="0" object_id="_45">
 		<ResourceTableActual class_id="40" tracking_level="0" version="0">
-			<II>100</II>
+			<II>74</II>
 		</ResourceTableActual>
 		<ResourceTableFailed class_id="41" tracking_level="0" version="0">
 			<II>-1</II>

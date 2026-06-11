@@ -104,7 +104,13 @@ void mpcc_linearize_dynamics(
     * -1.76 and -6.23 — far outside the unit circle (unstable).
     * vx_safe=2.0 gives stable discrete eigenvalues [0.40, -0.90]. */
     float vx_abs = fabsf(state->vx);
-    float vx_safe = (vx_abs < 0.5f) ? 0.5f : vx_abs;
+    /* Clamp must stay >= 2.0 — see eigenvalue analysis in the comment above.
+     * vx_safe=2.0 gives discrete |eig| ≈ [0.40, 0.90] (stable), while vx_safe=3.0
+     * is over-conservative: it forces the dynamic linearization to behave AS IF
+     * the car were at vx=3.0 even when the actual state is at 2 m/s (the cornering
+     * regime). That overestimates lateral grip and the QP plans corner trajectories
+     * the real Pacejka tires can't realize. Drop to 2.0 to match the comment. */
+    float vx_safe = (vx_abs < 2.0f) ? 2.0f : vx_abs;
     float inv_vx = 1.0f / vx_safe;
     float cos_delta = cosf(control->delta);
     float sin_delta = sinf(control->delta);

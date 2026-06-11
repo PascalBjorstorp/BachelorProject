@@ -11,14 +11,14 @@ use IEEE.numeric_std.all;
 entity mpc_fpga_top_opencl_mpc_persist_writeback_hls is
 port (
     ap_ready : OUT STD_LOGIC;
-    prev_steer_rate : IN STD_LOGIC_VECTOR (31 downto 0);
-    prev_accel : IN STD_LOGIC_VECTOR (21 downto 0);
-    prev_curvature : IN STD_LOGIC_VECTOR (31 downto 0);
-    p_anonymous_namespace_g_core_state_persist_prev_steer_rate : OUT STD_LOGIC_VECTOR (31 downto 0);
+    prev_steer_rate : IN STD_LOGIC_VECTOR (25 downto 0);
+    prev_accel : IN STD_LOGIC_VECTOR (18 downto 0);
+    prev_curvature : IN STD_LOGIC_VECTOR (25 downto 0);
+    p_anonymous_namespace_g_core_state_persist_prev_steer_rate : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_persist_prev_steer_rate_ap_vld : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_persist_prev_accel : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_persist_prev_accel : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld : OUT STD_LOGIC;
-    p_anonymous_namespace_g_core_state_persist_prev_curvature : OUT STD_LOGIC_VECTOR (31 downto 0);
+    p_anonymous_namespace_g_core_state_persist_prev_curvature : OUT STD_LOGIC_VECTOR (25 downto 0);
     p_anonymous_namespace_g_core_state_persist_prev_curvature_ap_vld : OUT STD_LOGIC;
     p_anonymous_namespace_g_core_state_persist_prev_model_signature : OUT STD_LOGIC_VECTOR (0 downto 0);
     p_anonymous_namespace_g_core_state_persist_prev_model_signature_ap_vld : OUT STD_LOGIC;
@@ -42,7 +42,7 @@ begin
 
 
     ap_ready <= ap_const_logic_1;
-        p_anonymous_namespace_g_core_state_persist_prev_accel <= std_logic_vector(IEEE.numeric_std.resize(signed(prev_accel),32));
+        p_anonymous_namespace_g_core_state_persist_prev_accel <= std_logic_vector(IEEE.numeric_std.resize(signed(prev_accel),26));
 
     p_anonymous_namespace_g_core_state_persist_prev_accel_ap_vld <= ap_const_logic_1;
     p_anonymous_namespace_g_core_state_persist_prev_curvature <= prev_curvature;

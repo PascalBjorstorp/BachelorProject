@@ -16,6 +16,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+plt.rcParams.update({
+    "font.size": 18,
+    "axes.titlesize": 20,
+    "axes.labelsize": 18,
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+})
+
 
 def load_iters(path):
     with open(path) as f:
@@ -64,7 +73,7 @@ def main():
     ax.set_ylabel("ADMM iterations per solve")
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
-    out_path = out_dir / "test4_iterations_boxplot.png"
+    out_path = out_dir / "test4_iterations_boxplot.svg"
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 

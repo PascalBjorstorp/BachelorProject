@@ -11,7 +11,7 @@ use ieee.std_logic_unsigned.all;
 entity mpc_fpga_top_opencl_riccati_backward_pass_P_6_RAM_2P_LUTRAM_1R1W is
     generic(
         MEM_TYPE        : string    := "distributed";
-        DataWidth       : integer   := 31;
+        DataWidth       : integer   := 20;
         AddressWidth    : integer   := 3;
         AddressRange    : integer   := 8
     );
