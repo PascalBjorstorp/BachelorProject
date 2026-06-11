@@ -46,7 +46,7 @@ static rcl_timer_t          control_timer;
 static nav_msgs__msg__Odometry                          odom_msg;
 static ackermann_msgs__msg__AckermannDriveStamped       drive_msg;
 static struct timespec prev_solve_time;
-static double target_control_period_sec = 0.05;  /* 20 Hz default */
+static double target_control_period_sec = 0.025;  /* 40 Hz default */
 static float prev_delta_cmd = 0.0f;
 static float prev_ax_cmd = 0.0f;
 

@@ -39,7 +39,7 @@
 /* Runtime Configuration                                                       */
 /* -------------------------------------------------------------------------- */
 
-#define MPCC_DEFAULT_CONTROL_PERIOD_MS 50U
+#define MPCC_DEFAULT_CONTROL_PERIOD_MS 25U
 #define MPCC_EXECUTOR_HANDLES 6
 #define MPCC_ODOM_LOG_THROTTLE_SEC 1.0
 #define MPCC_ODOM_MAX_ABS_VX_MPS 20.0
