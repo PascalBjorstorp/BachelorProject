@@ -40,7 +40,7 @@ gpu_amcl_cpp:
     kld_bin_x: 0.4             # metres per occupied KLD bin in x
     kld_bin_y: 0.4             # metres per occupied KLD bin in y
     kld_bin_theta: 0.1         # radians per occupied KLD bin in heading
-    kld_min_bin_weight: 0.0002  # only count KLD bins with this normalized weight mass
+    kld_min_bin_weight: 0.00005  # only count KLD bins with this normalized weight mass
 
     # ---- Frame IDs ----
     base_frame_id: "ego_racecar/base_link"
@@ -94,7 +94,9 @@ gpu_amcl_cpp:
     # ---- Resampling ----
     resample_threshold: 0.5  # selected by AMCL parameter sweep
     enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
-    recovery_injection_ratio: 0.10    # 5% runtime recovery particles; less likely to pull pose after convergence
+    recovery_injection_ratio: 0.02    # runtime recovery particles; gated by bad scan streak below
+    recovery_injection_requires_bad_scan: true
+    recovery_injection_min_bad_scans: 5
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
     local_roughening_xy_std_m: 0.20    # 12 cm XY noise
@@ -107,6 +109,14 @@ gpu_amcl_cpp:
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
     cluster_publish_min_weight: 0.60    # match sim benchmark default
+
+    # Reject one-frame global pose jumps from false injected modes.
+    pose_jump_gate_enabled: true
+    pose_jump_max_distance_m: 1.0
+    pose_jump_max_yaw_rad: 1.2
+    pose_jump_confirm_scans: 5
+    pose_jump_confirm_distance_m: 0.75
+    pose_jump_confirm_yaw_rad: 0.6
 
     # ---- Initial pose ----
     # false: seed particles around initial_pose_*
@@ -172,3 +182,7 @@ ekf_localization:
     process_noise_scale: 0.2     # multiplier on dt-scaled odom covariance for Q
     amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
     odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup
+    amcl_jump_reset_enabled: true
+    amcl_jump_reset_distance_m: 1.0
+    amcl_jump_reset_yaw_rad: 1.2
+    amcl_jump_reset_covariance_scale: 1.0
