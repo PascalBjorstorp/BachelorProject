@@ -150,9 +150,9 @@ vesc_to_odom_node:
 
     # Odometry covariance scalars used by vesc_to_odom
     # Units: x/y in m^2, yaw in rad^2
-    odom_x_covariance: 0.2
-    odom_y_covariance: 0.2
-    odom_yaw_covariance: 0.2
+    odom_x_covariance: 0.1
+    odom_y_covariance: 0.1
+    odom_yaw_covariance: 0.075
 
 # Legacy analytical odometry path used when System_launch.py oldOdom:=true
 vesc_to_odom_old_node:
@@ -204,7 +204,7 @@ ackermann_to_vesc_node:
     # Output clamps (amps). Set to match VESC config + desired feel.
     max_drive_current: 100.0
     max_brake_current: 40.0
-    max_regen_input_current: 10.0   # A (battery/input current limit during regen)
+    max_regen_input_current: 0.0    # 0 disables ROS-side regen scaling; VESC firmware still enforces battery regen limits
 
     # Slow-start parameters (used only in VEL_TO_ERPM mode).
     # In ACCEL_TO_CURRENT mode this repo's `ackermann_to_vesc` no longer falls back to ERPM.
