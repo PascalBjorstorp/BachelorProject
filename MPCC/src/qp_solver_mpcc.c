@@ -20,6 +20,7 @@
 #include "qp_solver_mpcc.h"
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 #ifdef MPCC_DEBUG_PRINT
 #include <stdio.h>
@@ -413,6 +414,21 @@ static int invert_3x3(const float S[3][3], float Si[3][3])
 #define MPCC_ADMM_RHO_UPDATE_INTERVAL  5u
 #define MPCC_ADMM_RHO_ADAPT_RATIO       5.0f
 #define MPCC_ADMM_RHO_SCALE             1.5f
+
+static int admm_run_final_riccati_pass(void)
+{
+    static int initialized = 0;
+    static int run_final_pass = 0;
+
+    if (!initialized)
+    {
+        const char *value = getenv("MPCC_RUN_FINAL_RICCATI_PASS");
+        run_final_pass = (value != NULL && atoi(value) != 0) ? 1 : 0;
+        initialized = 1;
+    }
+
+    return run_final_pass;
+}
 
 void riccati_backward_pass(
     const MPCCQPProblem_t *problem,
@@ -1176,10 +1192,15 @@ MPCCStatus_t admm_solver_solve(
         }
     }
 
-    /* Recompute primal trajectory after ADMM loop so exported x_opt remains
-     * dynamics-consistent and suitable for warm-start linearization. */
-    riccati_backward_pass(problem, workspace, rho, rho_u);
-    riccati_forward_pass(problem, workspace);
+    /* The exported solution below is rolled out from the projected controls
+     * w_u, which are the feasible ADMM controls. The old final Riccati
+     * recompute is kept as a runtime fallback for A/B testing, but skipped by
+     * default to save roughly one Riccati iteration per solve. */
+    if (admm_run_final_riccati_pass())
+    {
+        riccati_backward_pass(problem, workspace, rho, rho_u);
+        riccati_forward_pass(problem, workspace);
+    }
 
     /* Extract solution */
     result->status = status;
