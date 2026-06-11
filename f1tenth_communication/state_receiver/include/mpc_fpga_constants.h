@@ -29,8 +29,8 @@
  *===========================================================================*/
 
 /* Protocol numeric lanes are raw QP words: Q14.18 by default. */
-#define MPC_FPGA_QP_WIDTH             32
-#define MPC_FPGA_QP_INT_BITS          14
+#define MPC_FPGA_QP_WIDTH             26
+#define MPC_FPGA_QP_INT_BITS          12
 #define MPC_FPGA_QP_FRAC_BITS         (MPC_FPGA_QP_WIDTH - MPC_FPGA_QP_INT_BITS)
 #define MPC_FPGA_QP_SCALE_I32         (1 << MPC_FPGA_QP_FRAC_BITS)
 #define MPC_FPGA_QP_SCALE_F32         ((float)MPC_FPGA_QP_SCALE_I32)

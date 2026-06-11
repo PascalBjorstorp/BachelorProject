@@ -81,7 +81,7 @@ HARDWARE_TUNING_DEFAULTS = [
     ("q_progress_term", "Q_PROGRESS_TERM", "60.0", "Terminal progress reward"),
     ("admm_rho", "ADMM_RHO", "60.0", "ADMM penalty parameter"),
     ("admm_rho_u", "ADMM_RHO_U", "4.0", "Optional control ADMM penalty (0 uses rho)"),
-    ("admm_max_iter", "ADMM_MAX_ITER", "150", "ADMM maximum iterations"),
+    ("admm_max_iter", "ADMM_MAX_ITER", "100", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
     ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
     ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.0", "ADMM over-relaxation factor"),

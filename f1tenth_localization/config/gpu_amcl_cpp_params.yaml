@@ -128,8 +128,8 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.2
 
     # ---- Publishing ----
-    cloud_publish_rate: 0.0       # Hz; <= 0 disables particle cloud publishing and downloads
-    debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
+    cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
+    debug_pre_resample_particles: true  # publish weighted pre-resample PointCloud2 debug topic
 
 
 

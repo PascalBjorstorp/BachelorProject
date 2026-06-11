@@ -652,8 +652,8 @@ typedef struct
  * Default MPCC Parameters
  *===========================================================================*/
 
-/* --- Horizon: 40 Hz controller baseline (30 * 0.025 = 0.75 s lookahead) --- */
-#define MPCC_DEFAULT_HORIZON          30
+/* --- Horizon: 40 Hz controller baseline (80 * 0.025 = 2.0 s lookahead) --- */
+#define MPCC_DEFAULT_HORIZON          80
 #define MPCC_DEFAULT_DT               (0.025f)
 
 /*--- Contouring tracking weights ---*/
