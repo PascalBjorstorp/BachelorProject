@@ -72,7 +72,7 @@ vesc_to_odom_node:
     steering_angle_to_servo_gain: -0.7284
     steering_angle_to_servo_offset: 0.5500
     # Global odom speed scaling (use <1.0 if odom distance/speed is too high).
-    odom_speed_scale: 0.98
+    odom_speed_scale: 1.03
     # Dynamic-model steering scale (use <1.0 if odom over-rotates, >1.0 if under-rotates).
     steering_model_scale: 0.86
     speed_deadband: 0.15
@@ -180,7 +180,7 @@ ackermann_to_vesc_node:
     # "VEL_TO_CURRENT": velocity command -> current (with PID)
     # "VEL_TO_ERPM": velocity command -> ERPM (default, simplest)
     # Mode is determined by accel gains: non-zero enables ACCEL_TO_CURRENT.
-    operation_mode: "ACCEL_TO_CURRENT"
+    operation_mode: "VEL_TO_ERPM"
 
     # Acceleration-to-current gains (set non-zero to enable ACCEL_TO_CURRENT)
     # Derived from tested drivetrain model:
@@ -189,8 +189,8 @@ ackermann_to_vesc_node:
     # Identified from `f1tenth_parameters/data/motor_torque_*.csv`:
     #   accel_to_current_gain ≈ m / Kt_eff
     #   accel_to_brake_gain   ≈ m / Kt_eff_brake
-    accel_to_current_gain: 5.82     # A/(m/s^2) (fit over all 5 runs) Was 5.82
-    accel_to_brake_gain: 7.38        # A/(m/s^2) (fit over all 5 runs) Was 7.38
+    accel_to_current_gain: 0.0     # A/(m/s^2) (fit over all 5 runs) Was 5.82
+    accel_to_brake_gain: 0.0        # A/(m/s^2) (fit over all 5 runs) Was 7.38
     accel_deadzone: 0.02            # m/s^2 (treat tiny accel as 0, still publish current FF)
     # Coastdown / drag feedforward to avoid "a=0 -> car slows too much" mismatch vs sim.
     # Set from coastdown fit of dv/dt ≈ -(c0 + c1*|v| + c2*v^2).

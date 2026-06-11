@@ -357,12 +357,18 @@ if opt_type == 'mintime' and pars["optim_opts"]["safe_traj"] \
 # PREPARE REFTRACK -----------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp = \
-    helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=reftrack_imp,
-                                                reg_smooth_opts=pars["reg_smooth_opts"],
-                                                stepsize_opts=pars["stepsize_opts"],
-                                                debug=debug,
-                                                min_width=imp_opts["min_track_width"])
+prepared_track_file = r"/home/f1tenth/BachelorProject/f1tenth_planning/global_racetrajectory_optimization/inputs/tracks/my_track_prepared.npz"
+if not os.path.exists(prepared_track_file):
+    raise FileNotFoundError(f"Prepared track file not found: {prepared_track_file}")
+prepared_track = np.load(prepared_track_file)
+reftrack_interp = prepared_track["reftrack_interp"]
+normvec_normalized_interp = prepared_track["normvec_normalized_interp"]
+a_interp = prepared_track["a_interp"]
+coeffs_x_interp = prepared_track["coeffs_x_interp"]
+coeffs_y_interp = prepared_track["coeffs_y_interp"]
+if debug:
+    print(f"INFO: Loaded prepared reference track: {prepared_track_file}")
+    print(f"INFO: Prepared reference points: {reftrack_interp.shape[0]}")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CALL OPTIMIZATION ----------------------------------------------------------------------------------------------------
@@ -517,7 +523,7 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
             for free_dev in free_dev_candidates
             if free_dev >= base_free_dev - 1e-9
         })
-        kappa_candidates = [pars["veh_params"]["curvlim"] * 0.95] # set by optimize_trajectory_mintime.py
+        kappa_candidates = [pars["veh_params"]["curvlim"] * 0.95] # set by optimize_trajectory_mintime.py["curvlim"] * 0.95] # set by optimize_trajectory_mintime.py
 
         reopt_errors = []
         alpha_reopt = None
