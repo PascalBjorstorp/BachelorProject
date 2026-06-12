@@ -1634,13 +1634,13 @@ def save_smooth_centerline_csv(centerline, w_right, w_left, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         f.write(
-            '# x_m,y_m,s_m,psi_rad,kappa_radpm,'
+            '# s_m,x_m,y_m,psi_rad,kappa_radpm,'
             'velocity_mps,acceleration_mps2,d_left_m,d_right_m\n'
         )
         for xy, s_i, psi_i, kappa_i, d_left_i, d_right_i in zip(
                 pts, s, psi, kappa, w_left, w_right):
             f.write(
-                f'{xy[0]:.6f},{xy[1]:.6f},{s_i:.6f},'
+                f'{s_i:.6f},{xy[0]:.6f},{xy[1]:.6f},'
                 f'{psi_i:.7f},{kappa_i:.7f},'
                 f'0.0000000,0.0000000,'
                 f'{d_left_i:.6f},{d_right_i:.6f}\n'
