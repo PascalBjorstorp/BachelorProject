@@ -76,6 +76,7 @@ TOPICS=(
   "/mpc/timing/solver_enter_seq"
   "/mpcc/predicted_path"
   "/mpc_state"
+  "/mpcc/track_bounds"
 )
 
 if [[ ! -f "${QOS_FILE}" ]]; then
