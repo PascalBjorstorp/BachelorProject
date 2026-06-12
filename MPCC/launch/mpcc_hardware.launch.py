@@ -30,13 +30,13 @@ from launch_ros.actions import Node
 HARDWARE_TUNING_DEFAULTS = [
     ("horizon", "HORIZON", "60", "Prediction horizon steps"),
     ("dt", "DT", "0.025", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "16.0", "Contouring weight"),
+    ("q_contouring", "Q_CONTOURING", "2.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "13.4", "Lag weight"),
     ("q_heading", "Q_HEADING", "5.8", "Heading alignment weight"),
     ("q_wall_clearance", "Q_WALL_CLEARANCE", "450.0", "Wall-clearance weight"),
     ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.12", "Soft wall-clearance margin in meters"),
     ("track_buffer", "MPCC_TRACK_BUFFER", "0.00", "Hard buffer subtracted from each track bound in meters"),
-    ("q_progress", "Q_PROGRESS", "0.9", "Progress reward"),
+    ("q_progress", "Q_PROGRESS", "1.0", "Progress reward"),
     ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "1.78", "Physical path-progress reward"),
     ("s_qp_window", "MPCC_S_QP_WINDOW", "1.0", "Per-stage s bound window in meters"),
     ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
@@ -82,7 +82,7 @@ HARDWARE_TUNING_DEFAULTS = [
     ("q_progress_term", "Q_PROGRESS_TERM", "32.0", "Terminal progress reward"),
     ("admm_rho", "ADMM_RHO", "60.0", "ADMM penalty parameter"),
     ("admm_rho_u", "ADMM_RHO_U", "4.0", "Optional control ADMM penalty (0 uses rho)"),
-    ("admm_max_iter", "ADMM_MAX_ITER", "125", "ADMM maximum iterations"),
+    ("admm_max_iter", "ADMM_MAX_ITER", "80", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
     ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
     ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.0", "ADMM over-relaxation factor"),
@@ -127,7 +127,7 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
-                os.path.join(planning_share, "trajectories", "my_track_SmoothCenterline.csv"),
+                os.path.join(planning_share, "trajectories", "SmoothCenterline.csv"),
             ]
         )
     except Exception:
@@ -143,7 +143,7 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
-                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_SmoothCenterline.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "SmoothCenterline.csv"),
             ]
         )
 
