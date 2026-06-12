@@ -37,6 +37,11 @@ endif()
 option(MPCC_ENABLE_DEBUG_PRINTS "Enable verbose MPCC debug prints" OFF)
 option(MPCC_USE_OSQP "Build MPCC with the OSQP backend instead of the in-tree ADMM solver" OFF)
 
+if(MPCC_USE_OSQP)
+    message(FATAL_ERROR
+        "MPCC_USE_OSQP is disabled for this project. The supported MPCC backend is the in-tree ADMM+Riccati solver.")
+endif()
+
 # Path to MPC package (for shared sources: fp_math, vehicle_model)
 set(MPC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../MPC)
 
@@ -52,41 +57,22 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-if(MPCC_USE_OSQP)
-    find_package(osqp REQUIRED)
-
-    find_path(OSQP_INCLUDE_ROOT
-        NAMES osqp/osqp.h
-        PATHS
-            /opt/ros/jazzy/include
-            /usr/local/include
-            /usr/include
-    )
-    if(NOT OSQP_INCLUDE_ROOT)
-        message(FATAL_ERROR "Could not find osqp/osqp.h. Install/source osqp_vendor or OSQP.")
-    endif()
-endif()
 
 #===========================================================================
 # MPCC Core Library (FPGA-Compatible, No ROS Dependencies)
 #===========================================================================
 #
-# Pure C implementation of the MPCC controller. The default build uses the
-# in-tree ADMM+Riccati solver. OSQP remains available as an explicit opt-in
-# backend for comparison or experimentation.
+# Pure C implementation of the MPCC controller. This project uses the in-tree
+# ADMM+Riccati solver; the old OSQP bridge is kept only as historical code.
 #
 # Modules:
 #   mpcc.c                - Main MPCC controller (QP construction, cost)
 #   mpcc_vehicle_model.c  - Dynamics linearization (Lifted ODE, linear tires)
 #   qp_solver_mpcc.c      - In-tree ADMM+Riccati solver
-#   qp_solver_osqp.c      - Optional OSQP solver bridge
+#   qp_solver_osqp.c      - Historical OSQP trial bridge, not built
 #
 
-if(MPCC_USE_OSQP)
-    set(MPCC_SOLVER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_osqp.c)
-else()
-    set(MPCC_SOLVER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_mpcc.c)
-endif()
+set(MPCC_SOLVER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_mpcc.c)
 
 set(MPCC_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpcc.c
@@ -103,27 +89,8 @@ target_include_directories(mpcc_core
         $<INSTALL_INTERFACE:include>
 )
 
-if(MPCC_USE_OSQP)
-    target_include_directories(mpcc_core
-        PUBLIC
-            $<BUILD_INTERFACE:${OSQP_INCLUDE_ROOT}>
-    )
-
-    target_compile_definitions(mpcc_core
-        PUBLIC
-            USE_OSQP
-    )
-endif()
-
 if(MPCC_ENABLE_DEBUG_PRINTS)
     target_compile_definitions(mpcc_core PRIVATE MPCC_DEBUG_PRINT)
-endif()
-
-if(MPCC_USE_OSQP)
-    target_link_libraries(mpcc_core
-        PUBLIC
-            osqp::osqp
-    )
 endif()
 
 #===========================================================================
@@ -198,10 +165,6 @@ if(BUILD_TESTING)
     add_executable(test_mpcc_solver
         test/test_admm_riccati.c
     )
-
-    if(MPCC_USE_OSQP)
-        target_sources(test_mpcc_solver PRIVATE src/qp_solver_mpcc.c)
-    endif()
 
     target_link_libraries(test_mpcc_solver
         mpcc_core
