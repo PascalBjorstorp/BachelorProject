@@ -26,21 +26,21 @@
 gpu_amcl_cpp:
   ros__parameters:
     # ---- Particles ----
-    num_particles: 2000
-    min_particles: 2000
-    max_particles: 2000
+    num_particles: 2500
+    min_particles: 1000
+    max_particles: 2500
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
     # When converged (tight cluster), uses fewer particles → saves GPU time.
     # When uncertain (spread out), uses more particles → better coverage.
-    use_kld_sampling: false
+    use_kld_sampling: true
     kld_epsilon: 0.10         # KL-divergence error bound (smaller → more particles)
     kld_z: 1.96                # Quantile: 2.33 = 99%, 1.96 = 95%
-    kld_bin_x: 0.4             # metres per occupied KLD bin in x
-    kld_bin_y: 0.4             # metres per occupied KLD bin in y
-    kld_bin_theta: 0.1         # radians per occupied KLD bin in heading
-    kld_min_bin_weight: 0.00005  # only count KLD bins with this normalized weight mass
+    kld_bin_x: 0.05             # metres per occupied KLD bin in x
+    kld_bin_y: 0.05             # metres per occupied KLD bin in y
+    kld_bin_theta: 0.05236   # ≈ 3 degrees per occupied KLD heading bin
+    kld_min_bin_weight: 0.00001  # only count KLD bins with this normalized weight mass
 
     # ---- Frame IDs ----
     base_frame_id: "ego_racecar/base_link"
