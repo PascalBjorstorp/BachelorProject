@@ -28,12 +28,12 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("horizon", "HORIZON", "50", "Prediction horizon steps"),
+    ("horizon", "HORIZON", "60", "Prediction horizon steps"),
     ("dt", "DT", "0.025", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "10.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "20.0", "Lag weight"),
-    ("q_heading", "Q_HEADING", "8.0", "Heading alignment weight"),
-    ("q_wall_clearance", "Q_WALL_CLEARANCE", "20.0", "Wall-clearance weight"),
+    ("q_heading", "Q_HEADING", "4.0", "Heading alignment weight"),
+    ("q_wall_clearance", "Q_WALL_CLEARANCE", "0.0", "Wall-clearance weight"),
     ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.0", "Soft wall-clearance margin in meters"),
     ("track_buffer", "MPCC_TRACK_BUFFER", "0.00", "Hard buffer subtracted from each track bound in meters"),
     ("q_progress", "Q_PROGRESS", "1.0", "Progress reward"),
@@ -78,7 +78,7 @@ HARDWARE_TUNING_DEFAULTS = [
     ("ax_min", "AX_MIN", "-6.0", "Minimum solver acceleration in m/s^2"),
     ("ax_min_hardware", "MPCC_AX_MIN_HARDWARE", "-6.0", "Hardware braking acceleration clamp in m/s^2"),
     ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
-    ("w_delta_rate", "W_DELTA_RATE", "5.0", "Steering rate weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
     ("w_ax_rate", "W_AX_RATE", "2.0", "Acceleration rate weight"),
     ("w_vtheta_rate", "W_VTHETA_RATE", "0.3", "Virtual progress rate weight"),
     (
@@ -87,9 +87,9 @@ HARDWARE_TUNING_DEFAULTS = [
         "25.0",
         "Penalty on v_theta minus physical path velocity",
     ),
-    ("q_contouring_term", "Q_CONTOURING_TERM", "250.0", "Terminal contouring weight"),
-    ("q_lag_term", "Q_LAG_TERM", "160.0", "Terminal lag weight"),
-    ("q_heading_term", "Q_HEADING_TERM", "20.0", "Terminal heading alignment weight"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "30.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "20.0", "Terminal lag weight"),
+    ("q_heading_term", "Q_HEADING_TERM", "10.0", "Terminal heading alignment weight"),
     ("q_progress_term", "Q_PROGRESS_TERM", "30.0", "Terminal progress reward"),
     ("admm_rho", "ADMM_RHO", "60.0", "ADMM penalty parameter"),
     ("admm_rho_u", "ADMM_RHO_U", "4.0", "Optional control ADMM penalty (0 uses rho)"),
