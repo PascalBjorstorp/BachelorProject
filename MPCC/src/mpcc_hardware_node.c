@@ -1616,10 +1616,6 @@ static void configure_mpcc_from_environment(void)
         cfg.use_raceline_vx_ref = (uint8_t)(atoi(v) != 0);
     if ((v = getenv("MPCC_USE_RACELINE_VX_LIMIT")) != NULL)
         cfg.use_raceline_vx_limit = (uint8_t)(atoi(v) != 0);
-    if ((v = getenv("MPCC_USE_GLOBAL_VX_LIMIT")) != NULL)
-        cfg.use_global_vx_limit = (uint8_t)(atoi(v) != 0);
-    if ((v = getenv("MPCC_USE_CURVATURE_VX_LIMIT")) != NULL)
-        cfg.use_curvature_vx_limit = (uint8_t)(atoi(v) != 0);
     if ((v = getenv("MPCC_RACELINE_VX_LIMIT_SCALE")) != NULL)
         cfg.raceline_vx_limit_scale = (float)atof(v);
     if ((v = getenv("Q_VY")) != NULL)          cfg.weight_vy                = (float)atof(v);
@@ -1708,7 +1704,7 @@ static void configure_mpcc_from_environment(void)
     {
         g_vx_max_mps = 8.0;
     }
-    g_use_global_vx_limit = (cfg.use_global_vx_limit != 0u);
+    g_use_global_vx_limit = 0;
 
     g_control_dt_filtered = cfg.cross_call_rate_scale * (double)cfg.dt;
     if (g_control_dt_filtered <= 0.0)
@@ -1720,7 +1716,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_phys_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u use_global_vx_limit=%u use_curv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_phys_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
            "OSQP",
 #else
@@ -1740,8 +1736,6 @@ static void configure_mpcc_from_environment(void)
            cfg.weight_vx,
            (unsigned)cfg.use_raceline_vx_ref,
            (unsigned)cfg.use_raceline_vx_limit,
-           (unsigned)cfg.use_global_vx_limit,
-           (unsigned)cfg.use_curvature_vx_limit,
            cfg.weight_delta,
            cfg.weight_v_theta,
            cfg.weight_vtheta_physical,

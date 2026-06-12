@@ -302,12 +302,6 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
                         s_u[row] = (c_float)prob->s_upper_stage[k];
                 }
 
-                /* Tighten vx only when an optional speed limiter is enabled */
-                if (ix == MPCC_IDX_VX && prob->vx_max_stage[k] > 0.0f)
-                {
-                    if (s_u[row] > (c_float)prob->vx_max_stage[k])
-                        s_u[row] = (c_float)prob->vx_max_stage[k];
-                }
             }
         }
         else if (k < N)
@@ -322,15 +316,6 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
                 s_u[row] = (c_float)prob->u_upper[iu];
             }
 
-            /* Tighten a_x with friction circle */
-            if (iu == MPCC_IDX_AX && prob->mu_g_sq > 0.0f)
-            {
-                float ax_lim = prob->ax_lim_stage[k];
-                if (s_u[row] > (c_float)ax_lim)
-                    s_u[row] = (c_float)ax_lim;
-                if (s_l[row] < (c_float)(-ax_lim))
-                    s_l[row] = (c_float)(-ax_lim);
-            }
         }
     }
 

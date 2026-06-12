@@ -6,7 +6,6 @@ import csv
 import json
 import math
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -226,36 +225,6 @@ def write_csv(path: Path, rows: List[Dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
-def load_workspace_env(repo_root: Path) -> Dict[str, str]:
-    env = os.environ.copy()
-    setup_path = repo_root / "install" / "setup.bash"
-    if not setup_path.exists():
-        env.setdefault("PYTHONUNBUFFERED", "1")
-        return env
-
-    command = f"source {shlex.quote(str(setup_path))} && env -0"
-    result = subprocess.run(
-        ["bash", "-lc", command],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(f"[warn] failed to source {setup_path}; using current environment")
-        env.setdefault("PYTHONUNBUFFERED", "1")
-        return env
-
-    loaded: Dict[str, str] = {}
-    for item in result.stdout.split(b"\0"):
-        if not item or b"=" not in item:
-            continue
-        key, value = item.split(b"=", 1)
-        loaded[key.decode()] = value.decode()
-    loaded.setdefault("PYTHONUNBUFFERED", "1")
-    loaded.setdefault("RCUTILS_LOGGING_BUFFERED_STREAM", "1")
-    return loaded
-
-
 def result_row_failed(row: Dict[str, object]) -> bool:
     try:
         returncode = int(float(str(row.get("returncode", "1"))))
@@ -325,7 +294,6 @@ def run_spawn(args: argparse.Namespace,
         log.flush()
         completed = subprocess.run(
             cmd,
-            env=args.ros_env,
             stdout=log,
             stderr=subprocess.STDOUT,
             text=True,
@@ -424,7 +392,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    args.ros_env = load_workspace_env(Path(__file__).resolve().parents[2])
     map_file = map_yaml_for(args.map_file)
     trajectory_file = os.path.abspath(args.trajectory_file)
     benchmark_script = os.path.abspath(args.benchmark_script)

@@ -30,14 +30,14 @@ from launch_ros.actions import Node
 HARDWARE_TUNING_DEFAULTS = [
     ("horizon", "HORIZON", "60", "Prediction horizon steps"),
     ("dt", "DT", "0.025", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "10.0", "Contouring weight"),
-    ("q_lag", "Q_LAG", "20.0", "Lag weight"),
-    ("q_heading", "Q_HEADING", "4.0", "Heading alignment weight"),
-    ("q_wall_clearance", "Q_WALL_CLEARANCE", "0.0", "Wall-clearance weight"),
-    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.0", "Soft wall-clearance margin in meters"),
+    ("q_contouring", "Q_CONTOURING", "8.0", "Contouring weight"),
+    ("q_lag", "Q_LAG", "13.4", "Lag weight"),
+    ("q_heading", "Q_HEADING", "5.8", "Heading alignment weight"),
+    ("q_wall_clearance", "Q_WALL_CLEARANCE", "450.0", "Wall-clearance weight"),
+    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.12", "Soft wall-clearance margin in meters"),
     ("track_buffer", "MPCC_TRACK_BUFFER", "0.00", "Hard buffer subtracted from each track bound in meters"),
-    ("q_progress", "Q_PROGRESS", "1.0", "Progress reward"),
-    ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "1.0", "Physical path-progress reward"),
+    ("q_progress", "Q_PROGRESS", "0.9", "Progress reward"),
+    ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "1.78", "Physical path-progress reward"),
     ("s_qp_window", "MPCC_S_QP_WINDOW", "1.0", "Per-stage s bound window in meters"),
     ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
     ("vx_ref", "VX_REF", "0.0", "Reference longitudinal velocity"),
@@ -54,46 +54,35 @@ HARDWARE_TUNING_DEFAULTS = [
         "Use CSV velocity in speed limiter (0/1)",
     ),
     (
-        "use_global_vx_limit",
-        "MPCC_USE_GLOBAL_VX_LIMIT",
-        "0",
-        "Apply global vx_max as a hard QP and command cap (0/1)",
-    ),
-    (
-        "use_curvature_vx_limit",
-        "MPCC_USE_CURVATURE_VX_LIMIT",
-        "0",
-        "Apply forward-looking curvature-based vx speed cap (0/1)",
-    ),
-    (
         "raceline_vx_limit_scale",
         "MPCC_RACELINE_VX_LIMIT_SCALE",
-        "0.85",
+        "0.0",
         "Multiplier for CSV velocity speed limit when enabled",
     ),
     ("q_vy", "Q_VY", "0.0", "Lateral velocity regularization weight"),
     ("q_omega", "Q_OMEGA", "1.0", "Yaw-rate regularization weight"),
-    ("r_delta", "R_DELTA", "1.0", "Steering effort weight"),
-    ("r_ax", "R_AX", "0.2", "Acceleration effort weight"),
-    ("ax_min", "AX_MIN", "-6.0", "Minimum solver acceleration in m/s^2"),
-    ("ax_min_hardware", "MPCC_AX_MIN_HARDWARE", "-6.0", "Hardware braking acceleration clamp in m/s^2"),
-    ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
-    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
-    ("w_ax_rate", "W_AX_RATE", "2.0", "Acceleration rate weight"),
-    ("w_vtheta_rate", "W_VTHETA_RATE", "0.3", "Virtual progress rate weight"),
+    ("r_delta", "R_DELTA", "0.95", "Steering effort weight"),
+    ("r_ax", "R_AX", "0.42", "Acceleration effort weight"),
+    ("ax_max", "AX_MAX", "10.25", "Maximum solver acceleration in m/s^2"),
+    ("ax_min", "AX_MIN", "-10.25", "Minimum solver acceleration in m/s^2"),
+    ("ax_min_hardware", "MPCC_AX_MIN_HARDWARE", "-10.25", "Hardware braking acceleration clamp in m/s^2"),
+    ("r_vtheta", "R_VTHETA", "0.09", "Virtual progress effort weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "54.0", "Steering rate weight"),
+    ("w_ax_rate", "W_AX_RATE", "3.6", "Acceleration rate weight"),
+    ("w_vtheta_rate", "W_VTHETA_RATE", "0.42", "Virtual progress rate weight"),
     (
         "w_vtheta_physical",
         "W_VTHETA_PHYSICAL",
-        "25.0",
+        "130.0",
         "Penalty on v_theta minus physical path velocity",
     ),
-    ("q_contouring_term", "Q_CONTOURING_TERM", "30.0", "Terminal contouring weight"),
-    ("q_lag_term", "Q_LAG_TERM", "20.0", "Terminal lag weight"),
-    ("q_heading_term", "Q_HEADING_TERM", "10.0", "Terminal heading alignment weight"),
-    ("q_progress_term", "Q_PROGRESS_TERM", "30.0", "Terminal progress reward"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "100.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "50.0", "Terminal lag weight"),
+    ("q_heading_term", "Q_HEADING_TERM", "18.0", "Terminal heading alignment weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "32.0", "Terminal progress reward"),
     ("admm_rho", "ADMM_RHO", "60.0", "ADMM penalty parameter"),
     ("admm_rho_u", "ADMM_RHO_U", "4.0", "Optional control ADMM penalty (0 uses rho)"),
-    ("admm_max_iter", "ADMM_MAX_ITER", "100", "ADMM maximum iterations"),
+    ("admm_max_iter", "ADMM_MAX_ITER", "125", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
     ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
     ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.0", "ADMM over-relaxation factor"),
@@ -123,6 +112,10 @@ HARDWARE_TUNING_DEFAULTS = [
         "Minimum positive speed command in m/s",
     ),
 ]
+
+
+def _env_or_default(env_name: str, default_value: str) -> str:
+    return os.environ.get(env_name, default_value)
 
 
 def _resolve_default_trajectory() -> str:
@@ -225,10 +218,10 @@ def generate_launch_description() -> LaunchDescription:
     tuning_args = [
         DeclareLaunchArgument(
             arg_name,
-            default_value=default_value,
+            default_value=_env_or_default(env_name, default_value),
             description=description,
         )
-        for arg_name, _env_name, default_value, description in HARDWARE_TUNING_DEFAULTS
+        for arg_name, env_name, default_value, description in HARDWARE_TUNING_DEFAULTS
     ]
 
     set_trajectory = SetEnvironmentVariable(
