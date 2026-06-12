@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-DEFAULT_TRAJECTORY_FILE="${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline.csv"
+DEFAULT_TRAJECTORY_FILE="${ROOT_DIR}/f1tenth_planning/trajectories/SmoothCenterline.csv"
 TRAJECTORY_FILE="${2:-${DEFAULT_TRAJECTORY_FILE}}"
 
 # Resolve to an absolute path so ROS2 nodes can find the trajectory regardless of cwd.
