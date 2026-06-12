@@ -123,6 +123,8 @@ typedef struct
     float path_x_ref  [MPCC_MAX_HORIZON + 1];   /* x_ref(s_k)   [m]   */
     float path_y_ref  [MPCC_MAX_HORIZON + 1];   /* y_ref(s_k)   [m]   */
     float path_phi_ref[MPCC_MAX_HORIZON + 1];   /* phi_ref(s_k) [rad] */
+    float path_sin_phi[MPCC_MAX_HORIZON + 1];   /* sinf(phi_ref(s_k)) — precomputed once per build */
+    float path_cos_phi[MPCC_MAX_HORIZON + 1];   /* cosf(phi_ref(s_k)) — precomputed once per build */
 
     /*--- Friction circle ---*/
 
@@ -221,12 +223,6 @@ typedef struct
     /*--- ADMM dual variables (lambda): scaled form (lambda/rho) ---*/
     float lambda_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
     float lambda_u[MPCC_MAX_HORIZON][MPCC_NU];
-
-    /*--- Riccati backward pass: cost-to-go ---*/
-    /** P_k: value function Hessian (NX x NX) at each stage */
-    float P[MPCC_MAX_HORIZON + 1][MPCC_NX][MPCC_NX];
-    /** p_k: value function gradient (NX) at each stage */
-    float p[MPCC_MAX_HORIZON + 1][MPCC_NX];
 
     /*--- Riccati gains ---*/
     /** K_k: feedback gain matrix (NU x NX) at each stage */

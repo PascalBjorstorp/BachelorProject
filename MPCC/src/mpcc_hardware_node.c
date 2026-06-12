@@ -269,6 +269,26 @@ static void log_solve_metrics(uint32_t solve_count,
     fflush(stderr);
 }
 
+static void log_solve_publish_latency(uint32_t solve_count,
+                                      MPCCStatus_t status,
+                                      const MPCCResult_t *result,
+                                      const struct timespec *solve_start_time)
+{
+    struct timespec publish_done_time;
+    clock_gettime(CLOCK_MONOTONIC, &publish_done_time);
+
+    const double solve_to_publish_ms =
+        timespec_diff_sec(solve_start_time, &publish_done_time) * 1000.0;
+
+    fprintf(stderr,
+            "[MPCC] solve=%u status=%d iter=%u solve_to_publish_ms=%.2f\n",
+            solve_count,
+            (int)status,
+            result->admm_iterations,
+            solve_to_publish_ms);
+    fflush(stderr);
+}
+
 static int should_log_throttled(struct timespec *last_log_time,
                                 const struct timespec *now,
                                 double interval_sec)
@@ -1147,6 +1167,9 @@ static void pose_callback(const void *msg_in)
         g_prev_solve_time = solve_now;
     }
 
+    struct timespec solve_start_time;
+    clock_gettime(CLOCK_MONOTONIC, &solve_start_time);
+
     MPCCResult_t result;
     const MPCCStatus_t status = mpcc_compute_control(&mpcc_state, &result);
 
@@ -1190,18 +1213,21 @@ static void pose_callback(const void *msg_in)
             g_prev_speed_cmd = (float)v_safe;
             g_prev_ax_cmd = a_x_safe;
 
-            log_solve_metrics(g_solve_count,
-                              status,
-                              &mpcc_state,
-                              &result,
-                              delta_safe,
-                              a_x_safe,
-                              0.0f,
-                              (float)v_safe,
-                              solve_gap_sec,
-                              g_nominal_control_dt_sec);
+            if (g_verbose)
+            {
+                log_solve_metrics(g_solve_count,
+                                  status,
+                                  &mpcc_state,
+                                  &result,
+                                  delta_safe,
+                                  a_x_safe,
+                                  0.0f,
+                                  (float)v_safe,
+                                  solve_gap_sec,
+                                  g_nominal_control_dt_sec);
+            }
 
-            if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
+            if (g_verbose)
             {
                 log_path_alignment_debug(g_solve_count, mpcc_state.s);
             }
@@ -1212,6 +1238,10 @@ static void pose_callback(const void *msg_in)
             {
                 g_have_published_drive_cmd = 1;
             }
+            log_solve_publish_latency(g_solve_count,
+                                      status,
+                                      &result,
+                                      &solve_start_time);
         }
         return;
     }
@@ -1316,20 +1346,27 @@ static void pose_callback(const void *msg_in)
         {
             g_have_published_drive_cmd = 1;
         }
+        log_solve_publish_latency(g_solve_count,
+                                  status,
+                                  &result,
+                                  &solve_start_time);
     }
 
-    log_solve_metrics(g_solve_count,
-                      status,
-                      &mpcc_state,
-                      &result,
-                      delta_cmd,
-                      a_x_cmd,
-                      v_theta_cmd,
-                      (float)v_cmd,
-                      solve_gap_sec,
-                      g_nominal_control_dt_sec);
+    if (g_verbose)
+    {
+        log_solve_metrics(g_solve_count,
+                          status,
+                          &mpcc_state,
+                          &result,
+                          delta_cmd,
+                          a_x_cmd,
+                          v_theta_cmd,
+                          (float)v_cmd,
+                          solve_gap_sec,
+                          g_nominal_control_dt_sec);
+    }
 
-    if (g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
+    if (g_verbose && (g_solve_count <= 20 || (g_solve_count % 10U) == 0U))
     {
         fprintf(stderr,
                 "[MPCC %3u] s=%.2f x=%.2f y=%.2f psi=%.2f vx=%.2f | d=%.4f ax=%.3f vt=%.3f vcmd=%.2f | st=%d it=%u\n",
