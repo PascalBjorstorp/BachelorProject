@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -611,41 +612,6 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
         return std::abs(std::atan2(std::sin(d), std::cos(d)));
     };
 
-    std::vector<double> seed_scores(static_cast<size_t>(n_), 0.0);
-    for (int i = 0; i < n_; ++i) {
-        const float wi = weights[i];
-        if (!(wi > 0.0f) || !std::isfinite(wi)) {
-            continue;
-        }
-        const float cx = particles[i * 3 + 0];
-        const float cy = particles[i * 3 + 1];
-        const float cyaw = particles[i * 3 + 2];
-        double score = 0.0;
-        for (int j = 0; j < n_; ++j) {
-            const float wj = weights[j];
-            if (!(wj > 0.0f) || !std::isfinite(wj)) {
-                continue;
-            }
-            const double dx = static_cast<double>(particles[j * 3 + 0] - cx);
-            const double dy = static_cast<double>(particles[j * 3 + 1] - cy);
-            if (dx * dx + dy * dy <= radius2 &&
-                yaw_abs_diff(particles[j * 3 + 2], cyaw) <= yaw_tolerance) {
-                score += static_cast<double>(wj);
-            }
-        }
-        seed_scores[static_cast<size_t>(i)] = score;
-    }
-
-    std::vector<int> sorted_indices(static_cast<size_t>(n_));
-    for (int i = 0; i < n_; ++i) {
-        sorted_indices[static_cast<size_t>(i)] = i;
-    }
-    std::sort(sorted_indices.begin(), sorted_indices.end(),
-              [&](int a, int b) {
-                  return seed_scores[static_cast<size_t>(a)] >
-                         seed_scores[static_cast<size_t>(b)];
-              });
-
     struct RaycastCluster {
         int seed = -1;
         float x = 0.0f;
@@ -655,10 +621,69 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
         double score = 0.0;
     };
 
+    struct BinSeed {
+        double score = 0.0;
+        int best_index = -1;
+        float best_weight = -1.0f;
+    };
+
+    const auto pack_bin_key = [](long long bx, long long by, long long bt) {
+        constexpr long long offset = 1LL << 20;
+        constexpr std::uint64_t mask = (1ULL << 21) - 1ULL;
+        const auto ux = static_cast<std::uint64_t>(bx + offset) & mask;
+        const auto uy = static_cast<std::uint64_t>(by + offset) & mask;
+        const auto ut = static_cast<std::uint64_t>(bt + offset) & mask;
+        return (ux << 42) | (uy << 21) | ut;
+    };
+
+    const double inv_radius = 1.0 / radius;
+    const double inv_yaw_bin = 1.0 / yaw_tolerance;
+    std::unordered_map<std::uint64_t, BinSeed> bins;
+    bins.reserve(static_cast<size_t>(n_) * 2);
+
+    for (int i = 0; i < n_; ++i) {
+        const float wi = weights[i];
+        if (!(wi > 0.0f) || !std::isfinite(wi)) {
+            continue;
+        }
+        const double x = static_cast<double>(particles[i * 3 + 0]);
+        const double y = static_cast<double>(particles[i * 3 + 1]);
+        const double yaw = std::atan2(
+            std::sin(static_cast<double>(particles[i * 3 + 2])),
+            std::cos(static_cast<double>(particles[i * 3 + 2])));
+        const long long bx = static_cast<long long>(std::floor(x * inv_radius));
+        const long long by = static_cast<long long>(std::floor(y * inv_radius));
+        const long long bt = static_cast<long long>(
+            std::floor((yaw + 3.14159265358979323846) * inv_yaw_bin));
+        auto& bin = bins[pack_bin_key(bx, by, bt)];
+        bin.score += static_cast<double>(wi);
+        if (wi > bin.best_weight) {
+            bin.best_weight = wi;
+            bin.best_index = i;
+        }
+    }
+
+    struct BinCandidate {
+        int seed = -1;
+        double score = 0.0;
+    };
+    std::vector<BinCandidate> sorted_bins;
+    sorted_bins.reserve(bins.size());
+    for (const auto& entry : bins) {
+        if (entry.second.best_index >= 0 && entry.second.score > 0.0) {
+            sorted_bins.push_back({entry.second.best_index, entry.second.score});
+        }
+    }
+    std::sort(sorted_bins.begin(), sorted_bins.end(),
+              [](const BinCandidate& a, const BinCandidate& b) {
+                  return a.score > b.score;
+              });
+
     std::vector<RaycastCluster> clusters;
     clusters.reserve(static_cast<size_t>(max_clusters + top_particles));
-    for (int seed : sorted_indices) {
-        const double seed_score = seed_scores[static_cast<size_t>(seed)];
+    for (const auto& candidate : sorted_bins) {
+        const int seed = candidate.seed;
+        const double seed_score = candidate.score;
         if (!(seed_score > 0.0)) {
             break;
         }
