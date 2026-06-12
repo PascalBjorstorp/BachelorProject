@@ -33,9 +33,9 @@ HARDWARE_TUNING_DEFAULTS = [
     ("q_contouring", "Q_CONTOURING", "30.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "20.0", "Lag weight"),
     ("q_heading", "Q_HEADING", "8.0", "Heading alignment weight"),
-    ("q_wall_clearance", "Q_WALL_CLEARANCE", "2000.0", "Wall-clearance weight"),
-    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.0", "Soft wall-clearance margin in meters"),
-    ("track_buffer", "MPCC_TRACK_BUFFER", "0.05", "Hard buffer subtracted from each track bound in meters"),
+    ("q_wall_clearance", "Q_WALL_CLEARANCE", "200.0", "Wall-clearance weight"),
+    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.05", "Soft wall-clearance margin in meters"),
+    ("track_buffer", "MPCC_TRACK_BUFFER", "0.00", "Hard buffer subtracted from each track bound in meters"),
     ("q_progress", "Q_PROGRESS", "6.0", "Progress reward"),
     ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "2.0", "Physical path-progress reward"),
     ("s_qp_window", "MPCC_S_QP_WINDOW", "1.0", "Per-stage s bound window in meters"),
@@ -111,6 +111,10 @@ HARDWARE_TUNING_DEFAULTS = [
         "Minimum positive speed command in m/s",
     ),
 ]
+
+
+def _env_or_default(env_name: str, default_value: str) -> str:
+    return os.environ.get(env_name, default_value)
 
 
 def _resolve_default_trajectory() -> str:
@@ -213,10 +217,10 @@ def generate_launch_description() -> LaunchDescription:
     tuning_args = [
         DeclareLaunchArgument(
             arg_name,
-            default_value=default_value,
+            default_value=_env_or_default(env_name, default_value),
             description=description,
         )
-        for arg_name, _env_name, default_value, description in HARDWARE_TUNING_DEFAULTS
+        for arg_name, env_name, default_value, description in HARDWARE_TUNING_DEFAULTS
     ]
 
     set_trajectory = SetEnvironmentVariable(

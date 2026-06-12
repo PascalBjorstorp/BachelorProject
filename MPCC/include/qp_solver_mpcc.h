@@ -24,8 +24,8 @@
  *
  *   2. w-step: Box-constrained proximal step
  *      w = clamp(z + lambda, lb, ub)
- *      Per-stage track corridor, speed, steering-rate, and friction
- *      bounds are applied here.
+ *      Per-stage track corridor, speed, and steering-rate bounds are
+ *      applied here.
  *
  *   3. Dual update:
  *      lambda += z - w
@@ -126,22 +126,6 @@ typedef struct
     float path_sin_phi[MPCC_MAX_HORIZON + 1];   /* sinf(phi_ref(s_k)) — precomputed once per build */
     float path_cos_phi[MPCC_MAX_HORIZON + 1];   /* cosf(phi_ref(s_k)) — precomputed once per build */
 
-    /*--- Friction circle ---*/
-
-    /** Squared friction limit (mu * g)^2 for combined acceleration constraint.
-     *  When > 0, per-stage a_x bounds are tightened based on operating point
-     *  lateral acceleration: ax_max_k = sqrt(mu_g_sq - ay_k^2). */
-    float mu_g_sq;
-
-    /** Per-stage upper bound on |a_x|, tightened by friction circle.
-     *  Computed from operating point lateral acceleration at each stage. */
-    float ax_lim_stage[MPCC_MAX_HORIZON];
-
-    /** Per-stage upper bound on vx [m/s].
-     *  Computed from lookahead curvature to enforce braking before curves.
-     *  When > 0, tightens the global vx_max at each stage. */
-    float vx_max_stage[MPCC_MAX_HORIZON + 1];
-
     /*--- Problem size ---*/
 
     /** Prediction horizon length (0 < N <= MPCC_MAX_HORIZON) */
@@ -193,7 +177,11 @@ typedef struct
     /** Over-relaxation parameter alpha in (1.0, 2.0).
      *  Standard ADMM uses alpha=1.0. Values 1.5-1.7 typically reduce
      *  iteration count by 30-50%. Set to 1.0f to disable.
-     *  FPGA-friendly: one extra multiply per variable per iteration. */
+     *  FPGA-friendly: one extra multiply per variable per iteration.
+     *
+     *  Note: on cold starts (warm_start=0) over-relaxation is silently
+     *  forced to 1.0 inside the solver to avoid amplifying early-iteration
+     *  oscillations when the primal iterate is far from feasibility. */
     float alpha_relax;
 
 } ADMMConfig_t;
@@ -248,6 +236,14 @@ typedef struct
     uint16_t adaptive_rho_state_updates;
     uint16_t adaptive_rho_control_updates;
     uint32_t numeric_clip_count;
+
+    /* Cached per-domain residuals from the most recent convergence check.
+     * Used by the adaptive-rho block so it can run independently of the
+     * even-iter convergence gate. */
+    float last_prim_x;
+    float last_dual_x;
+    float last_prim_u;
+    float last_dual_u;
 
     /* Persisted adaptive penalties for warm-started solves.  Fixed-rho
      * solves ignore these values and use the configured penalties. */
@@ -328,20 +324,18 @@ MPCCStatus_t admm_solver_solve(
 /**
  * Riccati backward pass: compute P_k, p_k, K_k, kk_k for all stages.
  *
- * Uses ADMM-augmented costs with selective augmentation:
- *   For constrained state dimensions (|bound| < threshold):
- *     Q_tilde_k[s][s] = Q_k[s][s] + rho
- *     q_tilde_k[s]    = q_k[s] + rho*(lambda_x_k[s] - w_x_k[s])
- *   For unconstrained state dimensions: no augmentation.
+ * Uses ADMM-augmented costs with uniform augmentation (rho*I added to all
+ * state dimensions; rho_u*I to all control dimensions):
+ *   Q_tilde_k[i][i] = Q_k[i][i] + rho          (all i)
+ *   q_tilde_k[i]    = q_k[i] + rho*(lambda_x_k[i] - w_x_k[i])
  *
- *   For controls (always constrained):
- *     R_tilde_k[a][a] = R_k[a][a] + rho_u
- *     r_tilde_k[a]    = r_k[a] + rho_u*(lambda_u_k[a] - w_u_k[a])
+ *   R_tilde_k[a][a] = R_k[a][a] + rho_u         (all a)
+ *   r_tilde_k[a]    = r_k[a] + rho_u*(lambda_u_k[a] - w_u_k[a])
  *
  * Uses int64 intermediates for P and p to avoid fixed-point truncation
  * accumulation across the backward sweep.
  *
- * G_k = R_tilde + B^T P B is 2x2 -> analytic inverse.
+ * G_k = R_tilde + B^T P B is 3x3 -> analytic inverse via mat_nu_inverse().
  */
 void riccati_backward_pass(
     const MPCCQPProblem_t *problem,
@@ -392,14 +386,18 @@ void admm_compute_residuals(
  *===========================================================================*/
 
 /**
- * Invert a NU x NU (2x2) symmetric positive definite matrix.
+ * Invert a NU x NU (3x3) matrix using Cramer's rule (cofactor expansion).
  *
- * For the 2x2 case, uses the analytic formula:
- *   det = M[0][0]*M[1][1] - M[0][1]*M[1][0]
- *   inv = (1/det) * [ M[1][1], -M[0][1]; -M[1][0], M[0][0] ]
+ * With ADMM regularisation (rho*I added to G_k), the input is always
+ * well-conditioned.  Singular detection threshold: |det| < 1e-10.
  *
- * @param mat    Input matrix (NU x NU = 2x2)
- * @param inv    Output: inverse matrix (NU x NU = 2x2)
+ * Note: a structurally identical private helper `invert_3x3` exists in
+ * qp_solver_mpcc.c for use in obstacle-sigma inversion.  Both implement
+ * the same algorithm; the only difference is the singularity threshold
+ * (1e-10 here vs 1e-12 there).
+ *
+ * @param mat    Input matrix (NU x NU = 3x3)
+ * @param inv    Output: inverse matrix (NU x NU = 3x3); zeroed on failure
  * @return 0 on success, -1 if matrix is singular
  */
 int mat_nu_inverse(

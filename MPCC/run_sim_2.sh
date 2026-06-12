@@ -150,45 +150,18 @@ done
 export PYTHONPATH="${PYTHONPATH_EXTRA}:${PYTHONPATH:-}"
 
 # Keep the gym spawn and map aligned with the selected trajectory. For MPCC's
-# 9-column CSVs, prefer the waypoint with the largest side clearance so the
-# simulator does not start the car in or next to a wall.
-TRAJ_SPAWN="$(awk -F, '
-function trim(value) {
-    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-    return value
-}
-$1 ~ /^[[:space:]]*#/ || NF < 4 { next }
-{
-    x = trim($2)
-    y = trim($3)
-    psi = trim($4)
-    if (!have_first) {
-        first_x = x
-        first_y = y
-        first_psi = psi
-        have_first = 1
-    }
-    if (NF >= 9) {
-        left = trim($8) + 0.0
-        right = trim($9) + 0.0
-        clearance = (left < right) ? left : right
-        if (!have_best || clearance > best_clearance) {
-            best_clearance = clearance
-            best_x = x
-            best_y = y
-            best_psi = psi
-            have_best = 1
-        }
-    }
-}
-END {
-    if (have_best) {
-        printf "%s %s %s\n", best_x, best_y, best_psi
-    } else if (have_first) {
-        printf "%s %s %s\n", first_x, first_y, first_psi
-    }
-}
-' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+# 9-column CSVs, pick the waypoint with the highest curvature-based speed limit
+# within the next 7m (so we don't spawn inside or just before a hairpin) with
+# a minimum clearance of 0.5m. Falls back to max-clearance if Python fails.
+_PICK_SPAWN_PY="${ROOT_DIR}/MPCC/pick_spawn.py"
+TRAJ_SPAWN="$(python3 "${_PICK_SPAWN_PY}" "${TRAJECTORY_FILE}" 2>/dev/null || \
+    awk -F, 'function t(v){gsub(/^[[:space:]]+|[[:space:]]+$/,"",v);return v}
+    $1~/^[[:space:]]*#/||NF<4{next}
+    {x=t($2);y=t($3);p=t($4);if(!h){fx=x;fy=y;fp=p;h=1}
+     if(NF>=9){l=t($8)+0;r=t($9)+0;c=(l<r)?l:r
+       if(!b||c>bc){bc=c;bx=x;by=y;bp=p;b=1}}}
+    END{if(b)printf"%s %s %s\n",bx,by,bp;else if(h)printf"%s %s %s\n",fx,fy,fp}
+    ' "${TRAJECTORY_FILE}" 2>/dev/null)"
 TRAJ_SX=""
 TRAJ_SY=""
 TRAJ_STHETA=""
@@ -222,12 +195,6 @@ MPCC_PROFILE="${MPCC_PROFILE:-track_racer}"
 set_default() {
     local var_name="$1"
     local default_value="$2"
-    export "${var_name}=${default_value}"
-}
-
-set_manual_default() {
-    local var_name="$1"
-    local default_value="$2"
     if [[ -z "${!var_name+x}" ]]; then
         export "${var_name}=${default_value}"
     fi
@@ -235,39 +202,39 @@ set_manual_default() {
 
 case "${MPCC_PROFILE}" in
     track_racer)
-        # Low-reference MPCC setup:
-        # The reference line is used mostly as the path coordinate frame and
-        # corridor center, while progress and wall clearance dominate.
+        # Stable no-ref-speed profile:
+        # use the reference as a Frenet frame and hard corridor, with enough
+        # geometric structure to finish repeated laps without hard output caps.
         set_default HORIZON 40
         set_default DT 0.025
-        set_default Q_CONTOURING 20.0
-        set_default Q_LAG 20.0
-        set_default Q_HEADING 8.0
-        set_default Q_WALL_CLEARANCE 2000.0
-        set_default WALL_CLEARANCE_MARGIN 0.20
-        set_default MPCC_TRACK_BUFFER 0.05
-        set_default Q_PROGRESS 1.0
-        set_default Q_PHYSICAL_PROGRESS 1.0
-        # Soft physical-speed tracking prevents a zero-motion local optimum
-        # after hard braking, while keeping the CSV speed limit disabled.
+        set_default Q_CONTOURING 16.0
+        set_default Q_LAG 14.0
+        set_default Q_HEADING 6.0
+        set_default Q_WALL_CLEARANCE 200.0
+        set_default WALL_CLEARANCE_MARGIN 0.08
+        set_default MPCC_TRACK_BUFFER 0.02
+        set_default Q_PROGRESS 0.6
+        set_default Q_PHYSICAL_PROGRESS 1.5
         set_default Q_VX 0.0
         set_default VX_REF 0.0
         set_default MPCC_USE_RACELINE_VX_REF 0
         set_default MPCC_USE_RACELINE_VX_LIMIT 0
-        set_default MPCC_RACELINE_VX_LIMIT_SCALE 0.85
+        set_default MPCC_RACELINE_VX_LIMIT_SCALE 0.0
         set_default Q_VY 0.0
         set_default Q_OMEGA 1.0
         set_default R_DELTA 1.0
-        set_default R_AX 0.2
-        set_default AX_MIN -6.0
+        set_default R_AX 0.45
+        set_default AX_MAX 10.25
+        set_default AX_MIN -10.25
+        set_default MPCC_AX_MIN_HARDWARE -10.25
         set_default R_VTHETA 0.1
         set_default W_DELTA_RATE 60.0
-        set_default W_AX_RATE 2.0
-        set_default W_VTHETA_RATE 0.3
-        set_default Q_CONTOURING_TERM 250.0
-        set_default Q_LAG_TERM 160.0
-        set_default Q_HEADING_TERM 20.0
-        set_default Q_PROGRESS_TERM 30.0
+        set_default W_AX_RATE 4.0
+        set_default W_VTHETA_RATE 0.5
+        set_default Q_CONTOURING_TERM 160.0
+        set_default Q_LAG_TERM 120.0
+        set_default Q_HEADING_TERM 16.0
+        set_default Q_PROGRESS_TERM 8.0
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
         set_default ADMM_MAX_ITER 100
@@ -357,41 +324,41 @@ case "${MPCC_PROFILE}" in
         set_default CROSS_CALL_SCALE 0.166667
         ;;
     manual)
-        set_manual_default HORIZON 20
-        set_manual_default DT 0.03
-        set_manual_default Q_CONTOURING 80.0
-        set_manual_default Q_LAG 120.0
-        set_manual_default Q_HEADING 8.0
-        set_manual_default Q_WALL_CLEARANCE 3200.0
-        set_manual_default WALL_CLEARANCE_MARGIN 0.02
-        set_manual_default Q_PROGRESS 10.0
-        set_manual_default Q_PHYSICAL_PROGRESS 1.0
-        set_manual_default Q_VX 10.0
-        set_manual_default VX_REF 4.0
-        set_manual_default MPCC_USE_RACELINE_VX_REF 0
-        set_manual_default MPCC_USE_RACELINE_VX_LIMIT 0
-        set_manual_default MPCC_RACELINE_VX_LIMIT_SCALE 1.0
-        set_manual_default Q_VY 0.5
-        set_manual_default Q_OMEGA 1.5
-        set_manual_default R_DELTA 10.0
-        set_manual_default R_AX 0.05225
-        set_manual_default R_VTHETA 0.1
-        set_manual_default W_DELTA_RATE 8.0
-        set_manual_default W_AX_RATE 0.488
-        set_manual_default W_VTHETA_RATE 0.1105
-        set_manual_default Q_CONTOURING_TERM 600.0
-        set_manual_default Q_LAG_TERM 200.0
-        set_manual_default Q_HEADING_TERM 20.0
-        set_manual_default Q_PROGRESS_TERM 30.0
-        set_manual_default ADMM_RHO 5.0
-        set_manual_default ADMM_RHO_U 0.0
-        set_manual_default ADMM_MAX_ITER 300
-        set_manual_default ADMM_TOL 0.02
-        set_manual_default ADMM_ADAPTIVE_RHO 1
-        set_manual_default ADMM_ALPHA_RELAX 1.6
-        set_manual_default V_THETA_MAX 6.0
-        set_manual_default DELTA_RATE_MAX 2.849
-        set_manual_default CROSS_CALL_SCALE 0.166
+        set_default HORIZON 20
+        set_default DT 0.03
+        set_default Q_CONTOURING 80.0
+        set_default Q_LAG 120.0
+        set_default Q_HEADING 8.0
+        set_default Q_WALL_CLEARANCE 3200.0
+        set_default WALL_CLEARANCE_MARGIN 0.02
+        set_default Q_PROGRESS 10.0
+        set_default Q_PHYSICAL_PROGRESS 1.0
+        set_default Q_VX 10.0
+        set_default VX_REF 4.0
+        set_default MPCC_USE_RACELINE_VX_REF 0
+        set_default MPCC_USE_RACELINE_VX_LIMIT 0
+        set_default MPCC_RACELINE_VX_LIMIT_SCALE 1.0
+        set_default Q_VY 0.5
+        set_default Q_OMEGA 1.5
+        set_default R_DELTA 10.0
+        set_default R_AX 0.05225
+        set_default R_VTHETA 0.1
+        set_default W_DELTA_RATE 8.0
+        set_default W_AX_RATE 0.488
+        set_default W_VTHETA_RATE 0.1105
+        set_default Q_CONTOURING_TERM 600.0
+        set_default Q_LAG_TERM 200.0
+        set_default Q_HEADING_TERM 20.0
+        set_default Q_PROGRESS_TERM 30.0
+        set_default ADMM_RHO 5.0
+        set_default ADMM_RHO_U 0.0
+        set_default ADMM_MAX_ITER 300
+        set_default ADMM_TOL 0.02
+        set_default ADMM_ADAPTIVE_RHO 1
+        set_default ADMM_ALPHA_RELAX 1.6
+        set_default V_THETA_MAX 6.0
+        set_default DELTA_RATE_MAX 2.849
+        set_default CROSS_CALL_SCALE 0.166
         ;;
     *)
         echo "ERROR: Unknown MPCC_PROFILE=${MPCC_PROFILE}" >&2
@@ -403,13 +370,13 @@ esac
 export MPCC_PROFILE
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
 export MPCC_CONTROL_PERIOD_MS="${MPCC_CONTROL_PERIOD_MS:-25}"
-export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.05}"
+export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.0}"
 export MPCC_ACCEPT_MAX_ITER="${MPCC_ACCEPT_MAX_ITER:-1}"
 export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.04}"
 export MPCC_MAX_ITER_DUAL_TOL="${MPCC_MAX_ITER_DUAL_TOL:-0.04}"
 export MPCC_MAX_ITER_TRACK_TOL="${MPCC_MAX_ITER_TRACK_TOL:-0.05}"
 export MPCC_S_QP_WINDOW="${MPCC_S_QP_WINDOW:-1.0}"
-export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-25.0}"
+export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-100.0}"
 export MPCC_WARM_START_MAX_S_ERROR="${MPCC_WARM_START_MAX_S_ERROR:-1.5}"
 export DELTA_RATE_MAX="${DELTA_RATE_MAX:-2.849}"
 

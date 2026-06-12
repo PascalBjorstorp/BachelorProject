@@ -453,7 +453,10 @@ typedef struct
     /*--- Obstacle avoidance ---*/
 
     /** Obstacle constraint violation penalty (soft constraint).
-     *  Used as a relaxation weight in the ADMM projection. */
+     *  NOTE: weight_obstacle is parsed by run_sim_2.sh but is NOT currently
+     *  wired into build_qp_problem() in mpcc.c.  Obstacle costs are computed
+     *  but never added to stage_cost — the field is reserved for a future
+     *  integration step. */
     float weight_obstacle;
 
     /** Safety margin added to obstacle ellipses [m] */
@@ -568,9 +571,16 @@ typedef enum
 #define MPCC_QP_DIAG_HESSIAN_INDEFINITE  (1u << 0)  /** Cost Hessian block has a negative eigenvalue. */
 #define MPCC_QP_DIAG_TRACK_COLLAPSED     (1u << 1)  /** Track corridor width is nearly zero. */
 #define MPCC_QP_DIAG_DELTA_COLLAPSED     (1u << 2)  /** Steering-rate envelope leaves nearly no steering authority. */
-#define MPCC_QP_DIAG_AX_COLLAPSED        (1u << 3)  /** Friction circle leaves nearly no acceleration authority. */
+#define MPCC_QP_DIAG_AX_COLLAPSED        (1u << 3)  /** Longitudinal acceleration authority is nearly zero. */
 #define MPCC_QP_DIAG_VX_COLLAPSED        (1u << 4)  /** Stage speed upper bound is at/below vx_min. */
 #define MPCC_QP_DIAG_NONFINITE           (1u << 5)  /** A diagnostic input was NaN or Inf. */
+
+#define MPCC_REJECT_PRIMAL_TOL           (1u << 0)  /** Rejected because primal residual exceeded tolerance. */
+#define MPCC_REJECT_DUAL_TOL             (1u << 1)  /** Rejected because dual residual exceeded tolerance. */
+#define MPCC_REJECT_TRACK_TOL            (1u << 2)  /** Rejected because predicted track violation exceeded tolerance. */
+#define MPCC_REJECT_NONFINITE_RESIDUAL   (1u << 3)  /** Rejected because primal/dual residuals were not finite. */
+#define MPCC_REJECT_NONFINITE_CONTROL    (1u << 4)  /** Rejected because the first control sample was not finite. */
+#define MPCC_REJECT_SOLVER_STATUS        (1u << 5)  /** Rejected because solver reported infeasible or error. */
 
 /*===========================================================================
  * MPCC Solver Result
@@ -596,8 +606,14 @@ typedef struct
     float qp_min_hessian_eigenvalue;    /** Minimum stage Hessian eigenvalue seen before ADMM regularization */
     float qp_min_track_width;           /** Minimum tightened track corridor width [m] */
     float qp_min_delta_width;           /** Minimum per-stage steering envelope width [rad] */
-    float qp_min_ax_limit;              /** Minimum per-stage friction-limited |a_x| [m/s^2] */
+    float qp_min_ax_limit;              /** Minimum available |a_x| authority [m/s^2]. */
     float qp_min_vx_margin;             /** Minimum vx upper-minus-lower margin [m/s] */
+    float max_track_violation;          /** Worst predicted hard-corridor violation [m]. */
+    float min_track_slack;              /** Worst predicted hard-corridor slack [m]. Negative means violation. */
+    uint16_t max_track_violation_stage; /** Stage index where max_track_violation occurs. */
+    uint16_t min_track_slack_stage;     /** Stage index where min_track_slack occurs. */
+    uint8_t used_fallback_control;      /** 1 when optimal_control is the fallback rather than the fresh solve. */
+    uint8_t reject_reason_flags;        /** Bitmask of MPCC_REJECT_* reasons for the selected fallback. */
     float cost;                         /** Final cost function value */
 
    
@@ -728,8 +744,10 @@ typedef struct
 #define MPCC_DEFAULT_C_SR     F110_NORMALIZED_CORNERING_STIFFNESS_REAR   /** Rear normalized cornering stiffness [1/rad] */
 
 /*--- Acceleration bounds ---*/
-#define MPCC_DEFAULT_AX_MAX           (8.0f)                        /** Maximum Acceleration bound */
-#define MPCC_DEFAULT_AX_MIN           (-6.0f)                       /** Minimum Acceleration bound (negative = braking) */
+#define MPCC_LONGITUDINAL_ACCEL_ENVELOPE \
+    (F110_FRICTION_COEFFICIENT * F110_GRAVITY_ACCELERATION_MS2 * 1.4f)
+#define MPCC_DEFAULT_AX_MAX           (MPCC_LONGITUDINAL_ACCEL_ENVELOPE)  /** Maximum acceleration bound */
+#define MPCC_DEFAULT_AX_MIN           (-MPCC_LONGITUDINAL_ACCEL_ENVELOPE) /** Minimum acceleration bound (negative = braking) */
 #define MPCC_DEFAULT_DELTA_RATE_MAX   (2.849f)                      /** Maximum steering slew rate [rad/s]. */
 
 /*--- Virtual progress speed bounds ---*/

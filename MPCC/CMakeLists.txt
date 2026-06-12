@@ -119,6 +119,12 @@ if(MPCC_ENABLE_DEBUG_PRINTS)
     target_compile_definitions(mpcc_core PRIVATE MPCC_DEBUG_PRINT)
 endif()
 
+if(MPCC_DIAG_S_ANCHOR)
+    # Enable per-cycle s_anchor vs s_geom logging ([MPCC-S] lines, ~40 Hz).
+    # Build with: colcon build --cmake-args -DMPCC_DIAG_S_ANCHOR=ON
+    target_compile_definitions(mpcc_core PRIVATE MPCC_DIAG_S_ANCHOR)
+endif()
+
 if(MPCC_USE_OSQP)
     target_link_libraries(mpcc_core
         PUBLIC
