@@ -1589,6 +1589,69 @@ def save_tum_track_csv(centerline, w_right, w_left, output_path):
           f"avg width left: {w_left.mean():.3f} m")
 
 
+def save_smooth_centerline_csv(centerline, w_right, w_left, output_path):
+    """
+    Save the prepared/smoothed centerline in the same geometry-rich format used
+    by the MPC trajectories, but with zero velocity and acceleration.
+    """
+    pts = np.asarray(centerline, dtype=float)
+    w_right = np.asarray(w_right, dtype=float)
+    w_left = np.asarray(w_left, dtype=float)
+
+    if pts.ndim != 2 or pts.shape[1] != 2:
+        raise ValueError("centerline must be an Nx2 array")
+    if len(pts) != len(w_right) or len(pts) != len(w_left):
+        raise ValueError("centerline and width arrays must have equal length")
+
+    keep = [0]
+    for i in range(1, len(pts)):
+        if np.linalg.norm(pts[i] - pts[keep[-1]]) > 1e-6:
+            keep.append(i)
+    if len(keep) > 1 and np.linalg.norm(pts[keep[-1]] - pts[keep[0]]) <= 1e-6:
+        keep.pop()
+
+    pts = pts[keep]
+    w_right = w_right[keep]
+    w_left = w_left[keep]
+
+    if len(pts) < 4:
+        raise ValueError("Need at least 4 centerline points to export")
+
+    closed, s_closed = closed_path_arclength(pts)
+    s = s_closed[:-1]
+
+    sx = CubicSpline(s_closed, closed[:, 0], bc_type='periodic')
+    sy = CubicSpline(s_closed, closed[:, 1], bc_type='periodic')
+
+    dx = sx(s, 1)
+    dy = sy(s, 1)
+    ddx = sx(s, 2)
+    ddy = sy(s, 2)
+    psi = np.arctan2(dy, dx)
+    denom = np.maximum((dx * dx + dy * dy) ** 1.5, 1e-9)
+    kappa = (dx * ddy - dy * ddx) / denom
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w') as f:
+        f.write(
+            '# x_m,y_m,s_m,psi_rad,kappa_radpm,'
+            'velocity_mps,acceleration_mps2,d_left_m,d_right_m\n'
+        )
+        for xy, s_i, psi_i, kappa_i, d_left_i, d_right_i in zip(
+                pts, s, psi, kappa, w_left, w_right):
+            f.write(
+                f'{xy[0]:.6f},{xy[1]:.6f},{s_i:.6f},'
+                f'{psi_i:.7f},{kappa_i:.7f},'
+                f'0.0000000,0.0000000,'
+                f'{d_left_i:.6f},{d_right_i:.6f}\n'
+            )
+
+    print(
+        f"  Saved smooth centerline CSV: {output_path} "
+        f"({len(pts)} points, max_abs_kappa={np.max(np.abs(kappa)):.3f} 1/m)"
+    )
+
+
 def resample_closed_centerline(centerline, spacing):
     """
     Resample an ordered closed centerline by arc length.
@@ -2641,6 +2704,7 @@ def main():
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         enable_mincurv_prepass=True,
+        centerline_only=False,
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
         # Vehicle width and separate center-to-wall clearance constraint.
@@ -2693,6 +2757,10 @@ def main():
         'MINTIME_CURVATURE_PENALTY_MARGIN',
         args.curvature_penalty_margin,
     )
+    args.centerline_only = _env_bool(
+        'MINTIME_CENTERLINE_ONLY',
+        args.centerline_only,
+    )
 
     # Verify map path
     if not os.path.exists(args.map):
@@ -2717,6 +2785,7 @@ def main():
         global_opt_dir, 'inputs', 'tracks', f'{track_name}_prepared.npz'
     )
     output_csv = os.path.join(args.output, f'{track_name}_raceline.csv')
+    smooth_centerline_csv = os.path.join(args.output, 'SmoothCenterline.csv')
     gvd_debug_path = output_csv.replace('.csv', '_gvd.png')
     prepared_spline_debug_path = output_csv.replace(
         '.csv',
@@ -2732,6 +2801,7 @@ def main():
     print(f"  Track name:       {track_name}")
     print(f"  Opt type:         {args.opt_type}")
     print(f"  Reopt mintime:    {args.reopt_mintime_solution}")
+    print(f"  Centerline only:  {args.centerline_only}")
     print(f"  Strict curvlim:   {args.strict_curvlim}")
     recalc_label = str(args.recalc_vel_profile_by_tph)
     print(f"  Recalc velocity:  {recalc_label}")
@@ -2749,6 +2819,7 @@ def main():
     print(f"  Curv penalty:     weight={args.curvature_penalty_weight:g}, "
           f"margin={args.curvature_penalty_margin:.2f}")
     print(f"  Wall distances:   yes")
+    print(f"  Smooth CL CSV:    {smooth_centerline_csv}")
     print(f"  Output:           {output_csv}")
 
     print(f"\n{'=' * 64}")
@@ -2851,7 +2922,17 @@ def main():
         reftrack_interp[:, 3],
         track_csv,
     )
+    save_smooth_centerline_csv(
+        reftrack_interp[:, :2],
+        reftrack_interp[:, 2],
+        reftrack_interp[:, 3],
+        smooth_centerline_csv,
+    )
     save_prepared_optimizer_track(prepared_track, prepared_track_npz)
+
+    if args.centerline_only:
+        print("  Centerline-only export complete; skipping optimizer.")
+        return
 
     # ---- Step 1: Run TUM global_racetrajectory_optimization -----------------
     tum_output = os.path.join(global_opt_dir, 'outputs', 'traj_race_cl.csv')
