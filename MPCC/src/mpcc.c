@@ -973,8 +973,8 @@ static void add_physical_progress_reward(
      * reward decays back to the corner floor and the car stays slow enough to
      * make the turn.  No new config knob: Q_PHYSICAL_PROGRESS sets the floor.
      */
-    static const float PROG_STRAIGHT_BOOST = 1.0f;   /* clear straights get ~2x  */
-    static const float PROG_KAPPA0         = 0.35f;  /* decay scale (rad/m)      */
+    static const float PROG_STRAIGHT_BOOST = 2.0f;   /* clear straights get ~3x  */
+    static const float PROG_KAPPA0         = 0.22f;  /* sharper: kill boost early before corners */
     weight *= 1.0f + PROG_STRAIGHT_BOOST * expf(-kappa_lookahead / PROG_KAPPA0);
 
     float alpha = remainderf(z_bar->psi - path_pt->phi_ref,
