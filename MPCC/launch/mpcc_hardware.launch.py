@@ -30,7 +30,7 @@ from launch_ros.actions import Node
 HARDWARE_TUNING_DEFAULTS = [
     ("horizon", "HORIZON", "60", "Prediction horizon steps"),
     ("dt", "DT", "0.025", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "8.0", "Contouring weight"),
+    ("q_contouring", "Q_CONTOURING", "16.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "13.4", "Lag weight"),
     ("q_heading", "Q_HEADING", "5.8", "Heading alignment weight"),
     ("q_wall_clearance", "Q_WALL_CLEARANCE", "450.0", "Wall-clearance weight"),

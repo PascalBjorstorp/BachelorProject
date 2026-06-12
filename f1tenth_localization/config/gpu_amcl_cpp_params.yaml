@@ -71,9 +71,9 @@ gpu_amcl_cpp:
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
     alpha1: 0.1    # rotation  → rotation  noise
-    alpha2: 0.2    # translation → rotation  noise
-    alpha3: 0.2    # translation → translation noise
-    alpha4: 0.25   # rotation  → translation noise
+    alpha2: 0.4    # translation → rotation  noise
+    alpha3: 0.15    # translation → translation noise
+    alpha4: 0.2   # rotation  → translation noise
 
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
@@ -89,7 +89,7 @@ gpu_amcl_cpp:
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
     normalize_likelihood_by_beams: true  # use geometric mean, avoids first-scan global collapse
-    likelihood_scale: 4.0                # selected by AMCL parameter sweep
+    likelihood_scale: 2.0                # selected by AMCL parameter sweep
 
     # ---- Resampling ----
     resample_threshold: 0.5  # selected by AMCL parameter sweep
@@ -132,9 +132,9 @@ gpu_amcl_cpp:
     # true: seed particles globally along raceline corridor with forward heading cone
     global_initialization: true
     initial_heading_from_raceline: true
-    global_heading_cone_rad: 0.5235987756  # +/- 30 deg around nearest raceline heading
+    global_heading_cone_rad: 1.0471975512  # +/- 60 deg around nearest raceline heading
     global_track_margin_m: 0.05            # keep global samples this far from walls
-    global_max_lateral_offset_m: 1.0       # do not trust huge d_left/d_right CSV widths during global sampling
+    global_max_lateral_offset_m: 1.5       # do not trust huge d_left/d_right CSV widths during global sampling
     global_heading_trajectory_file: ""     # absolute path override; empty resolves package/rel path below
     global_heading_trajectory_package: "f1tenth_planning"
     global_heading_trajectory_rel_path: "trajectories/my_track_raceline.csv"
