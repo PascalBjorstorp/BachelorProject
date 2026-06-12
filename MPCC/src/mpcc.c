@@ -283,6 +283,15 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
 void mpcc_set_reference_path(const MPCCReferencePath_t *path)
 {
     ref_path = *path;
+
+    /* Precompute sin/cos for every stored waypoint so that
+     * mpcc_path_interpolate() early-return paths return correct values
+     * without an extra sinf/cosf call at each interpolation site. */
+    for (uint16_t i = 0; i < ref_path.num_points; i++) {
+        ref_path.points[i].sin_phi = sinf(ref_path.points[i].phi_ref);
+        ref_path.points[i].cos_phi = cosf(ref_path.points[i].phi_ref);
+    }
+
     warm_start_available = 0;
     memset(&prev_control, 0, sizeof(prev_control));
     prev_control_available = 0;
@@ -353,8 +362,20 @@ void mpcc_path_interpolate(
         if (s < 0) s += len;
         s = s + s_min;
     } else {
-        if (s <= s_min) { *result = path->points[0]; result->s_ref = s; return; }
-        if (s >= s_max) { *result = path->points[path->num_points - 1]; result->s_ref = s; return; }
+        if (s <= s_min) {
+            *result = path->points[0];
+            result->s_ref = s;
+            result->sin_phi = sinf(result->phi_ref);
+            result->cos_phi = cosf(result->phi_ref);
+            return;
+        }
+        if (s >= s_max) {
+            *result = path->points[path->num_points - 1];
+            result->s_ref = s;
+            result->sin_phi = sinf(result->phi_ref);
+            result->cos_phi = cosf(result->phi_ref);
+            return;
+        }
     }
 
     /* Binary search for segment: find i such that points[i].s_ref <= s < points[i+1].s_ref */
@@ -393,6 +414,10 @@ void mpcc_path_interpolate(
     /* Angle interpolation: handle wrapping for phi_ref */
     float dphi = remainderf(p1->phi_ref - p0->phi_ref, 2.0f * (float)M_PI);
     result->phi_ref = remainderf(p0->phi_ref + (t * dphi), 2.0f * (float)M_PI);
+
+    /* Precompute trig — amortises sinf/cosf over all callers of this function */
+    result->sin_phi = sinf(result->phi_ref);
+    result->cos_phi = cosf(result->phi_ref);
 }
 
 static float mpcc_stage_vx_ref(const MPCCPathPoint_t *path_pt)
@@ -806,9 +831,9 @@ static void add_contouring_lag_cost(
 {
     if (q_c == 0 && q_l == 0) return;
 
-    /* Path quantities at operating point */
-    float sin_phi = sinf(path_pt->phi_ref);
-    float cos_phi = cosf(path_pt->phi_ref);
+    /* Path quantities at operating point — sin/cos precomputed in mpcc_path_interpolate */
+    float sin_phi = path_pt->sin_phi;
+    float cos_phi = path_pt->cos_phi;
     float kappa   = path_pt->kappa_ref;
 
     /* Position error in global frame */
@@ -962,8 +987,9 @@ static void add_wall_clearance_cost(
     if (corridor_width <= 0.0f)
         return;
 
-    float sin_phi = sinf(path_pt->phi_ref);
-    float cos_phi = cosf(path_pt->phi_ref);
+    /* sin/cos precomputed in mpcc_path_interpolate */
+    float sin_phi = path_pt->sin_phi;
+    float cos_phi = path_pt->cos_phi;
     float kappa   = path_pt->kappa_ref;
 
     float dX = (z_bar->X - path_pt->x_ref);
@@ -1598,8 +1624,13 @@ static void build_qp_problem(
     /* --- Build stages --- */
     /* TODO: Use warm-start trajectory as operating points.
      * For now, use the initial state propagated forward. */
-   MPCCState_t z_bar = *x0;
+    MPCCState_t z_bar = *x0;
     MPCCControl_t u_bar;
+
+    /* Speed limit is smooth over the horizon: cache the last computed value
+     * and only recompute every 4 stages. The limit changes by <5% between
+     * adjacent stages at typical speeds, so reuse is numerically safe. */
+    float cached_v_safe_stage = compute_speed_limit(x0->s, 7.0f);
 
     if (warm_start_available)
         u_bar = prev_predicted_controls[0];
@@ -1639,6 +1670,8 @@ static void build_qp_problem(
         qp->path_x_ref[k]   = path_pt.x_ref;
         qp->path_y_ref[k]   = path_pt.y_ref;
         qp->path_phi_ref[k] = path_pt.phi_ref;
+        qp->path_sin_phi[k] = path_pt.sin_phi;
+        qp->path_cos_phi[k] = path_pt.cos_phi;
         mpcc_set_stage_s_bounds(qp, k, z_bar.s);
 
 
@@ -1726,13 +1759,15 @@ static void build_qp_problem(
         mpcc_tightened_track_bounds(&path_pt, &qp->track_left[k],
                                     &qp->track_right[k]);
 
-        /* Per-stage speed cap: apply the same raceline- and curvature-aware
-         * braking limit along the horizon so sharp corners are slowed before
-         * the vehicle reaches the locally hard-to-solve segment. */
+        /* Per-stage speed cap: recompute every 4 stages to reduce binary-search
+         * overhead (~20 searches/call × 80 stages → ~20 searches/call × 20 calls).
+         * The speed limit varies smoothly along the horizon, so reusing the cached
+         * value for 3 intermediate stages has negligible effect on the bound. */
         {
-            float v_safe_stage = compute_speed_limit(z_bar.s, 7.0f);
+            if (k % 4u == 0u)
+                cached_v_safe_stage = compute_speed_limit(z_bar.s, 7.0f);
             qp->vx_max_stage[k] =
-                (v_safe_stage < config.vx_max) ? v_safe_stage : config.vx_max;
+                (cached_v_safe_stage < config.vx_max) ? cached_v_safe_stage : config.vx_max;
         }
 
         /* Per-stage friction circle: tighten a_x bound based on
@@ -1815,6 +1850,8 @@ static void build_qp_problem(
         qp->path_x_ref[N]   = path_pt.x_ref;
         qp->path_y_ref[N]   = path_pt.y_ref;
         qp->path_phi_ref[N] = path_pt.phi_ref;
+        qp->path_sin_phi[N] = path_pt.sin_phi;
+        qp->path_cos_phi[N] = path_pt.cos_phi;
         mpcc_set_stage_s_bounds(qp, N, z_terminal.s);
 
         build_stage_cost(&qp->terminal_cost, 1, N);

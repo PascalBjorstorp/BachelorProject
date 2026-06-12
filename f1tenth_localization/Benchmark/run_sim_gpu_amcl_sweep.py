@@ -847,6 +847,10 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--limit', type=int, default=0)
     parser.add_argument('--only-group', action='append')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--retry-until-success', action='store_true',
+                        help='Retry each repeat until it completes successfully.')
+    parser.add_argument('--max-attempts-per-repeat', type=int, default=1,
+                        help='Maximum attempts for one repeat. Use 0 for no limit.')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--stop-on-failure', action='store_true')
     parser.add_argument('--map-file', default=os.path.join(
@@ -954,79 +958,114 @@ def main(argv: List[str]) -> int:
         f'accel_field={args.sim_drive_uses_acceleration_field}, '
         f'speed_margin={args.mpc_raceline_speed_margin:g}')
 
+    overall_success = True
     for case_index, case in enumerate(cases):
         case_dir = os.path.join(args.output_root, f'{case_index:03d}_{case.name}')
         for repeat in range(1, args.repeats + 1):
-            run_dir = os.path.join(case_dir, f'run_{repeat:02d}')
-            status_path = os.path.join(run_dir, f'{BENCHMARK_NAME}_status.json')
-            if args.resume and os.path.exists(status_path):
-                print(f'skip existing {case.name} repeat {repeat}')
-                metrics = summarize_run(run_dir, args.laps, 0, args.skip_first_sec)
-                run_rows.append({
+            attempt = 1
+            while True:
+                run_dir = os.path.join(case_dir, f'run_{repeat:02d}')
+                status_path = os.path.join(run_dir, f'{BENCHMARK_NAME}_status.json')
+                if args.resume and os.path.exists(status_path):
+                    print(f'skip existing {case.name} repeat {repeat}')
+                    metrics = summarize_run(run_dir, args.laps, 0, args.skip_first_sec)
+                    run_rows.append({
+                        'case_index': case_index,
+                        'case_name': case.name,
+                        'group': case.group,
+                        'repeat': repeat,
+                        'attempt': attempt,
+                        'run_dir': run_dir,
+                        'elapsed_sec': 0.0,
+                        'params_json': json.dumps(case.params, sort_keys=True),
+                        **metrics,
+                    })
+                    write_rows(run_results_path, run_rows)
+                    write_rows(summary_path, aggregate_results(cases, run_rows))
+                    break
+                if os.path.exists(run_dir):
+                    shutil.rmtree(run_dir)
+                os.makedirs(run_dir, exist_ok=True)
+
+                cmd = command_for_case(args, case, run_dir, initial_pose_yaw)
+                launch_log_path = os.path.join(run_dir, 'launch.log')
+                print(
+                    f'\n=== case {case_index}/{len(cases) - 1}: {case.name} '
+                    f'repeat {repeat}/{args.repeats} attempt {attempt} ===')
+                print(' '.join(cmd))
+                if args.dry_run:
+                    break
+
+                started = time.time()
+                exit_code = run_command(
+                    cmd,
+                    args.process_timeout_sec,
+                    os.path.join(args.output_root, 'ros_logs'),
+                    ros_env,
+                    launch_log_path)
+                elapsed_sec = time.time() - started
+                metrics = summarize_run(run_dir, args.laps, exit_code, args.skip_first_sec)
+                row_run_dir = run_dir
+                should_retry = (
+                    args.retry_until_success
+                    and not metrics['success']
+                    and (
+                        args.max_attempts_per_repeat <= 0
+                        or attempt < args.max_attempts_per_repeat
+                    )
+                )
+                if should_retry:
+                    failed_dir = os.path.join(
+                        case_dir,
+                        f'run_{repeat:02d}_failed_attempt_{attempt:02d}')
+                    if os.path.exists(failed_dir):
+                        shutil.rmtree(failed_dir)
+                    shutil.move(run_dir, failed_dir)
+                    row_run_dir = failed_dir
+
+                row = {
                     'case_index': case_index,
                     'case_name': case.name,
                     'group': case.group,
                     'repeat': repeat,
-                    'run_dir': run_dir,
-                    'elapsed_sec': 0.0,
+                    'attempt': attempt,
+                    'run_dir': row_run_dir,
+                    'elapsed_sec': elapsed_sec,
                     'params_json': json.dumps(case.params, sort_keys=True),
                     **metrics,
-                })
+                }
+                run_rows.append(row)
                 write_rows(run_results_path, run_rows)
                 write_rows(summary_path, aggregate_results(cases, run_rows))
-                continue
-            if os.path.exists(run_dir):
-                shutil.rmtree(run_dir)
-            os.makedirs(run_dir, exist_ok=True)
 
-            cmd = command_for_case(args, case, run_dir, initial_pose_yaw)
-            launch_log_path = os.path.join(run_dir, 'launch.log')
-            print(f'\n=== case {case_index}/{len(cases) - 1}: {case.name} repeat {repeat}/{args.repeats} ===')
-            print(' '.join(cmd))
-            if args.dry_run:
-                continue
-
-            started = time.time()
-            exit_code = run_command(
-                cmd,
-                args.process_timeout_sec,
-                os.path.join(args.output_root, 'ros_logs'),
-                ros_env,
-                launch_log_path)
-            elapsed_sec = time.time() - started
-            metrics = summarize_run(run_dir, args.laps, exit_code, args.skip_first_sec)
-            row = {
-                'case_index': case_index,
-                'case_name': case.name,
-                'group': case.group,
-                'repeat': repeat,
-                'run_dir': run_dir,
-                'elapsed_sec': elapsed_sec,
-                'params_json': json.dumps(case.params, sort_keys=True),
-                **metrics,
-            }
-            run_rows.append(row)
-            write_rows(run_results_path, run_rows)
-            write_rows(summary_path, aggregate_results(cases, run_rows))
-
-            print(
-                'result: '
-                f'success={metrics["success"]} '
-                f'reason={metrics["reason"]} '
-                f'laps={metrics["laps"]} '
-                f'amcl_mean={metrics["amcl_mean_err_m"]:.4f} '
-                f'ekf_mean={metrics["ekf_mean_err_m"]:.4f}')
-            if not metrics['success']:
-                excerpt = error_excerpt(launch_log_path)
-                if excerpt:
-                    print('launch.log errors:')
-                    print(excerpt.rstrip())
-                tail = tail_text(launch_log_path)
-                if tail:
-                    print('launch.log tail:')
-                    print(tail.rstrip())
-            if args.stop_on_failure and not metrics['success']:
-                return 1
+                print(
+                    'result: '
+                    f'success={metrics["success"]} '
+                    f'reason={metrics["reason"]} '
+                    f'laps={metrics["laps"]} '
+                    f'amcl_mean={metrics["amcl_mean_err_m"]:.4f} '
+                    f'ekf_mean={metrics["ekf_mean_err_m"]:.4f}')
+                if not metrics['success']:
+                    excerpt = error_excerpt(launch_log_path)
+                    if excerpt:
+                        print('launch.log errors:')
+                        print(excerpt.rstrip())
+                    tail = tail_text(launch_log_path)
+                    if tail:
+                        print('launch.log tail:')
+                        print(tail.rstrip())
+                if args.stop_on_failure and not metrics['success']:
+                    return 1
+                if metrics['success']:
+                    break
+                if should_retry:
+                    print(
+                        f'retrying {case.name} repeat {repeat}: '
+                        f'archived failed attempt {attempt}')
+                    attempt += 1
+                    continue
+                overall_success = False
+                break
 
     if not args.dry_run:
         summary_rows = aggregate_results(cases, run_rows)
@@ -1038,7 +1077,7 @@ def main(argv: List[str]) -> int:
                 f'amcl_mean={row["mean_amcl_mean_err_m"]:.4f} '
                 f'ekf_mean={row["mean_ekf_mean_err_m"]:.4f} '
                 f'success={row["success_runs"]}/{row["runs"]}')
-    return 0
+    return 0 if overall_success else 1
 
 
 if __name__ == '__main__':
