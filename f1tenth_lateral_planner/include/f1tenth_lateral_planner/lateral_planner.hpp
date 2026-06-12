@@ -132,6 +132,9 @@ private:
 
   size_t closestWaypointInPath(const std::vector<Waypoint> & path, double x, double y) const;
   size_t closestWaypoint(double x, double y) const;
+  bool canAttachToWaypoint(const Waypoint & wp, double x, double y) const;
+  size_t closestAttachWaypointInPath(const std::vector<Waypoint> & path, double x, double y) const;
+  size_t closestAttachWaypoint(double x, double y) const;
   std::vector<Waypoint> extractSegment() const;
   std::vector<Waypoint> extractSegmentFromModified() const;
   void applyObstacleSpeedCap(std::vector<Waypoint> & path) const;
