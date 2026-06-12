@@ -112,7 +112,7 @@ gpu_amcl_cpp:
     raycast_verification_max_clusters: 4
     raycast_verification_particles_per_cluster: 20
     raycast_verification_top_particles: 20  # best non-duplicate particles added after cluster reps
-    raycast_verification_max_beams: 270
+    raycast_verification_max_beams: 90
     raycast_verification_cluster_radius_m: 0.35
     raycast_verification_yaw_tolerance_rad: 0.5235987756  # +/- 30 deg cluster yaw gate
     raycast_verification_beta: 0.30       # cluster log-weight penalty scale
@@ -150,7 +150,7 @@ gpu_amcl_cpp:
     # ---- Publishing ----
     cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: true  # publish weighted pre-resample PointCloud2 debug topic
-    force_max_particles_initial_sec: 5.0 # keep max_particles active for first localization seconds; 0 disables
+    force_max_particles_initial_sec: 3.0 # keep max_particles active for first localization seconds; 0 disables
 
 
 
@@ -190,7 +190,7 @@ ekf_localization:
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
     process_noise_scale: 0.2     # multiplier on dt-scaled odom covariance for Q
-    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
+    amcl_max_latency_sec: 0.15  # Drop AMCL updates older than 100 ms
     odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup
     amcl_jump_reset_enabled: true
     amcl_jump_reset_distance_m: 1.0
