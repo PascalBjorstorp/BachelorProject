@@ -147,8 +147,8 @@ attribute shreg_extract : string;
     attribute fsm_encoding of ap_CS_fsm_state17 : signal is "none";
     signal a_cmd_fn_fu_260_p4 : STD_LOGIC_VECTOR (20 downto 0);
     signal a_cmd_fn_reg_681 : STD_LOGIC_VECTOR (20 downto 0);
-    signal out_fu_276_p3 : STD_LOGIC_VECTOR (19 downto 0);
-    signal out_reg_686 : STD_LOGIC_VECTOR (19 downto 0);
+    signal value_fu_276_p3 : STD_LOGIC_VECTOR (19 downto 0);
+    signal value_reg_686 : STD_LOGIC_VECTOR (19 downto 0);
     signal sext_ln591_21_fu_284_p1 : STD_LOGIC_VECTOR (32 downto 0);
     signal sext_ln591_21_reg_694 : STD_LOGIC_VECTOR (32 downto 0);
     signal product_q_93_reg_699 : STD_LOGIC_VECTOR (20 downto 0);
@@ -555,7 +555,7 @@ begin
         conv_i_i_i1795_i => D_pac_f_reg_814,
         conv_i_i_i2437_i => sub_ln361_reg_808,
         p_0_0_03463_i => front_num_reg_771,
-        spec_select_i => out_reg_686,
+        spec_select_i => value_reg_686,
         conv_i_i_i65_i => D_f_fn_reg_803,
         cmp_i_i => low_speed_reg_819,
         ap_return_0 => grp_compute_front_tire_path_fn_fu_158_ap_return_0,
@@ -578,7 +578,7 @@ begin
         D_pac_r => D_pac_r_reg_836,
         C_min_r => add_ln363_reg_831,
         rear_num => rear_num_reg_776,
-        vx_safe => out_reg_686,
+        vx_safe => value_reg_686,
         D_r_fn => D_r_fn_reg_841,
         low_speed => low_speed_reg_819,
         ap_return_0 => grp_compute_rear_tire_path_fn_fu_179_ap_return_0,
@@ -791,9 +791,9 @@ begin
         if (ap_clk'event and ap_clk = '1') then
             if ((ap_const_logic_1 = ap_CS_fsm_state1)) then
                 a_cmd_fn_reg_681 <= a_cmd(22 downto 2);
-                out_reg_686 <= out_fu_276_p3;
                 product_q_93_reg_699 <= mul_ln591_12_fu_288_p2(32 downto 12);
                 sext_ln591_21_reg_694 <= sext_ln591_21_fu_284_p1;
+                value_reg_686 <= value_fu_276_p3;
             end if;
         end if;
     end process;
@@ -1139,7 +1139,7 @@ begin
         end if; 
     end process;
 
-    grp_fp_recip_fn_fu_144_x <= std_logic_vector(IEEE.numeric_std.resize(unsigned(out_reg_686),21));
+    grp_fp_recip_fn_fu_144_x <= std_logic_vector(IEEE.numeric_std.resize(unsigned(value_reg_686),21));
     grp_fp_slip_terms_fu_151_ap_start <= grp_fp_slip_terms_fu_151_ap_start_reg;
     grp_fp_slip_terms_fu_151_omega <= ap_port_reg_omega(22 downto 2);
         grp_fp_trig_pair_fused_fn_fu_199_angle <= std_logic_vector(IEEE.numeric_std.resize(signed(delta_fn_reg_825),21));
@@ -1184,13 +1184,10 @@ begin
     grp_fu_216_p4 <= grp_fu_212_p2(32 downto 12);
     grp_fu_226_p4 <= grp_fu_212_p2(31 downto 12);
     icmp_ln351_fu_270_p2 <= "1" when (signed(vx_fn_fu_240_p4) > signed(ap_const_lv21_800)) else "0";
-    low_speed_fu_473_p2 <= "1" when (unsigned(out_reg_686) < unsigned(ap_const_lv20_801)) else "0";
+    low_speed_fu_473_p2 <= "1" when (unsigned(value_reg_686) < unsigned(ap_const_lv20_801)) else "0";
     mul_ln591_12_fu_288_p1 <= ap_const_lv33_83B(13 - 1 downto 0);
     mul_ln591_fu_374_p0 <= sext_ln591_21_reg_694(21 - 1 downto 0);
     mul_ln591_fu_374_p1 <= ap_const_lv33_B6F(13 - 1 downto 0);
-    out_fu_276_p3 <= 
-        trunc_ln_fu_250_p4 when (icmp_ln351_fu_270_p2(0) = '1') else 
-        ap_const_lv20_800;
     product_363_fu_349_p0 <= sext_ln591_reg_724(21 - 1 downto 0);
     product_363_fu_349_p1 <= ap_const_lv32_2FA(11 - 1 downto 0);
     product_fu_327_p1 <= ap_const_lv32_3AE(11 - 1 downto 0);
@@ -1211,8 +1208,11 @@ begin
 
     sub_ln361_fu_462_p2 <= std_logic_vector(unsigned(ap_const_lv21_523D) - unsigned(sext_ln593_fu_459_p1));
     trunc_ln_fu_250_p4 <= vx(21 downto 2);
+    value_fu_276_p3 <= 
+        trunc_ln_fu_250_p4 when (icmp_ln351_fu_270_p2(0) = '1') else 
+        ap_const_lv20_800;
     vx_fn_fu_240_p4 <= vx(22 downto 2);
     vy_fn_fu_310_p4 <= ap_port_reg_vy(22 downto 2);
-    zext_ln352_fu_320_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(out_reg_686),21));
-    zext_ln574_fu_304_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(out_fu_276_p3),40));
+    zext_ln352_fu_320_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(value_reg_686),21));
+    zext_ln574_fu_304_p1 <= std_logic_vector(IEEE.numeric_std.resize(unsigned(value_fu_276_p3),40));
 end behav;

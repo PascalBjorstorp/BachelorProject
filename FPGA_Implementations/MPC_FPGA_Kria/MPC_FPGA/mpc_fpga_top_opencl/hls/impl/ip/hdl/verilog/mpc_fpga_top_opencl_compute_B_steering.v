@@ -84,8 +84,8 @@ wire   [16:0] sub_ln518_fu_190_p2;
 reg   [16:0] sub_ln518_reg_404;
 wire   [20:0] value_fu_196_p2;
 reg  signed [20:0] value_reg_409;
-wire   [20:0] value_217_fu_200_p2;
-reg  signed [20:0] value_217_reg_414;
+wire   [20:0] value_214_fu_200_p2;
+reg  signed [20:0] value_214_reg_414;
 reg   [41:0] mul_ln574_51_reg_419;
 wire    ap_CS_fsm_state7;
 wire   [20:0] add_ln512_fu_248_p2;
@@ -208,7 +208,7 @@ mpc_fpga_top_opencl_mul_21s_11ns_32_3_1 #(
 mul_21s_11ns_32_3_1_U488(
     .clk(ap_clk),
     .reset(ap_rst),
-    .din0(value_217_reg_414),
+    .din0(value_214_reg_414),
     .din1(grp_fu_257_p1),
     .ce(1'b1),
     .dout(grp_fu_257_p2)
@@ -258,7 +258,7 @@ always @ (posedge ap_clk) begin
     if ((1'b1 == ap_CS_fsm_state6)) begin
         mul_ln574_reg_399 <= grp_fu_94_p2;
         sub_ln518_reg_404 <= sub_ln518_fu_190_p2;
-        value_217_reg_414 <= value_217_fu_200_p2;
+        value_214_reg_414 <= value_214_fu_200_p2;
         value_reg_409 <= value_fu_196_p2;
     end
 end
@@ -518,7 +518,7 @@ assign use_front_raw_fu_118_p1 = ap_port_reg_tr_C_min_f_val;
 
 assign use_front_raw_fu_118_p2 = (($signed(tr_C_eff_f_raw_val_read_reg_336) > $signed(use_front_raw_fu_118_p1)) ? 1'b1 : 1'b0);
 
-assign value_217_fu_200_p2 = ($signed(product_q_105_reg_382) - $signed(product_q_106_reg_388));
+assign value_214_fu_200_p2 = ($signed(product_q_105_reg_382) - $signed(product_q_106_reg_388));
 
 assign value_fu_196_p2 = ($signed(product_q_104_reg_376) - $signed(product_q_106_reg_388));
 

@@ -403,10 +403,10 @@ fpga_resource_hint.newFuncRoot.517:12 %icmp_ln351 = icmp_sgt  i21 %vx_fn, i21 20
 
 <Node id="23" bw="20" op_0_bw="1" op_1_bw="20" op_2_bw="20">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:13 %out = select i1 %icmp_ln351, i20 %trunc_ln, i20 2048
+fpga_resource_hint.newFuncRoot.517:13 %value = select i1 %icmp_ln351, i20 %trunc_ln, i20 2048
 
 ]]></Node>
-<StgValue><ssdm name="out"/></StgValue>
+<StgValue><ssdm name="value"/></StgValue>
 </operation>
 
 <operation id="58" st_id="1" stage="1" lat="1">
@@ -463,7 +463,7 @@ fpga_resource_hint.newFuncRoot.517:24 %product_q_93 = partselect i21 @_ssdm_op_P
 
 <Node id="53" bw="40" op_0_bw="20">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:43 %zext_ln574 = zext i20 %out
+fpga_resource_hint.newFuncRoot.517:43 %zext_ln574 = zext i20 %value
 
 ]]></Node>
 <StgValue><ssdm name="zext_ln574"/></StgValue>
@@ -526,7 +526,7 @@ fpga_resource_hint.newFuncRoot.517:7 %vy_fn = partselect i21 @_ssdm_op_PartSelec
 
 <Node id="24" bw="21" op_0_bw="20">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:14 %zext_ln352 = zext i20 %out
+fpga_resource_hint.newFuncRoot.517:14 %zext_ln352 = zext i20 %value
 
 ]]></Node>
 <StgValue><ssdm name="zext_ln352"/></StgValue>
@@ -1531,7 +1531,7 @@ fpga_resource_hint.newFuncRoot.517:71 %mul_ln574_50 = mul i42 %sext_ln574_65, i4
 
 <Node id="93" bw="1" op_0_bw="20" op_1_bw="20">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:83 %low_speed = icmp_ult  i20 %out, i20 2049
+fpga_resource_hint.newFuncRoot.517:83 %low_speed = icmp_ult  i20 %value, i20 2049
 
 ]]></Node>
 <StgValue><ssdm name="low_speed"/></StgValue>
@@ -1714,7 +1714,7 @@ fpga_resource_hint.newFuncRoot.517:82 %D_r_fn = sub i21 %rear_num2, i21 %and_ln4
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1732,7 +1732,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1747,7 +1747,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1765,7 +1765,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1780,7 +1780,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1798,7 +1798,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1813,7 +1813,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1831,7 +1831,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1846,7 +1846,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1864,7 +1864,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1879,7 +1879,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1897,7 +1897,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1912,7 +1912,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1930,7 +1930,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1945,7 +1945,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1963,7 +1963,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -1978,7 +1978,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -1996,7 +1996,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2011,7 +2011,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2029,7 +2029,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2044,7 +2044,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2062,7 +2062,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2077,7 +2077,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2095,7 +2095,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2110,7 +2110,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2128,7 +2128,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2143,7 +2143,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2161,7 +2161,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2176,7 +2176,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2194,7 +2194,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2209,7 +2209,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2227,7 +2227,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2242,7 +2242,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2260,7 +2260,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2275,7 +2275,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2293,7 +2293,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2308,7 +2308,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2326,7 +2326,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2341,7 +2341,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2359,7 +2359,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2374,7 +2374,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2392,7 +2392,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2407,7 +2407,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2425,7 +2425,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2440,7 +2440,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2458,7 +2458,7 @@ fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2473,7 +2473,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2521,7 +2521,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2536,7 +2536,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2569,7 +2569,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2584,7 +2584,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2617,7 +2617,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2632,7 +2632,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2665,7 +2665,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2680,7 +2680,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2713,7 +2713,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2728,7 +2728,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2761,7 +2761,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2776,7 +2776,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2809,7 +2809,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2824,7 +2824,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -2857,7 +2857,7 @@ fpga_resource_hint.newFuncRoot.517:16 %call_ret = call i42 @fp_trig_pair_fused_f
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -2872,7 +2872,7 @@ fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>
@@ -3115,7 +3115,7 @@ fpga_resource_hint.newFuncRoot.517:73 %rend = specregionend i32 @_ssdm_op_SpecRe
 
 <Node id="94" bw="126" op_0_bw="126" op_1_bw="12" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="21" op_7_bw="20" op_8_bw="21" op_9_bw="1" op_10_bw="13" op_11_bw="13" op_12_bw="14" op_13_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %out, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:84 %call_ret4 = call i126 @compute_front_tire_path_fn, i12 %delta_fn, i21 %front_ratio, i21 %product_q_93, i21 %D_pac_f, i21 %sub_ln361, i21 %front_num, i20 %value, i21 %D_f_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret4"/></StgValue>
@@ -3220,7 +3220,7 @@ fpga_resource_hint.newFuncRoot.517:90 %front_path_alpha = extractvalue i126 %cal
 
 <Node id="101" bw="126" op_0_bw="126" op_1_bw="21" op_2_bw="21" op_3_bw="21" op_4_bw="21" op_5_bw="21" op_6_bw="20" op_7_bw="21" op_8_bw="1" op_9_bw="13" op_10_bw="13" op_11_bw="14" op_12_bw="14">
 <![CDATA[
-fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %out, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
+fpga_resource_hint.newFuncRoot.517:91 %call_ret5 = call i126 @compute_rear_tire_path_fn, i21 %rear_ratio, i21 %product_q_93, i21 %D_pac_r, i21 %add_ln363, i21 %rear_num, i20 %value, i21 %D_r_fn, i1 %low_speed, i13 %atan_lut_fn, i13 %sin_lut_fn, i14 %cos_lut_fn, i14 %recip_lut_fn
 
 ]]></Node>
 <StgValue><ssdm name="call_ret5"/></StgValue>

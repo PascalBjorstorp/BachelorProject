@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_frenet_AB_hls'" level="0">
-<item name = "Date">Thu Jun 11 16:07:00 2026
+<item name = "Date">Thu Jun 11 17:48:35 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -109,11 +109,11 @@
 <column name="A44_fu_755_p2">+, 0, 0, 28, 21, 13</column>
 <column name="add_ln657_fu_531_p2">+, 0, 0, 21, 21, 21</column>
 <column name="add_ln663_fu_547_p2">+, 0, 0, 21, 21, 21</column>
-<column name="value_178_fu_542_p2">+, 0, 0, 28, 21, 21</column>
-<column name="value_179_fu_552_p2">+, 0, 0, 21, 21, 21</column>
-<column name="value_180_fu_558_p2">+, 0, 0, 28, 21, 21</column>
-<column name="value_181_fu_564_p2">+, 0, 0, 28, 21, 21</column>
-<column name="value_182_fu_570_p2">+, 0, 0, 28, 21, 21</column>
+<column name="value_175_fu_542_p2">+, 0, 0, 28, 21, 21</column>
+<column name="value_176_fu_552_p2">+, 0, 0, 21, 21, 21</column>
+<column name="value_177_fu_558_p2">+, 0, 0, 28, 21, 21</column>
+<column name="value_178_fu_564_p2">+, 0, 0, 28, 21, 21</column>
+<column name="value_179_fu_570_p2">+, 0, 0, 28, 21, 21</column>
 <column name="value_fu_536_p2">+, 0, 0, 21, 21, 21</column>
 </table>
 </item>
@@ -174,11 +174,11 @@
 <column name="tr_dFyr_dvy_reg_1416">21, 0, 21, 0</column>
 <column name="tr_sin_delta_reg_1448">21, 0, 21, 0</column>
 <column name="tr_vx_safe_reg_1443">21, 0, 21, 0</column>
-<column name="value_178_reg_1500">21, 0, 21, 0</column>
-<column name="value_179_reg_1505">21, 0, 21, 0</column>
-<column name="value_180_reg_1510">21, 0, 21, 0</column>
-<column name="value_181_reg_1515">21, 0, 21, 0</column>
-<column name="value_182_reg_1520">21, 0, 21, 0</column>
+<column name="value_175_reg_1500">21, 0, 21, 0</column>
+<column name="value_176_reg_1505">21, 0, 21, 0</column>
+<column name="value_177_reg_1510">21, 0, 21, 0</column>
+<column name="value_178_reg_1515">21, 0, 21, 0</column>
+<column name="value_179_reg_1520">21, 0, 21, 0</column>
 <column name="value_reg_1495">21, 0, 21, 0</column>
 <column name="vx_fn_reg_1313">21, 0, 21, 0</column>
 <column name="vy_fn_reg_1319">21, 0, 21, 0</column>

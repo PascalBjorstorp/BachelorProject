@@ -130,8 +130,8 @@ wire    ap_CS_fsm_state15;
 wire    ap_CS_fsm_state17;
 wire  signed [20:0] a_cmd_fn_fu_260_p4;
 reg  signed [20:0] a_cmd_fn_reg_681;
-wire   [19:0] out_fu_276_p3;
-reg   [19:0] out_reg_686;
+wire   [19:0] value_fu_276_p3;
+reg   [19:0] value_reg_686;
 wire  signed [32:0] sext_ln591_21_fu_284_p1;
 reg  signed [32:0] sext_ln591_21_reg_694;
 reg   [20:0] product_q_93_reg_699;
@@ -371,7 +371,7 @@ mpc_fpga_top_opencl_compute_front_tire_path_fn grp_compute_front_tire_path_fn_fu
     .conv_i_i_i1795_i(D_pac_f_reg_814),
     .conv_i_i_i2437_i(sub_ln361_reg_808),
     .p_0_0_03463_i(front_num_reg_771),
-    .spec_select_i(out_reg_686),
+    .spec_select_i(value_reg_686),
     .conv_i_i_i65_i(D_f_fn_reg_803),
     .cmp_i_i(low_speed_reg_819),
     .ap_return_0(grp_compute_front_tire_path_fn_fu_158_ap_return_0),
@@ -394,7 +394,7 @@ mpc_fpga_top_opencl_compute_rear_tire_path_fn grp_compute_rear_tire_path_fn_fu_1
     .D_pac_r(D_pac_r_reg_836),
     .C_min_r(add_ln363_reg_831),
     .rear_num(rear_num_reg_776),
-    .vx_safe(out_reg_686),
+    .vx_safe(value_reg_686),
     .D_r_fn(D_r_fn_reg_841),
     .low_speed(low_speed_reg_819),
     .ap_return_0(grp_compute_rear_tire_path_fn_fu_179_ap_return_0),
@@ -577,9 +577,9 @@ end
 always @ (posedge ap_clk) begin
     if ((1'b1 == ap_CS_fsm_state1)) begin
         a_cmd_fn_reg_681 <= {{a_cmd[22:2]}};
-        out_reg_686 <= out_fu_276_p3;
         product_q_93_reg_699 <= {{mul_ln591_12_fu_288_p2[32:12]}};
         sext_ln591_21_reg_694 <= sext_ln591_21_fu_284_p1;
+        value_reg_686 <= value_fu_276_p3;
     end
 end
 
@@ -1080,7 +1080,7 @@ assign grp_compute_front_tire_path_fn_fu_158_conv5_i_i_i_i1781_i = {{ap_port_reg
 
 assign grp_compute_rear_tire_path_fn_fu_179_ap_start = grp_compute_rear_tire_path_fn_fu_179_ap_start_reg;
 
-assign grp_fp_recip_fn_fu_144_x = out_reg_686;
+assign grp_fp_recip_fn_fu_144_x = value_reg_686;
 
 assign grp_fp_slip_terms_fu_151_ap_start = grp_fp_slip_terms_fu_151_ap_start_reg;
 
@@ -1100,15 +1100,13 @@ assign grp_fu_226_p4 = {{grp_fu_212_p2[31:12]}};
 
 assign icmp_ln351_fu_270_p2 = (($signed(vx_fn_fu_240_p4) > $signed(21'd2048)) ? 1'b1 : 1'b0);
 
-assign low_speed_fu_473_p2 = ((out_reg_686 < 20'd2049) ? 1'b1 : 1'b0);
+assign low_speed_fu_473_p2 = ((value_reg_686 < 20'd2049) ? 1'b1 : 1'b0);
 
 assign mul_ln591_12_fu_288_p1 = 33'd2107;
 
 assign mul_ln591_fu_374_p0 = sext_ln591_21_reg_694;
 
 assign mul_ln591_fu_374_p1 = 33'd2927;
-
-assign out_fu_276_p3 = ((icmp_ln351_fu_270_p2[0:0] == 1'b1) ? trunc_ln_fu_250_p4 : 20'd2048);
 
 assign product_363_fu_349_p0 = sext_ln591_reg_724;
 
@@ -1136,13 +1134,15 @@ assign sub_ln361_fu_462_p2 = ($signed(21'd21053) - $signed(sext_ln593_fu_459_p1)
 
 assign trunc_ln_fu_250_p4 = {{vx[21:2]}};
 
+assign value_fu_276_p3 = ((icmp_ln351_fu_270_p2[0:0] == 1'b1) ? trunc_ln_fu_250_p4 : 20'd2048);
+
 assign vx_fn_fu_240_p4 = {{vx[22:2]}};
 
 assign vy_fn_fu_310_p4 = {{ap_port_reg_vy[22:2]}};
 
-assign zext_ln352_fu_320_p1 = out_reg_686;
+assign zext_ln352_fu_320_p1 = value_reg_686;
 
-assign zext_ln574_fu_304_p1 = out_fu_276_p3;
+assign zext_ln574_fu_304_p1 = value_fu_276_p3;
 
 always @ (posedge ap_clk) begin
     zext_ln352_reg_718[20] <= 1'b0;

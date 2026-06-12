@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_frenet_tire_hls'" level="0">
-<item name = "Date">Thu Jun 11 16:06:59 2026
+<item name = "Date">Thu Jun 11 17:48:34 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -104,7 +104,7 @@
 <column name="sub_ln361_fu_462_p2">-, 0, 0, 28, 15, 21</column>
 <column name="icmp_ln351_fu_270_p2">icmp, 0, 0, 28, 21, 12</column>
 <column name="low_speed_fu_473_p2">icmp, 0, 0, 27, 20, 12</column>
-<column name="out_fu_276_p3">select, 0, 0, 19, 1, 20</column>
+<column name="value_fu_276_p3">select, 0, 0, 19, 1, 20</column>
 </table>
 </item>
 <item name = "Multiplexer"><table name="" hasTotal="1">
@@ -136,7 +136,6 @@
 <column name="grp_fp_trig_pair_fused_fn_fu_199_ap_start_reg">1, 0, 1, 0</column>
 <column name="low_speed_reg_819">1, 0, 1, 0</column>
 <column name="lr_omega_reg_766">21, 0, 21, 0</column>
-<column name="out_reg_686">20, 0, 20, 0</column>
 <column name="product_q_93_reg_699">21, 0, 21, 0</column>
 <column name="product_q_94_reg_729">20, 0, 20, 0</column>
 <column name="product_q_95_reg_740">20, 0, 20, 0</column>
@@ -152,6 +151,7 @@
 <column name="sext_ln591_21_reg_694">33, 0, 33, 0</column>
 <column name="sext_ln591_reg_724">32, 0, 32, 0</column>
 <column name="sub_ln361_reg_808">21, 0, 21, 0</column>
+<column name="value_reg_686">20, 0, 20, 0</column>
 <column name="vy_fn_reg_713">21, 0, 21, 0</column>
 <column name="zext_ln352_reg_718">20, 0, 21, 1</column>
 </table>

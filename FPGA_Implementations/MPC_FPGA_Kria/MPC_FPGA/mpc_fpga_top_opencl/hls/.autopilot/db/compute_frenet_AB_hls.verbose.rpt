@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'compute_frenet_AB_hls'
 ================================================================
-* Date:           Thu Jun 11 16:07:00 2026
+* Date:           Thu Jun 11 17:48:35 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -121,11 +121,11 @@
     |A44_fu_755_p2        |         +|   0|  0|  28|          21|          13|
     |add_ln657_fu_531_p2  |         +|   0|  0|  21|          21|          21|
     |add_ln663_fu_547_p2  |         +|   0|  0|  21|          21|          21|
-    |value_178_fu_542_p2  |         +|   0|  0|  28|          21|          21|
-    |value_179_fu_552_p2  |         +|   0|  0|  21|          21|          21|
-    |value_180_fu_558_p2  |         +|   0|  0|  28|          21|          21|
-    |value_181_fu_564_p2  |         +|   0|  0|  28|          21|          21|
-    |value_182_fu_570_p2  |         +|   0|  0|  28|          21|          21|
+    |value_175_fu_542_p2  |         +|   0|  0|  28|          21|          21|
+    |value_176_fu_552_p2  |         +|   0|  0|  21|          21|          21|
+    |value_177_fu_558_p2  |         +|   0|  0|  28|          21|          21|
+    |value_178_fu_564_p2  |         +|   0|  0|  28|          21|          21|
+    |value_179_fu_570_p2  |         +|   0|  0|  28|          21|          21|
     |value_fu_536_p2      |         +|   0|  0|  21|          21|          21|
     +---------------------+----------+----+---+----+------------+------------+
     |Total                |          |   0|  0| 332|         269|         249|
@@ -194,11 +194,11 @@
     |tr_dFyr_dvy_reg_1416                                   |  21|   0|   21|          0|
     |tr_sin_delta_reg_1448                                  |  21|   0|   21|          0|
     |tr_vx_safe_reg_1443                                    |  21|   0|   21|          0|
-    |value_178_reg_1500                                     |  21|   0|   21|          0|
-    |value_179_reg_1505                                     |  21|   0|   21|          0|
-    |value_180_reg_1510                                     |  21|   0|   21|          0|
-    |value_181_reg_1515                                     |  21|   0|   21|          0|
-    |value_182_reg_1520                                     |  21|   0|   21|          0|
+    |value_175_reg_1500                                     |  21|   0|   21|          0|
+    |value_176_reg_1505                                     |  21|   0|   21|          0|
+    |value_177_reg_1510                                     |  21|   0|   21|          0|
+    |value_178_reg_1515                                     |  21|   0|   21|          0|
+    |value_179_reg_1520                                     |  21|   0|   21|          0|
     |value_reg_1495                                         |  21|   0|   21|          0|
     |vx_fn_reg_1313                                         |  21|   0|   21|          0|
     |vy_fn_reg_1319                                         |  21|   0|   21|          0|
@@ -653,16 +653,16 @@ ST_61 : Operation 220 [1/1] (0.00ns) (grouped into LUT with out node A22)   --->
 ST_61 : Operation 221 [1/1] (0.00ns) (grouped into LUT with out node A23)   --->   "%s_neg_vy_damping = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 221 'extractvalue' 's_neg_vy_damping' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 222 [1/1] (0.00ns) (grouped into LUT with out node A24)   --->   "%s_neg_om_damping = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 222 'extractvalue' 's_neg_om_damping' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 223 [1/1] (0.00ns)   --->   "%s_dFyf_dvx_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 223 'extractvalue' 's_dFyf_dvx_cos' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 224 [1/1] (0.00ns) (grouped into LUT with out node value_178)   --->   "%s_dFyf_dvy_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 224 'extractvalue' 's_dFyf_dvy_cos' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 224 [1/1] (0.00ns) (grouped into LUT with out node value_175)   --->   "%s_dFyf_dvy_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 224 'extractvalue' 's_dFyf_dvy_cos' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 225 [1/1] (0.00ns)   --->   "%s_dFyf_dom_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 225 'extractvalue' 's_dFyf_dom_cos' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 226 [1/1] (0.00ns)   --->   "%s_neg_mass_omega = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 226 'extractvalue' 's_neg_mass_omega' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 227 [1/1] (0.00ns)   --->   "%s_neg_mass_vx = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 227 'extractvalue' 's_neg_mass_vx' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 228 [1/1] (0.00ns) (grouped into LUT with out node value_180)   --->   "%s_lf_dFyf_dvx_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 228 'extractvalue' 's_lf_dFyf_dvx_cos' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 229 [1/1] (0.00ns) (grouped into LUT with out node value_181)   --->   "%s_lf_dFyf_dvy_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 229 'extractvalue' 's_lf_dFyf_dvy_cos' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 230 [1/1] (0.00ns) (grouped into LUT with out node value_182)   --->   "%s_lf_dFyf_dom_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 230 'extractvalue' 's_lf_dFyf_dom_cos' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 231 [1/1] (0.00ns) (grouped into LUT with out node value_180)   --->   "%s_neg_lr_dFyr_dvx = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 231 'extractvalue' 's_neg_lr_dFyr_dvx' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 232 [1/1] (0.00ns) (grouped into LUT with out node value_181)   --->   "%s_neg_lr_dFyr_dvy = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 232 'extractvalue' 's_neg_lr_dFyr_dvy' <Predicate = true> <Delay = 0.00>
-ST_61 : Operation 233 [1/1] (0.00ns) (grouped into LUT with out node value_182)   --->   "%s_neg_lr_dFyr_dom = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 233 'extractvalue' 's_neg_lr_dFyr_dom' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 228 [1/1] (0.00ns) (grouped into LUT with out node value_177)   --->   "%s_lf_dFyf_dvx_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 228 'extractvalue' 's_lf_dFyf_dvx_cos' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 229 [1/1] (0.00ns) (grouped into LUT with out node value_178)   --->   "%s_lf_dFyf_dvy_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 229 'extractvalue' 's_lf_dFyf_dvy_cos' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 230 [1/1] (0.00ns) (grouped into LUT with out node value_179)   --->   "%s_lf_dFyf_dom_cos = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 230 'extractvalue' 's_lf_dFyf_dom_cos' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 231 [1/1] (0.00ns) (grouped into LUT with out node value_177)   --->   "%s_neg_lr_dFyr_dvx = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 231 'extractvalue' 's_neg_lr_dFyr_dvx' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 232 [1/1] (0.00ns) (grouped into LUT with out node value_178)   --->   "%s_neg_lr_dFyr_dvy = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 232 'extractvalue' 's_neg_lr_dFyr_dvy' <Predicate = true> <Delay = 0.00>
+ST_61 : Operation 233 [1/1] (0.00ns) (grouped into LUT with out node value_179)   --->   "%s_neg_lr_dFyr_dom = extractvalue i294 %call_ret9" [../src/vehicle_model_hls.cpp:617]   --->   Operation 233 'extractvalue' 's_neg_lr_dFyr_dom' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 234 [1/1] (0.90ns) (out node of the LUT)   --->   "%A22 = add i21 %s_neg_vx_damping, i21 4096" [../src/vehicle_model_hls.cpp:651]   --->   Operation 234 'add' 'A22' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
 ST_61 : Operation 235 [1/1] (0.00ns) (grouped into LUT with out node A23)   --->   "%product_q_100 = partselect i17 @_ssdm_op_PartSelect.i17.i29.i32.i32, i29 %product, i32 12, i32 28" [../src/fp_math_hls.cpp:593->../src/vehicle_model_hls.cpp:652]   --->   Operation 235 'partselect' 'product_q_100' <Predicate = true> <Delay = 0.00>
 ST_61 : Operation 236 [1/1] (0.00ns) (grouped into LUT with out node A23)   --->   "%sext_ln593 = sext i17 %product_q_100" [../src/fp_math_hls.cpp:593->../src/vehicle_model_hls.cpp:652]   --->   Operation 236 'sext' 'sext_ln593' <Predicate = true> <Delay = 0.00>
@@ -672,12 +672,12 @@ ST_61 : Operation 239 [1/1] (0.00ns) (grouped into LUT with out node A24)   --->
 ST_61 : Operation 240 [1/1] (0.90ns) (out node of the LUT)   --->   "%A24 = add i21 %sext_ln593_14, i21 %s_neg_om_damping" [../src/vehicle_model_hls.cpp:653]   --->   Operation 240 'add' 'A24' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
 ST_61 : Operation 241 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln657 = add i21 %tr_dFyr_dvx, i21 %s_neg_mass_omega" [../src/vehicle_model_hls.cpp:657]   --->   Operation 241 'add' 'add_ln657' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.35> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
 ST_61 : Operation 242 [1/1] (0.70ns) (root node of TernaryAdder)   --->   "%value = add i21 %add_ln657, i21 %s_dFyf_dvx_cos" [../src/vehicle_model_hls.cpp:657]   --->   Operation 242 'add' 'value' <Predicate = true> <Delay = 0.70> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.35> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_61 : Operation 243 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_178 = add i21 %s_dFyf_dvy_cos, i21 %tr_dFyr_dvy" [../src/vehicle_model_hls.cpp:661]   --->   Operation 243 'add' 'value_178' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_61 : Operation 243 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_175 = add i21 %s_dFyf_dvy_cos, i21 %tr_dFyr_dvy" [../src/vehicle_model_hls.cpp:661]   --->   Operation 243 'add' 'value_175' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
 ST_61 : Operation 244 [1/1] (0.00ns) (grouped into TernaryAdder)   --->   "%add_ln663 = add i21 %tr_dFyr_dom, i21 %s_neg_mass_vx" [../src/vehicle_model_hls.cpp:663]   --->   Operation 244 'add' 'add_ln663' <Predicate = true> <Delay = 0.00> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.35> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_61 : Operation 245 [1/1] (0.70ns) (root node of TernaryAdder)   --->   "%value_179 = add i21 %add_ln663, i21 %s_dFyf_dom_cos" [../src/vehicle_model_hls.cpp:663]   --->   Operation 245 'add' 'value_179' <Predicate = true> <Delay = 0.70> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.35> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
-ST_61 : Operation 246 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_180 = add i21 %s_neg_lr_dFyr_dvx, i21 %s_lf_dFyf_dvx_cos" [../src/vehicle_model_hls.cpp:668]   --->   Operation 246 'add' 'value_180' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
-ST_61 : Operation 247 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_181 = add i21 %s_neg_lr_dFyr_dvy, i21 %s_lf_dFyf_dvy_cos" [../src/vehicle_model_hls.cpp:670]   --->   Operation 247 'add' 'value_181' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
-ST_61 : Operation 248 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_182 = add i21 %s_neg_lr_dFyr_dom, i21 %s_lf_dFyf_dom_cos" [../src/vehicle_model_hls.cpp:673]   --->   Operation 248 'add' 'value_182' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_61 : Operation 245 [1/1] (0.70ns) (root node of TernaryAdder)   --->   "%value_176 = add i21 %add_ln663, i21 %s_dFyf_dom_cos" [../src/vehicle_model_hls.cpp:663]   --->   Operation 245 'add' 'value_176' <Predicate = true> <Delay = 0.70> <CoreInst = "TAddSub">   --->   Core 10 'TAddSub' <Latency = 0> <II = 1> <Delay = 0.35> <IPBlock> <Opcode : 'add' 'sub'> <InPorts = 3> <OutPorts = 1> <Sync> <CReg>
+ST_61 : Operation 246 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_177 = add i21 %s_neg_lr_dFyr_dvx, i21 %s_lf_dFyf_dvx_cos" [../src/vehicle_model_hls.cpp:668]   --->   Operation 246 'add' 'value_177' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_61 : Operation 247 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_178 = add i21 %s_neg_lr_dFyr_dvy, i21 %s_lf_dFyf_dvy_cos" [../src/vehicle_model_hls.cpp:670]   --->   Operation 247 'add' 'value_178' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_61 : Operation 248 [1/1] (0.90ns) (out node of the LUT)   --->   "%value_179 = add i21 %s_neg_lr_dFyr_dom, i21 %s_lf_dFyf_dom_cos" [../src/vehicle_model_hls.cpp:673]   --->   Operation 248 'add' 'value_179' <Predicate = true> <Delay = 0.90> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.90> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
 ST_61 : Operation 249 [4/10] (4.20ns)   --->   "%call_ret1 = call i63 @compute_B_steering, i21 %tr_C_eff_f_raw, i21 %tr_C_min_f, i21 %tr_F_yf, i21 %tr_sin_delta, i21 %tr_cos_delta" [../src/vehicle_model_hls.cpp:677]   --->   Operation 249 'call' 'call_ret1' <Predicate = true> <Delay = 4.20> <CoreType = "Generic">   --->   Generic Core
 ST_61 : Operation 250 [13/23] (4.37ns)   --->   "%call_ret2 = call i42 @compute_B_accel_load_transfer, i21 %tr_C_eff_f_raw, i21 %tr_C_eff_r, i21 %tr_C_min_f, i21 %tr_cos_delta, i21 %tr_alpha_f_op, i21 %tr_alpha_r_op, i21 %tr_Fz_transfer, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:681]   --->   Operation 250 'call' 'call_ret2' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
 
@@ -693,7 +693,7 @@ ST_62 : Operation 257 [1/1] (0.00ns)   --->   "%tmp = partselect i16 @_ssdm_op_P
 State 63 <SV = 62> <Delay = 4.37>
 ST_63 : Operation 258 [11/14] (3.29ns)   --->   "%call_ret7 = call i126 @fp_frenet_rows01_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %vx_fn, i21 %vy_fn, i21 %kappa_fn, i20 %inv_denom" [../src/vehicle_model_hls.cpp:599]   --->   Operation 258 'call' 'call_ret7' <Predicate = true> <Delay = 3.29> <CoreType = "Generic">   --->   Generic Core
 ST_63 : Operation 259 [11/19] (4.37ns)   --->   "%call_ret8 = call i105 @fp_rollout_from_forces_fn, i21 %ey_fn, i21 %epsi_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %tr_vx_safe, i21 %vy_fn, i21 %omega_fn, i21 %kappa_fn, i21 %product_q, i21 %tr_F_yf, i21 %tr_F_yr, i21 %tr_sin_delta, i21 %tr_cos_delta, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:607]   --->   Operation 259 'call' 'call_ret8' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
-ST_63 : Operation 260 [1/1] (0.00ns)   --->   "%sext_ln591_25 = sext i21 %value_178" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:661]   --->   Operation 260 'sext' 'sext_ln591_25' <Predicate = true> <Delay = 0.00>
+ST_63 : Operation 260 [1/1] (0.00ns)   --->   "%sext_ln591_25 = sext i21 %value_175" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:661]   --->   Operation 260 'sext' 'sext_ln591_25' <Predicate = true> <Delay = 0.00>
 ST_63 : Operation 261 [1/1] (2.56ns)   --->   "%product_366 = mul i28 %sext_ln591_25, i28 37" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:661]   --->   Operation 261 'mul' 'product_366' <Predicate = true> <Delay = 2.56> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.56> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 ST_63 : Operation 262 [1/1] (0.00ns)   --->   "%product_q_102 = partselect i16 @_ssdm_op_PartSelect.i16.i28.i32.i32, i28 %product_366, i32 12, i32 27" [../src/fp_math_hls.cpp:593->../src/vehicle_model_hls.cpp:661]   --->   Operation 262 'partselect' 'product_q_102' <Predicate = true> <Delay = 0.00>
 ST_63 : Operation 263 [2/10] (4.20ns)   --->   "%call_ret1 = call i63 @compute_B_steering, i21 %tr_C_eff_f_raw, i21 %tr_C_min_f, i21 %tr_F_yf, i21 %tr_sin_delta, i21 %tr_cos_delta" [../src/vehicle_model_hls.cpp:677]   --->   Operation 263 'call' 'call_ret1' <Predicate = true> <Delay = 4.20> <CoreType = "Generic">   --->   Generic Core
@@ -702,7 +702,7 @@ ST_63 : Operation 264 [11/23] (4.37ns)   --->   "%call_ret2 = call i42 @compute_
 State 64 <SV = 63> <Delay = 4.37>
 ST_64 : Operation 265 [10/14] (3.29ns)   --->   "%call_ret7 = call i126 @fp_frenet_rows01_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %vx_fn, i21 %vy_fn, i21 %kappa_fn, i20 %inv_denom" [../src/vehicle_model_hls.cpp:599]   --->   Operation 265 'call' 'call_ret7' <Predicate = true> <Delay = 3.29> <CoreType = "Generic">   --->   Generic Core
 ST_64 : Operation 266 [10/19] (4.37ns)   --->   "%call_ret8 = call i105 @fp_rollout_from_forces_fn, i21 %ey_fn, i21 %epsi_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %tr_vx_safe, i21 %vy_fn, i21 %omega_fn, i21 %kappa_fn, i21 %product_q, i21 %tr_F_yf, i21 %tr_F_yr, i21 %tr_sin_delta, i21 %tr_cos_delta, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:607]   --->   Operation 266 'call' 'call_ret8' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
-ST_64 : Operation 267 [1/1] (0.00ns)   --->   "%sext_ln591_26 = sext i21 %value_179" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:663]   --->   Operation 267 'sext' 'sext_ln591_26' <Predicate = true> <Delay = 0.00>
+ST_64 : Operation 267 [1/1] (0.00ns)   --->   "%sext_ln591_26 = sext i21 %value_176" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:663]   --->   Operation 267 'sext' 'sext_ln591_26' <Predicate = true> <Delay = 0.00>
 ST_64 : Operation 268 [1/1] (2.56ns)   --->   "%product_367 = mul i28 %sext_ln591_26, i28 37" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:663]   --->   Operation 268 'mul' 'product_367' <Predicate = true> <Delay = 2.56> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.56> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 ST_64 : Operation 269 [1/10] (2.01ns)   --->   "%call_ret1 = call i63 @compute_B_steering, i21 %tr_C_eff_f_raw, i21 %tr_C_min_f, i21 %tr_F_yf, i21 %tr_sin_delta, i21 %tr_cos_delta" [../src/vehicle_model_hls.cpp:677]   --->   Operation 269 'call' 'call_ret1' <Predicate = true> <Delay = 2.01> <CoreType = "Generic">   --->   Generic Core
 ST_64 : Operation 270 [1/1] (0.00ns)   --->   "%B20 = extractvalue i63 %call_ret1" [../src/vehicle_model_hls.cpp:677]   --->   Operation 270 'extractvalue' 'B20' <Predicate = true> <Delay = 0.00>
@@ -714,7 +714,7 @@ ST_64 : Operation 274 [1/1] (0.00ns)   --->   "%tmp_11 = partselect i16 @_ssdm_o
 State 65 <SV = 64> <Delay = 4.37>
 ST_65 : Operation 275 [9/14] (3.29ns)   --->   "%call_ret7 = call i126 @fp_frenet_rows01_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %vx_fn, i21 %vy_fn, i21 %kappa_fn, i20 %inv_denom" [../src/vehicle_model_hls.cpp:599]   --->   Operation 275 'call' 'call_ret7' <Predicate = true> <Delay = 3.29> <CoreType = "Generic">   --->   Generic Core
 ST_65 : Operation 276 [9/19] (4.37ns)   --->   "%call_ret8 = call i105 @fp_rollout_from_forces_fn, i21 %ey_fn, i21 %epsi_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %tr_vx_safe, i21 %vy_fn, i21 %omega_fn, i21 %kappa_fn, i21 %product_q, i21 %tr_F_yf, i21 %tr_F_yr, i21 %tr_sin_delta, i21 %tr_cos_delta, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:607]   --->   Operation 276 'call' 'call_ret8' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
-ST_65 : Operation 277 [1/1] (0.00ns)   --->   "%sext_ln591_27 = sext i21 %value_180" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:668]   --->   Operation 277 'sext' 'sext_ln591_27' <Predicate = true> <Delay = 0.00>
+ST_65 : Operation 277 [1/1] (0.00ns)   --->   "%sext_ln591_27 = sext i21 %value_177" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:668]   --->   Operation 277 'sext' 'sext_ln591_27' <Predicate = true> <Delay = 0.00>
 ST_65 : Operation 278 [1/1] (2.56ns)   --->   "%mul_ln591_20 = mul i33 %sext_ln591_27, i33 3510" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:668]   --->   Operation 278 'mul' 'mul_ln591_20' <Predicate = true> <Delay = 2.56> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.56> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 ST_65 : Operation 279 [9/23] (4.37ns)   --->   "%call_ret2 = call i42 @compute_B_accel_load_transfer, i21 %tr_C_eff_f_raw, i21 %tr_C_eff_r, i21 %tr_C_min_f, i21 %tr_cos_delta, i21 %tr_alpha_f_op, i21 %tr_alpha_r_op, i21 %tr_Fz_transfer, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:681]   --->   Operation 279 'call' 'call_ret2' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
 ST_65 : Operation 280 [1/1] (0.00ns)   --->   "%tmp_13 = partselect i21 @_ssdm_op_PartSelect.i21.i33.i32.i32, i33 %mul_ln591_20, i32 12, i32 32" [include/fp_types_hls.hpp:781->../src/vehicle_model_hls.cpp:712]   --->   Operation 280 'partselect' 'tmp_13' <Predicate = true> <Delay = 0.00>
@@ -722,7 +722,7 @@ ST_65 : Operation 280 [1/1] (0.00ns)   --->   "%tmp_13 = partselect i21 @_ssdm_o
 State 66 <SV = 65> <Delay = 4.37>
 ST_66 : Operation 281 [8/14] (3.29ns)   --->   "%call_ret7 = call i126 @fp_frenet_rows01_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %vx_fn, i21 %vy_fn, i21 %kappa_fn, i20 %inv_denom" [../src/vehicle_model_hls.cpp:599]   --->   Operation 281 'call' 'call_ret7' <Predicate = true> <Delay = 3.29> <CoreType = "Generic">   --->   Generic Core
 ST_66 : Operation 282 [8/19] (4.37ns)   --->   "%call_ret8 = call i105 @fp_rollout_from_forces_fn, i21 %ey_fn, i21 %epsi_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %tr_vx_safe, i21 %vy_fn, i21 %omega_fn, i21 %kappa_fn, i21 %product_q, i21 %tr_F_yf, i21 %tr_F_yr, i21 %tr_sin_delta, i21 %tr_cos_delta, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:607]   --->   Operation 282 'call' 'call_ret8' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
-ST_66 : Operation 283 [1/1] (0.00ns)   --->   "%sext_ln591_28 = sext i21 %value_181" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:670]   --->   Operation 283 'sext' 'sext_ln591_28' <Predicate = true> <Delay = 0.00>
+ST_66 : Operation 283 [1/1] (0.00ns)   --->   "%sext_ln591_28 = sext i21 %value_178" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:670]   --->   Operation 283 'sext' 'sext_ln591_28' <Predicate = true> <Delay = 0.00>
 ST_66 : Operation 284 [1/1] (2.56ns)   --->   "%mul_ln591_21 = mul i33 %sext_ln591_28, i33 3510" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:670]   --->   Operation 284 'mul' 'mul_ln591_21' <Predicate = true> <Delay = 2.56> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.56> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 ST_66 : Operation 285 [8/23] (4.37ns)   --->   "%call_ret2 = call i42 @compute_B_accel_load_transfer, i21 %tr_C_eff_f_raw, i21 %tr_C_eff_r, i21 %tr_C_min_f, i21 %tr_cos_delta, i21 %tr_alpha_f_op, i21 %tr_alpha_r_op, i21 %tr_Fz_transfer, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:681]   --->   Operation 285 'call' 'call_ret2' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
 ST_66 : Operation 286 [1/1] (0.00ns)   --->   "%tmp_14 = partselect i21 @_ssdm_op_PartSelect.i21.i33.i32.i32, i33 %mul_ln591_21, i32 12, i32 32" [include/fp_types_hls.hpp:781->../src/vehicle_model_hls.cpp:713]   --->   Operation 286 'partselect' 'tmp_14' <Predicate = true> <Delay = 0.00>
@@ -730,7 +730,7 @@ ST_66 : Operation 286 [1/1] (0.00ns)   --->   "%tmp_14 = partselect i21 @_ssdm_o
 State 67 <SV = 66> <Delay = 4.37>
 ST_67 : Operation 287 [7/14] (3.29ns)   --->   "%call_ret7 = call i126 @fp_frenet_rows01_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %vx_fn, i21 %vy_fn, i21 %kappa_fn, i20 %inv_denom" [../src/vehicle_model_hls.cpp:599]   --->   Operation 287 'call' 'call_ret7' <Predicate = true> <Delay = 3.29> <CoreType = "Generic">   --->   Generic Core
 ST_67 : Operation 288 [7/19] (4.37ns)   --->   "%call_ret8 = call i105 @fp_rollout_from_forces_fn, i21 %ey_fn, i21 %epsi_fn, i21 %sin_epsi_fn, i21 %cos_epsi_fn, i21 %tr_vx_safe, i21 %vy_fn, i21 %omega_fn, i21 %kappa_fn, i21 %product_q, i21 %tr_F_yf, i21 %tr_F_yr, i21 %tr_sin_delta, i21 %tr_cos_delta, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:607]   --->   Operation 288 'call' 'call_ret8' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
-ST_67 : Operation 289 [1/1] (0.00ns)   --->   "%sext_ln591_29 = sext i21 %value_182" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:673]   --->   Operation 289 'sext' 'sext_ln591_29' <Predicate = true> <Delay = 0.00>
+ST_67 : Operation 289 [1/1] (0.00ns)   --->   "%sext_ln591_29 = sext i21 %value_179" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:673]   --->   Operation 289 'sext' 'sext_ln591_29' <Predicate = true> <Delay = 0.00>
 ST_67 : Operation 290 [1/1] (2.56ns)   --->   "%mul_ln591_22 = mul i33 %sext_ln591_29, i33 3510" [../src/fp_math_hls.cpp:591->../src/vehicle_model_hls.cpp:673]   --->   Operation 290 'mul' 'mul_ln591_22' <Predicate = true> <Delay = 2.56> <CoreInst = "Multiplier">   --->   Core 3 'Multiplier' <Latency = 0> <II = 1> <Delay = 2.56> <FuncUnit> <Opcode : 'mul'> <InPorts = 2> <OutPorts = 1>
 ST_67 : Operation 291 [1/1] (0.00ns)   --->   "%product_q_103 = partselect i21 @_ssdm_op_PartSelect.i21.i33.i32.i32, i33 %mul_ln591_22, i32 12, i32 32" [../src/fp_math_hls.cpp:593->../src/vehicle_model_hls.cpp:673]   --->   Operation 291 'partselect' 'product_q_103' <Predicate = true> <Delay = 0.00>
 ST_67 : Operation 292 [7/23] (4.37ns)   --->   "%call_ret2 = call i42 @compute_B_accel_load_transfer, i21 %tr_C_eff_f_raw, i21 %tr_C_eff_r, i21 %tr_C_min_f, i21 %tr_cos_delta, i21 %tr_alpha_f_op, i21 %tr_alpha_r_op, i21 %tr_Fz_transfer, i14 %recip_lut_fn" [../src/vehicle_model_hls.cpp:681]   --->   Operation 292 'call' 'call_ret2' <Predicate = true> <Delay = 4.37> <CoreType = "Generic">   --->   Generic Core
@@ -970,12 +970,12 @@ sext_ln593_14     (sext          ) [ 0000000000000000000000000000000000000000000
 A24               (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111111111111]
 add_ln657         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000000000000000]
 value             (add           ) [ 00000000000000000000000000000000000000000000000000000000000000100000000000]
-value_178         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000110000000000]
+value_175         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000110000000000]
 add_ln663         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000000000000000]
-value_179         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111000000000]
-value_180         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111100000000]
-value_181         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111110000000]
-value_182         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111111000000]
+value_176         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111000000000]
+value_177         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111100000000]
+value_178         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111110000000]
+value_179         (add           ) [ 00000000000000000000000000000000000000000000000000000000000000111111000000]
 sext_ln591_24     (sext          ) [ 00000000000000000000000000000000000000000000000000000000000000000000000000]
 product_365       (mul           ) [ 00000000000000000000000000000000000000000000000000000000000000000000000000]
 tmp               (partselect    ) [ 00000000000000000000000000000000000000000000000000000000000000011111111111]
@@ -2427,7 +2427,7 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </bind>
 </comp>
 
-<comp id="542" class="1004" name="value_178_fu_542">
+<comp id="542" class="1004" name="value_175_fu_542">
 <pin_list>
 <pin id="543" dir="0" index="0" bw="21" slack="0"/>
 <pin id="544" dir="0" index="1" bw="21" slack="11"/>
@@ -2435,7 +2435,7 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="value_178/61 "/>
+<opset="value_175/61 "/>
 </bind>
 </comp>
 
@@ -2451,7 +2451,7 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </bind>
 </comp>
 
-<comp id="552" class="1004" name="value_179_fu_552">
+<comp id="552" class="1004" name="value_176_fu_552">
 <pin_list>
 <pin id="553" dir="0" index="0" bw="21" slack="0"/>
 <pin id="554" dir="0" index="1" bw="21" slack="0"/>
@@ -2459,11 +2459,11 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="value_179/61 "/>
+<opset="value_176/61 "/>
 </bind>
 </comp>
 
-<comp id="558" class="1004" name="value_180_fu_558">
+<comp id="558" class="1004" name="value_177_fu_558">
 <pin_list>
 <pin id="559" dir="0" index="0" bw="21" slack="0"/>
 <pin id="560" dir="0" index="1" bw="21" slack="0"/>
@@ -2471,11 +2471,11 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="value_180/61 "/>
+<opset="value_177/61 "/>
 </bind>
 </comp>
 
-<comp id="564" class="1004" name="value_181_fu_564">
+<comp id="564" class="1004" name="value_178_fu_564">
 <pin_list>
 <pin id="565" dir="0" index="0" bw="21" slack="0"/>
 <pin id="566" dir="0" index="1" bw="21" slack="0"/>
@@ -2483,11 +2483,11 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="value_181/61 "/>
+<opset="value_178/61 "/>
 </bind>
 </comp>
 
-<comp id="570" class="1004" name="value_182_fu_570">
+<comp id="570" class="1004" name="value_179_fu_570">
 <pin_list>
 <pin id="571" dir="0" index="0" bw="21" slack="0"/>
 <pin id="572" dir="0" index="1" bw="21" slack="0"/>
@@ -2495,7 +2495,7 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </pin_list>
 <bind>
 <opcode="add(8) " fcode="add"/>
-<opset="value_182/61 "/>
+<opset="value_179/61 "/>
 </bind>
 </comp>
 
@@ -4372,53 +4372,53 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 </bind>
 </comp>
 
-<comp id="1500" class="1005" name="value_178_reg_1500">
+<comp id="1500" class="1005" name="value_175_reg_1500">
 <pin_list>
 <pin id="1501" dir="0" index="0" bw="21" slack="2"/>
 <pin id="1502" dir="1" index="1" bw="21" slack="2"/>
+</pin_list>
+<bind>
+<opset="value_175 "/>
+</bind>
+</comp>
+
+<comp id="1505" class="1005" name="value_176_reg_1505">
+<pin_list>
+<pin id="1506" dir="0" index="0" bw="21" slack="3"/>
+<pin id="1507" dir="1" index="1" bw="21" slack="3"/>
+</pin_list>
+<bind>
+<opset="value_176 "/>
+</bind>
+</comp>
+
+<comp id="1510" class="1005" name="value_177_reg_1510">
+<pin_list>
+<pin id="1511" dir="0" index="0" bw="21" slack="4"/>
+<pin id="1512" dir="1" index="1" bw="21" slack="4"/>
+</pin_list>
+<bind>
+<opset="value_177 "/>
+</bind>
+</comp>
+
+<comp id="1515" class="1005" name="value_178_reg_1515">
+<pin_list>
+<pin id="1516" dir="0" index="0" bw="21" slack="5"/>
+<pin id="1517" dir="1" index="1" bw="21" slack="5"/>
 </pin_list>
 <bind>
 <opset="value_178 "/>
 </bind>
 </comp>
 
-<comp id="1505" class="1005" name="value_179_reg_1505">
-<pin_list>
-<pin id="1506" dir="0" index="0" bw="21" slack="3"/>
-<pin id="1507" dir="1" index="1" bw="21" slack="3"/>
-</pin_list>
-<bind>
-<opset="value_179 "/>
-</bind>
-</comp>
-
-<comp id="1510" class="1005" name="value_180_reg_1510">
-<pin_list>
-<pin id="1511" dir="0" index="0" bw="21" slack="4"/>
-<pin id="1512" dir="1" index="1" bw="21" slack="4"/>
-</pin_list>
-<bind>
-<opset="value_180 "/>
-</bind>
-</comp>
-
-<comp id="1515" class="1005" name="value_181_reg_1515">
-<pin_list>
-<pin id="1516" dir="0" index="0" bw="21" slack="5"/>
-<pin id="1517" dir="1" index="1" bw="21" slack="5"/>
-</pin_list>
-<bind>
-<opset="value_181 "/>
-</bind>
-</comp>
-
-<comp id="1520" class="1005" name="value_182_reg_1520">
+<comp id="1520" class="1005" name="value_179_reg_1520">
 <pin_list>
 <pin id="1521" dir="0" index="0" bw="21" slack="6"/>
 <pin id="1522" dir="1" index="1" bw="21" slack="6"/>
 </pin_list>
 <bind>
-<opset="value_182 "/>
+<opset="value_179 "/>
 </bind>
 </comp>
 
@@ -5630,12 +5630,12 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 		A24 : 2
 		add_ln657 : 2
 		value : 3
-		value_178 : 2
+		value_175 : 2
 		add_ln663 : 2
-		value_179 : 3
-		value_180 : 2
-		value_181 : 2
-		value_182 : 2
+		value_176 : 3
+		value_177 : 2
+		value_178 : 2
+		value_179 : 2
 	State 62
 		product_365 : 1
 		tmp : 2
@@ -5781,12 +5781,12 @@ ret_ln732         (ret           ) [ 0000000000000000000000000000000000000000000
 |          |                A24_fu_525                |    0    |    0    |    0    |    28   |
 |          |             add_ln657_fu_531             |    0    |    0    |    0    |    21   |
 |          |               value_fu_536               |    0    |    0    |    0    |    21   |
-|          |             value_178_fu_542             |    0    |    0    |    0    |    28   |
+|          |             value_175_fu_542             |    0    |    0    |    0    |    28   |
 |    add   |             add_ln663_fu_547             |    0    |    0    |    0    |    21   |
-|          |             value_179_fu_552             |    0    |    0    |    0    |    21   |
-|          |             value_180_fu_558             |    0    |    0    |    0    |    28   |
-|          |             value_181_fu_564             |    0    |    0    |    0    |    28   |
-|          |             value_182_fu_570             |    0    |    0    |    0    |    28   |
+|          |             value_176_fu_552             |    0    |    0    |    0    |    21   |
+|          |             value_177_fu_558             |    0    |    0    |    0    |    28   |
+|          |             value_178_fu_564             |    0    |    0    |    0    |    28   |
+|          |             value_179_fu_570             |    0    |    0    |    0    |    28   |
 |          |                A33_fu_749                |    0    |    0    |    0    |    23   |
 |          |                A44_fu_755                |    0    |    0    |    0    |    28   |
 |----------|------------------------------------------|---------|---------|---------|---------|
@@ -6032,11 +6032,11 @@ N/A
 |  tr_dFyr_dvy_reg_1416 |   21   |
 | tr_sin_delta_reg_1448 |   21   |
 |  tr_vx_safe_reg_1443  |   21   |
-|   value_178_reg_1500  |   21   |
-|   value_179_reg_1505  |   21   |
-|   value_180_reg_1510  |   21   |
-|   value_181_reg_1515  |   21   |
-|   value_182_reg_1520  |   21   |
+|   value_175_reg_1500  |   21   |
+|   value_176_reg_1505  |   21   |
+|   value_177_reg_1510  |   21   |
+|   value_178_reg_1515  |   21   |
+|   value_179_reg_1520  |   21   |
 |     value_reg_1495    |   21   |
 |     vx_fn_reg_1313    |   21   |
 |     vy_fn_reg_1319    |   21   |

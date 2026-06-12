@@ -4,7 +4,7 @@
 == Synthesis Summary Report of 'mpc_fpga_top_opencl'
 ================================================================
 + General Information: 
-    * Date:           Thu Jun 11 16:07:10 2026
+    * Date:           Thu Jun 11 17:48:39 2026
     * Version:        2025.2 (Build 6295257 on Nov 14 2025)
     * Project:        mpc_fpga_top_opencl
     * Solution:       hls (Vitis Kernel Flow Target)
@@ -696,20 +696,20 @@
 |        mul_21s_8ns_29_1_1_U519                                              | 1   |        | product_364              | mul       | auto                     | 0       |
 |        A24_fu_525_p2                                                        |     |        | A24                      | add       | fabric                   | 0       |
 |        mul_21s_7ns_28_1_1_U520                                              | 1   |        | product_365              | mul       | auto                     | 0       |
-|        value_178_fu_542_p2                                                  |     |        | value_178                | add       | fabric                   | 0       |
+|        value_175_fu_542_p2                                                  |     |        | value_175                | add       | fabric                   | 0       |
 |        mul_21s_7ns_28_1_1_U521                                              | 1   |        | product_366              | mul       | auto                     | 0       |
 |        A33_fu_749_p2                                                        |     |        | A33                      | add       | fabric                   | 0       |
 |        mul_21s_7ns_28_1_1_U522                                              | 1   |        | product_367              | mul       | auto                     | 0       |
-|        value_180_fu_558_p2                                                  |     |        | value_180                | add       | fabric                   | 0       |
+|        value_177_fu_558_p2                                                  |     |        | value_177                | add       | fabric                   | 0       |
 |        mul_21s_13ns_33_1_1_U523                                             | 1   |        | mul_ln591_20             | mul       | auto                     | 0       |
-|        value_181_fu_564_p2                                                  |     |        | value_181                | add       | fabric                   | 0       |
+|        value_178_fu_564_p2                                                  |     |        | value_178                | add       | fabric                   | 0       |
 |        mul_21s_13ns_33_1_1_U524                                             | 1   |        | mul_ln591_21             | mul       | auto                     | 0       |
-|        value_182_fu_570_p2                                                  |     |        | value_182                | add       | fabric                   | 0       |
+|        value_179_fu_570_p2                                                  |     |        | value_179                | add       | fabric                   | 0       |
 |        mul_21s_13ns_33_1_1_U525                                             | 1   |        | mul_ln591_22             | mul       | auto                     | 0       |
 |        A44_fu_755_p2                                                        |     |        | A44                      | add       | fabric                   | 0       |
 |       + compute_frenet_tire_hls                                             | 63  |        |                          |           |                          |         |
 |         icmp_ln351_fu_270_p2                                                |     |        | icmp_ln351               | setgt     | auto                     | 0       |
-|         out_fu_276_p3                                                       |     |        | out                      | select    | auto_sel                 | 0       |
+|         value_fu_276_p3                                                     |     |        | value                    | select    | auto_sel                 | 0       |
 |         mul_21s_13ns_33_1_1_U394                                            | 1   |        | mul_ln591                | mul       | auto                     | 0       |
 |         mul_21s_13ns_33_1_1_U391                                            | 1   |        | mul_ln591_12             | mul       | auto                     | 0       |
 |         mul_21s_11ns_32_1_1_U392                                            | 1   |        | product                  | mul       | auto                     | 0       |
@@ -1748,7 +1748,7 @@
 |         sub_ln518_fu_190_p2                                                 |     |        | sub_ln518                | sub       | fabric                   | 0       |
 |         value_fu_196_p2                                                     |     |        | value                    | sub       | fabric                   | 0       |
 |         mul_21s_11ns_32_3_1_U487                                            | 1   | yes    | mul_ln574_56             | mul       | dsp                      | 2       |
-|         value_217_fu_200_p2                                                 |     |        | value_217                | sub       | fabric                   | 0       |
+|         value_214_fu_200_p2                                                 |     |        | value_214                | sub       | fabric                   | 0       |
 |         mul_21s_11ns_32_3_1_U488                                            | 1   | yes    | mul_ln574_57             | mul       | dsp                      | 2       |
 |         select_ln524_fu_308_p3                                              |     |        | select_ln524             | select    | auto_sel                 | 0       |
 |       + fp_frenet_rows01_fn                                                 | 17  |        |                          |           |                          |         |

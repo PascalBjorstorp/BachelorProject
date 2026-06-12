@@ -5258,7 +5258,7 @@
 					<Obj>
 						<type>0</type>
 						<id>96</id>
-						<name>value_178</name>
+						<name>value_175</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>661</lineNumber>
@@ -5685,7 +5685,7 @@
 					<Obj>
 						<type>0</type>
 						<id>103</id>
-						<name>value_179</name>
+						<name>value_176</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>663</lineNumber>
@@ -5869,7 +5869,7 @@
 					<Obj>
 						<type>0</type>
 						<id>106</id>
-						<name>value_180</name>
+						<name>value_177</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>668</lineNumber>
@@ -6053,7 +6053,7 @@
 					<Obj>
 						<type>0</type>
 						<id>109</id>
-						<name>value_181</name>
+						<name>value_178</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>670</lineNumber>
@@ -6237,7 +6237,7 @@
 					<Obj>
 						<type>0</type>
 						<id>112</id>
-						<name>value_182</name>
+						<name>value_179</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>673</lineNumber>
@@ -24878,7 +24878,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_178_fu_542</first>
+			<first>value_175_fu_542</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -24886,7 +24886,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_179_fu_552</first>
+			<first>value_176_fu_552</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -24894,7 +24894,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_180_fu_558</first>
+			<first>value_177_fu_558</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -24902,7 +24902,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_181_fu_564</first>
+			<first>value_178_fu_564</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -24910,7 +24910,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_182_fu_570</first>
+			<first>value_179_fu_570</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -26009,7 +26009,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_178_reg_1500</first>
+			<first>value_175_reg_1500</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -26017,7 +26017,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_179_reg_1505</first>
+			<first>value_176_reg_1505</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -26025,7 +26025,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_180_reg_1510</first>
+			<first>value_177_reg_1510</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -26033,7 +26033,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_181_reg_1515</first>
+			<first>value_178_reg_1515</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>
@@ -26041,7 +26041,7 @@
 			</second>
 		</item>
 		<item>
-			<first>value_182_reg_1520</first>
+			<first>value_179_reg_1520</first>
 			<second>
 				<count>1</count>
 				<item_version>0</item_version>

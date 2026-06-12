@@ -755,10 +755,10 @@ fpga_resource_hint.entry.38:58 %value = sub i21 %product_q_104, i21 %product_q_1
 
 <Node id="70" bw="21" op_0_bw="21" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.38:64 %value_217 = sub i21 %product_q_105, i21 %product_q_106
+fpga_resource_hint.entry.38:64 %value_214 = sub i21 %product_q_105, i21 %product_q_106
 
 ]]></Node>
-<StgValue><ssdm name="value_217"/></StgValue>
+<StgValue><ssdm name="value_214"/></StgValue>
 </operation>
 </state>
 
@@ -978,7 +978,7 @@ fpga_resource_hint.entry.38:61 %mul_ln574_56 = mul i32 %sext_ln574_70, i32 581
 
 <Node id="72" bw="32" op_0_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.38:66 %sext_ln574_71 = sext i21 %value_217
+fpga_resource_hint.entry.38:66 %sext_ln574_71 = sext i21 %value_214
 
 ]]></Node>
 <StgValue><ssdm name="sext_ln574_71"/></StgValue>
@@ -1756,9 +1756,9 @@ fpga_resource_hint.entry.38:77 %ret_ln525 = ret i63 %mrv_2
 </dataflow>
 <dataflow id="246" from="product_q_106" to="value" fromId="39" toId="54">
 </dataflow>
-<dataflow id="247" from="product_q_105" to="value_217" fromId="33" toId="55">
+<dataflow id="247" from="product_q_105" to="value_214" fromId="33" toId="55">
 </dataflow>
-<dataflow id="248" from="product_q_106" to="value_217" fromId="39" toId="55">
+<dataflow id="248" from="product_q_106" to="value_214" fromId="39" toId="55">
 </dataflow>
 <dataflow id="249" from="sext_ln574_67" to="mul_ln574_51" fromId="18" toId="56">
 </dataflow>
@@ -1840,7 +1840,7 @@ fpga_resource_hint.entry.38:77 %ret_ln525 = ret i63 %mrv_2
 </dataflow>
 <dataflow id="289" from="StgValue_261" to="mul_ln574_56" fromId="261" toId="68">
 </dataflow>
-<dataflow id="290" from="value_217" to="sext_ln574_71" fromId="55" toId="69">
+<dataflow id="290" from="value_214" to="sext_ln574_71" fromId="55" toId="69">
 </dataflow>
 <dataflow id="291" from="sext_ln574_71" to="mul_ln574_57" fromId="69" toId="70">
 </dataflow>

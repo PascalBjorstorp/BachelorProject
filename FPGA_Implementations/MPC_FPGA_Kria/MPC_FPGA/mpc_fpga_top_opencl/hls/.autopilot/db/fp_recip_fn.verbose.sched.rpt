@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'fp_recip_fn'
 ================================================================
-* Date:           Thu Jun 11 16:06:48 2026
+* Date:           Thu Jun 11 17:48:29 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -344,8 +344,7 @@ The critical path consists of the following:
 The critical path consists of the following:
 	'select' operation 5 bit ('spec_select', ../src/fp_math_hls.cpp:684) [19]  (0.000 ns)
 	'select' operation 5 bit ('shift', ../src/fp_math_hls.cpp:682) [20]  (0.414 ns)
-	'icmp' operation 1 bit ('icmp_ln692', ../src/fp_math_hls.cpp:692) [22]  (0.789 ns)
-	'select' operation 9 bit ('select_ln692', ../src/fp_math_hls.cpp:692) [47]  (0.000 ns)
+	'icmp' operation 1 bit ('icmp_ln692_1', ../src/fp_math_hls.cpp:692) [23]  (0.789 ns)
 	'select' operation 9 bit ('select_ln692_1', ../src/fp_math_hls.cpp:692) [48]  (0.398 ns)
 	'select' operation 9 bit ('select_ln692_2', ../src/fp_math_hls.cpp:692) [49]  (0.000 ns)
 	'select' operation 9 bit ('select_ln692_3', ../src/fp_math_hls.cpp:692) [50]  (0.398 ns)

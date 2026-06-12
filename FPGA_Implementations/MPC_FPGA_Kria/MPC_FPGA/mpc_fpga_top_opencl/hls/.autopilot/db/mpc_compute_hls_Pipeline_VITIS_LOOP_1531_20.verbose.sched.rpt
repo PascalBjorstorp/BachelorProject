@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_1531_20'
 ================================================================
-* Date:           Thu Jun 11 16:06:55 2026
+* Date:           Thu Jun 11 17:48:32 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -136,14 +136,15 @@ Target clock period: 5.000ns, clock uncertainty: 0.500ns.
 The critical path consists of the following:
 	'store' operation ('store_ln1189', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647) of constant 0 5 bit on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [8]  (0.427 ns)
 	'load' operation 5 bit ('k', ../src/riccati_solver_hls.cpp:1531->../src/mpc_riccati_hls.cpp:647) on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [11]  (0.000 ns)
-	'icmp' operation 1 bit ('icmp_ln1531', ../src/riccati_solver_hls.cpp:1531->../src/mpc_riccati_hls.cpp:647) [12]  (0.789 ns)
+	'add' operation 5 bit ('add_ln1531', ../src/riccati_solver_hls.cpp:1531->../src/mpc_riccati_hls.cpp:647) [13]  (0.789 ns)
 	'store' operation ('store_ln1189', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647) of variable 'add_ln1531', ../src/riccati_solver_hls.cpp:1531->../src/mpc_riccati_hls.cpp:647 5 bit on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [41]  (0.427 ns)
 
  <State 2>: 1.354ns
 The critical path consists of the following:
-	'load' operation 26 bit ('y_x_load', ../src/riccati_solver_hls.cpp:1534->../src/mpc_riccati_hls.cpp:647) on array 'y_x' [22]  (0.677 ns)
-	'shl' operation 26 bit ('shl_ln1537', ../src/riccati_solver_hls.cpp:1537->../src/mpc_riccati_hls.cpp:647) [25]  (0.000 ns)
-	'store' operation ('store_ln1537', ../src/riccati_solver_hls.cpp:1537->../src/mpc_riccati_hls.cpp:647) of variable 'shl_ln1537', ../src/riccati_solver_hls.cpp:1537->../src/mpc_riccati_hls.cpp:647 26 bit on array 'y_x' [26]  (0.677 ns)
+	'load' operation 26 bit ('y_x_5_load_1', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647) on array 'y_x_5' [27]  (0.677 ns)
+	'shl' operation 26 bit ('shl_ln1538', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647) [28]  (0.000 ns)
+	'phi' operation 26 bit ('storemerge382', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647) with incoming values : ('shl_ln1538', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647) ('sext_ln1535', ../src/riccati_solver_hls.cpp:1535->../src/mpc_riccati_hls.cpp:647) [39]  (0.000 ns)
+	'store' operation ('store_ln1538', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647) of variable 'storemerge382', ../src/riccati_solver_hls.cpp:1538->../src/mpc_riccati_hls.cpp:647 26 bit on array 'y_x_5' [40]  (0.677 ns)
 
 
 ============================================================

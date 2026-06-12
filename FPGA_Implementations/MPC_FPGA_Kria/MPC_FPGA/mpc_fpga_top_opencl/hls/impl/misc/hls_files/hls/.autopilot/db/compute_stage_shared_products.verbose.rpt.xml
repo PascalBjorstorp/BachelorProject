@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_stage_shared_products'" level="0">
-<item name = "Date">Thu Jun 11 16:07:00 2026
+<item name = "Date">Thu Jun 11 17:48:34 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>

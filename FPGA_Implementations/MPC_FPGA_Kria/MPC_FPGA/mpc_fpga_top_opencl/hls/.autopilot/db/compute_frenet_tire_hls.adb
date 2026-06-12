@@ -1022,7 +1022,7 @@
             <Obj>
               <type>0</type>
               <id>23</id>
-              <name>out</name>
+              <name>value</name>
               <fileName>../src/vehicle_model_hls.cpp</fileName>
               <fileDirectory>../.</fileDirectory>
               <lineNumber>351</lineNumber>
@@ -1053,8 +1053,8 @@
                   </second>
                 </item>
               </inlineStackInfo>
-              <originalName>out</originalName>
-              <rtlName>out_fu_276_p3</rtlName>
+              <originalName>value</originalName>
+              <rtlName>value_fu_276_p3</rtlName>
               <control>auto</control>
               <opType>select</opType>
               <implIndex>auto_sel</implIndex>
@@ -11641,33 +11641,6 @@
           </second>
         </item>
         <item>
-          <first>out_fu_276_p3 ( select ) </first>
-          <second>
-            <count>5</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(0P0)</first>
-              <second>1</second>
-            </item>
-            <item>
-              <first>(1P1)</first>
-              <second>20</second>
-            </item>
-            <item>
-              <first>(2P2)</first>
-              <second>12</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>LUT</first>
-              <second>19</second>
-            </item>
-          </second>
-        </item>
-        <item>
           <first>rear_num2_fu_511_p2 ( + ) </first>
           <second>
             <count>4</count>
@@ -11710,6 +11683,33 @@
             <item>
               <first>LUT</first>
               <second>28</second>
+            </item>
+          </second>
+        </item>
+        <item>
+          <first>value_fu_276_p3 ( select ) </first>
+          <second>
+            <count>5</count>
+            <item_version>0</item_version>
+            <item>
+              <first>(0P0)</first>
+              <second>1</second>
+            </item>
+            <item>
+              <first>(1P1)</first>
+              <second>20</second>
+            </item>
+            <item>
+              <first>(2P2)</first>
+              <second>12</second>
+            </item>
+            <item>
+              <first>FF</first>
+              <second>0</second>
+            </item>
+            <item>
+              <first>LUT</first>
+              <second>19</second>
             </item>
           </second>
         </item>
@@ -12191,25 +12191,6 @@
           </second>
         </item>
         <item>
-          <first>out_reg_686</first>
-          <second>
-            <count>3</count>
-            <item_version>0</item_version>
-            <item>
-              <first>(Bits)</first>
-              <second>20</second>
-            </item>
-            <item>
-              <first>(Consts)</first>
-              <second>0</second>
-            </item>
-            <item>
-              <first>FF</first>
-              <second>20</second>
-            </item>
-          </second>
-        </item>
-        <item>
           <first>product_q_93_reg_699</first>
           <second>
             <count>3</count>
@@ -12491,6 +12472,25 @@
             <item>
               <first>FF</first>
               <second>21</second>
+            </item>
+          </second>
+        </item>
+        <item>
+          <first>value_reg_686</first>
+          <second>
+            <count>3</count>
+            <item_version>0</item_version>
+            <item>
+              <first>(Bits)</first>
+              <second>20</second>
+            </item>
+            <item>
+              <first>(Consts)</first>
+              <second>0</second>
+            </item>
+            <item>
+              <first>FF</first>
+              <second>20</second>
             </item>
           </second>
         </item>
@@ -12786,14 +12786,6 @@
           </second>
         </item>
         <item>
-          <first>out_fu_276_p3 ( select ) </first>
-          <second>
-            <count>1</count>
-            <item_version>0</item_version>
-            <item>23</item>
-          </second>
-        </item>
-        <item>
           <first>rear_num2_fu_511_p2 ( + ) </first>
           <second>
             <count>1</count>
@@ -12807,6 +12799,14 @@
             <count>1</count>
             <item_version>0</item_version>
             <item>38</item>
+          </second>
+        </item>
+        <item>
+          <first>value_fu_276_p3 ( select ) </first>
+          <second>
+            <count>1</count>
+            <item_version>0</item_version>
+            <item>23</item>
           </second>
         </item>
       </dp_expression_map>
@@ -14735,14 +14735,6 @@
         </second>
       </item>
       <item>
-        <first>out_fu_276</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>23</item>
-        </second>
-      </item>
-      <item>
         <first>product_363_fu_349</first>
         <second>
           <count>1</count>
@@ -14964,6 +14956,14 @@
           <count>1</count>
           <item_version>0</item_version>
           <item>16</item>
+        </second>
+      </item>
+      <item>
+        <first>value_fu_276</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>23</item>
         </second>
       </item>
       <item>
@@ -15748,14 +15748,6 @@
         </second>
       </item>
       <item>
-        <first>out_reg_686</first>
-        <second>
-          <count>1</count>
-          <item_version>0</item_version>
-          <item>23</item>
-        </second>
-      </item>
-      <item>
         <first>product_q_93_reg_699</first>
         <second>
           <count>1</count>
@@ -15874,6 +15866,14 @@
           <count>1</count>
           <item_version>0</item_version>
           <item>38</item>
+        </second>
+      </item>
+      <item>
+        <first>value_reg_686</first>
+        <second>
+          <count>1</count>
+          <item_version>0</item_version>
+          <item>23</item>
         </second>
       </item>
       <item>

@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'fp_recip'
 ================================================================
-* Date:           Thu Jun 11 16:06:50 2026
+* Date:           Thu Jun 11 17:48:30 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -363,8 +363,7 @@ The critical path consists of the following:
 The critical path consists of the following:
 	'select' operation 5 bit ('spec_select', ../src/fp_math_hls.cpp:477) [17]  (0.000 ns)
 	'select' operation 5 bit ('shift', ../src/fp_math_hls.cpp:475) [18]  (0.414 ns)
-	'icmp' operation 1 bit ('icmp_ln485', ../src/fp_math_hls.cpp:485) [20]  (0.789 ns)
-	'select' operation 12 bit ('select_ln485', ../src/fp_math_hls.cpp:485) [54]  (0.000 ns)
+	'icmp' operation 1 bit ('icmp_ln485_1', ../src/fp_math_hls.cpp:485) [21]  (0.789 ns)
 	'select' operation 12 bit ('select_ln485_1', ../src/fp_math_hls.cpp:485) [55]  (0.375 ns)
 	'select' operation 12 bit ('select_ln485_2', ../src/fp_math_hls.cpp:485) [56]  (0.000 ns)
 	'select' operation 12 bit ('select_ln485_3', ../src/fp_math_hls.cpp:485) [57]  (0.375 ns)
@@ -420,6 +419,7 @@ The critical path consists of the following:
 The critical path consists of the following:
 	'mul' operation 13 bit ('lerp_prod', ../src/fp_math_hls.cpp:528) [160]  (1.333 ns)
 	'add' operation 16 bit ('est_raw', ../src/fp_math_hls.cpp:184->../src/fp_math_hls.cpp:532) [165]  (0.853 ns)
+	'shl' operation 16 bit ('shifted', ../src/fp_math_hls.cpp:190->../src/fp_math_hls.cpp:532) [183]  (0.000 ns)
 	'select' operation 16 bit ('select_ln187_5', ../src/fp_math_hls.cpp:187->../src/fp_math_hls.cpp:532) [211]  (0.357 ns)
 	'select' operation 16 bit ('select_ln187_14', ../src/fp_math_hls.cpp:187->../src/fp_math_hls.cpp:532) [228]  (0.357 ns)
 	'select' operation 16 bit ('select_ln187_19', ../src/fp_math_hls.cpp:187->../src/fp_math_hls.cpp:532) [237]  (0.357 ns)

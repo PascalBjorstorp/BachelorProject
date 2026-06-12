@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_1222_6'
 ================================================================
-* Date:           Thu Jun 11 16:06:51 2026
+* Date:           Thu Jun 11 17:48:30 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -208,7 +208,7 @@ Target clock period: 5.000ns, clock uncertainty: 0.500ns.
 The critical path consists of the following:
 	'store' operation ('store_ln1189', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647) of constant 0 5 bit on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [50]  (0.427 ns)
 	'load' operation 5 bit ('k', ../src/riccati_solver_hls.cpp:1222->../src/mpc_riccati_hls.cpp:647) on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [53]  (0.000 ns)
-	'icmp' operation 1 bit ('icmp_ln1222', ../src/riccati_solver_hls.cpp:1222->../src/mpc_riccati_hls.cpp:647) [54]  (0.789 ns)
+	'add' operation 5 bit ('add_ln1222', ../src/riccati_solver_hls.cpp:1222->../src/mpc_riccati_hls.cpp:647) [55]  (0.789 ns)
 	'store' operation ('store_ln1189', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647) of variable 'add_ln1222', ../src/riccati_solver_hls.cpp:1222->../src/mpc_riccati_hls.cpp:647 5 bit on local variable 'k', ../src/riccati_solver_hls.cpp:1189->../src/mpc_riccati_hls.cpp:647 [126]  (0.427 ns)
 
  <State 2>: 1.354ns

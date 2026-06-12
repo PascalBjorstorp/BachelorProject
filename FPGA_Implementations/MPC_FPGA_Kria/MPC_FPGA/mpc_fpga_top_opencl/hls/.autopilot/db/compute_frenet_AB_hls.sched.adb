@@ -5258,7 +5258,7 @@
 					<Obj>
 						<type>0</type>
 						<id>96</id>
-						<name>value_178</name>
+						<name>value_175</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>661</lineNumber>
@@ -5685,7 +5685,7 @@
 					<Obj>
 						<type>0</type>
 						<id>103</id>
-						<name>value_179</name>
+						<name>value_176</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>663</lineNumber>
@@ -5869,7 +5869,7 @@
 					<Obj>
 						<type>0</type>
 						<id>106</id>
-						<name>value_180</name>
+						<name>value_177</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>668</lineNumber>
@@ -6053,7 +6053,7 @@
 					<Obj>
 						<type>0</type>
 						<id>109</id>
-						<name>value_181</name>
+						<name>value_178</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>670</lineNumber>
@@ -6237,7 +6237,7 @@
 					<Obj>
 						<type>0</type>
 						<id>112</id>
-						<name>value_182</name>
+						<name>value_179</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>673</lineNumber>

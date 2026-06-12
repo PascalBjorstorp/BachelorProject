@@ -100,8 +100,8 @@ attribute shreg_extract : string;
     signal sub_ln518_reg_404 : STD_LOGIC_VECTOR (16 downto 0);
     signal value_fu_196_p2 : STD_LOGIC_VECTOR (20 downto 0);
     signal value_reg_409 : STD_LOGIC_VECTOR (20 downto 0);
-    signal value_217_fu_200_p2 : STD_LOGIC_VECTOR (20 downto 0);
-    signal value_217_reg_414 : STD_LOGIC_VECTOR (20 downto 0);
+    signal value_214_fu_200_p2 : STD_LOGIC_VECTOR (20 downto 0);
+    signal value_214_reg_414 : STD_LOGIC_VECTOR (20 downto 0);
     signal mul_ln574_51_reg_419 : STD_LOGIC_VECTOR (41 downto 0);
     signal ap_CS_fsm_state7 : STD_LOGIC;
     attribute fsm_encoding of ap_CS_fsm_state7 : signal is "none";
@@ -288,7 +288,7 @@ begin
     port map (
         clk => ap_clk,
         reset => ap_rst,
-        din0 => value_217_reg_414,
+        din0 => value_214_reg_414,
         din1 => grp_fu_257_p1,
         ce => ap_const_logic_1,
         dout => grp_fu_257_p2);
@@ -352,7 +352,7 @@ begin
             if ((ap_const_logic_1 = ap_CS_fsm_state6)) then
                 mul_ln574_reg_399 <= grp_fu_94_p2;
                 sub_ln518_reg_404 <= sub_ln518_fu_190_p2;
-                value_217_reg_414 <= value_217_fu_200_p2;
+                value_214_reg_414 <= value_214_fu_200_p2;
                 value_reg_409 <= value_fu_196_p2;
             end if;
         end if;
@@ -590,6 +590,6 @@ begin
     trunc_ln_fu_176_p4 <= mul_ln518_fu_170_p2(27 downto 12);
     use_front_raw_fu_118_p1 <= ap_port_reg_tr_C_min_f_val;
     use_front_raw_fu_118_p2 <= "1" when (signed(tr_C_eff_f_raw_val_read_reg_336) > signed(use_front_raw_fu_118_p1)) else "0";
-    value_217_fu_200_p2 <= std_logic_vector(unsigned(product_q_105_reg_382) - unsigned(product_q_106_reg_388));
+    value_214_fu_200_p2 <= std_logic_vector(unsigned(product_q_105_reg_382) - unsigned(product_q_106_reg_388));
     value_fu_196_p2 <= std_logic_vector(unsigned(product_q_104_reg_376) - unsigned(product_q_106_reg_388));
 end behav;

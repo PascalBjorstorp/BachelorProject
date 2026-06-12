@@ -755,10 +755,10 @@ fpga_resource_hint.entry.38:58 %value = sub i21 %product_q_104, i21 %product_q_1
 
 <Node id="70" bw="21" op_0_bw="21" op_1_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.38:64 %value_217 = sub i21 %product_q_105, i21 %product_q_106
+fpga_resource_hint.entry.38:64 %value_214 = sub i21 %product_q_105, i21 %product_q_106
 
 ]]></Node>
-<StgValue><ssdm name="value_217"/></StgValue>
+<StgValue><ssdm name="value_214"/></StgValue>
 </operation>
 </state>
 
@@ -978,7 +978,7 @@ fpga_resource_hint.entry.38:61 %mul_ln574_56 = mul i32 %sext_ln574_70, i32 581
 
 <Node id="72" bw="32" op_0_bw="21">
 <![CDATA[
-fpga_resource_hint.entry.38:66 %sext_ln574_71 = sext i21 %value_217
+fpga_resource_hint.entry.38:66 %sext_ln574_71 = sext i21 %value_214
 
 ]]></Node>
 <StgValue><ssdm name="sext_ln574_71"/></StgValue>

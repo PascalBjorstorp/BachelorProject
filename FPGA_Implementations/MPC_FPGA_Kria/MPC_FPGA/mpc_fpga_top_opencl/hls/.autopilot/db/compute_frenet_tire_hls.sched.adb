@@ -1022,7 +1022,7 @@
 					<Obj>
 						<type>0</type>
 						<id>23</id>
-						<name>out</name>
+						<name>value</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>351</lineNumber>
@@ -1053,7 +1053,7 @@
 								</second>
 							</item>
 						</inlineStackInfo>
-						<originalName>out</originalName>
+						<originalName>value</originalName>
 						<rtlName></rtlName>
 						<control></control>
 						<opType></opType>

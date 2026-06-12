@@ -3,7 +3,7 @@
 ================================================================
 == Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_364_2'
 ================================================================
-* Date:           Thu Jun 11 16:06:48 2026
+* Date:           Thu Jun 11 17:48:29 2026
 
 * Version:        2025.2 (Build 6295257 on Nov 14 2025)
 * Project:        mpc_fpga_top_opencl
@@ -349,7 +349,7 @@ The critical path consists of the following:
  <State 3>: 1.278ns
 The critical path consists of the following:
 	'call' operation 26 bit ('wall_right_min', ../src/mpc_riccati_hls.cpp:366) to 'compute_window_min_hls' [174]  (1.278 ns)
-	'store' operation ('store_ln360', ../src/mpc_riccati_hls.cpp:360) of variable 'wall_right_min', ../src/mpc_riccati_hls.cpp:366 26 bit on local variable 'wall_right_min', ../src/mpc_riccati_hls.cpp:360 [189]  (0.000 ns)
+	'store' operation ('store_ln360', ../src/mpc_riccati_hls.cpp:360) of variable 'wall_right_min', ../src/mpc_riccati_hls.cpp:366 26 bit on local variable 'wall_right_min', ../src/mpc_riccati_hls.cpp:360 [193]  (0.000 ns)
 
 
 ============================================================

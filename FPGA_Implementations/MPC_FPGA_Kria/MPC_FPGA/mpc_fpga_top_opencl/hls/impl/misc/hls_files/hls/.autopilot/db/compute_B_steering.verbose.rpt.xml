@@ -1,7 +1,7 @@
 <profile>
 
 <section name = "Vitis HLS Report for 'compute_B_steering'" level="0">
-<item name = "Date">Thu Jun 11 16:07:00 2026
+<item name = "Date">Thu Jun 11 17:48:34 2026
 </item>
 <item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
 <item name = "Project">mpc_fpga_top_opencl</item>
@@ -85,7 +85,7 @@
 <keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
 <column name="add_ln512_fu_248_p2">+, 0, 0, 28, 21, 21</column>
 <column name="sub_ln518_fu_190_p2">-, 0, 0, 24, 17, 17</column>
-<column name="value_217_fu_200_p2">-, 0, 0, 28, 21, 21</column>
+<column name="value_214_fu_200_p2">-, 0, 0, 28, 21, 21</column>
 <column name="value_fu_196_p2">-, 0, 0, 28, 21, 21</column>
 <column name="use_front_raw_fu_118_p2">icmp, 0, 0, 28, 21, 21</column>
 <column name="select_ln512_fu_241_p3">select, 0, 0, 20, 1, 21</column>
@@ -123,7 +123,7 @@
 <column name="tr_C_eff_f_raw_val_read_reg_336">21, 0, 21, 0</column>
 <column name="trunc_ln512_2_reg_439">16, 0, 16, 0</column>
 <column name="use_front_raw_reg_351">1, 0, 1, 0</column>
-<column name="value_217_reg_414">21, 0, 21, 0</column>
+<column name="value_214_reg_414">21, 0, 21, 0</column>
 <column name="value_reg_409">21, 0, 21, 0</column>
 </table>
 </item>

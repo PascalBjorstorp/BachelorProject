@@ -1022,7 +1022,7 @@
 					<Obj>
 						<type>0</type>
 						<id>23</id>
-						<name>out</name>
+						<name>value</name>
 						<fileName>../src/vehicle_model_hls.cpp</fileName>
 						<fileDirectory>/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA</fileDirectory>
 						<lineNumber>351</lineNumber>
@@ -1053,7 +1053,7 @@
 								</second>
 							</item>
 						</inlineStackInfo>
-						<originalName>out</originalName>
+						<originalName>value</originalName>
 						<rtlName></rtlName>
 						<control>auto</control>
 						<opType>select</opType>
@@ -13117,14 +13117,6 @@
 			</second>
 		</item>
 		<item>
-			<first>out_fu_276</first>
-			<second>
-				<count>1</count>
-				<item_version>0</item_version>
-				<item>23</item>
-			</second>
-		</item>
-		<item>
 			<first>product_363_fu_349</first>
 			<second>
 				<count>1</count>
@@ -13346,6 +13338,14 @@
 				<count>1</count>
 				<item_version>0</item_version>
 				<item>16</item>
+			</second>
+		</item>
+		<item>
+			<first>value_fu_276</first>
+			<second>
+				<count>1</count>
+				<item_version>0</item_version>
+				<item>23</item>
 			</second>
 		</item>
 		<item>
@@ -13994,14 +13994,6 @@
 			</second>
 		</item>
 		<item>
-			<first>out_reg_686</first>
-			<second>
-				<count>1</count>
-				<item_version>0</item_version>
-				<item>23</item>
-			</second>
-		</item>
-		<item>
 			<first>product_q_93_reg_699</first>
 			<second>
 				<count>1</count>
@@ -14120,6 +14112,14 @@
 				<count>1</count>
 				<item_version>0</item_version>
 				<item>38</item>
+			</second>
+		</item>
+		<item>
+			<first>value_reg_686</first>
+			<second>
+				<count>1</count>
+				<item_version>0</item_version>
+				<item>23</item>
 			</second>
 		</item>
 		<item>
