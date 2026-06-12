@@ -248,7 +248,7 @@ std::vector<Waypoint> LateralPlanner::computePath()
     return extractSegment();
   }
 
-  const size_t car_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t car_idx = closestAttachWaypoint(robot_.x, robot_.y);
   const size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
 
   double forward_dist = 0.0;
@@ -309,7 +309,7 @@ std::vector<Waypoint> LateralPlanner::extractSegment() const
     return {};
   }
 
-  const size_t robot_idx = closestWaypointInPath(modified_raceline_, robot_.x, robot_.y);
+  const size_t robot_idx = closestAttachWaypointInPath(waypoints_, robot_.x, robot_.y);
   const size_t start_offset = static_cast<size_t>(
     std::max(0, params_.path_start_offset_points));
   const size_t start_idx = (robot_idx + start_offset) % n;
@@ -334,7 +334,7 @@ std::vector<Waypoint> LateralPlanner::extractSegmentFromModified() const
     return {};
   }
 
-  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t robot_idx = closestAttachWaypointInPath(modified_raceline_, robot_.x, robot_.y);
   const size_t start_offset = static_cast<size_t>(
     std::max(0, params_.path_start_offset_points));
   const size_t start_idx = (robot_idx + start_offset) % n;
@@ -385,7 +385,7 @@ void LateralPlanner::buildAvoidancePath()
   modified_raceline_ = waypoints_;
 
   const size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
-  const size_t car_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t car_idx = closestAttachWaypoint(robot_.x, robot_.y);
   const Waypoint & opp_wp = waypoints_[opp_idx];
   const Waypoint & car_wp = waypoints_[car_idx];
 
@@ -847,7 +847,7 @@ void LateralPlanner::startMergeBack()
   merge_back_active_ = true;
   merge_from_raceline_ = modified_raceline_;
 
-  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t robot_idx = closestAttachWaypoint(robot_.x, robot_.y);
   merge_start_s_ = waypoints_[robot_idx].s;
 
   merge_distance_m_ = std::max(
@@ -966,7 +966,7 @@ double LateralPlanner::mergeBackProgress() const
     return 1.0;
   }
 
-  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t robot_idx = closestAttachWaypoint(robot_.x, robot_.y);
   const double robot_s = waypoints_[robot_idx].s;
   const double traveled = wrapForwardDistance(merge_start_s_, robot_s);
   return std::clamp(traveled / merge_distance_m_, 0.0, 1.0);
@@ -983,7 +983,7 @@ bool LateralPlanner::hasPassedOpponent() const
     return false;
   }
 
-  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t robot_idx = closestAttachWaypoint(robot_.x, robot_.y);
   const double opp_s = waypoints_[committed_opp_idx_].s;
   const double robot_s = waypoints_[robot_idx].s;
   const double forward_from_opp = wrapForwardDistance(opp_s, robot_s);
@@ -1057,6 +1057,65 @@ size_t LateralPlanner::closestWaypointInPath(
 size_t LateralPlanner::closestWaypoint(double x, double y) const
 {
   return closestWaypointInPath(waypoints_, x, y);
+}
+
+bool LateralPlanner::canAttachToWaypoint(const Waypoint & wp, double x, double y) const
+{
+  const double dx = x - wp.x;
+  const double dy = y - wp.y;
+  const double dist = std::hypot(dx, dy);
+  if (!std::isfinite(dist)) {
+    return false;
+  }
+
+  const double normal = wp.psi + M_PI / 2.0;
+  const double lateral = dx * std::cos(normal) + dy * std::sin(normal);
+  // Reject anchor points whose local track corridor cannot contain the car center.
+  const double wall_distance = (lateral >= 0.0) ? wp.d_left : wp.d_right;
+  if (!std::isfinite(wall_distance) || wall_distance < 0.0) {
+    return false;
+  }
+
+  return dist <= wall_distance;
+}
+
+size_t LateralPlanner::closestAttachWaypointInPath(
+  const std::vector<Waypoint> & path,
+  double x, double y) const
+{
+  if (path.empty()) {
+    return 0;
+  }
+
+  size_t fallback = 0;
+  double fallback_dist = std::numeric_limits<double>::max();
+  size_t best_attachable = 0;
+  double best_attachable_dist = std::numeric_limits<double>::max();
+  bool found_attachable = false;
+
+  for (size_t i = 0; i < path.size(); ++i) {
+    const double dx = path[i].x - x;
+    const double dy = path[i].y - y;
+    const double d2 = dx * dx + dy * dy;
+
+    if (d2 < fallback_dist) {
+      fallback_dist = d2;
+      fallback = i;
+    }
+
+    if (canAttachToWaypoint(path[i], x, y) && d2 < best_attachable_dist) {
+      best_attachable_dist = d2;
+      best_attachable = i;
+      found_attachable = true;
+    }
+  }
+
+  return found_attachable ? best_attachable : fallback;
+}
+
+size_t LateralPlanner::closestAttachWaypoint(double x, double y) const
+{
+  return closestAttachWaypointInPath(waypoints_, x, y);
 }
 
 }  // namespace f1tenth_lateral_planner

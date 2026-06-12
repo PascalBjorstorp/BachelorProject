@@ -675,13 +675,36 @@ void admm_projection_step(
             float e_c = (sin_phi * dX) - (cos_phi * dY);   /* lateral  */
             float e_l = (-cos_phi * dX) - (sin_phi * dY);  /* longitudinal — preserved */
 
-            /* Clamp lateral deviation to corridor.
+            /* Soft corridor projection (solver robustness).
              * e_c sign: positive = vehicle is RIGHT of reference path.
-             * left_b/right_b are positive max distances to each wall. */
+             * left_b/right_b are positive max distances to each wall.
+             *
+             * A HARD clamp makes the QP infeasible when the dynamically-optimal
+             * path must briefly leave the corridor (sharp corner at speed): the
+             * projection forces the position back while the dynamics cannot get
+             * there, so ADMM oscillates, the dual blows up, and the solve
+             * diverges into a garbage control (this is the s≈25 crash).  Allow
+             * the projection a small, capped overshoot so w can follow z partway
+             * — the primal residual then converges and the solver returns a
+             * usable best-effort trajectory that gently corrects, instead of
+             * diverging.  The applied control is stage 0 (pinned to x0, no
+             * overshoot), so this relaxes only the far-horizon planning that was
+             * causing divergence; it does not command driving into a wall.
+             * SHRINK = fraction of the violation tolerated; MAX caps the
+             * absolute overshoot (m) so the plan never aims deep past a wall. */
             float left_b  = problem->track_left[k];   /* positive: max left  */
             float right_b = problem->track_right[k];  /* positive: max right */
-            if (e_c >  right_b) e_c =  right_b;
-            if (e_c < -left_b)  e_c = -left_b;
+            const float CORRIDOR_SLACK_SHRINK = 0.30f;
+            const float CORRIDOR_SLACK_MAX    = 0.30f;  /* metres */
+            if (e_c > right_b) {
+                float over = (e_c - right_b) * CORRIDOR_SLACK_SHRINK;
+                if (over > CORRIDOR_SLACK_MAX) over = CORRIDOR_SLACK_MAX;
+                e_c = right_b + over;
+            } else if (e_c < -left_b) {
+                float over = (-left_b - e_c) * CORRIDOR_SLACK_SHRINK;
+                if (over > CORRIDOR_SLACK_MAX) over = CORRIDOR_SLACK_MAX;
+                e_c = -left_b - over;
+            }
 
             /* Reconstruct clamped Cartesian position */
             ws->w_x[k][MPCC_IDX_X] = x_ref + (sin_phi * e_c) - (cos_phi * e_l);
