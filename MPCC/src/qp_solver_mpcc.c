@@ -876,7 +876,7 @@ void admm_projection_step(
             ws->w_x[k][i] = val;
         }
 
-        /* 1b. Per-stage vx speed limit (curvature-based braking) */
+        /* 1b. Optional per-stage vx speed limit */
         if (problem->vx_max_stage[k] > 0.0f &&
             ws->w_x[k][MPCC_IDX_VX] > problem->vx_max_stage[k])
         {
