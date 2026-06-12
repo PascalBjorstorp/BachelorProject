@@ -111,6 +111,8 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.vx_ref = MPCC_DEFAULT_VX_REF;
     cfg.use_raceline_vx_ref = MPCC_DEFAULT_USE_RACELINE_VX_REF;
     cfg.use_raceline_vx_limit = MPCC_DEFAULT_USE_RACELINE_VX_LIMIT;
+    cfg.use_global_vx_limit = MPCC_DEFAULT_USE_GLOBAL_VX_LIMIT;
+    cfg.use_curvature_vx_limit = MPCC_DEFAULT_USE_CURVATURE_VX_LIMIT;
     cfg.raceline_vx_limit_scale = MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE;
     cfg.weight_vy = MPCC_DEFAULT_WEIGHT_VY;
     cfg.weight_omega = MPCC_DEFAULT_WEIGHT_OMEGA;
@@ -201,6 +203,8 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->weight_vtheta_physical = 0.0f;
     cfg->use_raceline_vx_ref = cfg->use_raceline_vx_ref ? 1 : 0;
     cfg->use_raceline_vx_limit = cfg->use_raceline_vx_limit ? 1 : 0;
+    cfg->use_global_vx_limit = cfg->use_global_vx_limit ? 1 : 0;
+    cfg->use_curvature_vx_limit = cfg->use_curvature_vx_limit ? 1 : 0;
     if (cfg->raceline_vx_limit_scale < 0.0f)
         cfg->raceline_vx_limit_scale = 0.0f;
     if (cfg->admm_rho_u < 0.0f)
@@ -1204,13 +1208,14 @@ static void add_vtheta_physical_cost(
  *   v_corner(p) = sqrt(mu * g / |kappa(p)|)
  *   v_safe(s)   = sqrt(v_corner(p)^2 + 2 * |ax_brake| * d)
  *
- * Returns the minimum v_safe over all lookahead points, clamped to vx_max.
+ * Returns the minimum v_safe over enabled lookahead limiters. The global
+ * vx_max ceiling is applied only when use_global_vx_limit is enabled.
  */
 static float compute_speed_limit(float s, float lookahead_m)
 {
     const float g = F110_GRAVITY_ACCELERATION_MS2;
     const float mu = config.mu;
-    const float vx_max = config.vx_max;
+    const float vx_max = (config.vx_max > 0.0f) ? config.vx_max : 1000.0f;
     const float ax_brake_ref = 4.0f;   /* braking for optional vx_ref limit */
     const float ax_brake_curv = 0.75f; /* conservative braking for curvature limit */
     const float vx_ref_scale = config.raceline_vx_limit_scale;
@@ -1221,7 +1226,7 @@ static float compute_speed_limit(float s, float lookahead_m)
         (config.weight_vx <= 0.0f) &&
         (config.use_raceline_vx_limit == 0);
 
-    float v_limit = vx_max;
+    float v_limit = config.use_global_vx_limit ? vx_max : 1000.0f;
     const int n_samples = 20;
     float ds = lookahead_m / (float)n_samples;
 
@@ -1235,7 +1240,7 @@ static float compute_speed_limit(float s, float lookahead_m)
         /* 1. Optional trajectory vx_ref-based limit. Disabled by default so
          * racing mode can exceed the CSV speed profile when constraints allow. */
         float v_target = pt.vx_ref * vx_ref_scale;
-        if (config.use_raceline_vx_limit && v_target > 0.0f && v_target < vx_max)
+        if (config.use_raceline_vx_limit && v_target > 0.0f && v_target < v_limit)
         {
             float v_brake = sqrtf(v_target * v_target + 2.0f * ax_brake_ref * d);
             if (v_brake < v_limit)
@@ -1258,7 +1263,7 @@ static float compute_speed_limit(float s, float lookahead_m)
             }
         }
 
-        if (kappa_abs > kappa_thresh)
+        if (config.use_curvature_vx_limit && kappa_abs > kappa_thresh)
         {
             float v_corner = curv_safety * sqrtf(mu * g / kappa_abs);
             float v_brake = sqrtf(v_corner * v_corner + 2.0f * ax_brake_curv * d);
@@ -1268,6 +1273,13 @@ static float compute_speed_limit(float s, float lookahead_m)
     }
 
     return v_limit;
+}
+
+static uint8_t mpcc_vx_speed_limit_enabled(void)
+{
+    return (uint8_t)(config.use_global_vx_limit
+        || config.use_curvature_vx_limit
+        || config.use_raceline_vx_limit);
 }
 
 /*===========================================================================
@@ -1574,17 +1586,18 @@ static void build_qp_problem(
             ? big
             : ref_path.total_length;
 
-    /* vx: bounded, tightened by curvature-based speed limit */
+    /* vx: lower bounded; upper bounded only if an explicit vx limiter is enabled. */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
-    {
-        float v_safe = compute_speed_limit(x0->s, 7.0f);
-        float vx_ub = v_safe < config.vx_max ? v_safe : config.vx_max;
-        qp->x_upper[MPCC_IDX_VX] = vx_ub;
+    qp->x_upper[MPCC_IDX_VX] =
+        mpcc_vx_speed_limit_enabled() ? compute_speed_limit(x0->s, 7.0f) : big;
 #ifdef MPCC_DEBUG_PRINT
-        printf("  [SPD] s=%.2f v_safe=%.2f vx_ub=%.2f\n",
-               (double)x0->s, (double)v_safe, (double)vx_ub);
+    printf("  [SPD] s=%.2f vx_ub=%.2f global=%u curv=%u csv=%u\n",
+           (double)x0->s,
+           (double)qp->x_upper[MPCC_IDX_VX],
+           (unsigned)config.use_global_vx_limit,
+           (unsigned)config.use_curvature_vx_limit,
+           (unsigned)config.use_raceline_vx_limit);
 #endif
-    }
 
     /* vy: physical lateral velocity bound [m/s] */
     qp->x_lower[MPCC_IDX_VY] = -5.0f;
@@ -1630,7 +1643,8 @@ static void build_qp_problem(
     /* Speed limit is smooth over the horizon: cache the last computed value
      * and only recompute every 4 stages. The limit changes by <5% between
      * adjacent stages at typical speeds, so reuse is numerically safe. */
-    float cached_v_safe_stage = compute_speed_limit(x0->s, 7.0f);
+    const uint8_t use_vx_speed_limit = mpcc_vx_speed_limit_enabled();
+    float cached_v_safe_stage = use_vx_speed_limit ? compute_speed_limit(x0->s, 7.0f) : 0.0f;
 
     if (warm_start_available)
         u_bar = prev_predicted_controls[0];
@@ -1764,10 +1778,9 @@ static void build_qp_problem(
          * The speed limit varies smoothly along the horizon, so reusing the cached
          * value for 3 intermediate stages has negligible effect on the bound. */
         {
-            if (k % 4u == 0u)
+            if (use_vx_speed_limit && k % 4u == 0u)
                 cached_v_safe_stage = compute_speed_limit(z_bar.s, 7.0f);
-            qp->vx_max_stage[k] =
-                (cached_v_safe_stage < config.vx_max) ? cached_v_safe_stage : config.vx_max;
+            qp->vx_max_stage[k] = use_vx_speed_limit ? cached_v_safe_stage : 0.0f;
         }
 
         /* Per-stage friction circle: tighten a_x bound based on
@@ -1840,11 +1853,8 @@ static void build_qp_problem(
                                     &qp->track_right[N]);
 
         /* Terminal stage gets the same horizon speed cap. */
-        {
-            float v_safe_terminal = compute_speed_limit(z_terminal.s, 7.0f);
-            qp->vx_max_stage[N] =
-                (v_safe_terminal < config.vx_max) ? v_safe_terminal : config.vx_max;
-        }
+        qp->vx_max_stage[N] =
+            use_vx_speed_limit ? compute_speed_limit(z_terminal.s, 7.0f) : 0.0f;
 
         /* --- terminal stage geometry --- */
         qp->path_x_ref[N]   = path_pt.x_ref;

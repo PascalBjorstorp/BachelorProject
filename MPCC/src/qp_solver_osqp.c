@@ -302,7 +302,7 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
                         s_u[row] = (c_float)prob->s_upper_stage[k];
                 }
 
-                /* Tighten vx with curvature-based speed limit */
+                /* Tighten vx only when an optional speed limiter is enabled */
                 if (ix == MPCC_IDX_VX && prob->vx_max_stage[k] > 0.0f)
                 {
                     if (s_u[row] > (c_float)prob->vx_max_stage[k])
