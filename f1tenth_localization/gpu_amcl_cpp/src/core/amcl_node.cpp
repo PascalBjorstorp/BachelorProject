@@ -720,10 +720,11 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
 
     // ── Guard 4: Skip update if robot hasn't moved enough ──
     double dist_moved = std::sqrt(dx_odom * dx_odom + dy_odom * dy_odom);
+    const bool moved_enough =
+        dist_moved >= update_min_d_ || std::abs(dtheta) >= update_min_a_;
     const bool global_sensor_bootstrap =
         pf_.config().global_initialization && !global_pose_published_;
-    if (!global_sensor_bootstrap &&
-        dist_moved < update_min_d_ && std::abs(dtheta) < update_min_a_) {
+    if (!global_sensor_bootstrap && !moved_enough) {
         processing_scan_ = false;
         return;
     }
@@ -740,16 +741,25 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     pred_last_y_     = odom_y_at_scan;
     pred_last_theta_ = odom_theta_at_scan;
 
-    if (!localization_start_time_set_) {
+    if (force_max_particles_initial_sec_ > 0.0 &&
+        moved_enough &&
+        !localization_start_time_set_) {
         localization_start_time_ = scan_time;
         localization_start_time_set_ = true;
     }
-    const double localization_elapsed =
-        (scan_time - localization_start_time_).seconds();
-    const bool force_max_particles =
-        force_max_particles_initial_sec_ > 0.0 &&
-        localization_elapsed >= 0.0 &&
-        localization_elapsed < force_max_particles_initial_sec_;
+    bool force_max_particles = false;
+    if (force_max_particles_initial_sec_ > 0.0) {
+        if (!localization_start_time_set_) {
+            // Keep max particles armed while waiting for the first real movement.
+            force_max_particles = true;
+        } else {
+            const double localization_elapsed =
+                (scan_time - localization_start_time_).seconds();
+            force_max_particles =
+                localization_elapsed >= 0.0 &&
+                localization_elapsed < force_max_particles_initial_sec_;
+        }
+    }
     pf_.set_force_max_particles(force_max_particles);
 
     // ── Timing start ──
