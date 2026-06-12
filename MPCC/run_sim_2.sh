@@ -240,11 +240,11 @@ case "${MPCC_PROFILE}" in
         # corridor center, while progress and wall clearance dominate.
         set_default HORIZON 40
         set_default DT 0.025
-        set_default Q_CONTOURING 20.0
+        set_default Q_CONTOURING 40.0
         set_default Q_LAG 20.0
         set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 2000.0
-        set_default WALL_CLEARANCE_MARGIN 0.20
+        set_default WALL_CLEARANCE_MARGIN 0.3
         set_default MPCC_TRACK_BUFFER 0.05
         set_default Q_PROGRESS 1.0
         set_default Q_PHYSICAL_PROGRESS 1.0
@@ -254,6 +254,8 @@ case "${MPCC_PROFILE}" in
         set_default VX_REF 0.0
         set_default MPCC_USE_RACELINE_VX_REF 0
         set_default MPCC_USE_RACELINE_VX_LIMIT 0
+        set_default MPCC_USE_GLOBAL_VX_LIMIT 0
+        set_default MPCC_USE_CURVATURE_VX_LIMIT 0
         set_default MPCC_RACELINE_VX_LIMIT_SCALE 0.85
         set_default Q_VY 0.0
         set_default Q_OMEGA 1.0
@@ -403,6 +405,8 @@ esac
 export MPCC_PROFILE
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
 export MPCC_CONTROL_PERIOD_MS="${MPCC_CONTROL_PERIOD_MS:-25}"
+export MPCC_USE_GLOBAL_VX_LIMIT="${MPCC_USE_GLOBAL_VX_LIMIT:-0}"
+export MPCC_USE_CURVATURE_VX_LIMIT="${MPCC_USE_CURVATURE_VX_LIMIT:-0}"
 export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.05}"
 export MPCC_ACCEPT_MAX_ITER="${MPCC_ACCEPT_MAX_ITER:-1}"
 export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.04}"
@@ -438,6 +442,8 @@ Q_VX=${Q_VX}
 VX_REF=${VX_REF}
 MPCC_USE_RACELINE_VX_REF=${MPCC_USE_RACELINE_VX_REF}
 MPCC_USE_RACELINE_VX_LIMIT=${MPCC_USE_RACELINE_VX_LIMIT}
+MPCC_USE_GLOBAL_VX_LIMIT=${MPCC_USE_GLOBAL_VX_LIMIT}
+MPCC_USE_CURVATURE_VX_LIMIT=${MPCC_USE_CURVATURE_VX_LIMIT}
 MPCC_RACELINE_VX_LIMIT_SCALE=${MPCC_RACELINE_VX_LIMIT_SCALE}
 Q_VY=${Q_VY}
 Q_OMEGA=${Q_OMEGA}
