@@ -187,6 +187,22 @@ def row_for_run(output_root: Path,
     }
 
 
+def row_succeeded(row: Dict[str, object], expected_laps: int) -> bool:
+    try:
+        returncode = int(row.get("returncode", 1))
+    except (TypeError, ValueError):
+        returncode = 1
+    try:
+        laps = int(row.get("status_laps", 0) or 0)
+    except (TypeError, ValueError):
+        laps = 0
+    return (
+        returncode == 0
+        and row.get("status_reason", "") == "laps_complete"
+        and laps >= expected_laps
+    )
+
+
 def run_benchmark_case(args: argparse.Namespace,
                        ratio: float,
                        run_index: int,
@@ -198,53 +214,86 @@ def run_benchmark_case(args: argparse.Namespace,
 
     if args.resume and status_path.exists():
         row = row_for_run(args.output_root, ratio, run_index, 0)
-        manifest_rows.append(row)
-        write_manifest(manifest_path, manifest_rows)
-        print(f"skip {ratio_label(ratio)} run {run_index:02d}: existing status")
-        return
+        if not row_succeeded(row, args.laps) and args.retry_until_success:
+            failed_dir = run_dir.with_name(f"{run_dir.name}_failed_before_resume")
+            if failed_dir.exists():
+                shutil.rmtree(failed_dir)
+            shutil.move(run_dir, failed_dir)
+        else:
+            manifest_rows.append(row)
+            write_manifest(manifest_path, manifest_rows)
+            print(f"skip {ratio_label(ratio)} run {run_index:02d}: existing status")
+            return
 
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
-    run_dir.mkdir(parents=True, exist_ok=True)
+    attempt = 1
+    while True:
+        paths = expected_paths(args.output_root, ratio, run_index)
+        run_dir = paths["run_dir"]
 
-    cmd = build_command(args, ratio, run_dir)
-    print(f"\n=== injection {ratio_label(ratio)} run {run_index:02d}/{args.runs} ===")
-    print(" ".join(cmd))
-    if args.dry_run:
-        manifest_rows.append(row_for_run(args.output_root, ratio, run_index, "dry_run"))
-        write_manifest(manifest_path, manifest_rows)
-        return
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
+        run_dir.mkdir(parents=True, exist_ok=True)
 
-    with paths["log_path"].open("w") as log:
-        log.write(" ".join(cmd) + "\n\n")
-        log.flush()
-        env = dict(args.ros_env)
-        env.setdefault("ROS_LOG_DIR", str(run_dir / "ros_logs"))
-        completed = subprocess.run(
-            cmd,
-            env=env,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False)
+        cmd = build_command(args, ratio, run_dir)
+        print(
+            f"\n=== injection {ratio_label(ratio)} run "
+            f"{run_index:02d}/{args.runs} attempt {attempt} ===")
+        print(" ".join(cmd))
+        if args.dry_run:
+            manifest_rows.append(row_for_run(args.output_root, ratio, run_index, "dry_run"))
+            write_manifest(manifest_path, manifest_rows)
+            return
 
-    row = row_for_run(args.output_root, ratio, run_index, completed.returncode)
-    manifest_rows.append(row)
-    write_manifest(manifest_path, manifest_rows)
+        with paths["log_path"].open("w") as log:
+            log.write(" ".join(cmd) + "\n\n")
+            log.flush()
+            env = dict(args.ros_env)
+            env.setdefault("ROS_LOG_DIR", str(run_dir / "ros_logs"))
+            completed = subprocess.run(
+                cmd,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False)
 
-    if args.delete_bags:
-        bag_dir = paths["run_dir"] / BENCHMARK_NAME / BENCHMARK_NAME
-        if bag_dir.exists():
-            shutil.rmtree(bag_dir)
+        row = row_for_run(args.output_root, ratio, run_index, completed.returncode)
+        if args.delete_bags:
+            bag_dir = paths["run_dir"] / BENCHMARK_NAME / BENCHMARK_NAME
+            if bag_dir.exists():
+                shutil.rmtree(bag_dir)
 
-    print(
-        f"done {ratio_label(ratio)} run {run_index:02d}: "
-        f"code={completed.returncode} "
-        f"reason={row['status_reason']} laps={row['status_laps']}")
-    if completed.returncode != 0 and args.stop_on_failure:
-        raise RuntimeError(
-            f"{ratio_label(ratio)} run {run_index:02d} failed with code "
-            f"{completed.returncode}")
+        print(
+            f"done {ratio_label(ratio)} run {run_index:02d}: "
+            f"code={completed.returncode} "
+            f"reason={row['status_reason']} laps={row['status_laps']}")
+        if row_succeeded(row, args.laps):
+            manifest_rows.append(row)
+            write_manifest(manifest_path, manifest_rows)
+            return
+
+        if completed.returncode != 0 and args.stop_on_failure:
+            raise RuntimeError(
+                f"{ratio_label(ratio)} run {run_index:02d} failed with code "
+                f"{completed.returncode}")
+
+        should_retry = (
+            args.retry_until_success
+            and (
+                args.max_attempts_per_run <= 0
+                or attempt < args.max_attempts_per_run
+            )
+        )
+        if not should_retry:
+            manifest_rows.append(row)
+            write_manifest(manifest_path, manifest_rows)
+            return
+
+        failed_dir = run_dir.with_name(f"{run_dir.name}_failed_attempt_{attempt:02d}")
+        if failed_dir.exists():
+            shutil.rmtree(failed_dir)
+        shutil.move(run_dir, failed_dir)
+        attempt += 1
 
 
 def matlab_quote(text: str) -> str:
@@ -342,6 +391,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--alternate-order", action=argparse.BooleanOptionalAction,
                         default=True)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--retry-until-success", action="store_true")
+    parser.add_argument("--max-attempts-per-run", type=int, default=1,
+                        help="Maximum attempts per injection run slot. Use 0 for no limit.")
     parser.add_argument("--stop-on-failure", action="store_true")
     parser.add_argument("--plot-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
