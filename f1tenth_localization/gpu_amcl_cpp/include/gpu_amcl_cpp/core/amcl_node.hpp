@@ -105,6 +105,7 @@ private:
     bool prediction_baseline_ready_ = false;
     bool global_pose_published_ = false;
     bool localization_start_time_set_ = false;
+    bool startup_scan_refinement_attempted_ = false;
     double pred_last_x_ = 0;
     double pred_last_y_ = 0;
     double pred_last_theta_ = 0;

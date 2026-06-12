@@ -126,6 +126,14 @@ public:
         double raycast_verification_beta = 0.30;
         double raycast_verification_min_factor = 0.20;
         double raycast_verification_step_m = 0.05;
+        bool   enable_startup_scan_refinement = false;
+        int    startup_scan_refinement_max_beams = 90;
+        int    startup_scan_refinement_iterations = 8;
+        double startup_scan_refinement_max_match_distance_m = 0.60;
+        double startup_scan_refinement_max_translation_m = 0.50;
+        double startup_scan_refinement_max_yaw_rad = 0.52;
+        double startup_scan_refinement_max_step_translation_m = 0.08;
+        double startup_scan_refinement_max_step_yaw_rad = 0.06;
 
         // KLD adaptive sampling
         bool   use_kld              = false;
@@ -172,6 +180,15 @@ public:
         double resample_ms = std::numeric_limits<double>::quiet_NaN();
     };
 
+    struct StartupScanRefinementDiagnostics {
+        bool success = false;
+        int accepted = 0;
+        int beams = 0;
+        double best_score = -std::numeric_limits<double>::infinity();
+        double best_mean_distance_m = std::numeric_limits<double>::quiet_NaN();
+        double elapsed_ms = 0.0;
+    };
+
     ParticleFilter() = default;
     ~ParticleFilter();
 
@@ -213,6 +230,11 @@ public:
     /// Apply cluster-level raycast verification to current normalized weights.
     bool apply_raycast_verification(const float* ranges, int num_ranges,
                                     float angle_min, float angle_inc);
+
+    /// One-shot startup scan matching before the first global-init resample.
+    bool refine_startup_with_scan(const float* ranges, int num_ranges,
+                                  float angle_min, float angle_inc,
+                                  StartupScanRefinementDiagnostics* diag = nullptr);
 
     /// Get the weighted-mean pose estimate (computed on CPU).
     PoseEstimate get_estimate();
@@ -279,6 +301,8 @@ private:
     DeviceBuffer<int>   d_raycast_candidate_counts_;
     DeviceBuffer<float> d_raycast_cluster_centers_;
     DeviceBuffer<float> d_raycast_cluster_log_factors_;
+    DeviceBuffer<float> d_startup_refinement_scores_;
+    DeviceBuffer<int>   d_startup_refinement_counts_;
 
     // CUB temp storage for GPU-side reductions
     void* d_cub_temp_ = nullptr;             // CUB DeviceReduce temp

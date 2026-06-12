@@ -280,7 +280,7 @@ void EkfNode::amcl_callback(
     const auto clock_type = get_clock()->get_clock_type();
     const rclcpp::Time amcl_stamp(msg->header.stamp, clock_type);
     const double latency_sec = (now() - amcl_stamp).seconds();
-    if (latency_sec > amcl_max_latency_sec_) {
+    if (initialized_ && latency_sec > amcl_max_latency_sec_) {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 2000,
             "Dropping delayed AMCL update (latency %.4f s > %.4f s)",

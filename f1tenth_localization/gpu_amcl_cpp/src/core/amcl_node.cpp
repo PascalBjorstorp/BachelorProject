@@ -164,6 +164,14 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("raycast_verification_beta", 0.30);
     declare_parameter<double>("raycast_verification_min_factor", 0.20);
     declare_parameter<double>("raycast_verification_step_m", 0.05);
+    declare_parameter<bool>("enable_startup_scan_refinement", false);
+    declare_parameter<int>("startup_scan_refinement_max_beams", 90);
+    declare_parameter<int>("startup_scan_refinement_iterations", 8);
+    declare_parameter<double>("startup_scan_refinement_max_match_distance_m", 0.60);
+    declare_parameter<double>("startup_scan_refinement_max_translation_m", 0.50);
+    declare_parameter<double>("startup_scan_refinement_max_yaw_rad", 0.52);
+    declare_parameter<double>("startup_scan_refinement_max_step_translation_m", 0.08);
+    declare_parameter<double>("startup_scan_refinement_max_step_yaw_rad", 0.06);
 
     // Pose jump guard
     declare_parameter<bool>("pose_jump_gate_enabled", true);
@@ -546,6 +554,22 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         get_parameter("raycast_verification_min_factor").as_double();
     pf_cfg.raycast_verification_step_m =
         get_parameter("raycast_verification_step_m").as_double();
+    pf_cfg.enable_startup_scan_refinement =
+        get_parameter("enable_startup_scan_refinement").as_bool();
+    pf_cfg.startup_scan_refinement_max_beams =
+        get_parameter("startup_scan_refinement_max_beams").as_int();
+    pf_cfg.startup_scan_refinement_iterations =
+        get_parameter("startup_scan_refinement_iterations").as_int();
+    pf_cfg.startup_scan_refinement_max_match_distance_m =
+        get_parameter("startup_scan_refinement_max_match_distance_m").as_double();
+    pf_cfg.startup_scan_refinement_max_translation_m =
+        get_parameter("startup_scan_refinement_max_translation_m").as_double();
+    pf_cfg.startup_scan_refinement_max_yaw_rad =
+        get_parameter("startup_scan_refinement_max_yaw_rad").as_double();
+    pf_cfg.startup_scan_refinement_max_step_translation_m =
+        get_parameter("startup_scan_refinement_max_step_translation_m").as_double();
+    pf_cfg.startup_scan_refinement_max_step_yaw_rad =
+        get_parameter("startup_scan_refinement_max_step_yaw_rad").as_double();
     pf_cfg.global_initialization = get_parameter("global_initialization").as_bool();
     pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
     pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
@@ -608,6 +632,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     prediction_baseline_ready_ = false;
     global_pose_published_ = false;
     localization_start_time_set_ = false;
+    startup_scan_refinement_attempted_ = false;
     reset_pose_jump_gate();
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
@@ -790,7 +815,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
     // STEP 2: UPDATE — Weight particles by scan, debug, then resample
     // ═══════════════════════════════════════════════════════════
-    const bool weights_updated = pf_.update_weights(
+    bool weights_updated = pf_.update_weights(
         msg->ranges.data(),
         static_cast<int>(msg->ranges.size()),
         msg->angle_min,
@@ -798,6 +823,43 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     if (!weights_updated) {
         processing_scan_ = false;
         return;
+    }
+    if (global_sensor_bootstrap &&
+        !startup_scan_refinement_attempted_ &&
+        pf_.config().enable_startup_scan_refinement) {
+        ParticleFilter::StartupScanRefinementDiagnostics refinement_diag;
+        const bool refined = pf_.refine_startup_with_scan(
+            msg->ranges.data(),
+            static_cast<int>(msg->ranges.size()),
+            msg->angle_min,
+            msg->angle_increment,
+            &refinement_diag);
+        startup_scan_refinement_attempted_ = true;
+
+        if (refined) {
+            RCLCPP_INFO(
+                get_logger(),
+                "Startup GPU scan refinement done: refined_particles=%d/%d, beams=%d, best_mean_dist=%.3f m, time=%.2f ms",
+                refinement_diag.accepted,
+                pf_.num_particles(),
+                refinement_diag.beams,
+                refinement_diag.best_mean_distance_m,
+                refinement_diag.elapsed_ms);
+            weights_updated = pf_.update_weights(
+                msg->ranges.data(),
+                static_cast<int>(msg->ranges.size()),
+                msg->angle_min,
+                msg->angle_increment);
+            if (!weights_updated) {
+                processing_scan_ = false;
+                return;
+            }
+        } else {
+            RCLCPP_WARN(
+                get_logger(),
+                "Startup GPU scan refinement finished with no accepted particles (time=%.2f ms)",
+                refinement_diag.elapsed_ms);
+        }
     }
     if (pf_.config().enable_raycast_verification &&
         (!pf_.config().raycast_verification_global_only || global_sensor_bootstrap)) {
@@ -964,6 +1026,7 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
     // Reset odom baseline
     prediction_baseline_ready_ = false;
     localization_start_time_set_ = false;
+    startup_scan_refinement_attempted_ = false;
     global_pose_published_ = true;
 }
 
