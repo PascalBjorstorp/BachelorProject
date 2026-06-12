@@ -22,6 +22,7 @@
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.h>
 #include <std_msgs/msg/float64.h>
+#include <std_msgs/msg/float64_multi_array.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,6 +144,7 @@ static rcl_subscription_t g_servo_sub;
 static rcl_publisher_t g_drive_pub;
 static rcl_publisher_t g_predicted_path_pub;
 static rcl_publisher_t g_raceline_pub;
+static rcl_publisher_t g_track_bounds_pub;
 
 /* Message buffers */
 static nav_msgs__msg__Odometry g_odom_msg;
@@ -695,6 +697,40 @@ static void publish_raceline(const MPCCReferencePath_t *path)
                     rcl_get_error_string().str);
             rcl_reset_error();
         }
+    }
+
+    /* Also publish combined left/right bound array so users can inspect
+     * CSV-derived corridor distances in bag files. Data layout: first
+     * N entries = left_bounds, next N entries = right_bounds. */
+    {
+        rcutils_allocator_t alloc = rcutils_get_default_allocator();
+        const uint16_t m = n;
+
+        std_msgs__msg__Float64MultiArray bounds_msg;
+        std_msgs__msg__Float64MultiArray__init(&bounds_msg);
+
+        double *buf = (double *)alloc.allocate((size_t)2 * m * sizeof(double), alloc.state);
+        if (buf != NULL)
+        {
+            for (uint16_t i = 0; i < m; ++i)
+            {
+                buf[i] = (double)path->points[i].left_bound;
+                buf[m + i] = (double)path->points[i].right_bound;
+            }
+
+            bounds_msg.data.data = buf;
+            bounds_msg.data.size = 2 * m;
+            bounds_msg.data.capacity = 2 * m;
+
+            const rcl_ret_t rcb = rcl_publish(&g_track_bounds_pub, &bounds_msg, NULL);
+            if (rcb != RCL_RET_OK) {
+                fprintf(stderr, "[MPCC] WARNING: failed to publish /mpcc/track_bounds: %s\n",
+                        rcl_get_error_string().str);
+                rcl_reset_error();
+            }
+        }
+
+        if (buf) alloc.deallocate(buf, alloc.state);
     }
 
     for (uint16_t i = 0; i < n; ++i)
@@ -1888,6 +1924,17 @@ int main(int argc, const char *argv[])
         }
     }
 
+    /* Publisher for combined CSV-derived left/right track bounds */
+    if (rclc_publisher_init_default(
+            &g_track_bounds_pub,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64MultiArray),
+            "/mpcc/track_bounds") != RCL_RET_OK)
+    {
+        fprintf(stderr, "[MPCC] WARNING: failed to init /mpcc/track_bounds\n");
+        rcl_reset_error();
+    }
+
     if (rclc_subscription_init_default(
             &g_odom_sub,
             &node,
@@ -2121,6 +2168,7 @@ int main(int argc, const char *argv[])
         }
         rc_cleanup = rcl_publisher_fini(&g_drive_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_predicted_path_pub, &node);
+        rc_cleanup = rcl_publisher_fini(&g_track_bounds_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_raceline_pub, &node);
         (void)rc_cleanup;
     }
