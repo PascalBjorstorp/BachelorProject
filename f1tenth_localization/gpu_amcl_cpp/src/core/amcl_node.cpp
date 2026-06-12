@@ -153,6 +153,17 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<int>("cluster_iterations", 3);
     declare_parameter<double>("cluster_min_covariance", 1e-4);
     declare_parameter<double>("cluster_publish_min_weight", 0.60);
+    declare_parameter<bool>("enable_raycast_verification", false);
+    declare_parameter<bool>("raycast_verification_global_only", true);
+    declare_parameter<int>("raycast_verification_max_clusters", 5);
+    declare_parameter<int>("raycast_verification_particles_per_cluster", 20);
+    declare_parameter<int>("raycast_verification_top_particles", 20);
+    declare_parameter<int>("raycast_verification_max_beams", 270);
+    declare_parameter<double>("raycast_verification_cluster_radius_m", 0.35);
+    declare_parameter<double>("raycast_verification_yaw_tolerance_rad", 0.5235987756);
+    declare_parameter<double>("raycast_verification_beta", 0.30);
+    declare_parameter<double>("raycast_verification_min_factor", 0.20);
+    declare_parameter<double>("raycast_verification_step_m", 0.05);
 
     // Pose jump guard
     declare_parameter<bool>("pose_jump_gate_enabled", true);
@@ -181,6 +192,7 @@ void AmclNode::declare_all_parameters() {
     // Publishing
     declare_parameter<double>("cloud_publish_rate", 2.0);  // Hz; <= 0 disables particle-cloud publishing
     declare_parameter<bool>("debug_pre_resample_particles", false);
+    declare_parameter<double>("force_max_particles_initial_sec", 0.0);
 
     // Odom alignment
     declare_parameter<double>("odom_history_duration_s", 0.2);
@@ -196,6 +208,8 @@ void AmclNode::load_parameters() {
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
     cloud_publish_rate_ = get_parameter("cloud_publish_rate").as_double();
+    force_max_particles_initial_sec_ = std::max(
+        0.0, get_parameter("force_max_particles_initial_sec").as_double());
     debug_pre_resample_particles_ =
         get_parameter("debug_pre_resample_particles").as_bool();
     initial_heading_from_raceline_ =
@@ -484,6 +498,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.num_particles     = get_parameter("num_particles").as_int();
     pf_cfg.min_particles     = get_parameter("min_particles").as_int();
     pf_cfg.max_particles     = get_parameter("max_particles").as_int();
+    pf_cfg.start_with_max_particles = force_max_particles_initial_sec_ > 0.0;
     pf_cfg.resample_threshold = get_parameter("resample_threshold").as_double();
     pf_cfg.use_kld           = get_parameter("use_kld_sampling").as_bool();
     pf_cfg.kld_epsilon       = get_parameter("kld_epsilon").as_double();
@@ -509,6 +524,28 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.cluster_min_covariance = get_parameter("cluster_min_covariance").as_double();
     pf_cfg.cluster_publish_min_weight =
         get_parameter("cluster_publish_min_weight").as_double();
+    pf_cfg.enable_raycast_verification =
+        get_parameter("enable_raycast_verification").as_bool();
+    pf_cfg.raycast_verification_global_only =
+        get_parameter("raycast_verification_global_only").as_bool();
+    pf_cfg.raycast_verification_max_clusters =
+        get_parameter("raycast_verification_max_clusters").as_int();
+    pf_cfg.raycast_verification_particles_per_cluster =
+        get_parameter("raycast_verification_particles_per_cluster").as_int();
+    pf_cfg.raycast_verification_top_particles =
+        get_parameter("raycast_verification_top_particles").as_int();
+    pf_cfg.raycast_verification_max_beams =
+        get_parameter("raycast_verification_max_beams").as_int();
+    pf_cfg.raycast_verification_cluster_radius_m =
+        get_parameter("raycast_verification_cluster_radius_m").as_double();
+    pf_cfg.raycast_verification_yaw_tolerance_rad =
+        get_parameter("raycast_verification_yaw_tolerance_rad").as_double();
+    pf_cfg.raycast_verification_beta =
+        get_parameter("raycast_verification_beta").as_double();
+    pf_cfg.raycast_verification_min_factor =
+        get_parameter("raycast_verification_min_factor").as_double();
+    pf_cfg.raycast_verification_step_m =
+        get_parameter("raycast_verification_step_m").as_double();
     pf_cfg.global_initialization = get_parameter("global_initialization").as_bool();
     pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
     pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
@@ -566,9 +603,11 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
 
     // 5. Initialize particle filter with all configs
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
+    pf_.set_force_max_particles(force_max_particles_initial_sec_ > 0.0);
 
     prediction_baseline_ready_ = false;
     global_pose_published_ = false;
+    localization_start_time_set_ = false;
     reset_pose_jump_gate();
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
@@ -681,10 +720,11 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
 
     // ── Guard 4: Skip update if robot hasn't moved enough ──
     double dist_moved = std::sqrt(dx_odom * dx_odom + dy_odom * dy_odom);
+    const bool moved_enough =
+        dist_moved >= update_min_d_ || std::abs(dtheta) >= update_min_a_;
     const bool global_sensor_bootstrap =
         pf_.config().global_initialization && !global_pose_published_;
-    if (!global_sensor_bootstrap &&
-        dist_moved < update_min_d_ && std::abs(dtheta) < update_min_a_) {
+    if (!global_sensor_bootstrap && !moved_enough) {
         processing_scan_ = false;
         return;
     }
@@ -700,6 +740,27 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     pred_last_x_     = odom_x_at_scan;
     pred_last_y_     = odom_y_at_scan;
     pred_last_theta_ = odom_theta_at_scan;
+
+    if (force_max_particles_initial_sec_ > 0.0 &&
+        moved_enough &&
+        !localization_start_time_set_) {
+        localization_start_time_ = scan_time;
+        localization_start_time_set_ = true;
+    }
+    bool force_max_particles = false;
+    if (force_max_particles_initial_sec_ > 0.0) {
+        if (!localization_start_time_set_) {
+            // Keep max particles armed while waiting for the first real movement.
+            force_max_particles = true;
+        } else {
+            const double localization_elapsed =
+                (scan_time - localization_start_time_).seconds();
+            force_max_particles =
+                localization_elapsed >= 0.0 &&
+                localization_elapsed < force_max_particles_initial_sec_;
+        }
+    }
+    pf_.set_force_max_particles(force_max_particles);
 
     // ── Timing start ──
     auto t_pf_start = std::chrono::high_resolution_clock::now();
@@ -737,6 +798,14 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     if (!weights_updated) {
         processing_scan_ = false;
         return;
+    }
+    if (pf_.config().enable_raycast_verification &&
+        (!pf_.config().raycast_verification_global_only || global_sensor_bootstrap)) {
+        pf_.apply_raycast_verification(
+            msg->ranges.data(),
+            static_cast<int>(msg->ranges.size()),
+            msg->angle_min,
+            msg->angle_increment);
     }
     publish_pre_resample_weighted_cloud(scan_time);
 
@@ -883,6 +952,7 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
                      get_parameter("initial_cov_xx").as_double(),
                      get_parameter("initial_cov_yy").as_double(),
                      get_parameter("initial_cov_aa").as_double());
+    pf_.set_force_max_particles(force_max_particles_initial_sec_ > 0.0);
     reset_pose_jump_gate();
 
     std_msgs::msg::Int32 particle_count_msg;
@@ -893,6 +963,7 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
+    localization_start_time_set_ = false;
     global_pose_published_ = true;
 }
 

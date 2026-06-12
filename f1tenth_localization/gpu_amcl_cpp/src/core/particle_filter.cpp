@@ -3,11 +3,13 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <limits>
 #include <unordered_map>
+#include <utility>
 
 namespace gpu_amcl_cpp {
 
@@ -43,6 +45,13 @@ double timed_stream_stage(cudaStream_t stream, Fn&& fn) {
 
 void ParticleFilter::reset_stage_timing() {
     last_stage_diag_ = StageTimingDiagnostics{};
+}
+
+void ParticleFilter::set_force_max_particles(bool enabled) {
+    if (force_max_particles_ && !enabled) {
+        force_max_particles_release_pending_ = true;
+    }
+    force_max_particles_ = enabled;
 }
 
 // ─── Destructor (free raw CUDA allocations) ─────────────────────────
@@ -162,8 +171,10 @@ void ParticleFilter::init(const Config& pf_cfg,
 void ParticleFilter::reinitialize(double x, double y, double theta,
                                   double cov_xx, double cov_yy,
                                   double cov_aa) {
-    n_ = cfg_.num_particles;    // Reset to initial number of particles
+    n_ = cfg_.start_with_max_particles ? cfg_.max_particles : cfg_.num_particles;
     last_scan_confidence_bad_ = false;
+    force_max_particles_ = false;
+    force_max_particles_release_pending_ = false;
 
     // Create CPU arrays for particles and weights
     std::vector<float> particles(n_ * 3);       // x, y, θ for each particle
@@ -298,8 +309,10 @@ void ParticleFilter::reinitialize_global(const MapProcessor& map) {
         return;
     }
 
-    n_ = cfg_.num_particles;
+    n_ = cfg_.start_with_max_particles ? cfg_.max_particles : cfg_.num_particles;
     last_scan_confidence_bad_ = false;
+    force_max_particles_ = false;
+    force_max_particles_release_pending_ = false;
 
     std::vector<float> particles(n_ * 3);
     std::vector<float> weights(n_, 1.0f / n_);
@@ -541,6 +554,394 @@ bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
     return true;
 }
 
+bool ParticleFilter::apply_raycast_verification(const float* ranges,
+                                                int num_ranges,
+                                                float angle_min,
+                                                float angle_inc) {
+    if (!cfg_.enable_raycast_verification ||
+        n_ <= 0 ||
+        num_ranges <= 0 ||
+        map_ == nullptr ||
+        !map_->is_loaded() ||
+        ranges == nullptr) {
+        return false;
+    }
+
+    const int max_clusters = std::clamp(cfg_.raycast_verification_max_clusters, 1, 16);
+    const int particles_per_cluster =
+        std::clamp(cfg_.raycast_verification_particles_per_cluster, 1, 64);
+    const int top_particles =
+        std::clamp(cfg_.raycast_verification_top_particles, 0, 256);
+    const int raycast_max_beams =
+        std::clamp(cfg_.raycast_verification_max_beams, 1, num_ranges);
+    const double radius = std::max(0.01, cfg_.raycast_verification_cluster_radius_m);
+    const double radius2 = radius * radius;
+    const double yaw_tolerance = std::clamp(
+        cfg_.raycast_verification_yaw_tolerance_rad, 0.01, 3.14159265358979323846);
+    const double beta = std::max(0.0, cfg_.raycast_verification_beta);
+    const double min_factor = std::clamp(
+        cfg_.raycast_verification_min_factor, 1.0e-4, 1.0);
+    const double min_log_factor = std::log(min_factor);
+
+    if (beta <= 0.0) {
+        return false;
+    }
+
+    // Reuse the scan staging already uploaded in update_weights() when possible.
+    if (num_ranges > max_ranges_) {
+        return false;
+    }
+    memcpy(h_ranges_pinned_, ranges, static_cast<size_t>(num_ranges) * sizeof(float));
+    CUDA_CHECK(cudaMemcpyAsync(
+        d_ranges_.ptr(), h_ranges_pinned_,
+        static_cast<size_t>(num_ranges) * sizeof(float),
+        cudaMemcpyHostToDevice, stream_.get()));
+
+    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
+                               static_cast<size_t>(n_) * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_weights_pinned_, d_weights_.ptr(),
+                               static_cast<size_t>(n_) * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    const float* particles = h_particles_pinned_;
+    const float* weights = h_weights_pinned_;
+    const auto yaw_abs_diff = [](float a, float b) {
+        const float d = a - b;
+        return std::abs(std::atan2(std::sin(d), std::cos(d)));
+    };
+
+    struct RaycastCluster {
+        int seed = -1;
+        float x = 0.0f;
+        float y = 0.0f;
+        float yaw = 0.0f;
+        std::vector<int> members;
+        double score = 0.0;
+    };
+
+    struct BinSeed {
+        double score = 0.0;
+        int best_index = -1;
+        float best_weight = -1.0f;
+    };
+
+    const auto pack_bin_key = [](long long bx, long long by, long long bt) {
+        constexpr long long offset = 1LL << 20;
+        constexpr std::uint64_t mask = (1ULL << 21) - 1ULL;
+        const auto ux = static_cast<std::uint64_t>(bx + offset) & mask;
+        const auto uy = static_cast<std::uint64_t>(by + offset) & mask;
+        const auto ut = static_cast<std::uint64_t>(bt + offset) & mask;
+        return (ux << 42) | (uy << 21) | ut;
+    };
+
+    const double inv_radius = 1.0 / radius;
+    const double inv_yaw_bin = 1.0 / yaw_tolerance;
+    std::unordered_map<std::uint64_t, BinSeed> bins;
+    bins.reserve(static_cast<size_t>(n_) * 2);
+
+    for (int i = 0; i < n_; ++i) {
+        const float wi = weights[i];
+        if (!(wi > 0.0f) || !std::isfinite(wi)) {
+            continue;
+        }
+        const double x = static_cast<double>(particles[i * 3 + 0]);
+        const double y = static_cast<double>(particles[i * 3 + 1]);
+        const double yaw = std::atan2(
+            std::sin(static_cast<double>(particles[i * 3 + 2])),
+            std::cos(static_cast<double>(particles[i * 3 + 2])));
+        const long long bx = static_cast<long long>(std::floor(x * inv_radius));
+        const long long by = static_cast<long long>(std::floor(y * inv_radius));
+        const long long bt = static_cast<long long>(
+            std::floor((yaw + 3.14159265358979323846) * inv_yaw_bin));
+        auto& bin = bins[pack_bin_key(bx, by, bt)];
+        bin.score += static_cast<double>(wi);
+        if (wi > bin.best_weight) {
+            bin.best_weight = wi;
+            bin.best_index = i;
+        }
+    }
+
+    struct BinCandidate {
+        int seed = -1;
+        double score = 0.0;
+    };
+    std::vector<BinCandidate> sorted_bins;
+    sorted_bins.reserve(bins.size());
+    for (const auto& entry : bins) {
+        if (entry.second.best_index >= 0 && entry.second.score > 0.0) {
+            sorted_bins.push_back({entry.second.best_index, entry.second.score});
+        }
+    }
+    std::sort(sorted_bins.begin(), sorted_bins.end(),
+              [](const BinCandidate& a, const BinCandidate& b) {
+                  return a.score > b.score;
+              });
+
+    std::vector<RaycastCluster> clusters;
+    clusters.reserve(static_cast<size_t>(max_clusters + top_particles));
+    for (const auto& candidate : sorted_bins) {
+        const int seed = candidate.seed;
+        const double seed_score = candidate.score;
+        if (!(seed_score > 0.0)) {
+            break;
+        }
+
+        const float sx = particles[seed * 3 + 0];
+        const float sy = particles[seed * 3 + 1];
+        const float syaw = particles[seed * 3 + 2];
+        bool suppressed = false;
+        for (const auto& cluster : clusters) {
+            const double dx = static_cast<double>(sx - cluster.x);
+            const double dy = static_cast<double>(sy - cluster.y);
+            if (dx * dx + dy * dy <= radius2 &&
+                yaw_abs_diff(syaw, cluster.yaw) <= yaw_tolerance) {
+                suppressed = true;
+                break;
+            }
+        }
+        if (suppressed) {
+            continue;
+        }
+
+        RaycastCluster cluster;
+        cluster.seed = seed;
+        cluster.x = sx;
+        cluster.y = sy;
+        cluster.yaw = syaw;
+        cluster.score = seed_score;
+        for (int j = 0; j < n_; ++j) {
+            const float wj = weights[j];
+            if (!(wj > 0.0f) || !std::isfinite(wj)) {
+                continue;
+            }
+            const double dx = static_cast<double>(particles[j * 3 + 0] - sx);
+            const double dy = static_cast<double>(particles[j * 3 + 1] - sy);
+            if (dx * dx + dy * dy <= radius2 &&
+                yaw_abs_diff(particles[j * 3 + 2], syaw) <= yaw_tolerance) {
+                cluster.members.push_back(j);
+            }
+        }
+        if (!cluster.members.empty()) {
+            clusters.push_back(std::move(cluster));
+        }
+        if (static_cast<int>(clusters.size()) >= max_clusters) {
+            break;
+        }
+    }
+
+    std::vector<int> candidate_indices;
+    std::vector<int> candidate_cluster;
+    std::vector<double> candidate_weights;
+    const size_t candidate_capacity =
+        static_cast<size_t>(max_clusters * particles_per_cluster + top_particles);
+    candidate_indices.reserve(candidate_capacity);
+    candidate_cluster.reserve(candidate_capacity);
+    candidate_weights.reserve(candidate_capacity);
+    std::vector<bool> selected(static_cast<size_t>(n_), false);
+    std::vector<bool> covered(static_cast<size_t>(n_), false);
+
+    const auto add_candidate = [&](int particle_index, int cluster_index) {
+        if (particle_index < 0 || particle_index >= n_ ||
+            selected[static_cast<size_t>(particle_index)]) {
+            return false;
+        }
+        candidate_indices.push_back(particle_index);
+        candidate_cluster.push_back(cluster_index);
+        candidate_weights.push_back(
+            std::max(1.0e-12, static_cast<double>(weights[particle_index])));
+        selected[static_cast<size_t>(particle_index)] = true;
+        return true;
+    };
+
+    for (size_t cluster_index = 0; cluster_index < clusters.size(); ++cluster_index) {
+        auto& members = clusters[cluster_index].members;
+        std::sort(members.begin(), members.end(),
+                  [&](int a, int b) { return weights[a] > weights[b]; });
+        for (int particle_index : members) {
+            if (particle_index >= 0 && particle_index < n_) {
+                covered[static_cast<size_t>(particle_index)] = true;
+            }
+        }
+        const int take_count = std::min<int>(
+            particles_per_cluster, static_cast<int>(members.size()));
+        for (int i = 0; i < take_count; ++i) {
+            add_candidate(members[static_cast<size_t>(i)], static_cast<int>(cluster_index));
+        }
+    }
+
+    std::vector<int> sorted_weight_indices(static_cast<size_t>(n_));
+    for (int i = 0; i < n_; ++i) {
+        sorted_weight_indices[static_cast<size_t>(i)] = i;
+    }
+    std::sort(sorted_weight_indices.begin(), sorted_weight_indices.end(),
+              [&](int a, int b) { return weights[a] > weights[b]; });
+
+    int added_top_particles = 0;
+    for (int particle_index : sorted_weight_indices) {
+        if (added_top_particles >= top_particles) {
+            break;
+        }
+        if (particle_index < 0 || particle_index >= n_ ||
+            selected[static_cast<size_t>(particle_index)] ||
+            covered[static_cast<size_t>(particle_index)]) {
+            continue;
+        }
+        const float w = weights[particle_index];
+        if (!(w > 0.0f) || !std::isfinite(w)) {
+            continue;
+        }
+
+        RaycastCluster singleton;
+        singleton.seed = particle_index;
+        singleton.x = particles[particle_index * 3 + 0];
+        singleton.y = particles[particle_index * 3 + 1];
+        singleton.yaw = particles[particle_index * 3 + 2];
+        singleton.score = static_cast<double>(w);
+        for (int j = 0; j < n_; ++j) {
+            const float wj = weights[j];
+            if (!(wj > 0.0f) || !std::isfinite(wj)) {
+                continue;
+            }
+            const double dx = static_cast<double>(particles[j * 3 + 0] - singleton.x);
+            const double dy = static_cast<double>(particles[j * 3 + 1] - singleton.y);
+            if (dx * dx + dy * dy <= radius2 &&
+                yaw_abs_diff(particles[j * 3 + 2], singleton.yaw) <= yaw_tolerance) {
+                singleton.members.push_back(j);
+            }
+        }
+        for (int member : singleton.members) {
+            if (member >= 0 && member < n_) {
+                covered[static_cast<size_t>(member)] = true;
+            }
+        }
+        const int singleton_cluster_index = static_cast<int>(clusters.size());
+        clusters.push_back(std::move(singleton));
+        if (add_candidate(particle_index, singleton_cluster_index)) {
+            ++added_top_particles;
+        }
+    }
+
+    const int candidate_count = static_cast<int>(candidate_indices.size());
+    if (candidate_count <= 0 || clusters.size() < 2) {
+        return false;
+    }
+
+    d_raycast_candidate_indices_.upload_async(
+        candidate_indices.data(), candidate_indices.size(), stream_.get());
+    if (d_raycast_candidate_scores_.count() < candidate_indices.size()) {
+        d_raycast_candidate_scores_.allocate(candidate_indices.size());
+    }
+    if (d_raycast_candidate_counts_.count() < candidate_indices.size()) {
+        d_raycast_candidate_counts_.allocate(candidate_indices.size());
+    }
+
+    sensor_.compute_raycast_scores(
+        d_active_particles_,
+        d_raycast_candidate_indices_.ptr(),
+        candidate_count,
+        d_ranges_.ptr(),
+        num_ranges,
+        angle_min,
+        angle_inc,
+        raycast_max_beams,
+        static_cast<float>(cfg_.raycast_verification_step_m),
+        d_raycast_candidate_scores_.ptr(),
+        d_raycast_candidate_counts_.ptr(),
+        stream_.get());
+
+    std::vector<float> h_scores(static_cast<size_t>(candidate_count), 0.0f);
+    std::vector<int> h_counts(static_cast<size_t>(candidate_count), 0);
+    CUDA_CHECK(cudaMemcpyAsync(h_scores.data(), d_raycast_candidate_scores_.ptr(),
+                               static_cast<size_t>(candidate_count) * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_counts.data(), d_raycast_candidate_counts_.ptr(),
+                               static_cast<size_t>(candidate_count) * sizeof(int),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    std::vector<double> cluster_score_sum(clusters.size(), 0.0);
+    std::vector<double> cluster_weight_sum(clusters.size(), 0.0);
+    for (int i = 0; i < candidate_count; ++i) {
+        const int cluster_index = candidate_cluster[static_cast<size_t>(i)];
+        const int count = h_counts[static_cast<size_t>(i)];
+        if (cluster_index < 0 ||
+            static_cast<size_t>(cluster_index) >= clusters.size() ||
+            count <= 0) {
+            continue;
+        }
+        const double normalized_score =
+            static_cast<double>(h_scores[static_cast<size_t>(i)]) /
+            static_cast<double>(count);
+        const double weight = candidate_weights[static_cast<size_t>(i)];
+        cluster_score_sum[static_cast<size_t>(cluster_index)] += normalized_score * weight;
+        cluster_weight_sum[static_cast<size_t>(cluster_index)] += weight;
+    }
+
+    std::vector<double> cluster_scores(clusters.size(), -std::numeric_limits<double>::infinity());
+    double best_score = -std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        if (cluster_weight_sum[i] > 0.0) {
+            cluster_scores[i] = cluster_score_sum[i] / cluster_weight_sum[i];
+            best_score = std::max(best_score, cluster_scores[i]);
+        }
+    }
+    if (!std::isfinite(best_score)) {
+        return false;
+    }
+
+    std::vector<float> cluster_centers;
+    std::vector<float> cluster_log_factors;
+    cluster_centers.reserve(clusters.size() * 3);
+    cluster_log_factors.reserve(clusters.size());
+    bool any_penalty = false;
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        cluster_centers.push_back(clusters[i].x);
+        cluster_centers.push_back(clusters[i].y);
+        cluster_centers.push_back(clusters[i].yaw);
+
+        double log_factor = 0.0;
+        if (std::isfinite(cluster_scores[i])) {
+            log_factor = beta * (cluster_scores[i] - best_score);
+            log_factor = std::clamp(log_factor, min_log_factor, 0.0);
+        }
+        if (log_factor < -1.0e-6) {
+            any_penalty = true;
+        }
+        cluster_log_factors.push_back(static_cast<float>(log_factor));
+    }
+
+    if (!any_penalty) {
+        return false;
+    }
+
+    d_raycast_cluster_centers_.upload_async(
+        cluster_centers.data(), cluster_centers.size(), stream_.get());
+    d_raycast_cluster_log_factors_.upload_async(
+        cluster_log_factors.data(), cluster_log_factors.size(), stream_.get());
+
+    launch_apply_cluster_log_factors(
+        d_active_particles_,
+        n_,
+        d_raycast_cluster_centers_.ptr(),
+        d_raycast_cluster_log_factors_.ptr(),
+        static_cast<int>(clusters.size()),
+        static_cast<float>(radius2),
+        static_cast<float>(yaw_tolerance),
+        d_log_w_.ptr(),
+        stream_.get());
+
+    launch_gpu_normalize_weights(
+        d_log_w_.ptr(), d_weights_.ptr(), d_scratch_w_.ptr(),
+        d_max_val_, d_sum_val_,
+        d_cub_temp_, cub_temp_bytes_,
+        n_, stream_.get());
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    std::swap(d_weights_, d_scratch_w_);
+    return true;
+}
+
 void ParticleFilter::resample_if_needed() {
     const auto start = std::chrono::high_resolution_clock::now();
     check_resample();
@@ -577,6 +978,31 @@ void ParticleFilter::check_resample() {
     // - If one weight = 1, rest = 0: N_eff = 1 (completely degenerate)
     double n_eff = resampler_.effective_sample_size(
         d_weights_.ptr(), n_, stream_.get());
+
+    if (force_max_particles_) {
+        if (n_ != cfg_.max_particles ||
+            n_eff < cfg_.resample_threshold * n_ ||
+            last_scan_confidence_bad_) {
+            do_resample(cfg_.max_particles);
+        }
+        return;
+    }
+
+    if (force_max_particles_release_pending_) {
+        int target = cfg_.num_particles;
+        if (cfg_.use_kld) {
+            const auto start = std::chrono::high_resolution_clock::now();
+            target = compute_kld_target();
+            const auto stop = std::chrono::high_resolution_clock::now();
+            last_stage_diag_.kld_target_ms =
+                std::chrono::duration<double, std::milli>(stop - start).count();
+        }
+        force_max_particles_release_pending_ = false;
+        if (target != n_) {
+            do_resample(target);
+            return;
+        }
+    }
 
     // E.g., threshold=0.5 means resample when < 50% effective particles
     if (n_eff < cfg_.resample_threshold * n_ || last_scan_confidence_bad_) {

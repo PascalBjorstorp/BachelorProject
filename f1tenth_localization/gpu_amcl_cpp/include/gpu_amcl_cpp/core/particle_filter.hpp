@@ -84,6 +84,7 @@ public:
         int    num_particles       = 2000;
         int    min_particles       = 100;
         int    max_particles       = 5000;
+        bool   start_with_max_particles = false;
 
         // Initial pose
         double init_x  = 0.0; 
@@ -114,6 +115,17 @@ public:
         int    cluster_iterations = 3;
         double cluster_min_covariance = 1e-4;
         double cluster_publish_min_weight = 0.60;
+        bool   enable_raycast_verification = false;
+        bool   raycast_verification_global_only = true;
+        int    raycast_verification_max_clusters = 5;
+        int    raycast_verification_particles_per_cluster = 20;
+        int    raycast_verification_top_particles = 20;
+        int    raycast_verification_max_beams = 270;
+        double raycast_verification_cluster_radius_m = 0.35;
+        double raycast_verification_yaw_tolerance_rad = 0.5235987756;
+        double raycast_verification_beta = 0.30;
+        double raycast_verification_min_factor = 0.20;
+        double raycast_verification_step_m = 0.05;
 
         // KLD adaptive sampling
         bool   use_kld              = false;
@@ -198,6 +210,10 @@ public:
     /// Run resampling using the current normalized weights.
     void resample_if_needed();
 
+    /// Apply cluster-level raycast verification to current normalized weights.
+    bool apply_raycast_verification(const float* ranges, int num_ranges,
+                                    float angle_min, float angle_inc);
+
     /// Get the weighted-mean pose estimate (computed on CPU).
     PoseEstimate get_estimate();
 
@@ -226,6 +242,7 @@ public:
     void set_recovery_injection_enabled(bool enabled) {
         cfg_.enable_recovery_injection = enabled;
     }
+    void set_force_max_particles(bool enabled);
 
 private:
     void check_resample();
@@ -257,6 +274,11 @@ private:
     DeviceBuffer<float> d_ranges_;           // Persisted for async
     DeviceBuffer<float> d_log_w_;            // For numerical stability
     DeviceBuffer<float> d_scratch_w_;        // Swap during normalizatio
+    DeviceBuffer<int>   d_raycast_candidate_indices_;
+    DeviceBuffer<float> d_raycast_candidate_scores_;
+    DeviceBuffer<int>   d_raycast_candidate_counts_;
+    DeviceBuffer<float> d_raycast_cluster_centers_;
+    DeviceBuffer<float> d_raycast_cluster_log_factors_;
 
     // CUB temp storage for GPU-side reductions
     void* d_cub_temp_ = nullptr;             // CUB DeviceReduce temp
@@ -297,6 +319,8 @@ private:
     int sensor_max_beams_ = 0;
     bool last_scan_confidence_bad_ = false;
     double last_scan_log_weight_per_beam_ = 0.0;
+    bool force_max_particles_ = false;
+    bool force_max_particles_release_pending_ = false;
 
     std::mt19937 rng_{42};                   // For reinitialize() Gaussian sampling
 

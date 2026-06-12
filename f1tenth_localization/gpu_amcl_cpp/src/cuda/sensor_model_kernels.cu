@@ -9,6 +9,7 @@
 
 #include "gpu_amcl_cpp/helpers/cuda_utils.hpp"
 #include <cmath>
+#include <cstdint>
 
 namespace gpu_amcl_cpp {
 
@@ -162,6 +163,244 @@ void launch_sensor_weights(const float* particles, int n,
         distance_field, map_w, map_h,
         map_res, map_ox, map_oy,
         out_weights);
+    CUDA_CHECK(cudaGetLastError());
+}
+
+__device__ __forceinline__
+float angle_diff_rad(float a, float b) {
+    const float d = a - b;
+    return atan2f(sinf(d), cosf(d));
+}
+
+__device__ __forceinline__
+bool map_occupied_or_out(float wx,
+                         float wy,
+                         const int8_t* __restrict__ occupancy,
+                         int map_w,
+                         int map_h,
+                         float map_res,
+                         float map_ox,
+                         float map_oy,
+                         bool* out_of_bounds) {
+    const int mx = __float2int_rd((wx - map_ox) / map_res);
+    const int my = __float2int_rd((wy - map_oy) / map_res);
+    if (mx < 0 || mx >= map_w || my < 0 || my >= map_h) {
+        *out_of_bounds = true;
+        return true;
+    }
+    *out_of_bounds = false;
+    return occupancy[my * map_w + mx] >= 50;
+}
+
+__device__
+float raycast_expected_range(float lx,
+                             float ly,
+                             float beam_cos,
+                             float beam_sin,
+                             float laser_max,
+                             float step_m,
+                             const int8_t* __restrict__ occupancy,
+                             int map_w,
+                             int map_h,
+                             float map_res,
+                             float map_ox,
+                             float map_oy) {
+    const float ray_step = fmaxf(step_m, fmaxf(0.01f, map_res * 0.5f));
+    const int max_steps = max(1, static_cast<int>(ceilf(laser_max / ray_step)));
+    for (int step = 1; step <= max_steps; ++step) {
+        const float t = fminf(static_cast<float>(step) * ray_step, laser_max);
+        const float wx = lx + t * beam_cos;
+        const float wy = ly + t * beam_sin;
+        bool out_of_bounds = false;
+        if (map_occupied_or_out(wx, wy, occupancy, map_w, map_h,
+                                map_res, map_ox, map_oy, &out_of_bounds)) {
+            return out_of_bounds ? laser_max : t;
+        }
+    }
+    return laser_max;
+}
+
+__global__
+void kernel_raycast_scores(const float* __restrict__ particles,
+                           const int* __restrict__ candidate_indices,
+                           int num_candidates,
+                           const float* __restrict__ ranges,
+                           int num_ranges,
+                           int beam_step,
+                           int beam_count,
+                           float angle_min,
+                           float angle_inc,
+                           float z_hit,
+                           float z_rand,
+                           float sigma_hit,
+                           float laser_max,
+                           float laser_ox,
+                           float laser_oy,
+                           float step_m,
+                           const int8_t* __restrict__ occupancy,
+                           int map_w,
+                           int map_h,
+                           float map_res,
+                           float map_ox,
+                           float map_oy,
+                           float* __restrict__ out_scores,
+                           int* __restrict__ out_counts) {
+    const int work = blockIdx.x * blockDim.x + threadIdx.x;
+    const int total = num_candidates * beam_count;
+    if (work >= total) return;
+
+    const int candidate = work / beam_count;
+    const int beam_slot = work - candidate * beam_count;
+    const int b = beam_slot * beam_step;
+    if (candidate >= num_candidates || b >= num_ranges) return;
+
+    const float observed = ranges[b];
+    if (!isfinite(observed) || observed < 0.1f || observed > laser_max) {
+        return;
+    }
+
+    const int particle_index = candidate_indices[candidate];
+    const float px = particles[particle_index * 3 + 0];
+    const float py = particles[particle_index * 3 + 1];
+    const float ptheta = particles[particle_index * 3 + 2];
+    const float ct = cosf(ptheta);
+    const float st = sinf(ptheta);
+
+    const float lx = px + laser_ox * ct - laser_oy * st;
+    const float ly = py + laser_ox * st + laser_oy * ct;
+
+    const float beam_angle = angle_min + static_cast<float>(b) * angle_inc;
+    const float cb = cosf(beam_angle);
+    const float sb = sinf(beam_angle);
+    const float beam_cos = cb * ct - sb * st;
+    const float beam_sin = sb * ct + cb * st;
+
+    const float expected = raycast_expected_range(
+        lx, ly, beam_cos, beam_sin, laser_max, step_m,
+        occupancy, map_w, map_h, map_res, map_ox, map_oy);
+
+    const float error = observed - expected;
+    const float inv_2sig2 = -0.5f / (sigma_hit * sigma_hit);
+    const float norm = 1.0f / (sqrtf(2.0f * 3.14159265f) * sigma_hit);
+    const float p = z_hit * norm * expf(inv_2sig2 * error * error)
+                  + z_rand / laser_max;
+    atomicAdd(&out_scores[candidate], logf(fmaxf(p, 1e-30f)));
+    atomicAdd(&out_counts[candidate], 1);
+}
+
+void launch_raycast_scores(const float* particles,
+                           const int* candidate_indices,
+                           int num_candidates,
+                           const float* ranges,
+                           int num_ranges,
+                           int max_beams,
+                           float angle_min, float angle_inc,
+                           float z_hit, float z_rand,
+                           float sigma_hit, float laser_max_range,
+                           float laser_offset_x, float laser_offset_y,
+                           float step_m,
+                           const int8_t* occupancy,
+                           int map_w, int map_h,
+                           float map_res, float map_ox, float map_oy,
+                           float* out_scores,
+                           int* out_counts,
+                           cudaStream_t stream) {
+    if (num_candidates <= 0 || num_ranges <= 0 || max_beams <= 0) return;
+
+    CUDA_CHECK(cudaMemsetAsync(out_scores, 0, num_candidates * sizeof(float), stream));
+    CUDA_CHECK(cudaMemsetAsync(out_counts, 0, num_candidates * sizeof(int), stream));
+
+    const int beam_step = max(1, num_ranges / max_beams);
+    const int beam_count = max(1, (num_ranges + beam_step - 1) / beam_step);
+    const int total = num_candidates * beam_count;
+    const auto launch = make_adaptive_launch_config(total);
+    kernel_raycast_scores<<<launch.grid, launch.block, 0, stream>>>(
+        particles,
+        candidate_indices,
+        num_candidates,
+        ranges,
+        num_ranges,
+        beam_step,
+        beam_count,
+        angle_min,
+        angle_inc,
+        z_hit,
+        z_rand,
+        sigma_hit,
+        laser_max_range,
+        laser_offset_x,
+        laser_offset_y,
+        step_m,
+        occupancy,
+        map_w,
+        map_h,
+        map_res,
+        map_ox,
+        map_oy,
+        out_scores,
+        out_counts);
+    CUDA_CHECK(cudaGetLastError());
+}
+
+__global__
+void kernel_apply_cluster_log_factors(const float* __restrict__ particles,
+                                      int n,
+                                      const float* __restrict__ cluster_centers,
+                                      const float* __restrict__ cluster_log_factors,
+                                      int num_clusters,
+                                      float radius2,
+                                      float yaw_tolerance,
+                                      float* __restrict__ out_log_factors) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    const float x = particles[i * 3 + 0];
+    const float y = particles[i * 3 + 1];
+    const float yaw = particles[i * 3 + 2];
+    float best_d2 = radius2;
+    float factor = 0.0f;
+
+    for (int k = 0; k < num_clusters; ++k) {
+        const float cx = cluster_centers[k * 3 + 0];
+        const float cy = cluster_centers[k * 3 + 1];
+        const float cyaw = cluster_centers[k * 3 + 2];
+        const float dx = x - cx;
+        const float dy = y - cy;
+        const float d2 = dx * dx + dy * dy;
+        const float dyaw = fabsf(angle_diff_rad(yaw, cyaw));
+        if (d2 <= best_d2 && dyaw <= yaw_tolerance) {
+            best_d2 = d2;
+            factor = cluster_log_factors[k];
+        }
+    }
+
+    out_log_factors[i] = factor;
+}
+
+void launch_apply_cluster_log_factors(const float* particles,
+                                      int n,
+                                      const float* cluster_centers,
+                                      const float* cluster_log_factors,
+                                      int num_clusters,
+                                      float radius2,
+                                      float yaw_tolerance,
+                                      float* out_log_factors,
+                                      cudaStream_t stream) {
+    if (n <= 0) return;
+    if (num_clusters <= 0) {
+        CUDA_CHECK(cudaMemsetAsync(out_log_factors, 0, n * sizeof(float), stream));
+        return;
+    }
+    const auto launch = make_adaptive_launch_config(n);
+    kernel_apply_cluster_log_factors<<<launch.grid, launch.block, 0, stream>>>(
+        particles,
+        n,
+        cluster_centers,
+        cluster_log_factors,
+        num_clusters,
+        radius2,
+        yaw_tolerance,
+        out_log_factors);
     CUDA_CHECK(cudaGetLastError());
 }
 
