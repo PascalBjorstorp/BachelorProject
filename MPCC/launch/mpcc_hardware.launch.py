@@ -28,13 +28,13 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("horizon", "HORIZON", "40", "Prediction horizon steps"),
+    ("horizon", "HORIZON", "50", "Prediction horizon steps"),
     ("dt", "DT", "0.025", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "40.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "20.0", "Lag weight"),
     ("q_heading", "Q_HEADING", "8.0", "Heading alignment weight"),
     ("q_wall_clearance", "Q_WALL_CLEARANCE", "2000.0", "Wall-clearance weight"),
-    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.3", "Soft wall-clearance margin in meters"),
+    ("wall_clearance_margin", "WALL_CLEARANCE_MARGIN", "0.2", "Soft wall-clearance margin in meters"),
     ("track_buffer", "MPCC_TRACK_BUFFER", "0.05", "Hard buffer subtracted from each track bound in meters"),
     ("q_progress", "Q_PROGRESS", "1.0", "Progress reward"),
     ("q_physical_progress", "Q_PHYSICAL_PROGRESS", "1.0", "Physical path-progress reward"),

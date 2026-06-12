@@ -107,7 +107,7 @@ gpu_amcl_cpp:
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
     cluster_publish_min_weight: 0.60    # match sim benchmark default
-    enable_raycast_verification: true   # on/off switch for second-stage raycast verification
+    enable_raycast_verification: false   # on/off switch for second-stage raycast verification
     raycast_verification_global_only: false # run during global init and later recovery
     raycast_verification_max_clusters: 4
     raycast_verification_particles_per_cluster: 20
@@ -190,7 +190,7 @@ ekf_localization:
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
     process_noise_scale: 0.2     # multiplier on dt-scaled odom covariance for Q
-    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
+    amcl_max_latency_sec: 0.15  # Drop AMCL updates older than 100 ms
     odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup
     amcl_jump_reset_enabled: true
     amcl_jump_reset_distance_m: 1.0
