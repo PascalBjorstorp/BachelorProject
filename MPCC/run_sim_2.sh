@@ -206,15 +206,15 @@ case "${MPCC_PROFILE}" in
         # keep the soft wall guard, extend lookahead modestly, and tighten
         # virtual-to-physical progress consistency so higher progress reward
         # does not over-commit in the narrow s≈22.6 section.
-        set_default HORIZON 48
+        set_default HORIZON 60
         set_default DT 0.025
-        set_default Q_CONTOURING 15.4
+        set_default Q_CONTOURING 8.0
         set_default Q_LAG 13.4
         set_default Q_HEADING 5.8
-        set_default Q_WALL_CLEARANCE 340.0
-        set_default WALL_CLEARANCE_MARGIN 0.10
-        set_default MPCC_TRACK_BUFFER 0.025
-        set_default Q_PROGRESS 0.68
+        set_default Q_WALL_CLEARANCE 450.0
+        set_default WALL_CLEARANCE_MARGIN 0.12
+        set_default MPCC_TRACK_BUFFER 0.00
+        set_default Q_PROGRESS 0.9
         set_default Q_PHYSICAL_PROGRESS 1.78
         set_default Q_VX 0.0
         set_default VX_REF 0.0
@@ -232,10 +232,10 @@ case "${MPCC_PROFILE}" in
         set_default W_DELTA_RATE 54.0
         set_default W_AX_RATE 3.6
         set_default W_VTHETA_RATE 0.42
-        set_default Q_CONTOURING_TERM 175.0
-        set_default Q_LAG_TERM 135.0
+        set_default Q_CONTOURING_TERM 100.0
+        set_default Q_LAG_TERM 50.0
         set_default Q_HEADING_TERM 18.0
-        set_default Q_PROGRESS_TERM 9.3
+        set_default Q_PROGRESS_TERM 32.0
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
         set_default ADMM_MAX_ITER 125
