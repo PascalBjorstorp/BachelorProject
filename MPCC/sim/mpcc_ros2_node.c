@@ -773,6 +773,10 @@ int main(int argc, const char *argv[])
             cfg.use_raceline_vx_ref = (uint8_t)(atoi(v) != 0);
         if ((v = getenv("MPCC_USE_RACELINE_VX_LIMIT")) != NULL)
             cfg.use_raceline_vx_limit = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("MPCC_USE_GLOBAL_VX_LIMIT")) != NULL)
+            cfg.use_global_vx_limit = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("MPCC_USE_CURVATURE_VX_LIMIT")) != NULL)
+            cfg.use_curvature_vx_limit = (uint8_t)(atoi(v) != 0);
         if ((v = getenv("MPCC_RACELINE_VX_LIMIT_SCALE")) != NULL)
             cfg.raceline_vx_limit_scale = (float)atof(v);
         if ((v = getenv("Q_VY")) != NULL)
@@ -849,6 +853,7 @@ int main(int argc, const char *argv[])
         printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f "
                "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f Q_phys_prog=%.1f "
                "s_window=%.2f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u "
+               "use_global_vx_limit=%u use_curv_vx_limit=%u "
                "R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f "
                "warm_s_err=%.2f W_drate=%.1f delta_rate=%.3f cross_call=%.4f accept_max_iter=%u "
                "rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
@@ -869,6 +874,8 @@ int main(int argc, const char *argv[])
                cfg.weight_vx,
                (unsigned)cfg.use_raceline_vx_ref,
                (unsigned)cfg.use_raceline_vx_limit,
+               (unsigned)cfg.use_global_vx_limit,
+               (unsigned)cfg.use_curvature_vx_limit,
                cfg.weight_delta,
                cfg.weight_v_theta,
                cfg.weight_vtheta_physical,
