@@ -2550,6 +2550,31 @@ MPCCStatus_t mpcc_compute_control(
         result->optimal_control = fallback_control;
         result->used_fallback_control = 1u;
 
+        /* Safe-braking fallback (solver-robustness).
+         *
+         * A rejected solve at speed almost always means the predicted
+         * trajectory leaves the corridor — the car is over-committed for the
+         * geometry ahead and the QP has become effectively infeasible (the
+         * dynamics-feasible path must go wide, the projection forces it back,
+         * ADMM diverges).  The previous control was tuned for a less-critical
+         * state; repeating it drives the car into the wall.  Instead command
+         * braking proportional to the predicted hard-corridor violation, so an
+         * over-commit sheds speed until the corner becomes feasible again and
+         * the solver recovers.  Benign rejects (tiny violation) are left
+         * essentially untouched, preserving normal driving; only genuine
+         * over-commits brake.  We only ever brake HARDER, never reduce it. */
+        {
+            const float TRACK_VIOL_FULL_BRAKE = 0.40f;  /* m -> full braking */
+            float brake_frac = max_track_violation / TRACK_VIOL_FULL_BRAKE;
+            if (hard_failure && brake_frac < 0.5f)
+                brake_frac = 0.5f;  /* solver gave up entirely: brake firmly */
+            if (brake_frac < 0.0f) brake_frac = 0.0f;
+            if (brake_frac > 1.0f) brake_frac = 1.0f;
+            float a_brake = config.ax_min * brake_frac;
+            if (result->optimal_control.a_x > a_brake)
+                result->optimal_control.a_x = a_brake;
+        }
+
         /* Copy solver predicted trajectory for diagnostics */
         uint16_t N = config.horizon_steps;
         if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
