@@ -240,11 +240,19 @@ case "${MPCC_PROFILE}" in
         # corridor center, while progress and wall clearance dominate.
         set_default HORIZON 30
         set_default DT 0.025
+<<<<<<< Updated upstream
         set_default Q_CONTOURING 30.0
         set_default Q_LAG 20.0
         set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 2000.0
         set_default WALL_CLEARANCE_MARGIN 0.0
+=======
+        set_default Q_CONTOURING 40.0
+        set_default Q_LAG 20.0
+        set_default Q_HEADING 8.0
+        set_default Q_WALL_CLEARANCE 2000.0
+        set_default WALL_CLEARANCE_MARGIN 0.3
+>>>>>>> Stashed changes
         set_default MPCC_TRACK_BUFFER 0.05
         set_default Q_PROGRESS 6.0
         set_default Q_PHYSICAL_PROGRESS 2.0
