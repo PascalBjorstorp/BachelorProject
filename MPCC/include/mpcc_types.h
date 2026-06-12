@@ -684,19 +684,19 @@ typedef struct
  * Default MPCC Parameters
  *===========================================================================*/
 
-/* --- Horizon: 40 Hz controller baseline (80 * 0.025 = 2.0 s lookahead) --- */
-#define MPCC_DEFAULT_HORIZON          80
+/* --- Horizon: 40 Hz controller baseline (44 * 0.025 = 1.10 s lookahead) --- */
+#define MPCC_DEFAULT_HORIZON          48
 #define MPCC_DEFAULT_DT               (0.025f)
 
 /*--- Contouring tracking weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (30.0f)                     /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (20.0f)                      /** Lag error penalty. */
-#define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (2000.0f)               /** Soft near-wall penalty inside the hard corridor. */
-#define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.0f)                  /** Extra desired distance from each wall [m]. */
-#define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.05f)                 /** Hard buffer subtracted from each track bound [m]. */
-#define MPCC_DEFAULT_WEIGHT_HEADING   (8.0f)                       /** Heading error penalty. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (6.0f)                       /** Progress reward. */
-#define MPCC_DEFAULT_WEIGHT_PHYSICAL_PROGRESS (2.0f)               /** Physical path-progress reward. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (15.4f)                     /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (13.4f)                      /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (340.0f)                /** Soft near-wall penalty inside the hard corridor. */
+#define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.10f)                 /** Extra desired distance from each wall [m]. */
+#define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.025f)                /** Hard buffer subtracted from each track bound [m]. */
+#define MPCC_DEFAULT_WEIGHT_HEADING   (5.8f)                       /** Heading error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (0.68f)                      /** Progress reward. */
+#define MPCC_DEFAULT_WEIGHT_PHYSICAL_PROGRESS (1.78f)              /** Physical path-progress reward. */
 #define MPCC_DEFAULT_S_QP_WINDOW      (1.0f)                      /** Per-stage s trust window [m]. */
 
 /*--- State regularization ---*/
@@ -706,20 +706,20 @@ typedef struct
 #define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
 #define MPCC_DEFAULT_USE_GLOBAL_VX_LIMIT   0                         /** Use global vx_max as hard QP cap. */
 #define MPCC_DEFAULT_USE_CURVATURE_VX_LIMIT 0                        /** Use curvature-based forward-looking vx cap. */
-#define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (0.85f)                 /** CSV vx cap multiplier. */
+#define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (0.0f)                  /** CSV vx cap multiplier. */
 #define MPCC_DEFAULT_WEIGHT_VY        (0.0f)                         /** Lateral velocity tracking weight. */
 #define MPCC_DEFAULT_WEIGHT_OMEGA     (1.0f)                         /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (1.0f)                        /** Steering angle effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX        (0.2f)                        /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_VTHETA_PHYSICAL (25.0f)                 /** v_theta vs physical path velocity penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (0.95f)                       /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX        (0.42f)                       /** Longitudinal acceleration effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.09f)                       /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_VTHETA_PHYSICAL (130.0f)                /** v_theta vs physical path velocity penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (1.0f)                    /** Steering rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX_RATE       (1.0f)                    /** Longitudinal acceleration rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.3f)                    /** Virtual progress speed rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (54.0f)                   /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX_RATE       (3.6f)                    /** Longitudinal acceleration rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.42f)                   /** Virtual progress speed rate penalty. */
 
 /* cross_call_rate_scale = control_dt / prediction_dt.
  * At 40 Hz control and dt=0.025: 0.025 / 0.025 = 1.0. */
@@ -727,10 +727,10 @@ typedef struct
 #define MPCC_DEFAULT_CROSS_CALL_SCALE     (1.0f)
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (150.0f)     /** Terminal contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (120.0f)     /** Terminal lag error penalty. */
-#define MPCC_DEFAULT_WEIGHT_HEADING_TERMINAL        (20.0f)      /** Terminal heading error penalty. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (60.0f)      /** Terminal progress reward. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (175.0f)     /** Terminal contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (135.0f)     /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_HEADING_TERMINAL        (18.0f)      /** Terminal heading error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (9.3f)       /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
 #define MPCC_DEFAULT_WEIGHT_OBSTACLE  (1000.0f)                     /** Obstacle avoidance penalty. */
@@ -738,7 +738,7 @@ typedef struct
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
 #define MPCC_DEFAULT_ADMM_RHO         (60.0f)                        /** ADMM penalty parameter. */
-#define MPCC_DEFAULT_ADMM_MAX_ITER    150                           /** Maximum ADMM iterations. */
+#define MPCC_DEFAULT_ADMM_MAX_ITER    125                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
 #define MPCC_DEFAULT_ADMM_RHO_U       (4.0f)                        /** 0 => reuse state rho for controls. */
 #define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */

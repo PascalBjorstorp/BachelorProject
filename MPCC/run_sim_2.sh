@@ -202,19 +202,20 @@ set_default() {
 
 case "${MPCC_PROFILE}" in
     track_racer)
-        # Stable no-ref-speed profile:
-        # use the reference as a Frenet frame and hard corridor, with enough
-        # geometric structure to finish repeated laps without hard output caps.
-        set_default HORIZON 40
+        # Stable faster no-ref-speed profile:
+        # keep the soft wall guard, extend lookahead modestly, and tighten
+        # virtual-to-physical progress consistency so higher progress reward
+        # does not over-commit in the narrow s≈22.6 section.
+        set_default HORIZON 48
         set_default DT 0.025
-        set_default Q_CONTOURING 16.0
-        set_default Q_LAG 14.0
-        set_default Q_HEADING 6.0
-        set_default Q_WALL_CLEARANCE 200.0
-        set_default WALL_CLEARANCE_MARGIN 0.08
-        set_default MPCC_TRACK_BUFFER 0.02
-        set_default Q_PROGRESS 0.6
-        set_default Q_PHYSICAL_PROGRESS 1.5
+        set_default Q_CONTOURING 15.4
+        set_default Q_LAG 13.4
+        set_default Q_HEADING 5.8
+        set_default Q_WALL_CLEARANCE 340.0
+        set_default WALL_CLEARANCE_MARGIN 0.10
+        set_default MPCC_TRACK_BUFFER 0.025
+        set_default Q_PROGRESS 0.68
+        set_default Q_PHYSICAL_PROGRESS 1.78
         set_default Q_VX 0.0
         set_default VX_REF 0.0
         set_default MPCC_USE_RACELINE_VX_REF 0
@@ -222,22 +223,22 @@ case "${MPCC_PROFILE}" in
         set_default MPCC_RACELINE_VX_LIMIT_SCALE 0.0
         set_default Q_VY 0.0
         set_default Q_OMEGA 1.0
-        set_default R_DELTA 1.0
-        set_default R_AX 0.45
+        set_default R_DELTA 0.95
+        set_default R_AX 0.42
         set_default AX_MAX 10.25
         set_default AX_MIN -10.25
         set_default MPCC_AX_MIN_HARDWARE -10.25
-        set_default R_VTHETA 0.1
-        set_default W_DELTA_RATE 60.0
-        set_default W_AX_RATE 4.0
-        set_default W_VTHETA_RATE 0.5
-        set_default Q_CONTOURING_TERM 160.0
-        set_default Q_LAG_TERM 120.0
-        set_default Q_HEADING_TERM 16.0
-        set_default Q_PROGRESS_TERM 8.0
+        set_default R_VTHETA 0.09
+        set_default W_DELTA_RATE 54.0
+        set_default W_AX_RATE 3.6
+        set_default W_VTHETA_RATE 0.42
+        set_default Q_CONTOURING_TERM 175.0
+        set_default Q_LAG_TERM 135.0
+        set_default Q_HEADING_TERM 18.0
+        set_default Q_PROGRESS_TERM 9.3
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
-        set_default ADMM_MAX_ITER 100
+        set_default ADMM_MAX_ITER 125
         set_default ADMM_TOL 0.02
         set_default ADMM_ADAPTIVE_RHO 1
         set_default ADMM_ALPHA_RELAX 1.0
@@ -376,7 +377,7 @@ export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.04}"
 export MPCC_MAX_ITER_DUAL_TOL="${MPCC_MAX_ITER_DUAL_TOL:-0.04}"
 export MPCC_MAX_ITER_TRACK_TOL="${MPCC_MAX_ITER_TRACK_TOL:-0.05}"
 export MPCC_S_QP_WINDOW="${MPCC_S_QP_WINDOW:-1.0}"
-export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-100.0}"
+export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-130.0}"
 export MPCC_WARM_START_MAX_S_ERROR="${MPCC_WARM_START_MAX_S_ERROR:-1.5}"
 export DELTA_RATE_MAX="${DELTA_RATE_MAX:-2.849}"
 
@@ -405,8 +406,6 @@ Q_VX=${Q_VX}
 VX_REF=${VX_REF}
 MPCC_USE_RACELINE_VX_REF=${MPCC_USE_RACELINE_VX_REF}
 MPCC_USE_RACELINE_VX_LIMIT=${MPCC_USE_RACELINE_VX_LIMIT}
-MPCC_USE_GLOBAL_VX_LIMIT=${MPCC_USE_GLOBAL_VX_LIMIT}
-MPCC_USE_CURVATURE_VX_LIMIT=${MPCC_USE_CURVATURE_VX_LIMIT}
 MPCC_RACELINE_VX_LIMIT_SCALE=${MPCC_RACELINE_VX_LIMIT_SCALE}
 Q_VY=${Q_VY}
 Q_OMEGA=${Q_OMEGA}
