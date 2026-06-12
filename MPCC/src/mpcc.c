@@ -949,10 +949,33 @@ static void add_physical_progress_reward(
     MPCCStageCost_t *cost,
     const MPCCState_t *z_bar,
     const MPCCPathPoint_t *path_pt,
-    float weight)
+    float weight,
+    float kappa_lookahead)
 {
     if (!cost || !z_bar || !path_pt || weight <= 0.0f)
         return;
+
+    /* Curvature-aware progress reward.
+     *
+     * A uniform progress reward must stay low enough that it never overpowers
+     * the contouring cost at the sharpest corner (otherwise the optimizer
+     * chooses "go straight = more progress" and understeers into the wall).
+     * That cap leaves the straights underpowered, where there is plenty of
+     * unused grip.  So we keep the configured `weight` as the corner-floor
+     * value (the known-safe level) and boost it where the path is straight.
+     *
+     *   w_eff = weight * (1 + PROG_STRAIGHT_BOOST * exp(-kappa_la / PROG_KAPPA0))
+     *
+     * kappa_lookahead is the MAX |kappa| over a short braking window ahead of
+     * this stage, not the local curvature.  Using the lookahead value keeps the
+     * boost from firing on a straight that feeds directly into a corner (the
+     * s~22.6 over-commit case): as soon as a corner is within braking range the
+     * reward decays back to the corner floor and the car stays slow enough to
+     * make the turn.  No new config knob: Q_PHYSICAL_PROGRESS sets the floor.
+     */
+    static const float PROG_STRAIGHT_BOOST = 1.0f;   /* clear straights get ~2x  */
+    static const float PROG_KAPPA0         = 0.35f;  /* decay scale (rad/m)      */
+    weight *= 1.0f + PROG_STRAIGHT_BOOST * expf(-kappa_lookahead / PROG_KAPPA0);
 
     float alpha = remainderf(z_bar->psi - path_pt->phi_ref,
                              2.0f * (float)M_PI);
@@ -1615,8 +1638,28 @@ static void build_qp_problem(
         add_vtheta_physical_cost(&qp->stage_cost[k], &z_bar, &u_bar, &path_pt,
                                   config.weight_vtheta_physical);
 
+        /* Max |kappa| over a braking window ahead, so the progress boost is
+         * suppressed before a corner the car must slow for.  The window scales
+         * with speed (braking distance grows with v) but never drops below a
+         * fixed floor large enough to catch a corner from a standing start. */
+        float kappa_lookahead = fabsf(path_pt.kappa_ref);
+        {
+            const float PROG_LOOKAHEAD_TS = 0.8f;  /* look-ahead time (s)      */
+            const float PROG_LOOKAHEAD_MIN = 3.0f; /* floor at low speed (m)   */
+            const float PROG_LOOKAHEAD_DS = 0.5f;  /* sample spacing (m)       */
+            float la_m = PROG_LOOKAHEAD_TS * fmaxf(z_bar.vx, 0.0f);
+            if (la_m < PROG_LOOKAHEAD_MIN) la_m = PROG_LOOKAHEAD_MIN;
+            MPCCPathPoint_t la_pt;
+            for (float ds = PROG_LOOKAHEAD_DS; ds <= la_m;
+                 ds += PROG_LOOKAHEAD_DS) {
+                mpcc_path_interpolate(&ref_path, z_bar.s + ds, &la_pt);
+                float ak = fabsf(la_pt.kappa_ref);
+                if (ak > kappa_lookahead) kappa_lookahead = ak;
+            }
+        }
         add_physical_progress_reward(&qp->stage_cost[k], &z_bar, &path_pt,
-                                     config.weight_physical_progress);
+                                     config.weight_physical_progress,
+                                     kappa_lookahead);
 
         /* Rate penalty cross-term: penalize (u_k - u_ref_k)^2.
          * The quadratic part (weight_rate * u_k^2) is already in R.
