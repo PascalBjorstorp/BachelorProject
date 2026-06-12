@@ -238,16 +238,16 @@ case "${MPCC_PROFILE}" in
         # Low-reference MPCC setup:
         # The reference line is used mostly as the path coordinate frame and
         # corridor center, while progress and wall clearance dominate.
-        set_default HORIZON 30
+        set_default HORIZON 40
         set_default DT 0.025
-        set_default Q_CONTOURING 30.0
+        set_default Q_CONTOURING 20.0
         set_default Q_LAG 20.0
         set_default Q_HEADING 8.0
         set_default Q_WALL_CLEARANCE 2000.0
-        set_default WALL_CLEARANCE_MARGIN 0.0
+        set_default WALL_CLEARANCE_MARGIN 0.20
         set_default MPCC_TRACK_BUFFER 0.05
-        set_default Q_PROGRESS 6.0
-        set_default Q_PHYSICAL_PROGRESS 2.0
+        set_default Q_PROGRESS 1.0
+        set_default Q_PHYSICAL_PROGRESS 1.0
         # Soft physical-speed tracking prevents a zero-motion local optimum
         # after hard braking, while keeping the CSV speed limit disabled.
         set_default Q_VX 0.0
@@ -261,16 +261,16 @@ case "${MPCC_PROFILE}" in
         set_default R_AX 0.2
         set_default AX_MIN -6.0
         set_default R_VTHETA 0.1
-        set_default W_DELTA_RATE 1.0
-        set_default W_AX_RATE 1.0
+        set_default W_DELTA_RATE 60.0
+        set_default W_AX_RATE 2.0
         set_default W_VTHETA_RATE 0.3
-        set_default Q_CONTOURING_TERM 150.0
-        set_default Q_LAG_TERM 120.0
+        set_default Q_CONTOURING_TERM 250.0
+        set_default Q_LAG_TERM 160.0
         set_default Q_HEADING_TERM 20.0
-        set_default Q_PROGRESS_TERM 60.0
+        set_default Q_PROGRESS_TERM 30.0
         set_default ADMM_RHO 60.0
         set_default ADMM_RHO_U 4.0
-        set_default ADMM_MAX_ITER 150
+        set_default ADMM_MAX_ITER 100
         set_default ADMM_TOL 0.02
         set_default ADMM_ADAPTIVE_RHO 1
         set_default ADMM_ALPHA_RELAX 1.0
@@ -403,11 +403,11 @@ esac
 export MPCC_PROFILE
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
 export MPCC_CONTROL_PERIOD_MS="${MPCC_CONTROL_PERIOD_MS:-25}"
-export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.0}"
-export MPCC_ACCEPT_MAX_ITER="${MPCC_ACCEPT_MAX_ITER:-0}"
-export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.2}"
-export MPCC_MAX_ITER_DUAL_TOL="${MPCC_MAX_ITER_DUAL_TOL:-0.2}"
-export MPCC_MAX_ITER_TRACK_TOL="${MPCC_MAX_ITER_TRACK_TOL:-0.2}"
+export MPCC_TRACK_BUFFER="${MPCC_TRACK_BUFFER:-0.05}"
+export MPCC_ACCEPT_MAX_ITER="${MPCC_ACCEPT_MAX_ITER:-1}"
+export MPCC_MAX_ITER_PRIMAL_TOL="${MPCC_MAX_ITER_PRIMAL_TOL:-0.04}"
+export MPCC_MAX_ITER_DUAL_TOL="${MPCC_MAX_ITER_DUAL_TOL:-0.04}"
+export MPCC_MAX_ITER_TRACK_TOL="${MPCC_MAX_ITER_TRACK_TOL:-0.05}"
 export MPCC_S_QP_WINDOW="${MPCC_S_QP_WINDOW:-1.0}"
 export W_VTHETA_PHYSICAL="${W_VTHETA_PHYSICAL:-25.0}"
 export MPCC_WARM_START_MAX_S_ERROR="${MPCC_WARM_START_MAX_S_ERROR:-1.5}"
