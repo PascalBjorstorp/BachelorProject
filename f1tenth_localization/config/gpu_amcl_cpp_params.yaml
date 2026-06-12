@@ -103,7 +103,7 @@ gpu_amcl_cpp:
     local_roughening_max_cloud_std_m: 0.75      # only roughen when cloud is already local
     use_cluster_estimate: true          # publish best local mode, not global multi-modal mean
     cluster_xy_bin_m: 0.25              # density bin for finding strongest cluster seed
-    cluster_radius_m: 0.75              # particles inside radius define output pose/covariance
+    cluster_radius_m: 0.20              # particles inside radius define output pose/covariance
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
     cluster_publish_min_weight: 0.60    # match sim benchmark default
