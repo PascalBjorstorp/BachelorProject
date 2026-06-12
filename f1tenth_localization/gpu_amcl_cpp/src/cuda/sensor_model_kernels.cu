@@ -568,7 +568,7 @@ float evaluate_refined_pose_device(float x,
 
     *count_out = count;
     if (count <= 0) {
-        return CUDART_INF_F;
+        return INFINITY;
     }
     return sum / static_cast<float>(count);
 }
@@ -707,7 +707,7 @@ void kernel_startup_scan_refinement(float* __restrict__ particles,
     const int my = __float2int_rd((y - map_oy) / map_res);
     if (mx < 0 || mx >= map_w || my < 0 || my >= map_h ||
         occupancy[my * map_w + mx] != 0) {
-        out_scores[i] = -CUDART_INF_F;
+        out_scores[i] = -INFINITY;
         out_counts[i] = 0;
         return;
     }
@@ -718,7 +718,7 @@ void kernel_startup_scan_refinement(float* __restrict__ particles,
         laser_max, laser_ox, laser_oy, dist_field, map_w, map_h,
         map_res, map_ox, map_oy, max_match_distance, &count);
     if (count <= 0 || !isfinite(mean_dist)) {
-        out_scores[i] = -CUDART_INF_F;
+        out_scores[i] = -INFINITY;
         out_counts[i] = 0;
         return;
     }
