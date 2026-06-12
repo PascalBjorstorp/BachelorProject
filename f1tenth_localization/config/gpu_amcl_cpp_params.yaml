@@ -150,7 +150,7 @@ gpu_amcl_cpp:
     # ---- Publishing ----
     cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: true  # publish weighted pre-resample PointCloud2 debug topic
-    force_max_particles_initial_sec: 3.0 # keep max_particles active for first localization seconds; 0 disables
+    force_max_particles_initial_sec: 3.0 # keep max_particles active for first movement seconds; 0 disables
 
 
 
