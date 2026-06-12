@@ -107,6 +107,17 @@ gpu_amcl_cpp:
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
     cluster_publish_min_weight: 0.60    # match sim benchmark default
+    enable_raycast_verification: true   # on/off switch for second-stage raycast verification
+    raycast_verification_global_only: false # run during global init and later recovery
+    raycast_verification_max_clusters: 4
+    raycast_verification_particles_per_cluster: 20
+    raycast_verification_top_particles: 20  # best non-duplicate particles added after cluster reps
+    raycast_verification_max_beams: 270
+    raycast_verification_cluster_radius_m: 0.35
+    raycast_verification_yaw_tolerance_rad: 0.5235987756  # +/- 30 deg cluster yaw gate
+    raycast_verification_beta: 0.30       # cluster log-weight penalty scale
+    raycast_verification_min_factor: 0.20 # worst verified cluster keeps at least 20% relative weight
+    raycast_verification_step_m: 0.05     # ray marching step; map-resolution scale
 
     # Reject one-frame global pose jumps from false injected modes.
     pose_jump_gate_enabled: true
@@ -139,6 +150,7 @@ gpu_amcl_cpp:
     # ---- Publishing ----
     cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: true  # publish weighted pre-resample PointCloud2 debug topic
+    force_max_particles_initial_sec: 5.0 # keep max_particles active for first localization seconds; 0 disables
 
 
 

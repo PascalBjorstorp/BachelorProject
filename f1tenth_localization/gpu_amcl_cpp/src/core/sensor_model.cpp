@@ -12,8 +12,10 @@ void SensorModel::init(const MapProcessor& map, const Config& cfg) {
 
     // Upload distance field to GPU.
     const auto& df = map.distance_field();
+    const auto& occupancy = map.occupancy();
     try {
         d_distance_field_.upload(df.data(), df.size());
+        d_occupancy_.upload(occupancy.data(), occupancy.size());
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("SensorModel::init GPU upload failed: ") + e.what());
     }
@@ -41,6 +43,45 @@ void SensorModel::compute_weights(const float* d_particles, int n,
         map_width_, map_height_,
         map_res_, map_ox_, map_oy_,
         d_weights, stream);
+}
+
+void SensorModel::compute_raycast_scores(const float* d_particles,
+                                         const int* d_candidate_indices,
+                                         int num_candidates,
+                                         const float* d_ranges,
+                                         int num_ranges,
+                                         float angle_min,
+                                         float angle_inc,
+                                         int max_beams,
+                                         float step_m,
+                                         float* d_scores,
+                                         int* d_counts,
+                                         cudaStream_t stream) const {
+    launch_raycast_scores(
+        d_particles,
+        d_candidate_indices,
+        num_candidates,
+        d_ranges,
+        num_ranges,
+        max_beams,
+        angle_min,
+        angle_inc,
+        static_cast<float>(cfg_.z_hit),
+        static_cast<float>(cfg_.z_rand),
+        static_cast<float>(cfg_.sigma_hit),
+        static_cast<float>(cfg_.laser_max_range),
+        static_cast<float>(cfg_.laser_offset_x),
+        static_cast<float>(cfg_.laser_offset_y),
+        step_m,
+        d_occupancy_.ptr(),
+        map_width_,
+        map_height_,
+        map_res_,
+        map_ox_,
+        map_oy_,
+        d_scores,
+        d_counts,
+        stream);
 }
 
 }  // namespace gpu_amcl_cpp

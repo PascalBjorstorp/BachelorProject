@@ -2,6 +2,7 @@
 
 #include "gpu_amcl_cpp/helpers/cuda_utils.hpp"
 #include "gpu_amcl_cpp/helpers/map_utils.hpp"
+#include <cstdint>
 #include <vector>
 
 namespace gpu_amcl_cpp {
@@ -51,11 +52,26 @@ public:
                          float* d_weights,
                          cudaStream_t stream = nullptr);
 
+    void compute_raycast_scores(const float* d_particles,
+                                const int* d_candidate_indices,
+                                int num_candidates,
+                                const float* d_ranges,
+                                int num_ranges,
+                                float angle_min,
+                                float angle_inc,
+                                int max_beams,
+                                float step_m,
+                                float* d_scores,
+                                int* d_counts,
+                                cudaStream_t stream = nullptr) const;
+
     Config& config() { return cfg_; }
+    const Config& config() const { return cfg_; }
 
 private:
     Config              cfg_;
     DeviceBuffer<float> d_distance_field_;
+    DeviceBuffer<int8_t> d_occupancy_;
     int                 map_width_  = 0;
     int                 map_height_ = 0;
     float               map_res_    = 0.0f;
@@ -78,5 +94,33 @@ void launch_sensor_weights(const float* particles, int n,
                            float map_res, float map_ox, float map_oy,
                            float* out_weights,
                            cudaStream_t stream);
+
+void launch_raycast_scores(const float* particles,
+                           const int* candidate_indices,
+                           int num_candidates,
+                           const float* ranges,
+                           int num_ranges,
+                           int max_beams,
+                           float angle_min, float angle_inc,
+                           float z_hit, float z_rand,
+                           float sigma_hit, float laser_max_range,
+                           float laser_offset_x, float laser_offset_y,
+                           float step_m,
+                           const int8_t* occupancy,
+                           int map_w, int map_h,
+                           float map_res, float map_ox, float map_oy,
+                           float* out_scores,
+                           int* out_counts,
+                           cudaStream_t stream);
+
+void launch_apply_cluster_log_factors(const float* particles,
+                                      int n,
+                                      const float* cluster_centers,
+                                      const float* cluster_log_factors,
+                                      int num_clusters,
+                                      float radius2,
+                                      float yaw_tolerance,
+                                      float* out_log_factors,
+                                      cudaStream_t stream);
 
 }  // namespace gpu_amcl_cpp

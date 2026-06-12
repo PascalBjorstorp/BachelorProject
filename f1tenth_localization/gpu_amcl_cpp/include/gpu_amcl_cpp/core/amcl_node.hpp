@@ -104,9 +104,12 @@ private:
     // Prediction baseline (reset on reinit)
     bool prediction_baseline_ready_ = false;
     bool global_pose_published_ = false;
+    bool localization_start_time_set_ = false;
     double pred_last_x_ = 0;
     double pred_last_y_ = 0;
     double pred_last_theta_ = 0;
+    double force_max_particles_initial_sec_ = 0.0;
+    rclcpp::Time localization_start_time_;
 
     struct OdomSample {
         rclcpp::Time stamp;
