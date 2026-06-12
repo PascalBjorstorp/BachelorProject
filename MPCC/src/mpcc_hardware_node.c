@@ -22,7 +22,6 @@
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.h>
 #include <std_msgs/msg/float64.h>
-#include <std_msgs/msg/float64_multi_array.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,7 +143,6 @@ static rcl_subscription_t g_servo_sub;
 static rcl_publisher_t g_drive_pub;
 static rcl_publisher_t g_predicted_path_pub;
 static rcl_publisher_t g_raceline_pub;
-static rcl_publisher_t g_track_bounds_pub;
 
 /* Message buffers */
 static nav_msgs__msg__Odometry g_odom_msg;
@@ -697,40 +695,6 @@ static void publish_raceline(const MPCCReferencePath_t *path)
                     rcl_get_error_string().str);
             rcl_reset_error();
         }
-    }
-
-    /* Also publish combined left/right bound array so users can inspect
-     * CSV-derived corridor distances in bag files. Data layout: first
-     * N entries = left_bounds, next N entries = right_bounds. */
-    {
-        rcutils_allocator_t alloc = rcutils_get_default_allocator();
-        const uint16_t m = n;
-
-        std_msgs__msg__Float64MultiArray bounds_msg;
-        std_msgs__msg__Float64MultiArray__init(&bounds_msg);
-
-        double *buf = (double *)alloc.allocate((size_t)2 * m * sizeof(double), alloc.state);
-        if (buf != NULL)
-        {
-            for (uint16_t i = 0; i < m; ++i)
-            {
-                buf[i] = (double)path->points[i].left_bound;
-                buf[m + i] = (double)path->points[i].right_bound;
-            }
-
-            bounds_msg.data.data = buf;
-            bounds_msg.data.size = 2 * m;
-            bounds_msg.data.capacity = 2 * m;
-
-            const rcl_ret_t rcb = rcl_publish(&g_track_bounds_pub, &bounds_msg, NULL);
-            if (rcb != RCL_RET_OK) {
-                fprintf(stderr, "[MPCC] WARNING: failed to publish /mpcc/track_bounds: %s\n",
-                        rcl_get_error_string().str);
-                rcl_reset_error();
-            }
-        }
-
-        if (buf) alloc.deallocate(buf, alloc.state);
     }
 
     for (uint16_t i = 0; i < n; ++i)
@@ -1652,10 +1616,6 @@ static void configure_mpcc_from_environment(void)
         cfg.use_raceline_vx_ref = (uint8_t)(atoi(v) != 0);
     if ((v = getenv("MPCC_USE_RACELINE_VX_LIMIT")) != NULL)
         cfg.use_raceline_vx_limit = (uint8_t)(atoi(v) != 0);
-    if ((v = getenv("MPCC_USE_GLOBAL_VX_LIMIT")) != NULL)
-        cfg.use_global_vx_limit = (uint8_t)(atoi(v) != 0);
-    if ((v = getenv("MPCC_USE_CURVATURE_VX_LIMIT")) != NULL)
-        cfg.use_curvature_vx_limit = (uint8_t)(atoi(v) != 0);
     if ((v = getenv("MPCC_RACELINE_VX_LIMIT_SCALE")) != NULL)
         cfg.raceline_vx_limit_scale = (float)atof(v);
     if ((v = getenv("Q_VY")) != NULL)          cfg.weight_vy                = (float)atof(v);
@@ -1744,7 +1704,7 @@ static void configure_mpcc_from_environment(void)
     {
         g_vx_max_mps = 8.0;
     }
-    g_use_global_vx_limit = (cfg.use_global_vx_limit != 0u);
+    g_use_global_vx_limit = 0;
 
     g_control_dt_filtered = cfg.cross_call_rate_scale * (double)cfg.dt;
     if (g_control_dt_filtered <= 0.0)
@@ -1756,7 +1716,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_phys_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u use_global_vx_limit=%u use_curv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_head=%.1f Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f s_window=%.2f Q_prog=%.1f Q_phys_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_vtheta=%.2f W_vtheta_phys=%.2f W_vtheta_rate=%.2f warm_s_err=%.2f ax_min_hw=%.1f delta_rate=%.3f cross_call=%.4f adapt_cross_call=%d accept_max_iter=%u vx_min_cmd=%.2f rho=%.3f rho_u=%.3f adaptive_rho=%u max_iter=%u tol=%.4f\n",
 #ifdef USE_OSQP
            "OSQP",
 #else
@@ -1776,8 +1736,6 @@ static void configure_mpcc_from_environment(void)
            cfg.weight_vx,
            (unsigned)cfg.use_raceline_vx_ref,
            (unsigned)cfg.use_raceline_vx_limit,
-           (unsigned)cfg.use_global_vx_limit,
-           (unsigned)cfg.use_curvature_vx_limit,
            cfg.weight_delta,
            cfg.weight_v_theta,
            cfg.weight_vtheta_physical,
@@ -1922,17 +1880,6 @@ int main(int argc, const char *argv[])
             publish_raceline(&g_reference_path);
             printf("[MPCC] Published raceline on /mpcc/raceline\n");
         }
-    }
-
-    /* Publisher for combined CSV-derived left/right track bounds */
-    if (rclc_publisher_init_default(
-            &g_track_bounds_pub,
-            &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64MultiArray),
-            "/mpcc/track_bounds") != RCL_RET_OK)
-    {
-        fprintf(stderr, "[MPCC] WARNING: failed to init /mpcc/track_bounds\n");
-        rcl_reset_error();
     }
 
     if (rclc_subscription_init_default(
@@ -2168,7 +2115,6 @@ int main(int argc, const char *argv[])
         }
         rc_cleanup = rcl_publisher_fini(&g_drive_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_predicted_path_pub, &node);
-        rc_cleanup = rcl_publisher_fini(&g_track_bounds_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_raceline_pub, &node);
         (void)rc_cleanup;
     }

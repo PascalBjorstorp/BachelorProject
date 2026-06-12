@@ -156,6 +156,9 @@ void admm_solver_default_config(ADMMConfig_t *config)
 
 /*===========================================================================
  * 3x3 Float Matrix Inverse (Cramer's Rule)
+ *===========================================================================
+ * Used internally for obstacle-sigma inversion.  The public equivalent is
+ * mat_nu_inverse() (threshold 1e-10 vs 1e-12 here; both Cramer's rule).
  *===========================================================================*/
 
 static int invert_3x3(const float S[3][3], float Si[3][3])
@@ -636,13 +639,6 @@ void admm_projection_step(
             ws->w_x[k][i] = val;
         }
 
-        /* 1b. Optional per-stage vx speed limit */
-        if (problem->vx_max_stage[k] > 0.0f &&
-            ws->w_x[k][MPCC_IDX_VX] > problem->vx_max_stage[k])
-        {
-            ws->w_x[k][MPCC_IDX_VX] = problem->vx_max_stage[k];
-        }
-
         /* 2. Per-stage track corridor constraint on (X, Y).
          *
          * Transform proposed Cartesian position into the local Frenet
@@ -715,12 +711,6 @@ void admm_projection_step(
             }
 
             ws->w_u[k][i] = val;
-        }
-        if (problem->mu_g_sq > 0.0f) {
-            float ax_lim = problem->ax_lim_stage[k];
-            float ax = ws->w_u[k][MPCC_IDX_AX];
-            if (ax >  ax_lim) ws->w_u[k][MPCC_IDX_AX] =  ax_lim;
-            if (ax < -ax_lim) ws->w_u[k][MPCC_IDX_AX] = -ax_lim;
         }
     }
 }
@@ -991,81 +981,85 @@ MPCCStatus_t admm_solver_solve(
 
         /* Step 4: Convergence check — evaluated every 2 iterations to halve
          * the residual-scan overhead (807 comparisons per check × N_iters).
-         * We still track iterations accurately; the extra half-iteration of
-         * work on an already-converged solution is negligible. */
+         * Per-domain residuals (prim_x/u, dual_x/u) are cached for the
+         * adaptive-rho block below, which fires every INTERVAL actual iters
+         * regardless of the even/odd gate. */
         workspace->iterations = iter + 1;
         if ((iter & 1u) == 0u)
         {
-            float prim_res, dual_res;
-            float prim_x = 0.0f, dual_x = 0.0f, prim_u = 0.0f, dual_u = 0.0f;
-            admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res,
-                           &prim_x, &dual_x, &prim_u, &dual_u);
+            admm_compute_residuals(workspace, rho, rho_u, N,
+                           &workspace->primal_residual, &workspace->dual_residual,
+                           &workspace->last_prim_x, &workspace->last_dual_x,
+                           &workspace->last_prim_u, &workspace->last_dual_u);
 
-            if (!isfinite((double)prim_res) || !isfinite((double)dual_res)) {
+            if (!isfinite((double)workspace->primal_residual) ||
+                !isfinite((double)workspace->dual_residual)) {
                 status = MPCC_STATUS_ERROR;
                 workspace->primal_residual = INFINITY;
                 workspace->dual_residual = INFINITY;
                 break;
             }
 
-            workspace->primal_residual = prim_res;
-            workspace->dual_residual = dual_res;
-
 #ifdef MPCC_DEBUG_PRINT
             if ((iter + 1) % 10 == 0 || iter == 0)
             {
                 printf("  ADMM iter %3u: prim=%.6f  dual=%.6f\n",
-                       iter + 1, (double)(prim_res), (double)(dual_res));
+                       iter + 1, (double)(workspace->primal_residual),
+                       (double)(workspace->dual_residual));
             }
 #endif
 
-            if (prim_res <= config->eps_primal &&
-                dual_res <= config->eps_dual)
+            if (workspace->primal_residual <= config->eps_primal &&
+                workspace->dual_residual <= config->eps_dual)
             {
                 status = MPCC_STATUS_SUCCESS;
                 break;
             }
+        }
 
-            /* Adaptive rho uses per-domain residuals — only update on check iters */
-            if (config->adaptive_rho &&
-                (((unsigned)iter + 1u) % MPCC_ADMM_RHO_UPDATE_INTERVAL) == 0u) {
-                float old_rho = rho;
-                if (prim_x > MPCC_ADMM_RHO_ADAPT_RATIO * dual_x &&
-                    rho < MPCC_ADMM_RHO_MAX) {
-                    rho *= MPCC_ADMM_RHO_SCALE;
-                    if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
-                } else if (dual_x > MPCC_ADMM_RHO_ADAPT_RATIO * prim_x &&
-                           rho > MPCC_ADMM_RHO_MIN) {
-                    rho /= MPCC_ADMM_RHO_SCALE;
-                    if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
-                }
-                if (rho != old_rho) {
-                    float lambda_scale = old_rho / rho;
-                    workspace->adaptive_rho_updates++;
-                    workspace->adaptive_rho_state_updates++;
-                    for (uint16_t kk = 0; kk <= N; kk++)
-                        for (int i = 0; i < MPCC_NX; i++)
-                            workspace->lambda_x[kk][i] *= lambda_scale;
-                }
+        /* Adaptive rho — runs every MPCC_ADMM_RHO_UPDATE_INTERVAL actual
+         * iterations using the most-recently cached per-domain residuals.
+         * Previously this block was nested inside the even-iter gate, making
+         * it fire every ~2×INTERVAL iters.  Moving it here restores the
+         * intended cadence. */
+        if (config->adaptive_rho &&
+            (((unsigned)iter + 1u) % MPCC_ADMM_RHO_UPDATE_INTERVAL) == 0u) {
+            float old_rho = rho;
+            if (workspace->last_prim_x > MPCC_ADMM_RHO_ADAPT_RATIO * workspace->last_dual_x &&
+                rho < MPCC_ADMM_RHO_MAX) {
+                rho *= MPCC_ADMM_RHO_SCALE;
+                if (rho > MPCC_ADMM_RHO_MAX) rho = MPCC_ADMM_RHO_MAX;
+            } else if (workspace->last_dual_x > MPCC_ADMM_RHO_ADAPT_RATIO * workspace->last_prim_x &&
+                       rho > MPCC_ADMM_RHO_MIN) {
+                rho /= MPCC_ADMM_RHO_SCALE;
+                if (rho < MPCC_ADMM_RHO_MIN) rho = MPCC_ADMM_RHO_MIN;
+            }
+            if (rho != old_rho) {
+                float lambda_scale = old_rho / rho;
+                workspace->adaptive_rho_updates++;
+                workspace->adaptive_rho_state_updates++;
+                for (uint16_t kk = 0; kk <= N; kk++)
+                    for (int i = 0; i < MPCC_NX; i++)
+                        workspace->lambda_x[kk][i] *= lambda_scale;
+            }
 
-                float old_rho_u = rho_u;
-                if (prim_u > MPCC_ADMM_RHO_ADAPT_RATIO * dual_u &&
-                    rho_u < MPCC_ADMM_RHO_MAX) {
-                    rho_u *= MPCC_ADMM_RHO_SCALE;
-                    if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
-                } else if (dual_u > MPCC_ADMM_RHO_ADAPT_RATIO * prim_u &&
-                           rho_u > MPCC_ADMM_RHO_MIN) {
-                    rho_u /= MPCC_ADMM_RHO_SCALE;
-                    if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
-                }
-                if (rho_u != old_rho_u) {
-                    float lambda_scale = old_rho_u / rho_u;
-                    workspace->adaptive_rho_updates++;
-                    workspace->adaptive_rho_control_updates++;
-                    for (uint16_t kk = 0; kk < N; kk++)
-                        for (int i = 0; i < MPCC_NU; i++)
-                            workspace->lambda_u[kk][i] *= lambda_scale;
-                }
+            float old_rho_u = rho_u;
+            if (workspace->last_prim_u > MPCC_ADMM_RHO_ADAPT_RATIO * workspace->last_dual_u &&
+                rho_u < MPCC_ADMM_RHO_MAX) {
+                rho_u *= MPCC_ADMM_RHO_SCALE;
+                if (rho_u > MPCC_ADMM_RHO_MAX) rho_u = MPCC_ADMM_RHO_MAX;
+            } else if (workspace->last_dual_u > MPCC_ADMM_RHO_ADAPT_RATIO * workspace->last_prim_u &&
+                       rho_u > MPCC_ADMM_RHO_MIN) {
+                rho_u /= MPCC_ADMM_RHO_SCALE;
+                if (rho_u < MPCC_ADMM_RHO_MIN) rho_u = MPCC_ADMM_RHO_MIN;
+            }
+            if (rho_u != old_rho_u) {
+                float lambda_scale = old_rho_u / rho_u;
+                workspace->adaptive_rho_updates++;
+                workspace->adaptive_rho_control_updates++;
+                for (uint16_t kk = 0; kk < N; kk++)
+                    for (int i = 0; i < MPCC_NU; i++)
+                        workspace->lambda_u[kk][i] *= lambda_scale;
             }
         }
 

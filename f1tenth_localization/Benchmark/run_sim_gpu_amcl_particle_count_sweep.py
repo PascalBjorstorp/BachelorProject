@@ -578,19 +578,6 @@ def run_root_for(output_root: Path, particles: int, run_index: int) -> Path:
     return output_root / condition_name(particles) / f"run_{run_index:02d}"
 
 
-def run_succeeded(run_root: Path, expected_laps: int, returncode: int = 0) -> bool:
-    status = read_status(status_json(run_root))
-    try:
-        laps = int(status.get("laps", 0) or 0)
-    except (TypeError, ValueError):
-        laps = 0
-    return (
-        returncode == 0
-        and status.get("reason", "") == "laps_complete"
-        and laps >= expected_laps
-    )
-
-
 def build_command(args: argparse.Namespace, particles: int, run_index: int) -> List[str]:
     benchmark_script = Path(__file__).with_name("run_sim_gpu_amcl_benchmark.py")
     run_output_root = run_root_for(args.output_root, particles, run_index)
@@ -626,10 +613,8 @@ def build_command(args: argparse.Namespace, particles: int, run_index: int) -> L
         "--amcl-min-particles", str(particles),
         "--amcl-max-particles", str(particles),
         "--amcl-max-beams", str(args.max_beams),
-        "--amcl-recovery-injection-ratio", str(args.recovery_injection_ratio),
         "--amcl-update-min-d", str(args.update_min_d),
         "--amcl-update-min-a", str(args.update_min_a),
-        "--amcl-max-scan-age", str(args.max_scan_age),
         "--amcl-likelihood-scale", str(args.likelihood_scale),
         "--amcl-alpha1", str(args.amcl_alpha1),
         "--amcl-alpha2", str(args.amcl_alpha2),
@@ -643,13 +628,6 @@ def build_command(args: argparse.Namespace, particles: int, run_index: int) -> L
         "--ekf-process-noise-scale", str(args.ekf_process_noise_scale),
         "--no-debug-pre-resample-particles",
     ]
-    cmd.append(
-        "--amcl-enable-recovery-injection"
-        if args.recovery_injection else
-        "--no-amcl-enable-recovery-injection")
-    cmd.append("--global-localization" if args.global_localization else "--no-global-localization")
-    if args.use_kld:
-        cmd.append("--amcl-use-kld")
     if args.initial_pose_yaw is not None:
         cmd.extend(["--initial-pose-yaw", str(args.initial_pose_yaw)])
     if args.use_cluster_estimate:
@@ -670,60 +648,29 @@ def delete_bag(run_root: Path) -> None:
 def run_cases(args: argparse.Namespace, particles: Sequence[int]) -> None:
     for run_index in range(1, args.runs_per_particle + 1):
         for particle_count in particles:
-            attempt = 1
-            while True:
-                run_root = run_root_for(args.output_root, particle_count, run_index)
-                if args.resume and run_succeeded(run_root, args.laps):
-                    print(
-                        f"\n=== particles={particle_count} run "
-                        f"{run_index:02d}/{args.runs_per_particle}: existing success ===")
-                    break
-
-                cmd = build_command(args, particle_count, run_index)
-                print(
-                    f"\n=== particles={particle_count} run "
-                    f"{run_index:02d}/{args.runs_per_particle} attempt {attempt} ===")
-                print(" ".join(cmd))
-                if args.dry_run:
-                    break
-                if run_root.exists():
-                    shutil.rmtree(run_root)
-                run_root.mkdir(parents=True, exist_ok=True)
-                log_path = run_root / "benchmark_stdout.log"
-                with log_path.open("w") as log:
-                    log.write(" ".join(cmd) + "\n\n")
-                    log.flush()
-                    result = subprocess.run(
-                        cmd,
-                        stdout=log,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        check=False)
-                if args.delete_bags:
-                    delete_bag(run_root)
-
-                if run_succeeded(run_root, args.laps, result.returncode):
-                    break
-
+            cmd = build_command(args, particle_count, run_index)
+            print(f"\n=== particles={particle_count} run {run_index:02d}/{args.runs_per_particle} ===")
+            print(" ".join(cmd))
+            if args.dry_run:
+                continue
+            run_root = run_root_for(args.output_root, particle_count, run_index)
+            run_root.mkdir(parents=True, exist_ok=True)
+            log_path = run_root / "benchmark_stdout.log"
+            with log_path.open("w") as log:
+                log.write(" ".join(cmd) + "\n\n")
+                log.flush()
+                result = subprocess.run(
+                    cmd,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False)
+            if args.delete_bags:
+                delete_bag(run_root)
+            if result.returncode != 0:
                 print(
                     f"[warn] particles={particle_count} run {run_index:02d} "
-                    f"attempt {attempt} failed; code={result.returncode}")
-                should_retry = (
-                    args.retry_until_success
-                    and (
-                        args.max_attempts_per_run <= 0
-                        or attempt < args.max_attempts_per_run
-                    )
-                )
-                if not should_retry:
-                    break
-
-                failed_root = run_root.with_name(
-                    f"{run_root.name}_failed_attempt_{attempt:02d}")
-                if failed_root.exists():
-                    shutil.rmtree(failed_root)
-                shutil.move(run_root, failed_root)
-                attempt += 1
+                    f"failed with code {result.returncode}; continuing sweep")
 
 
 def collect_results(args: argparse.Namespace, particles: Sequence[int]) -> None:
@@ -811,7 +758,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--max-beams", type=int, default=270)
     parser.add_argument("--update-min-d", type=float, default=0.04)
     parser.add_argument("--update-min-a", type=float, default=0.035)
-    parser.add_argument("--max-scan-age", type=float, default=0.04)
     parser.add_argument("--likelihood-scale", type=float, default=4.0)
     parser.add_argument("--amcl-alpha1", type=float, default=0.1)
     parser.add_argument("--amcl-alpha2", type=float, default=0.2)
@@ -822,12 +768,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--amcl-sigma-hit", type=float, default=0.05)
     parser.add_argument("--amcl-resample-threshold", type=float, default=0.5)
     parser.add_argument("--ekf-process-noise-scale", type=float, default=0.2)
-    parser.add_argument("--use-kld", action="store_true")
-    parser.add_argument("--global-localization", action=argparse.BooleanOptionalAction,
-                        default=False)
-    parser.add_argument("--recovery-injection", action=argparse.BooleanOptionalAction,
-                        default=False)
-    parser.add_argument("--recovery-injection-ratio", type=float, default=0.0)
     parser.add_argument("--cloud-publish-rate", type=float, default=0.0)
     parser.add_argument("--system-monitor-cpu-sample-hz", type=float, default=100.0)
     parser.add_argument("--system-monitor-gpu-sample-hz", type=float, default=50.0)
@@ -850,10 +790,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--delete-bags", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--plot-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--retry-until-success", action="store_true")
-    parser.add_argument("--max-attempts-per-run", type=int, default=1,
-                        help="Maximum attempts per particle/run slot. Use 0 for no limit.")
     parser.add_argument("--extra-launch-arg", action="append", default=[])
     return parser.parse_args(argv)
 

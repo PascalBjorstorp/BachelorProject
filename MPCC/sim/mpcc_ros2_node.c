@@ -508,7 +508,7 @@ static void log_solve_metrics(const MPCCState_t *mpcc_state,
     const double compute_rate_hz = (compute_sec > 1e-9) ? (1.0 / compute_sec) : 0.0;
 
     fprintf(stderr,
-            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u diag=0x%X hmin=%.2e tw=%.3f dw=%.3f axlim=%.3f vxm=%.3f s=%.2f x=%.2f y=%.2f psi=%.3f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f compute_ms=%.2f compute_hz=%.2f\n",
+            "[MPCC] solve=%u status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f rho_upd=%u clip=%u rho_x_upd=%u rho_u_upd=%u diag=0x%X fb=%u rej=0x%X hmin=%.2e tw=%.3f dw=%.3f axlim=%.3f vxm=%.3f trkv=%.3f@k%u slack=%.3f@k%u s=%.2f x=%.2f y=%.2f psi=%.3f vx=%.2f delta=%.4f a_x=%.3f v_theta=%.3f solve_gap_ms=%.1f solve_rate_hz=%.2f target_ms=%.1f compute_ms=%.2f compute_hz=%.2f\n",
             solve_count,
             (int)status,
             result->admm_iterations,
@@ -521,11 +521,17 @@ static void log_solve_metrics(const MPCCState_t *mpcc_state,
             (unsigned)result->adaptive_rho_state_updates,
             (unsigned)result->adaptive_rho_control_updates,
             (unsigned)result->qp_diagnostic_flags,
+            (unsigned)result->used_fallback_control,
+            (unsigned)result->reject_reason_flags,
             result->qp_min_hessian_eigenvalue,
             result->qp_min_track_width,
             result->qp_min_delta_width,
             result->qp_min_ax_limit,
             result->qp_min_vx_margin,
+            result->max_track_violation,
+            (unsigned)result->max_track_violation_stage,
+            result->min_track_slack,
+            (unsigned)result->min_track_slack_stage,
             mpcc_state->s,
             mpcc_state->X,
             mpcc_state->Y,
@@ -539,6 +545,21 @@ static void log_solve_metrics(const MPCCState_t *mpcc_state,
             target_control_period_sec * 1000.0,
             compute_ms,
             compute_rate_hz);
+    if (result->used_fallback_control || result->reject_reason_flags != 0u) {
+        fprintf(stderr,
+                "[MPCC] fallback detail: status=%d fb=%u rej=0x%X prim=%.4f/%.4f dual=%.4f/%.4f trkv=%.3f/%.3f slack=%.3f@k%u\n",
+                (int)status,
+                (unsigned)result->used_fallback_control,
+                (unsigned)result->reject_reason_flags,
+                result->primal_residual,
+                mpcc_get_configuration().max_iter_primal_tolerance,
+                result->dual_residual,
+                mpcc_get_configuration().max_iter_dual_tolerance,
+                result->max_track_violation,
+                mpcc_get_configuration().max_iter_track_violation_tolerance,
+                result->min_track_slack,
+                (unsigned)result->min_track_slack_stage);
+    }
     fflush(stderr);
 }
 
@@ -591,20 +612,10 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
         a_x_cmd = -7.0f;
     }
 
-    if (status != MPCC_STATUS_SUCCESS && status != MPCC_STATUS_MAX_ITERATIONS) {
-        delta_cmd = 0.5f * prev_delta_cmd;
-        a_x_cmd = prev_ax_cmd;
-        if (a_x_cmd > -1.0f)
-            a_x_cmd = -1.0f;
-        v_theta_cmd = 0.0f;
-    }
-
     if (delta_cmd > F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
         delta_cmd = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
     if (delta_cmd < -F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
         delta_cmd = -F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
-    if (a_x_cmd > 7.31f) a_x_cmd = 7.31f;
-    if (a_x_cmd < -7.31f) a_x_cmd = -7.31f;
 
     log_solve_metrics(&mpcc_state,
                       &result,
