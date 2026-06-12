@@ -127,7 +127,7 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
-                os.path.join(planning_share, "trajectories", "my_track_centerline.csv"),
+                os.path.join(planning_share, "trajectories", "my_track_SmoothCenterline.csv"),
             ]
         )
     except Exception:
@@ -143,7 +143,7 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
-                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_SmoothCenterline.csv"),
             ]
         )
 
