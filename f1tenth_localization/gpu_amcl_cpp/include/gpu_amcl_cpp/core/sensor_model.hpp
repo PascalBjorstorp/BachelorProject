@@ -65,6 +65,23 @@ public:
                                 int* d_counts,
                                 cudaStream_t stream = nullptr) const;
 
+    void refine_startup_particles(float* d_particles,
+                                  int n,
+                                  const float* d_ranges,
+                                  int num_ranges,
+                                  float angle_min,
+                                  float angle_inc,
+                                  int max_beams,
+                                  int iterations,
+                                  float max_match_distance_m,
+                                  float max_translation_m,
+                                  float max_yaw_rad,
+                                  float max_step_translation_m,
+                                  float max_step_yaw_rad,
+                                  float* d_scores,
+                                  int* d_counts,
+                                  cudaStream_t stream = nullptr) const;
+
     Config& config() { return cfg_; }
     const Config& config() const { return cfg_; }
 
@@ -122,5 +139,32 @@ void launch_apply_cluster_log_factors(const float* particles,
                                       float yaw_tolerance,
                                       float* out_log_factors,
                                       cudaStream_t stream);
+
+void launch_startup_scan_refinement(float* particles,
+                                    int n,
+                                    const float* ranges,
+                                    int num_ranges,
+                                    int max_beams,
+                                    float angle_min,
+                                    float angle_inc,
+                                    float laser_max_range,
+                                    float laser_offset_x,
+                                    float laser_offset_y,
+                                    const float* distance_field,
+                                    const int8_t* occupancy,
+                                    int map_w,
+                                    int map_h,
+                                    float map_res,
+                                    float map_ox,
+                                    float map_oy,
+                                    int iterations,
+                                    float max_match_distance_m,
+                                    float max_translation_m,
+                                    float max_yaw_rad,
+                                    float max_step_translation_m,
+                                    float max_step_yaw_rad,
+                                    float* out_scores,
+                                    int* out_counts,
+                                    cudaStream_t stream);
 
 }  // namespace gpu_amcl_cpp

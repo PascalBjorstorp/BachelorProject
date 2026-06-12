@@ -404,4 +404,391 @@ void launch_apply_cluster_log_factors(const float* particles,
     CUDA_CHECK(cudaGetLastError());
 }
 
+__device__ __forceinline__
+bool sample_distance_field_device(const float* __restrict__ dist_field,
+                                  int map_w,
+                                  int map_h,
+                                  float map_res,
+                                  float map_ox,
+                                  float map_oy,
+                                  float wx,
+                                  float wy,
+                                  float* dist_out) {
+    const float fx = (wx - map_ox) / map_res - 0.5f;
+    const float fy = (wy - map_oy) / map_res - 0.5f;
+    const int x0 = __float2int_rd(fx);
+    const int y0 = __float2int_rd(fy);
+    const int x1 = x0 + 1;
+    const int y1 = y0 + 1;
+    if (x0 < 0 || y0 < 0 || x1 >= map_w || y1 >= map_h) {
+        return false;
+    }
+
+    const float sx = fx - static_cast<float>(x0);
+    const float sy = fy - static_cast<float>(y0);
+    const float d00 = __ldg(&dist_field[y0 * map_w + x0]);
+    const float d10 = __ldg(&dist_field[y0 * map_w + x1]);
+    const float d01 = __ldg(&dist_field[y1 * map_w + x0]);
+    const float d11 = __ldg(&dist_field[y1 * map_w + x1]);
+    const float d0 = d00 + sx * (d10 - d00);
+    const float d1 = d01 + sx * (d11 - d01);
+    const float dist = d0 + sy * (d1 - d0);
+    if (!isfinite(dist)) {
+        return false;
+    }
+    *dist_out = dist;
+    return true;
+}
+
+__device__ __forceinline__
+bool sample_distance_gradient_device(const float* __restrict__ dist_field,
+                                     int map_w,
+                                     int map_h,
+                                     float map_res,
+                                     float map_ox,
+                                     float map_oy,
+                                     float wx,
+                                     float wy,
+                                     float* dist_out,
+                                     float* gx_out,
+                                     float* gy_out) {
+    float dist = 0.0f;
+    float dxp = 0.0f;
+    float dxm = 0.0f;
+    float dyp = 0.0f;
+    float dym = 0.0f;
+    const float h = fmaxf(0.01f, map_res);
+    if (!sample_distance_field_device(dist_field, map_w, map_h, map_res, map_ox, map_oy, wx, wy, &dist) ||
+        !sample_distance_field_device(dist_field, map_w, map_h, map_res, map_ox, map_oy, wx + h, wy, &dxp) ||
+        !sample_distance_field_device(dist_field, map_w, map_h, map_res, map_ox, map_oy, wx - h, wy, &dxm) ||
+        !sample_distance_field_device(dist_field, map_w, map_h, map_res, map_ox, map_oy, wx, wy + h, &dyp) ||
+        !sample_distance_field_device(dist_field, map_w, map_h, map_res, map_ox, map_oy, wx, wy - h, &dym)) {
+        return false;
+    }
+
+    *dist_out = dist;
+    *gx_out = (dxp - dxm) / (2.0f * h);
+    *gy_out = (dyp - dym) / (2.0f * h);
+    return isfinite(*gx_out) && isfinite(*gy_out);
+}
+
+__device__ __forceinline__
+bool solve_3x3_device(const float in_h[9], const float in_b[3], float x[3]) {
+    float a[3][4] = {
+        {in_h[0], in_h[1], in_h[2], -in_b[0]},
+        {in_h[3], in_h[4], in_h[5], -in_b[1]},
+        {in_h[6], in_h[7], in_h[8], -in_b[2]},
+    };
+
+    for (int col = 0; col < 3; ++col) {
+        int pivot = col;
+        float best = fabsf(a[col][col]);
+        for (int row = col + 1; row < 3; ++row) {
+            const float v = fabsf(a[row][col]);
+            if (v > best) {
+                best = v;
+                pivot = row;
+            }
+        }
+        if (best < 1.0e-9f) {
+            return false;
+        }
+        if (pivot != col) {
+            for (int k = col; k < 4; ++k) {
+                const float tmp = a[col][k];
+                a[col][k] = a[pivot][k];
+                a[pivot][k] = tmp;
+            }
+        }
+
+        const float inv = 1.0f / a[col][col];
+        for (int k = col; k < 4; ++k) {
+            a[col][k] *= inv;
+        }
+        for (int row = 0; row < 3; ++row) {
+            if (row == col) continue;
+            const float factor = a[row][col];
+            for (int k = col; k < 4; ++k) {
+                a[row][k] -= factor * a[col][k];
+            }
+        }
+    }
+
+    x[0] = a[0][3];
+    x[1] = a[1][3];
+    x[2] = a[2][3];
+    return isfinite(x[0]) && isfinite(x[1]) && isfinite(x[2]);
+}
+
+__device__
+float evaluate_refined_pose_device(float x,
+                                   float y,
+                                   float theta,
+                                   const float* __restrict__ ranges,
+                                   int num_ranges,
+                                   int beam_step,
+                                   float angle_min,
+                                   float angle_inc,
+                                   float laser_max,
+                                   float laser_ox,
+                                   float laser_oy,
+                                   const float* __restrict__ dist_field,
+                                   int map_w,
+                                   int map_h,
+                                   float map_res,
+                                   float map_ox,
+                                   float map_oy,
+                                   float max_match_distance,
+                                   int* count_out) {
+    const float ct = cosf(theta);
+    const float st = sinf(theta);
+    const float lx = x + laser_ox * ct - laser_oy * st;
+    const float ly = y + laser_ox * st + laser_oy * ct;
+    float sum = 0.0f;
+    int count = 0;
+
+    for (int b = 0; b < num_ranges; b += beam_step) {
+        const float r = ranges[b];
+        if (!isfinite(r) || r < 0.1f || r > laser_max) {
+            continue;
+        }
+        const float beam_angle = angle_min + static_cast<float>(b) * angle_inc;
+        const float world_angle = theta + beam_angle;
+        const float ex = lx + r * cosf(world_angle);
+        const float ey = ly + r * sinf(world_angle);
+        float dist = 0.0f;
+        if (!sample_distance_field_device(
+                dist_field, map_w, map_h, map_res, map_ox, map_oy, ex, ey, &dist) ||
+            dist > max_match_distance) {
+            continue;
+        }
+        sum += dist;
+        ++count;
+    }
+
+    *count_out = count;
+    if (count <= 0) {
+        return CUDART_INF_F;
+    }
+    return sum / static_cast<float>(count);
+}
+
+__global__
+void kernel_startup_scan_refinement(float* __restrict__ particles,
+                                    int n,
+                                    const float* __restrict__ ranges,
+                                    int num_ranges,
+                                    int beam_step,
+                                    float angle_min,
+                                    float angle_inc,
+                                    float laser_max,
+                                    float laser_ox,
+                                    float laser_oy,
+                                    const float* __restrict__ dist_field,
+                                    const int8_t* __restrict__ occupancy,
+                                    int map_w,
+                                    int map_h,
+                                    float map_res,
+                                    float map_ox,
+                                    float map_oy,
+                                    int iterations,
+                                    float max_match_distance,
+                                    float max_translation,
+                                    float max_yaw,
+                                    float max_step_translation,
+                                    float max_step_yaw,
+                                    float* __restrict__ out_scores,
+                                    int* __restrict__ out_counts) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    const float ox = particles[i * 3 + 0];
+    const float oy = particles[i * 3 + 1];
+    const float oth = particles[i * 3 + 2];
+    float x = ox;
+    float y = oy;
+    float theta = oth;
+
+    for (int iter = 0; iter < iterations; ++iter) {
+        float h[9] = {
+            1.0e-4f, 0.0f, 0.0f,
+            0.0f, 1.0e-4f, 0.0f,
+            0.0f, 0.0f, 1.0e-4f,
+        };
+        float bvec[3] = {0.0f, 0.0f, 0.0f};
+        int valid = 0;
+
+        const float ct = cosf(theta);
+        const float st = sinf(theta);
+        const float lx = x + laser_ox * ct - laser_oy * st;
+        const float ly = y + laser_ox * st + laser_oy * ct;
+        const float dlx_dt = -laser_ox * st - laser_oy * ct;
+        const float dly_dt = laser_ox * ct - laser_oy * st;
+
+        for (int beam = 0; beam < num_ranges; beam += beam_step) {
+            const float r = ranges[beam];
+            if (!isfinite(r) || r < 0.1f || r > laser_max) {
+                continue;
+            }
+            const float beam_angle = angle_min + static_cast<float>(beam) * angle_inc;
+            const float world_angle = theta + beam_angle;
+            const float ca = cosf(world_angle);
+            const float sa = sinf(world_angle);
+            const float ex = lx + r * ca;
+            const float ey = ly + r * sa;
+
+            float dist = 0.0f;
+            float gx = 0.0f;
+            float gy = 0.0f;
+            if (!sample_distance_gradient_device(
+                    dist_field, map_w, map_h, map_res, map_ox, map_oy,
+                    ex, ey, &dist, &gx, &gy) ||
+                dist > max_match_distance) {
+                continue;
+            }
+
+            const float dex_dt = dlx_dt - r * sa;
+            const float dey_dt = dly_dt + r * ca;
+            const float j0 = gx;
+            const float j1 = gy;
+            const float j2 = gx * dex_dt + gy * dey_dt;
+
+            h[0] += j0 * j0;
+            h[1] += j0 * j1;
+            h[2] += j0 * j2;
+            h[4] += j1 * j1;
+            h[5] += j1 * j2;
+            h[8] += j2 * j2;
+            bvec[0] += j0 * dist;
+            bvec[1] += j1 * dist;
+            bvec[2] += j2 * dist;
+            ++valid;
+        }
+
+        if (valid < 12) {
+            break;
+        }
+        h[3] = h[1];
+        h[6] = h[2];
+        h[7] = h[5];
+
+        float step[3] = {0.0f, 0.0f, 0.0f};
+        if (!solve_3x3_device(h, bvec, step)) {
+            break;
+        }
+
+        float step_norm = hypotf(step[0], step[1]);
+        if (step_norm > max_step_translation && step_norm > 1.0e-6f) {
+            const float scale = max_step_translation / step_norm;
+            step[0] *= scale;
+            step[1] *= scale;
+        }
+        step[2] = fminf(fmaxf(step[2], -max_step_yaw), max_step_yaw);
+
+        x += step[0];
+        y += step[1];
+        theta = atan2f(sinf(theta + step[2]), cosf(theta + step[2]));
+
+        const float total_translation = hypotf(x - ox, y - oy);
+        if (total_translation > max_translation && total_translation > 1.0e-6f) {
+            const float scale = max_translation / total_translation;
+            x = ox + (x - ox) * scale;
+            y = oy + (y - oy) * scale;
+        }
+        const float total_yaw = angle_diff_rad(theta, oth);
+        if (fabsf(total_yaw) > max_yaw) {
+            theta = atan2f(
+                sinf(oth + copysignf(max_yaw, total_yaw)),
+                cosf(oth + copysignf(max_yaw, total_yaw)));
+        }
+    }
+
+    const int mx = __float2int_rd((x - map_ox) / map_res);
+    const int my = __float2int_rd((y - map_oy) / map_res);
+    if (mx < 0 || mx >= map_w || my < 0 || my >= map_h ||
+        occupancy[my * map_w + mx] != 0) {
+        out_scores[i] = -CUDART_INF_F;
+        out_counts[i] = 0;
+        return;
+    }
+
+    int count = 0;
+    const float mean_dist = evaluate_refined_pose_device(
+        x, y, theta, ranges, num_ranges, beam_step, angle_min, angle_inc,
+        laser_max, laser_ox, laser_oy, dist_field, map_w, map_h,
+        map_res, map_ox, map_oy, max_match_distance, &count);
+    if (count <= 0 || !isfinite(mean_dist)) {
+        out_scores[i] = -CUDART_INF_F;
+        out_counts[i] = 0;
+        return;
+    }
+
+    particles[i * 3 + 0] = x;
+    particles[i * 3 + 1] = y;
+    particles[i * 3 + 2] = theta;
+    out_scores[i] = -mean_dist;
+    out_counts[i] = count;
+}
+
+void launch_startup_scan_refinement(float* particles,
+                                    int n,
+                                    const float* ranges,
+                                    int num_ranges,
+                                    int max_beams,
+                                    float angle_min,
+                                    float angle_inc,
+                                    float laser_max_range,
+                                    float laser_offset_x,
+                                    float laser_offset_y,
+                                    const float* distance_field,
+                                    const int8_t* occupancy,
+                                    int map_w,
+                                    int map_h,
+                                    float map_res,
+                                    float map_ox,
+                                    float map_oy,
+                                    int iterations,
+                                    float max_match_distance_m,
+                                    float max_translation_m,
+                                    float max_yaw_rad,
+                                    float max_step_translation_m,
+                                    float max_step_yaw_rad,
+                                    float* out_scores,
+                                    int* out_counts,
+                                    cudaStream_t stream) {
+    if (n <= 0 || num_ranges <= 0 || max_beams <= 0) return;
+    CUDA_CHECK(cudaMemsetAsync(out_scores, 0, n * sizeof(float), stream));
+    CUDA_CHECK(cudaMemsetAsync(out_counts, 0, n * sizeof(int), stream));
+
+    const int beam_step = max(1, num_ranges / max_beams);
+    const auto launch = make_adaptive_launch_config(n);
+    kernel_startup_scan_refinement<<<launch.grid, launch.block, 0, stream>>>(
+        particles,
+        n,
+        ranges,
+        num_ranges,
+        beam_step,
+        angle_min,
+        angle_inc,
+        laser_max_range,
+        laser_offset_x,
+        laser_offset_y,
+        distance_field,
+        occupancy,
+        map_w,
+        map_h,
+        map_res,
+        map_ox,
+        map_oy,
+        iterations,
+        max_match_distance_m,
+        max_translation_m,
+        max_yaw_rad,
+        max_step_translation_m,
+        max_step_yaw_rad,
+        out_scores,
+        out_counts);
+    CUDA_CHECK(cudaGetLastError());
+}
+
 }  // namespace gpu_amcl_cpp

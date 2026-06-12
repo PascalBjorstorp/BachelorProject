@@ -942,6 +942,106 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
     return true;
 }
 
+bool ParticleFilter::refine_startup_with_scan(
+    const float* ranges,
+    int num_ranges,
+    float angle_min,
+    float angle_inc,
+    StartupScanRefinementDiagnostics* diag) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    StartupScanRefinementDiagnostics local_diag;
+
+    if (!cfg_.enable_startup_scan_refinement ||
+        !cfg_.global_initialization ||
+        n_ <= 0 ||
+        num_ranges <= 0 ||
+        ranges == nullptr ||
+        map_ == nullptr ||
+        !map_->is_loaded()) {
+        if (diag != nullptr) {
+            *diag = local_diag;
+        }
+        return false;
+    }
+    if (num_ranges > max_ranges_) {
+        if (diag != nullptr) {
+            *diag = local_diag;
+        }
+        return false;
+    }
+
+    memcpy(h_ranges_pinned_, ranges, static_cast<size_t>(num_ranges) * sizeof(float));
+    CUDA_CHECK(cudaMemcpyAsync(
+        d_ranges_.ptr(), h_ranges_pinned_,
+        static_cast<size_t>(num_ranges) * sizeof(float),
+        cudaMemcpyHostToDevice, stream_.get()));
+
+    if (d_startup_refinement_scores_.count() < static_cast<size_t>(n_)) {
+        d_startup_refinement_scores_.allocate(static_cast<size_t>(n_));
+    }
+    if (d_startup_refinement_counts_.count() < static_cast<size_t>(n_)) {
+        d_startup_refinement_counts_.allocate(static_cast<size_t>(n_));
+    }
+
+    const int max_beams = std::clamp(
+        cfg_.startup_scan_refinement_max_beams, 1, num_ranges);
+    const int iterations = std::clamp(
+        cfg_.startup_scan_refinement_iterations, 1, 30);
+
+    sensor_.refine_startup_particles(
+        d_active_particles_,
+        n_,
+        d_ranges_.ptr(),
+        num_ranges,
+        angle_min,
+        angle_inc,
+        max_beams,
+        iterations,
+        static_cast<float>(std::max(0.02, cfg_.startup_scan_refinement_max_match_distance_m)),
+        static_cast<float>(std::max(0.0, cfg_.startup_scan_refinement_max_translation_m)),
+        static_cast<float>(std::max(0.0, cfg_.startup_scan_refinement_max_yaw_rad)),
+        static_cast<float>(std::max(0.001, cfg_.startup_scan_refinement_max_step_translation_m)),
+        static_cast<float>(std::max(0.001, cfg_.startup_scan_refinement_max_step_yaw_rad)),
+        d_startup_refinement_scores_.ptr(),
+        d_startup_refinement_counts_.ptr(),
+        stream_.get());
+
+    std::vector<float> h_scores(static_cast<size_t>(n_), 0.0f);
+    std::vector<int> h_counts(static_cast<size_t>(n_), 0);
+    CUDA_CHECK(cudaMemcpyAsync(
+        h_scores.data(), d_startup_refinement_scores_.ptr(),
+        static_cast<size_t>(n_) * sizeof(float),
+        cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(
+        h_counts.data(), d_startup_refinement_counts_.ptr(),
+        static_cast<size_t>(n_) * sizeof(int),
+        cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    local_diag.beams = max_beams;
+    local_diag.best_score = -std::numeric_limits<double>::infinity();
+    for (int i = 0; i < n_; ++i) {
+        const int count = h_counts[static_cast<size_t>(i)];
+        const float score = h_scores[static_cast<size_t>(i)];
+        if (count <= 0 || !std::isfinite(score)) {
+            continue;
+        }
+        ++local_diag.accepted;
+        if (static_cast<double>(score) > local_diag.best_score) {
+            local_diag.best_score = static_cast<double>(score);
+            local_diag.best_mean_distance_m = -static_cast<double>(score);
+        }
+    }
+    local_diag.success = local_diag.accepted > 0;
+    local_diag.elapsed_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::high_resolution_clock::now() - start).count();
+
+    if (diag != nullptr) {
+        *diag = local_diag;
+    }
+    return local_diag.success;
+}
+
 void ParticleFilter::resample_if_needed() {
     const auto start = std::chrono::high_resolution_clock::now();
     check_resample();

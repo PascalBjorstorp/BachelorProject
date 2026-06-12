@@ -118,6 +118,14 @@ gpu_amcl_cpp:
     raycast_verification_beta: 0.30       # cluster log-weight penalty scale
     raycast_verification_min_factor: 0.20 # worst verified cluster keeps at least 20% relative weight
     raycast_verification_step_m: 0.05     # ray marching step; map-resolution scale
+    enable_startup_scan_refinement: true  # one-shot GPU scan-match refine before first global-init resample
+    startup_scan_refinement_max_beams: 90
+    startup_scan_refinement_iterations: 8
+    startup_scan_refinement_max_match_distance_m: 0.60
+    startup_scan_refinement_max_translation_m: 0.50
+    startup_scan_refinement_max_yaw_rad: 0.52
+    startup_scan_refinement_max_step_translation_m: 0.08
+    startup_scan_refinement_max_step_yaw_rad: 0.06
 
     # Reject one-frame global pose jumps from false injected modes.
     pose_jump_gate_enabled: true
