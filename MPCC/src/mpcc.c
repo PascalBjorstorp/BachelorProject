@@ -108,6 +108,8 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.vx_ref = MPCC_DEFAULT_VX_REF;
     cfg.use_raceline_vx_ref = MPCC_DEFAULT_USE_RACELINE_VX_REF;
     cfg.use_raceline_vx_limit = MPCC_DEFAULT_USE_RACELINE_VX_LIMIT;
+    cfg.use_global_vx_limit = MPCC_DEFAULT_USE_GLOBAL_VX_LIMIT;
+    cfg.use_curvature_vx_limit = MPCC_DEFAULT_USE_CURVATURE_VX_LIMIT;
     cfg.raceline_vx_limit_scale = MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE;
     cfg.weight_vy = MPCC_DEFAULT_WEIGHT_VY;
     cfg.weight_omega = MPCC_DEFAULT_WEIGHT_OMEGA;

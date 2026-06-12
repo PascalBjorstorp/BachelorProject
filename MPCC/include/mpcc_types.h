@@ -398,6 +398,15 @@ typedef struct
      *  Set to 0 to avoid treating the CSV speed profile as a hard authority. */
     uint8_t use_raceline_vx_limit;
 
+    /** Apply the global vx_max as a hard QP velocity cap.
+     *  Set to 0 to let speed be limited by dynamics, track constraints and
+     *  friction-related constraints instead of a global velocity ceiling. */
+    uint8_t use_global_vx_limit;
+
+    /** Apply the forward-looking curvature-based vx limiter.
+     *  Set to 0 to avoid pre-capping speed from centerline curvature. */
+    uint8_t use_curvature_vx_limit;
+
     /** Multiplier applied to trajectory-file vx_ref when the limiter above is
      *  enabled. Values >1 allow exceeding the CSV speed profile. */
     float raceline_vx_limit_scale;
@@ -695,6 +704,8 @@ typedef struct
 #define MPCC_DEFAULT_VX_REF           (0.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_REF   0                         /** Use per-waypoint CSV vx as target. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
+#define MPCC_DEFAULT_USE_GLOBAL_VX_LIMIT   0                         /** Use global vx_max as hard QP cap. */
+#define MPCC_DEFAULT_USE_CURVATURE_VX_LIMIT 0                        /** Use curvature-based forward-looking vx cap. */
 #define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (0.85f)                 /** CSV vx cap multiplier. */
 #define MPCC_DEFAULT_WEIGHT_VY        (0.0f)                         /** Lateral velocity tracking weight. */
 #define MPCC_DEFAULT_WEIGHT_OMEGA     (1.0f)                         /** Yaw rate tracking weight. */
