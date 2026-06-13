@@ -75,20 +75,20 @@ void PurePursuitNode::declareParameters() {
     declare_parameter("trajectory_file", "");
     
     // Lookahead - sweep-optimized defaults
-    declare_parameter("min_lookahead", 0.48);
-    declare_parameter("max_lookahead", 1.20);
-    declare_parameter("lookahead_gain", 0.15);
-    declare_parameter("max_speed", 5.5);
+    declare_parameter("min_lookahead", 0.37634354);
+    declare_parameter("max_lookahead", 1.0562852);
+    declare_parameter("lookahead_gain", 0.062011484);
+    declare_parameter("max_speed", 9.0168122);
     declare_parameter("cte_lookahead_weight", 1.0);
-    declare_parameter("cte_lookahead_gain", 0.05);
-    declare_parameter("curvature_lookahead_gain", 1.34);
-    declare_parameter("curvature_speed_factor", 0.10);
-    declare_parameter("curvature_speed_floor_ratio", 0.43);
-    declare_parameter("cte_speed_factor", 0.10);
-    declare_parameter("cte_speed_floor_ratio", 0.50);
+    declare_parameter("cte_lookahead_gain", 0.041540516);
+    declare_parameter("curvature_lookahead_gain", 1.9003721);
+    declare_parameter("curvature_speed_factor", 0.1015252);
+    declare_parameter("curvature_speed_floor_ratio", 0.52401066);
+    declare_parameter("cte_speed_factor", 0.53756776);
+    declare_parameter("cte_speed_floor_ratio", 0.7826799);
     declare_parameter("max_lateral_accel", 7.27);
     declare_parameter("min_regulated_speed", 0.30);
-    declare_parameter("curvature_preview_factor", 1.2);
+    declare_parameter("curvature_preview_factor", 1.6245233);
     
     // Corridor-aware width regulation
     declare_parameter("vehicle_half_width", 0.1365);

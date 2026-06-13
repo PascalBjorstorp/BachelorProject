@@ -45,7 +45,7 @@ using f1tenth_control::VehicleState;
 constexpr double kSimDtDefault = 0.005;
 constexpr double kControlDtDefault = 0.005;
 constexpr double kSimDurationDefault = 100.0;
-constexpr double kSpeedTimeConstantDefault = 0.30;
+constexpr double kSpeedTimeConstantDefault = 0.17180616;
 
 constexpr double kMaxSteering = 0.4189;
 constexpr double kMaxVelocity = 20.0;
@@ -440,18 +440,18 @@ PurePursuitConfig loadControllerConfig(double body_safety_margin) {
     PurePursuitConfig cfg;
 
     // Defaults are tuned launch-like values from this repository.
-    cfg.min_lookahead = getEnvDouble("PP_MIN_LOOKAHEAD", 0.35);
-    cfg.max_lookahead = getEnvDouble("PP_MAX_LOOKAHEAD", 1.20);
-    cfg.lookahead_gain = getEnvDouble("PP_LOOKAHEAD_GAIN", 0.10);
+    cfg.min_lookahead = getEnvDouble("PP_MIN_LOOKAHEAD", 0.37634354);
+    cfg.max_lookahead = getEnvDouble("PP_MAX_LOOKAHEAD", 1.0562852);
+    cfg.lookahead_gain = getEnvDouble("PP_LOOKAHEAD_GAIN", 0.062011484);
     cfg.cte_lookahead_weight = getEnvDouble("PP_CTE_LOOKAHEAD_WEIGHT", 1.0);
-    cfg.cte_lookahead_gain = getEnvDouble("PP_CTE_LOOKAHEAD_GAIN", 0.08);
-    cfg.curvature_lookahead_gain = getEnvDouble("PP_CURV_LOOKAHEAD_GAIN", 1.34);
+    cfg.cte_lookahead_gain = getEnvDouble("PP_CTE_LOOKAHEAD_GAIN", 0.041540516);
+    cfg.curvature_lookahead_gain = getEnvDouble("PP_CURV_LOOKAHEAD_GAIN", 1.9003721);
 
-    cfg.curvature_speed_factor = getEnvDouble("PP_CURV_SPEED_FACTOR", 0.30);
-    cfg.curvature_speed_floor_ratio = getEnvDouble("PP_CURV_SPEED_FLOOR", 0.43);
-    cfg.cte_speed_factor = getEnvDouble("PP_CTE_SPEED_FACTOR", 0.50);
-    cfg.cte_speed_floor_ratio = getEnvDouble("PP_CTE_SPEED_FLOOR", 0.50);
-    cfg.curvature_preview_factor = getEnvDouble("PP_CURV_PREVIEW_FACTOR", 1.2);
+    cfg.curvature_speed_factor = getEnvDouble("PP_CURV_SPEED_FACTOR", 0.1015252);
+    cfg.curvature_speed_floor_ratio = getEnvDouble("PP_CURV_SPEED_FLOOR", 0.52401066);
+    cfg.cte_speed_factor = getEnvDouble("PP_CTE_SPEED_FACTOR", 0.53756776);
+    cfg.cte_speed_floor_ratio = getEnvDouble("PP_CTE_SPEED_FLOOR", 0.7826799);
+    cfg.curvature_preview_factor = getEnvDouble("PP_CURV_PREVIEW_FACTOR", 1.6245233);
 
     cfg.max_lateral_accel = getEnvDouble("MAX_LAT_ACCEL", 7.27);
     cfg.min_regulated_speed = getEnvDouble("PP_MIN_REG_SPEED", 0.30);
@@ -503,7 +503,7 @@ SimConfig loadSimulationConfig() {
     const double seed_value = getEnvDouble("SIM_SEED", 42.0);
     cfg.sim_seed = static_cast<unsigned int>(std::max(0.0, seed_value));
 
-    cfg.max_speed_command = getEnvDouble("PP_MAX_SPEED", 12.0);
+    cfg.max_speed_command = getEnvDouble("PP_MAX_SPEED", 9.0168122);
     if (cfg.max_speed_command < 0.1) {
         cfg.max_speed_command = 0.1;
     }

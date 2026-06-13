@@ -32,21 +32,21 @@ namespace f1tenth_control {
  */
 struct PurePursuitConfig {
     // -- Lookahead shaping ---------------------------------------------------
-    double min_lookahead{0.47};                 // [m] Minimum lookahead distance.
-    double max_lookahead{1.20};                 // [m] Maximum lookahead distance.
-    double lookahead_gain{0.18};                // [m/s] Velocity-proportional lookahead gain.
+    double min_lookahead{0.37634354};           // [m] Minimum lookahead distance.
+    double max_lookahead{1.0562852};            // [m] Maximum lookahead distance.
+    double lookahead_gain{0.062011484};         // [m/s] Velocity-proportional lookahead gain.
     double cte_lookahead_weight{1.0};           // [unitless] Weight on |CTE| contribution.
-    double cte_lookahead_gain{0.022};            // [m/m] Reduce lookahead with cross-track error.
-    double curvature_lookahead_gain{1.07};      // [m*m] Turn-radius-based lookahead limit.
+    double cte_lookahead_gain{0.041540516};     // [m/m] Reduce lookahead with cross-track error.
+    double curvature_lookahead_gain{1.9003721}; // [m*m] Turn-radius-based lookahead limit.
     
     // -- Speed control ------------------------------------------------------
-    double curvature_speed_factor{0.10};        // [unitless] Curvature slowdown aggressiveness.
-    double curvature_speed_floor_ratio{0.2};   // [0..1] Minimum speed ratio after curvature slowdown.
-    double cte_speed_factor{0.19};              // [unitless] Slowdown gain based on |CTE|.
-    double cte_speed_floor_ratio{0.375};         // [0..1] Minimum speed ratio from CTE slowdown.
+    double curvature_speed_factor{0.1015252};   // [unitless] Curvature slowdown aggressiveness.
+    double curvature_speed_floor_ratio{0.52401066}; // [0..1] Minimum speed ratio after curvature slowdown.
+    double cte_speed_factor{0.53756776};        // [unitless] Slowdown gain based on |CTE|.
+    double cte_speed_floor_ratio{0.7826799};    // [0..1] Minimum speed ratio from CTE slowdown.
     double max_lateral_accel{7.27};             // [m/s^2] Physics-aware cornering speed cap.
     double min_regulated_speed{0.30};           // [m/s] Lower bound after speed regulation.
-    double curvature_preview_factor{1.2};       // [unitless] Preview multiple for curvature braking.
+    double curvature_preview_factor{1.6245233}; // [unitless] Preview multiple for curvature braking.
 
     // -- Footprint-aware corridor regulation --------------------------------
     double vehicle_half_width{0.1365};          // [m] Half of the vehicle width.
