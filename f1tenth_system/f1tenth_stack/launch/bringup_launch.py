@@ -13,7 +13,7 @@
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Mapping mode (270 beams @ 20 Hz, no scan splitter or lateral planner):
+#   Mapping mode (front 180 deg, no scan splitter or lateral planner):
 #     ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 #
 #   Teleop only (no LiDAR):
@@ -69,7 +69,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
         DeclareLaunchArgument('mapping_mode', default_value='false',
-                              description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
+                              description='Mapping mode: front 180 deg, no scan splitter or lateral planner'),
         DeclareLaunchArgument('trajectory_file', default_value='__from_yaml__',
                       description='Optional override for lateral planner trajectory_file (default: YAML value)'),
         DeclareLaunchArgument('map_file', default_value=default_map,
@@ -221,14 +221,22 @@ def generate_launch_description():
         ])),
     ))
 
-    # Mapping mode: 540 beams @ 40 Hz (cluster=2, skip=0)
+    # Mapping mode: front 180 deg only (±90 deg), cluster=2, skip=0.
     # This reduces SLAM load while retaining enough wall detail for track mapping.
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'skip': 0, 'cluster': 2}],
+        parameters=[
+            hokuyo_config,
+            {
+                'skip': 0,
+                'cluster': 2,
+                'angle_min': -1.57079632679,
+                'angle_max':  1.57079632679,
+            },
+        ],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),

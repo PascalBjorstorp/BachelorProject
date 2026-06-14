@@ -201,10 +201,10 @@ void HokuyoScipDriver::parse_sensor_params(const std::string & response)
 
     if (line.rfind("AMIN:", 0) == 0) {
       int v = value_of("AMIN:");
-      if (v >= 0) step_min_ = v;
+      if (v >= 0) sensor_step_min_ = v;
     } else if (line.rfind("AMAX:", 0) == 0) {
       int v = value_of("AMAX:");
-      if (v >= 0) step_max_ = v;
+      if (v >= 0) sensor_step_max_ = v;
     } else if (line.rfind("ARES:", 0) == 0) {
       int v = value_of("ARES:");
       if (v > 0) angular_resolution_ = (2.0 * M_PI) / v;
@@ -214,10 +214,44 @@ void HokuyoScipDriver::parse_sensor_params(const std::string & response)
     }
   }
 
-  int num_steps = step_max_ - step_min_;
+  apply_angle_limits();
+
+  int num_steps = sensor_step_max_ - sensor_step_min_;
   RCLCPP_INFO(get_logger(),
     "  Sensor: steps %d–%d (%d points), scan time %.1f ms",
-    step_min_, step_max_, num_steps, scan_time_ * 1000.0);
+    sensor_step_min_, sensor_step_max_, num_steps, scan_time_ * 1000.0);
+  RCLCPP_INFO(get_logger(),
+    "  Requested scan: steps %d–%d, angles %.1f to %.1f deg",
+    step_min_, step_max_,
+    scan_angle_min_ * 180.0 / M_PI,
+    scan_angle_max_ * 180.0 / M_PI);
+}
+
+void HokuyoScipDriver::apply_angle_limits()
+{
+  const double min_angle = std::min(angle_min_, angle_max_);
+  const double max_angle = std::max(angle_min_, angle_max_);
+  const double center_step =
+    0.5 * (static_cast<double>(sensor_step_min_) + static_cast<double>(sensor_step_max_));
+
+  int requested_min = static_cast<int>(std::lround(center_step + min_angle / angular_resolution_));
+  int requested_max = static_cast<int>(std::lround(center_step + max_angle / angular_resolution_));
+
+  requested_min = std::clamp(requested_min, sensor_step_min_, sensor_step_max_);
+  requested_max = std::clamp(requested_max, sensor_step_min_, sensor_step_max_);
+
+  if (requested_max <= requested_min) {
+    RCLCPP_WARN(get_logger(),
+      "Invalid angle limits %.3f..%.3f rad; using full sensor FOV",
+      angle_min_, angle_max_);
+    requested_min = sensor_step_min_;
+    requested_max = sensor_step_max_;
+  }
+
+  step_min_ = requested_min;
+  step_max_ = requested_max;
+  scan_angle_min_ = (static_cast<double>(step_min_) - center_step) * angular_resolution_;
+  scan_angle_max_ = (static_cast<double>(step_max_) - center_step) * angular_resolution_;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -378,10 +412,9 @@ void HokuyoScipDriver::process_md_response(
 
   const int    num_points           = static_cast<int>(distances_mm.size());
   const double effective_resolution = angular_resolution_ * cluster_;
-  const double half_steps           = static_cast<double>(step_max_ - step_min_) / 2.0;
 
-  scan.angle_min       = static_cast<float>(-half_steps * angular_resolution_);
-  scan.angle_max       = static_cast<float>( half_steps * angular_resolution_);
+  scan.angle_min       = static_cast<float>(scan_angle_min_);
+  scan.angle_max       = static_cast<float>(scan_angle_max_);
   scan.angle_increment = static_cast<float>(effective_resolution);
   scan.time_increment  = static_cast<float>(scan_time_ / num_points);
   scan.scan_time       = static_cast<float>(scan_time_);

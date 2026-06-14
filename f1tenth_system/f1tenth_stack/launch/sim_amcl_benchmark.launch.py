@@ -455,6 +455,57 @@ def _launch_setup(context, *args, **kwargs):
             'kld_bin_theta': _float_config('amcl_kld_bin_theta'),
             'enable_recovery_injection': _bool_config('amcl_enable_recovery_injection'),
             'recovery_injection_ratio': _float_config('amcl_recovery_injection_ratio'),
+            'enable_local_roughening': _bool_config('amcl_enable_local_roughening'),
+            'local_roughening_ratio': _float_config('amcl_local_roughening_ratio'),
+            'local_roughening_xy_std_m': _float_config('amcl_local_roughening_xy_std_m'),
+            'local_roughening_yaw_std_rad': _float_config('amcl_local_roughening_yaw_std_rad'),
+            'local_roughening_bad_log_weight_per_beam': _float_config(
+                'amcl_local_roughening_bad_log_weight_per_beam'),
+            'local_roughening_max_cloud_std_m': _float_config(
+                'amcl_local_roughening_max_cloud_std_m'),
+            'enable_raycast_verification': _bool_config('amcl_enable_raycast_verification'),
+            'raycast_verification_global_only': _bool_config(
+                'amcl_raycast_verification_global_only'),
+            'raycast_verification_max_clusters': _int_config(
+                'amcl_raycast_verification_max_clusters'),
+            'raycast_verification_particles_per_cluster': _int_config(
+                'amcl_raycast_verification_particles_per_cluster'),
+            'raycast_verification_top_particles': _int_config(
+                'amcl_raycast_verification_top_particles'),
+            'raycast_verification_max_beams': _int_config(
+                'amcl_raycast_verification_max_beams'),
+            'raycast_verification_cluster_radius_m': _float_config(
+                'amcl_raycast_verification_cluster_radius_m'),
+            'raycast_verification_yaw_tolerance_rad': _float_config(
+                'amcl_raycast_verification_yaw_tolerance_rad'),
+            'raycast_verification_beta': _float_config('amcl_raycast_verification_beta'),
+            'raycast_verification_min_factor': _float_config(
+                'amcl_raycast_verification_min_factor'),
+            'raycast_verification_step_m': _float_config('amcl_raycast_verification_step_m'),
+            'enable_startup_scan_refinement': _bool_config(
+                'amcl_enable_startup_scan_refinement'),
+            'startup_scan_refinement_max_beams': _int_config(
+                'amcl_startup_scan_refinement_max_beams'),
+            'startup_scan_refinement_iterations': _int_config(
+                'amcl_startup_scan_refinement_iterations'),
+            'startup_scan_refinement_max_match_distance_m': _float_config(
+                'amcl_startup_scan_refinement_max_match_distance_m'),
+            'startup_scan_refinement_max_translation_m': _float_config(
+                'amcl_startup_scan_refinement_max_translation_m'),
+            'startup_scan_refinement_max_yaw_rad': _float_config(
+                'amcl_startup_scan_refinement_max_yaw_rad'),
+            'startup_scan_refinement_max_step_translation_m': _float_config(
+                'amcl_startup_scan_refinement_max_step_translation_m'),
+            'startup_scan_refinement_max_step_yaw_rad': _float_config(
+                'amcl_startup_scan_refinement_max_step_yaw_rad'),
+            'pose_jump_gate_enabled': _bool_config('amcl_pose_jump_gate_enabled'),
+            'pose_jump_max_distance_m': _float_config('amcl_pose_jump_max_distance_m'),
+            'pose_jump_max_yaw_rad': _float_config('amcl_pose_jump_max_yaw_rad'),
+            'pose_jump_confirm_scans': _int_config('amcl_pose_jump_confirm_scans'),
+            'pose_jump_confirm_distance_m': _float_config('amcl_pose_jump_confirm_distance_m'),
+            'pose_jump_confirm_yaw_rad': _float_config('amcl_pose_jump_confirm_yaw_rad'),
+            'force_max_particles_initial_sec': _float_config(
+                'amcl_force_max_particles_initial_sec'),
             'update_min_d': _float_config('amcl_update_min_d'),
             'update_min_a': _float_config('amcl_update_min_a'),
             'max_scan_age': _float_config('amcl_max_scan_age'),
@@ -733,6 +784,48 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_kld_bin_theta', default_value='0.1'),
         DeclareLaunchArgument('amcl_enable_recovery_injection', default_value='true'),
         DeclareLaunchArgument('amcl_recovery_injection_ratio', default_value='0.0'),
+        DeclareLaunchArgument('amcl_enable_local_roughening', default_value='false'),
+        DeclareLaunchArgument('amcl_local_roughening_ratio', default_value='0.25'),
+        DeclareLaunchArgument('amcl_local_roughening_xy_std_m', default_value='0.20'),
+        DeclareLaunchArgument('amcl_local_roughening_yaw_std_rad', default_value='0.0872664626'),
+        DeclareLaunchArgument('amcl_local_roughening_bad_log_weight_per_beam',
+                              default_value='-1.0'),
+        DeclareLaunchArgument('amcl_local_roughening_max_cloud_std_m',
+                              default_value='0.75'),
+        DeclareLaunchArgument('amcl_enable_raycast_verification', default_value='false'),
+        DeclareLaunchArgument('amcl_raycast_verification_global_only', default_value='false'),
+        DeclareLaunchArgument('amcl_raycast_verification_max_clusters', default_value='4'),
+        DeclareLaunchArgument('amcl_raycast_verification_particles_per_cluster',
+                              default_value='20'),
+        DeclareLaunchArgument('amcl_raycast_verification_top_particles', default_value='20'),
+        DeclareLaunchArgument('amcl_raycast_verification_max_beams', default_value='90'),
+        DeclareLaunchArgument('amcl_raycast_verification_cluster_radius_m',
+                              default_value='0.35'),
+        DeclareLaunchArgument('amcl_raycast_verification_yaw_tolerance_rad',
+                              default_value='0.5235987756'),
+        DeclareLaunchArgument('amcl_raycast_verification_beta', default_value='0.30'),
+        DeclareLaunchArgument('amcl_raycast_verification_min_factor', default_value='0.20'),
+        DeclareLaunchArgument('amcl_raycast_verification_step_m', default_value='0.05'),
+        DeclareLaunchArgument('amcl_enable_startup_scan_refinement', default_value='false'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_beams', default_value='90'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_iterations', default_value='20'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_match_distance_m',
+                              default_value='0.80'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_translation_m',
+                              default_value='0.70'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_yaw_rad',
+                              default_value='0.52'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_step_translation_m',
+                              default_value='0.08'),
+        DeclareLaunchArgument('amcl_startup_scan_refinement_max_step_yaw_rad',
+                              default_value='0.06'),
+        DeclareLaunchArgument('amcl_pose_jump_gate_enabled', default_value='false'),
+        DeclareLaunchArgument('amcl_pose_jump_max_distance_m', default_value='1.0'),
+        DeclareLaunchArgument('amcl_pose_jump_max_yaw_rad', default_value='1.2'),
+        DeclareLaunchArgument('amcl_pose_jump_confirm_scans', default_value='3'),
+        DeclareLaunchArgument('amcl_pose_jump_confirm_distance_m', default_value='0.75'),
+        DeclareLaunchArgument('amcl_pose_jump_confirm_yaw_rad', default_value='0.6'),
+        DeclareLaunchArgument('amcl_force_max_particles_initial_sec', default_value='0.0'),
         DeclareLaunchArgument('amcl_cloud_publish_rate', default_value='0.1'),
         DeclareLaunchArgument('amcl_normalize_likelihood_by_beams', default_value='true'),
         DeclareLaunchArgument('amcl_likelihood_scale', default_value='4.0'),
