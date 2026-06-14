@@ -126,6 +126,9 @@ def load_pipeline_csv(path: Path, skip_first_sec: float) -> List[Dict[str, float
             "gpu_to_cpu_weights_ms": float_field(raw, "gpu_to_cpu_weights_ms"),
             "cpu_gpu_transfer_total_ms": float_field(raw, "cpu_gpu_transfer_total_ms"),
             "amcl_cluster_weight": float_field(raw, "amcl_cluster_weight"),
+            "amcl_raycast_setup_ms": float_field(raw, "amcl_raycast_setup_ms"),
+            "amcl_raycast_score_ms": float_field(raw, "amcl_raycast_score_ms"),
+            "amcl_raycast_correction_ms": float_field(raw, "amcl_raycast_correction_ms"),
         })
     return rows
 
@@ -210,6 +213,9 @@ def summarize(condition: str,
             "gpu_to_cpu_weights_ms",
             "cpu_gpu_transfer_total_ms",
             "amcl_cluster_weight",
+            "amcl_raycast_setup_ms",
+            "amcl_raycast_score_ms",
+            "amcl_raycast_correction_ms",
         )
     }
     xy_errors = [r["amcl_error_xy_m"] for r in error_rows if math.isfinite(r["amcl_error_xy_m"])]

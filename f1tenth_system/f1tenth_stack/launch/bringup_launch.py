@@ -13,7 +13,7 @@
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Mapping mode (front 180 deg, no scan splitter or lateral planner):
+#   Mapping mode (right 110 deg, left 135 deg, no scan splitter or lateral planner):
 #     ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 #
 #   Teleop only (no LiDAR):
@@ -69,7 +69,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
         DeclareLaunchArgument('mapping_mode', default_value='false',
-                              description='Mapping mode: front 180 deg, no scan splitter or lateral planner'),
+                              description='Mapping mode: right 110 deg, left 135 deg, no scan splitter or lateral planner'),
         DeclareLaunchArgument('trajectory_file', default_value='__from_yaml__',
                       description='Optional override for lateral planner trajectory_file (default: YAML value)'),
         DeclareLaunchArgument('map_file', default_value=default_map,
@@ -221,7 +221,7 @@ def generate_launch_description():
         ])),
     ))
 
-    # Mapping mode: front 180 deg only (±90 deg), cluster=2, skip=0.
+    # Mapping mode: asymmetric front scan, right 110 deg and left full 135 deg.
     # This reduces SLAM load while retaining enough wall detail for track mapping.
     ld.add_action(Node(
         package='f1tenth_lidar',
@@ -233,8 +233,8 @@ def generate_launch_description():
             {
                 'skip': 0,
                 'cluster': 2,
-                'angle_min': -1.57079632679,
-                'angle_max':  1.57079632679,
+                'angle_min': -1.91986217719,
+                'angle_max':  2.35619449019,
             },
         ],
         condition=IfCondition(PythonExpression([

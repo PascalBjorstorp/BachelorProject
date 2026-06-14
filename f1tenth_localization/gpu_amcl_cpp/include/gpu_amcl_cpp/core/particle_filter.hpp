@@ -178,6 +178,9 @@ public:
         double update_weights_total_ms = std::numeric_limits<double>::quiet_NaN();
         double kld_target_ms = std::numeric_limits<double>::quiet_NaN();
         double resample_ms = std::numeric_limits<double>::quiet_NaN();
+        double raycast_setup_ms = std::numeric_limits<double>::quiet_NaN();
+        double raycast_score_ms = std::numeric_limits<double>::quiet_NaN();
+        double raycast_correction_ms = std::numeric_limits<double>::quiet_NaN();
     };
 
     struct StartupScanRefinementDiagnostics {
