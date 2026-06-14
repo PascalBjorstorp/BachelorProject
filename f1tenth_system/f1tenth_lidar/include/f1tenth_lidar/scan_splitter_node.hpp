@@ -82,6 +82,9 @@ private:
   double raycast_wall_hit_tolerance_{SCAN_SPLITTER_RAYCAST_WALL_HIT_TOLERANCE_M};
   double raycast_step_{SCAN_SPLITTER_RAYCAST_STEP_M};
   double raycast_max_range_{SCAN_SPLITTER_RAYCAST_MAX_RANGE_M};
+  bool   limit_obstacle_fov_{SCAN_SPLITTER_LIMIT_OBSTACLE_FOV};
+  double obstacle_angle_min_{SCAN_SPLITTER_OBSTACLE_ANGLE_MIN_RAD};
+  double obstacle_angle_max_{SCAN_SPLITTER_OBSTACLE_ANGLE_MAX_RAD};
   std::string scan_topic_{SCAN_SPLITTER_SCAN_TOPIC};
   std::string obstacles_topic_{SCAN_SPLITTER_OBSTACLES_TOPIC};
   std::string laser_frame_{SCAN_SPLITTER_LASER_FRAME};

@@ -136,6 +136,15 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "  Raycast splitting: %s", enable_raycast_splitting_ ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "  Occlusion threshold: %.2f m", occlusion_threshold_);
   RCLCPP_INFO(this->get_logger(), "  Raycast wall hit tolerance: %.2f m", raycast_wall_hit_tolerance_);
+  if (limit_obstacle_fov_) {
+    RCLCPP_INFO(
+      this->get_logger(),
+      "  Obstacle FOV: %.1f deg to %.1f deg",
+      obstacle_angle_min_ * 180.0 / M_PI,
+      obstacle_angle_max_ * 180.0 / M_PI);
+  } else {
+    RCLCPP_INFO(this->get_logger(), "  Obstacle FOV: full scan");
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -368,20 +377,31 @@ void ScanSplitterNode::scan_callback(
   const float corrected_x = laser_x;
   const float corrected_y = laser_y;
   const float corrected_yaw = laser_yaw;
+  const float obstacle_angle_min = static_cast<float>(
+    std::min(obstacle_angle_min_, obstacle_angle_max_));
+  const float obstacle_angle_max = static_cast<float>(
+    std::max(obstacle_angle_min_, obstacle_angle_max_));
 
   // ── Classify beams using TF pose only; no local scan-to-map correction ──
   for (size_t i = 0; i < n; ++i) {
     const float r = ranges[i];
+    const float beam_angle = angles_[i];
 
     // Default state for this beam.
     is_obstacle_[i] = false;
+
+    if (limit_obstacle_fov_ &&
+        (beam_angle < obstacle_angle_min || beam_angle > obstacle_angle_max))
+    {
+      continue;
+    }
 
     // Skip invalid beams
     if (!std::isfinite(r) || r <= range_min || r >= range_max) {
       continue;
     }
 
-    const float world_angle = angles_[i] + corrected_yaw;
+    const float world_angle = beam_angle + corrected_yaw;
     const float ex = corrected_x + r * std::cos(world_angle);
     const float ey = corrected_y + r * std::sin(world_angle);
     const float dist_to_wall = distance_to_wall(ex, ey);

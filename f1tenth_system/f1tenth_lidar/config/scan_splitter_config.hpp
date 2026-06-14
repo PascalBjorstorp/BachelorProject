@@ -22,6 +22,12 @@
 #define SCAN_SPLITTER_RAYCAST_STEP_M 0.0
 #define SCAN_SPLITTER_RAYCAST_MAX_RANGE_M 8.0
 
+// Obstacle output field of view for the lateral planner. The raw /scan remains
+// unchanged; only /scan_obstacles is masked outside this sector.
+#define SCAN_SPLITTER_LIMIT_OBSTACLE_FOV true
+#define SCAN_SPLITTER_OBSTACLE_ANGLE_MIN_RAD -1.57079632679
+#define SCAN_SPLITTER_OBSTACLE_ANGLE_MAX_RAD  1.57079632679
+
 #define SCAN_SPLITTER_SCAN_TOPIC "/scan"
 #define SCAN_SPLITTER_OBSTACLES_TOPIC "/scan_obstacles"
 
