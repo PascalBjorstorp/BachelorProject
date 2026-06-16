@@ -43,6 +43,7 @@ def generate_launch_description():
     use_ackermann_mux_arg = LaunchConfiguration('use_ackermann_mux')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
+    lidar_ip_address_arg = LaunchConfiguration('lidar_ip_address')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
     use_lateral_planner_arg = LaunchConfiguration('use_lateral_planner')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
@@ -114,6 +115,10 @@ def generate_launch_description():
         DeclareLaunchArgument(  'lidar_cluster',
                                 default_value='4',
                                 description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
+
+        DeclareLaunchArgument(  'lidar_ip_address',
+                                default_value='192.168.10.10',
+                                description='Hokuyo LiDAR IPv4 address'),
 
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='false',
@@ -405,7 +410,11 @@ def generate_launch_description():
                     executable='hokuyo_scip_driver_node',
                     name='hokuyo_scip_driver',
                     output='screen',
-                    parameters=[hokuyo_config, {'skip': 0, 'cluster': lidar_cluster_arg}],
+                    parameters=[hokuyo_config, {
+                        'ip_address': lidar_ip_address_arg,
+                        'skip': 0,
+                        'cluster': lidar_cluster_arg,
+                    }],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
                         mapping_mode_arg, "' != 'true'"
@@ -417,7 +426,11 @@ def generate_launch_description():
                     executable='hokuyo_scip_driver_node',
                     name='hokuyo_scip_driver',
                     output='screen',
-                    parameters=[hokuyo_config, {'skip': 0, 'cluster': 1}],
+                    parameters=[hokuyo_config, {
+                        'ip_address': lidar_ip_address_arg,
+                        'skip': 0,
+                        'cluster': 1,
+                    }],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
                         mapping_mode_arg, "' == 'true'"
