@@ -21,7 +21,7 @@ namespace f1tenth_lidar
  * MD command, bypassing urg_node's synchronous request/reply limitation.
  *
  * Parameters (loaded from config/hokuyo_ust10lx.yaml):
- *   ip_address      — sensor IP  (default "192.168.0.10")
+ *   ip_address      — sensor IP  (default "192.168.10.10")
  *   ip_port         — sensor TCP port (default 10940)
  *   laser_frame_id  — TF frame   (default "ego_racecar/laser")
  *   scan_topic      — publish topic (default "/scan")

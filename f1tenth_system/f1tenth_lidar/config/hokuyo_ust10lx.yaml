@@ -5,17 +5,17 @@
 #   - Angular range: 270 degrees (-135° to +135°)
 #   - Angular resolution: 0.25° (1080 steps)
 #   - Scan frequency: 40 Hz
-#   - Connection: Ethernet (default IP: 192.168.0.10)
+#   - Connection: Ethernet (default IP after reconfiguration: 192.168.10.10)
 #
 # Network Setup:
 #   1. Connect LiDAR to Jetson via Ethernet
 #   2. Configure Jetson's Ethernet interface:
-#      sudo ip addr add 192.168.0.15/24 dev eth0
+#      sudo ip addr add 192.168.10.15/24 dev eth0
 #   3. Test connectivity:
-#      ping 192.168.0.10
+#      ping 192.168.10.10
 #
 # Usage:
-#   ros2 launch f1tenth_localization hokuyo_lidar.launch.py
+#   ros2 launch f1tenth_lidar hokuyo_lidar.launch.py
 
 # =============================================================================
 # Shared Hokuyo UST-10LX parameters
@@ -31,7 +31,7 @@
 hokuyo_scip_driver:
   ros__parameters:
     # Connection
-    ip_address: "192.168.0.10"
+    ip_address: "192.168.10.10"
     ip_port: 10940
 
     # Frame and topic
@@ -58,7 +58,7 @@ hokuyo_scip_driver:
 urg_node:
   ros__parameters:
     # Connection
-    ip_address: "192.168.0.10"
+    ip_address: "192.168.10.10"
     ip_port: 10940
 
     # Frame

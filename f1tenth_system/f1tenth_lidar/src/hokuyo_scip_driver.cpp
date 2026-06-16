@@ -24,7 +24,7 @@ HokuyoScipDriver::HokuyoScipDriver(const rclcpp::NodeOptions & options)
 : Node("hokuyo_scip_driver", options)
 {
   // Declare parameters (defaults mirror config/hokuyo_ust10lx.yaml)
-  declare_parameter("ip_address", std::string("192.168.0.10"));
+  declare_parameter("ip_address", std::string("192.168.10.10"));
   declare_parameter("ip_port", 10940);
   declare_parameter("laser_frame_id", std::string("ego_racecar/laser"));
   declare_parameter("angle_min", -2.356194);

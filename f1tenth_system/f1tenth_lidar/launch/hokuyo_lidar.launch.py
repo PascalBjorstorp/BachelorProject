@@ -10,13 +10,13 @@ Requirements:
   - Network configured: Jetson must be on same subnet as LiDAR
   
 Network Setup (run once):
-  sudo ip addr add 192.168.0.15/24 dev eth0
-  ping 192.168.0.10  # Test connectivity
+  sudo ip addr add 192.168.10.15/24 dev eth0
+  ping 192.168.10.10  # Test connectivity
 
 Usage:
-  ros2 launch f1tenth_localization hokuyo_lidar.launch.py
-  ros2 launch f1tenth_localization hokuyo_lidar.launch.py ip_address:=192.168.1.10
-  ros2 launch f1tenth_localization hokuyo_lidar.launch.py driver:=urg_node  # fallback to urg_node
+  ros2 launch f1tenth_lidar hokuyo_lidar.launch.py
+  ros2 launch f1tenth_lidar hokuyo_lidar.launch.py ip_address:=192.168.10.10
+  ros2 launch f1tenth_lidar hokuyo_lidar.launch.py driver:=urg_node  # fallback to urg_node
 """
 
 import os
@@ -34,7 +34,7 @@ def generate_launch_description():
     
     declare_ip_address = DeclareLaunchArgument(
         'ip_address',
-        default_value='192.168.0.10',
+        default_value='192.168.10.10',
         description='IP address of the Hokuyo UST-10LX'
     )
     

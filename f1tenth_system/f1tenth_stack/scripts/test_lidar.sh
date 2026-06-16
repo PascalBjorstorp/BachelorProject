@@ -7,7 +7,7 @@
 # Usage:
 #   ./test_lidar.sh [lidar_ip]
 
-LIDAR_IP=${1:-192.168.0.10}
+LIDAR_IP=${1:-192.168.10.10}
 LIDAR_PORT=10940
 
 echo "==================================="
@@ -36,11 +36,11 @@ else
 fi
 
 # Quick ROS topic test
-echo "3. Checking if urg_node is available..."
-if ros2 pkg list 2>/dev/null | grep -q "urg_node"; then
-    echo "   ✓ urg_node package found"
+echo "3. Checking if f1tenth_lidar is available..."
+if ros2 pkg executables f1tenth_lidar 2>/dev/null | grep -q "hokuyo_scip_driver_node"; then
+    echo "   ✓ hokuyo_scip_driver_node found"
 else
-    echo "   ✗ urg_node not installed - run: sudo apt install ros-humble-urg-node"
+    echo "   ✗ f1tenth_lidar driver not found - build and source the workspace"
     exit 1
 fi
 
