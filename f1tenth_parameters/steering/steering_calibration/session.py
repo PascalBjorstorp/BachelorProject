@@ -34,10 +34,10 @@ from .ui import banner, disk_line, require_ready
 
 
 class StackProcess:
-    def __init__(self, script: Path, config: dict[str, Any], mode: str, log_path: Path,
+    def __init__(self, script: Path, calibration_config_path: Path, mode: str, log_path: Path,
                  raw_min: float, raw_max: float) -> None:
         self.script = script
-        self.config = config
+        self.calibration_config_path = calibration_config_path.resolve()
         self.mode = mode
         self.log_path = log_path
         self.raw_min = float(raw_min)
@@ -48,7 +48,7 @@ class StackProcess:
     def start(self) -> None:
         command = [
             sys.executable, str(self.script),
-            "--lidar-ip", str(self.config["hardware"]["lidar_ip_address"]),
+            "--config", str(self.calibration_config_path),
             "--raw-min", str(self.raw_min), "--raw-max", str(self.raw_max),
         ]
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,7 +179,20 @@ class SessionRunner:
         self._launch_index += 1
         script_name = "hardware_only.py" if mode == "hardware_only" else "calibration_stack.py"
         log = self.session_dir / "stack_logs" / f"{self._launch_index:02d}_{mode}_{raw_min:.4f}_{raw_max:.4f}.log"
-        self.stack = StackProcess(self.root / "launch" / script_name, self.config, mode, log, raw_min, raw_max)
+        snapshot = self.session_dir / "calibration_config_snapshot.yaml"
+        if not snapshot.is_file():
+            raise FileNotFoundError(f"missing immutable calibration configuration snapshot: {snapshot}")
+        hardware = load_yaml(snapshot).get("hardware", {})
+        geometry_evidence = {
+            "launch_index": self._launch_index,
+            "mode": mode,
+            "calibration_config_snapshot": str(snapshot),
+            "hardware_geometry_used_by_launch": hardware,
+            "selector_raw_min": float(raw_min),
+            "selector_raw_max": float(raw_max),
+        }
+        dump_yaml(self.session_dir / "environment" / f"launch_{self._launch_index:02d}_geometry.yaml", geometry_evidence)
+        self.stack = StackProcess(self.root / "launch" / script_name, snapshot, mode, log, raw_min, raw_max)
         self.stack.start()
 
     def _stop_stack(self) -> None:

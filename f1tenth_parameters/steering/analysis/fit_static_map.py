@@ -108,10 +108,44 @@ def main() -> int:
     train.to_parquet(session / "analysis" / "static_map_training_segments.parquet", index=False)
     holdout.to_parquet(session / "analysis" / "static_map_holdout_segments.parquet", index=False)
     accepted = train[train.accepted].copy()
-    if len(accepted) < 6:
-        raise SystemExit("fewer than six accepted static-map points; inspect LiDAR motion quality")
+    min_training = int(criteria["min_training_points"])
+    if len(accepted) < min_training:
+        raise SystemExit(
+            f"static-map training gate failed: {len(accepted)} accepted points < required {min_training}; "
+            "inspect LiDAR motion quality and repeat rejected conditions"
+        )
+    # Preserve approach-specific observations before collapsing to the candidate
+    # map.  This quantifies backlash/hysteresis and repeated-run scatter rather
+    # than hiding those effects in a median lookup table.
+    repeatability = (
+        accepted.groupby(["raw_servo_echo", "side", "fraction", "approach"], dropna=False)
+        .delta_eq_rad.agg(["count", "mean", "std", "median"])
+        .reset_index()
+        .rename(columns={"count": "repeat_count", "std": "repeatability_std_rad"})
+    )
+    approaches = (
+        accepted.pivot_table(index=["raw_servo_echo", "side", "fraction"], columns="approach",
+                             values="delta_eq_rad", aggfunc="median")
+        .reset_index()
+    )
+    if "outward" in approaches.columns and "inward" in approaches.columns:
+        approaches["hysteresis_delta_rad"] = approaches["outward"] - approaches["inward"]
+    else:
+        approaches["hysteresis_delta_rad"] = np.nan
+    repeatability.to_parquet(session / "analysis" / "static_map_repeatability.parquet", index=False)
+    approaches.to_parquet(session / "analysis" / "static_map_hysteresis.parquet", index=False)
+    hysteresis = approaches["hysteresis_delta_rad"].dropna()
     x, y = map_interpolate(accepted, float(centre["centre_servo_raw"]))
-    candidate = {"centre_servo_raw": float(centre["centre_servo_raw"]), "raw_servo": x.tolist(), "delta_eq_rad": y.tolist()}
+    slope = np.gradient(y, x).tolist() if len(x) >= 2 else []
+    candidate = {
+        "centre_servo_raw": float(centre["centre_servo_raw"]),
+        "raw_servo": x.tolist(), "delta_eq_rad": y.tolist(),
+        "local_gain_rad_per_servo": slope,
+        "training_points": int(len(accepted)),
+        "hysteresis_median_abs_rad": float(np.median(np.abs(hysteresis))) if len(hysteresis) else None,
+        "hysteresis_max_abs_rad": float(np.max(np.abs(hysteresis))) if len(hysteresis) else None,
+        "repeatability_median_std_rad": float(repeatability.repeatability_std_rad.dropna().median()) if len(repeatability) else None,
+    }
     valid = holdout[holdout.accepted].copy()
     if len(valid):
         valid["delta_pred_rad"] = np.interp(valid.raw_servo_echo, x, y)
@@ -124,8 +158,47 @@ def main() -> int:
         candidate["holdout_points"] = 0
         candidate["holdout_rmse_rad"] = None
         candidate["holdout_bias_rad"] = None
-    (session / "analysis" / "candidate_static_steering_map.json").write_text(json.dumps(candidate, indent=2) + "\n")
+
+    # Hold-out validation is an acceptance gate, not a report-only diagnostic.
+    # The candidate remains written for diagnosis, but cannot be treated as a
+    # deployable map when any configured criterion fails.
+    gates = {
+        "min_holdout_points": int(criteria["min_holdout_points"]),
+        "max_holdout_rmse_rad": float(criteria["max_holdout_rmse_rad"]),
+        "max_abs_holdout_bias_rad": float(criteria["max_abs_holdout_bias_rad"]),
+        "max_hysteresis_median_abs_rad": float(criteria["max_hysteresis_median_abs_rad"]),
+        "max_repeatability_median_std_rad": float(criteria["max_repeatability_median_std_rad"]),
+    }
+    failures: list[str] = []
+    holdout_points = int(candidate["holdout_points"])
+    if holdout_points < gates["min_holdout_points"]:
+        failures.append(f"holdout points {holdout_points} < {gates['min_holdout_points']}")
+    rmse = candidate["holdout_rmse_rad"]
+    if rmse is None or float(rmse) > gates["max_holdout_rmse_rad"]:
+        failures.append(f"holdout RMSE {rmse} exceeds {gates['max_holdout_rmse_rad']:.6f} rad")
+    bias = candidate["holdout_bias_rad"]
+    if bias is None or abs(float(bias)) > gates["max_abs_holdout_bias_rad"]:
+        failures.append(f"absolute holdout bias {None if bias is None else abs(float(bias))} exceeds {gates['max_abs_holdout_bias_rad']:.6f} rad")
+    hysteresis_median = candidate["hysteresis_median_abs_rad"]
+    if hysteresis_median is None or float(hysteresis_median) > gates["max_hysteresis_median_abs_rad"]:
+        failures.append(f"median hysteresis {hysteresis_median} exceeds {gates['max_hysteresis_median_abs_rad']:.6f} rad")
+    repeatability_median = candidate["repeatability_median_std_rad"]
+    if repeatability_median is None or float(repeatability_median) > gates["max_repeatability_median_std_rad"]:
+        failures.append(f"median repeatability standard deviation {repeatability_median} exceeds {gates['max_repeatability_median_std_rad']:.6f} rad")
+    validation = {
+        "status": "pass" if not failures else "fail",
+        "gates": gates,
+        "failures": failures,
+        "accepted_for_deployment": not failures,
+    }
+    candidate["validation"] = validation
+    candidate["accepted_for_deployment"] = not failures
+    analysis_dir = session / "analysis"
+    (analysis_dir / "static_map_validation.json").write_text(json.dumps(validation, indent=2) + "\n")
+    (analysis_dir / "candidate_static_steering_map.json").write_text(json.dumps(candidate, indent=2) + "\n")
     print(json.dumps(candidate, indent=2))
+    if failures:
+        raise SystemExit("static-map hold-out validation failed: " + "; ".join(failures))
     return 0
 
 

@@ -34,12 +34,14 @@ def main() -> int:
         if (bag / "metadata.yaml").exists() and (session / stage / "derived" / "scan_index.parquet").exists():
             run([sys.executable, str(ROOT / "analysis" / "estimate_lidar_motion.py"), str(bag),
                  "--config", str(session / "calibration_config_snapshot.yaml")])
+    # Do not fit or summarize a session with incomplete required streams.
+    run([sys.executable, str(ROOT / "analysis" / "check_session.py"), str(session), "--strict"])
     run([sys.executable, str(ROOT / "analysis" / "assess_icp_quality.py"), str(session)])
     run([sys.executable, str(ROOT / "analysis" / "fit_centre.py"), str(session)])
     run([sys.executable, str(ROOT / "analysis" / "fit_static_map.py"), str(session),
          "--config", str(session / "calibration_config_snapshot.yaml")])
     run([sys.executable, str(ROOT / "analysis" / "fit_response.py"), str(session)])
-    run([sys.executable, str(ROOT / "analysis" / "check_session.py"), str(session)])
+    run([sys.executable, str(ROOT / "analysis" / "assemble_steering_summary.py"), str(session)])
     print("\nOffline analysis complete. Review session/analysis before applying any parameters.")
     return 0
 

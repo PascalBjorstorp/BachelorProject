@@ -158,6 +158,19 @@ python3 analysis/run_analysis.py runs/<session-id>
 
 The pipeline exports scalar data to Parquet, preserves full scans in MCAP, estimates LiDAR motion, produces an ICP observability report, fits the centre, fits the static map only from accepted trials, validates it on hold-out trials, and estimates response dynamics.
 
+## Steering parameters produced
+
+The full output list is in `docs/STEERING_PARAMETER_OUTPUTS.md`.
+
+The dynamic stage reports both:
+
+- **command-path timing**: raw request → selector → servo command bus → VESC-driver command echo; and
+- **effective steering dynamics**: raw-servo step → IMU/LiDAR curvature → equivalent bicycle steering response.
+
+The latter yields delay, 10–90% rise time, 5% settling time, overshoot, peak effective steering rate, local steady gain, and a first-order-plus-dead-time fit `K exp(-Ls)/(tau s + 1)`, separately by left/right, step magnitude, speed, repeat and return direction.
+
+`/sensors/servo_position_command` is only a command echo, **not a measured servo-shaft or wheel angle**. Therefore this session cannot truthfully identify mechanical servo-shaft delay/rate in isolation. It identifies the combined steering-to-vehicle response used by the MPC plant. A real steering-angle sensor is required to split servo, linkage, tyre and vehicle-yaw dynamics.
+
 ---
 
 ## ICP: solver accuracy versus measurement accuracy
@@ -273,3 +286,18 @@ numeric interval in the source configuration before building, so the current
 Stage 2 is the physical protection: the operator moves outward manually from
 the identified centre and records the last clearly free position. The resulting
 inward-offset safe interval is then used for every later manoeuvre.
+
+
+## Review-fix acceptance gates
+
+The calibration stack reads LiDAR extrinsics only from the immutable
+`calibration_config_snapshot.yaml` stored in the session directory. That same
+snapshot is passed to the runtime launch and to offline ICP; the per-launch
+geometry evidence is written in `environment/launch_*_geometry.yaml`.
+
+The following are blocking gates, not report-only diagnostics:
+
+- Stage 0 command-chain audit: all raw/selector/bus/echo discrepancies must be within configured tolerances.
+- Stage 1 centre trim: the yaw-zero candidate and servo-bracket resolution gates must pass, and the final confirmation yaw-rate gate must pass.
+- Every stage: required-topic metadata verification must pass before analysis begins.
+- Static map: accepted training count, hold-out count, hold-out RMSE, hold-out bias, hysteresis, and repeatability must pass the configured `analysis.map` limits. A failed hold-out writes diagnostics but causes `analysis/run_analysis.py` to exit non-zero and marks the candidate `accepted_for_deployment: false`.

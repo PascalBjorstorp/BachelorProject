@@ -182,14 +182,21 @@ def raw_command_path_audit(config: dict[str, Any], stage_dir: Path) -> dict[str,
             raise RuntimeError(f"selector/servo-bus discrepancy {max_selected_bus_error:.5f} exceeds tolerance")
         if span < float(p["min_echo_span_servo"]):
             raise RuntimeError("raw servo source did not produce a measurable echo span")
+        max_command_path_error = max(
+            max_echo_error,
+            max_selected_error,
+            max_bus_error,
+            max_selected_bus_error,
+        )
         result = {"status": "pass", "raw_servo_seed": seed,
                   "max_echo_error_servo": max_echo_error,
                   "max_selected_error_servo": max_selected_error,
                   "max_bus_error_servo": max_bus_error,
                   "max_selected_bus_error_servo": max_selected_bus_error,
+                  "max_command_path_error_servo": max_command_path_error,
                   "echo_span_servo": span, "samples": samples}
         dump_json(stage_dir / "runtime_result.json", result)
-        print(f"\nPASS — raw selector/echo maximum error: {max_error:.5f} servo units")
+        print(f"\nPASS — maximum command-chain error: {max_command_path_error:.5f} servo units")
         return result
     finally:
         _finish_node(node, seed)
@@ -277,14 +284,20 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
         if bracket is None:
             raise RuntimeError("centre search could not bracket a yaw-rate sign change; inspect raw data and sign routing")
 
+        candidate_yaw_limit = float(p["max_abs_yaw_rate_for_candidate_rad_s"])
+        servo_search_tolerance = float(p["search_tolerance_servo"])
         left, right = bracket
+        refinement_converged = False
+        best_candidate = min(measured, key=lambda item: abs(float(item["yaw_median"])))
         if left is right:
             centre_raw = float(left["raw_servo"])
+            refinement_converged = abs(float(left["yaw_median"])) <= candidate_yaw_limit
         else:
             for iteration in range(1, int(p["max_refinement_iterations"]) + 1):
                 x0, y0 = float(left["raw_servo"]), float(left["yaw_median"])
                 x1, y1 = float(right["raw_servo"]), float(right["yaw_median"])
-                secant = x0 - y0 * (x1 - x0) / (y1 - y0)
+                denominator = y1 - y0
+                secant = x0 - y0 * (x1 - x0) / denominator if abs(denominator) > 1e-12 else 0.5 * (x0 + x1)
                 # Safeguard secant against noisy values that place the new point
                 # too close to a bracket end: fall back to bisection.
                 lo, hi = min(x0, x1), max(x0, x1)
@@ -292,17 +305,43 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
                 candidate = 0.5 * (lo + hi) if not (lo + margin <= secant <= hi - margin) else secant
                 item = measure(candidate, f"refine_{iteration:02d}", int(p["candidate_repetitions"]))
                 y = float(item["yaw_median"])
-                node.event.emit("centre_refinement", iteration=iteration, raw_servo_target=candidate,
-                                bracket_low=min(x0, x1), bracket_high=max(x0, x1), yaw_median_rad_s=y)
-                if abs(y) <= float(p["max_abs_yaw_rate_for_candidate_rad_s"]):
-                    # Retain the bracket and continue until servo resolution is also adequate.
-                    pass
+                if abs(y) < abs(float(best_candidate["yaw_median"])):
+                    best_candidate = item
                 if y0 * y <= 0.0:
                     right = item
                 else:
                     left = item
-                if abs(float(right["raw_servo"]) - float(left["raw_servo"])) <= float(p["search_tolerance_servo"]):
+                bracket_width = abs(float(right["raw_servo"]) - float(left["raw_servo"]))
+                candidate_gate_passed = abs(float(best_candidate["yaw_median"])) <= candidate_yaw_limit
+                node.event.emit(
+                    "centre_refinement",
+                    iteration=iteration,
+                    raw_servo_target=candidate,
+                    bracket_low=min(float(left["raw_servo"]), float(right["raw_servo"])),
+                    bracket_high=max(float(left["raw_servo"]), float(right["raw_servo"])),
+                    yaw_median_rad_s=y,
+                    best_candidate_raw_servo=float(best_candidate["raw_servo"]),
+                    best_candidate_abs_yaw_rad_s=abs(float(best_candidate["yaw_median"])),
+                    candidate_yaw_gate_limit_rad_s=candidate_yaw_limit,
+                    candidate_yaw_gate_passed=candidate_gate_passed,
+                    bracket_width_servo=bracket_width,
+                    bracket_width_gate_passed=bracket_width <= servo_search_tolerance,
+                )
+                if candidate_gate_passed and bracket_width <= servo_search_tolerance:
+                    refinement_converged = True
                     break
+            # This is a real quality gate. A sign bracket alone is not enough:
+            # the search must resolve the bracket and include an observed,
+            # low-yaw candidate before the calculated zero crossing is trusted.
+            final_width = abs(float(right["raw_servo"]) - float(left["raw_servo"]))
+            if not refinement_converged:
+                failures = []
+                if final_width > servo_search_tolerance:
+                    failures.append(f"bracket width {final_width:.6f} > {servo_search_tolerance:.6f}")
+                best_abs_yaw = abs(float(best_candidate["yaw_median"]))
+                if best_abs_yaw > candidate_yaw_limit:
+                    failures.append(f"best observed |yaw rate| {best_abs_yaw:.5f} > {candidate_yaw_limit:.5f} rad/s")
+                raise RuntimeError("centre-search refinement gate failed: " + "; ".join(failures))
             # Fit all local accepted candidates around the final bracket to avoid
             # throwing away useful repeated observations.
             local = [m for m in measured if min(left["raw_servo"], right["raw_servo"]) - 0.02 <= m["raw_servo"] <= max(left["raw_servo"], right["raw_servo"]) + 0.02]
@@ -329,16 +368,24 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
         if len(confirm_yaw) < 3:
             raise RuntimeError("fewer than three accepted centre confirmations")
         result = {
-            "status": "provisional_pass", "centre_servo_raw": centre_raw,
+            "status": "pass", "centre_servo_raw": centre_raw,
             "seed_servo_raw": seed, "candidate_records": all_records,
             "candidate_estimates": measured, "confirmation_records": confirmations,
             "accepted_confirmation_trials": len(confirm_yaw),
+            "best_candidate_raw_servo": float(best_candidate["raw_servo"]),
+            "best_candidate_abs_yaw_rad_s": abs(float(best_candidate["yaw_median"])),
+            "candidate_yaw_gate_limit_rad_s": candidate_yaw_limit,
             "confirmation_abs_yaw_mean_rad_s": float(np.mean(np.abs(confirm_yaw)),),
             "confirmation_yaw_std_rad_s": float(np.std(confirm_yaw)),
         }
-        if result["confirmation_abs_yaw_mean_rad_s"] > float(p["max_abs_yaw_rate_for_confirmation_rad_s"]):
-            result["status"] = "provisional_warning"
-            warn("Centre confirmation yaw rate is high; retain bags and inspect offline fit before continuing.")
+        confirmation_limit = float(p["max_abs_yaw_rate_for_confirmation_rad_s"])
+        if result["confirmation_abs_yaw_mean_rad_s"] > confirmation_limit:
+            result["status"] = "fail"
+            dump_json(stage_dir / "runtime_result.json", result)
+            raise RuntimeError(
+                "centre confirmation gate failed: mean |yaw rate| "
+                f"{result['confirmation_abs_yaw_mean_rad_s']:.5f} > {confirmation_limit:.5f} rad/s"
+            )
         dump_json(stage_dir / "runtime_result.json", result)
         print(f"\nProvisional raw-servo centre: {centre_raw:.5f}")
         return result

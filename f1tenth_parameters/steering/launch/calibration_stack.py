@@ -12,6 +12,8 @@ import argparse
 import os
 from pathlib import Path
 
+import yaml
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, LaunchService
 from launch.actions import ExecuteProcess
@@ -26,7 +28,26 @@ def _selector_process(raw_min: float, raw_max: float) -> ExecuteProcess:
                           output="screen")
 
 
-def generate_description(lidar_ip: str, raw_min: float, raw_max: float) -> LaunchDescription:
+def _hardware_from_config(config_path: Path) -> dict:
+    config_path = config_path.expanduser().resolve()
+    if not config_path.is_file():
+        raise FileNotFoundError(f"calibration config does not exist: {config_path}")
+    document = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    hardware = document.get("hardware")
+    if not isinstance(hardware, dict):
+        raise ValueError("calibration config has no hardware mapping")
+    required = (
+        "lidar_ip_address", "laser_to_base_x_m", "laser_to_base_y_m",
+        "laser_to_base_z_m", "laser_to_base_yaw_rad", "base_frame_id",
+        "laser_frame_id", "imu_frame_id",
+    )
+    missing = [key for key in required if key not in hardware]
+    if missing:
+        raise ValueError(f"calibration hardware configuration missing: {missing}")
+    return hardware
+
+
+def generate_description(hardware: dict, raw_min: float, raw_max: float) -> LaunchDescription:
     stack_share = get_package_share_directory("f1tenth_stack")
     lidar_share = get_package_share_directory("f1tenth_lidar")
     vesc_config = os.path.join(stack_share, "config", "vesc.yaml")
@@ -53,24 +74,33 @@ def generate_description(lidar_ip: str, raw_min: float, raw_max: float) -> Launc
         Node(package="ackermann_mux", executable="ackermann_mux", name="ackermann_mux",
              parameters=[mux_config], output="screen"),
         Node(package="f1tenth_lidar", executable="hokuyo_scip_driver_node", name="hokuyo_scip_driver",
-             parameters=[hokuyo_config, {"ip_address": lidar_ip, "skip": 0}], output="screen"),
+             parameters=[hokuyo_config, {"ip_address": str(hardware["lidar_ip_address"]), "skip": 0}], output="screen"),
+        # This transform is constructed only from the immutable session
+        # configuration snapshot.  Offline ICP reads that same snapshot.
         Node(package="tf2_ros", executable="static_transform_publisher", name="static_baselink_to_laser",
-             arguments=["--x", "0.265", "--y", "0.0", "--z", "0.05", "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
-                        "--frame-id", "ego_racecar/base_link", "--child-frame-id", "ego_racecar/laser"], output="screen"),
+             arguments=["--x", str(float(hardware["laser_to_base_x_m"])),
+                        "--y", str(float(hardware["laser_to_base_y_m"])),
+                        "--z", str(float(hardware["laser_to_base_z_m"])),
+                        "--roll", "0.0", "--pitch", "0.0",
+                        "--yaw", str(float(hardware["laser_to_base_yaw_rad"])),
+                        "--frame-id", str(hardware["base_frame_id"]),
+                        "--child-frame-id", str(hardware["laser_frame_id"])], output="screen"),
         Node(package="tf2_ros", executable="static_transform_publisher", name="static_baselink_to_imu",
              arguments=["--x", "0.0", "--y", "0.0", "--z", "0.0", "--roll", "0.0", "--pitch", "0.0", "--yaw", "0.0",
-                        "--frame-id", "ego_racecar/base_link", "--child-frame-id", "ego_racecar/imu"], output="screen"),
+                        "--frame-id", str(hardware["base_frame_id"]), "--child-frame-id", str(hardware["imu_frame_id"])], output="screen"),
     ])
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lidar-ip", default="192.168.10.10")
+    parser.add_argument("--config", type=Path, required=True,
+                        help="Immutable session calibration_config_snapshot.yaml")
     parser.add_argument("--raw-min", type=float, required=True)
     parser.add_argument("--raw-max", type=float, required=True)
     args = parser.parse_args()
+    hardware = _hardware_from_config(args.config)
     service = LaunchService()
-    service.include_launch_description(generate_description(args.lidar_ip, args.raw_min, args.raw_max))
+    service.include_launch_description(generate_description(hardware, args.raw_min, args.raw_max))
     return service.run()
 
 

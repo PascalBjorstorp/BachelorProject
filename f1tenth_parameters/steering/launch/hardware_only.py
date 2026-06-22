@@ -42,7 +42,8 @@ def generate_description(raw_min: float, raw_max: float) -> LaunchDescription:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lidar-ip", default=None, help="Accepted for common launcher interface; unused.")
+    parser.add_argument("--config", type=Path, required=True,
+                        help="Immutable session calibration_config_snapshot.yaml; archived for common launcher interface.")
     parser.add_argument("--raw-min", type=float, required=True)
     parser.add_argument("--raw-max", type=float, required=True)
     args = parser.parse_args()

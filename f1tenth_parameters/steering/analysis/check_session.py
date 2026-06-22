@@ -20,6 +20,8 @@ EXPECTED = [
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("session", type=Path)
+    parser.add_argument("--strict", action="store_true",
+                        help="Exit non-zero unless every expected stage completed with all required topics present.")
     args = parser.parse_args()
     session = args.session.resolve()
     manifest = yaml.safe_load((session / "session_manifest.yaml").read_text(encoding="utf-8")) or {}
@@ -64,6 +66,17 @@ def main() -> int:
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
+    if args.strict:
+        failures = []
+        for row in rows:
+            if row["manifest_status"] != "completed":
+                failures.append(f"{row['stage']}: manifest status={row['manifest_status']}")
+            if not row["mcap_present"]:
+                failures.append(f"{row['stage']}: MCAP missing")
+            if row["topic_verification_ok"] is not True:
+                failures.append(f"{row['stage']}: required-topic verification failed")
+        if failures:
+            raise SystemExit("capture completeness gate failed: " + "; ".join(failures))
     return 0
 
 

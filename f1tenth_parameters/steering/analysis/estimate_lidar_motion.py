@@ -282,11 +282,20 @@ def main() -> int:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
                          "valid": False, "reason": repr(exc)})
             continue
-        delta_base = result.t - (result.R - np.eye(2)) @ np.array([
+        # Convert the scan-to-scan transform from the LiDAR frame to the
+        # base frame.  The previous implementation silently assumed laser yaw
+        # was zero; this applies all configured planar extrinsics.
+        laser_offset_base = np.array([
             float(hardware["laser_to_base_x_m"]),
             float(hardware["laser_to_base_y_m"]),
         ])
-        delta_yaw = math.atan2(float(result.R[1, 0]), float(result.R[0, 0]))
+        laser_yaw = float(hardware.get("laser_to_base_yaw_rad", 0.0))
+        c_yaw, s_yaw = math.cos(laser_yaw), math.sin(laser_yaw)
+        R_base_laser = np.array([[c_yaw, -s_yaw], [s_yaw, c_yaw]])
+        R_laser_base = R_base_laser.T
+        R_base = R_base_laser @ result.R @ R_laser_base
+        delta_base = R_base_laser @ result.t + (np.eye(2) - R_base) @ laser_offset_base
+        delta_yaw = math.atan2(float(R_base[1, 0]), float(R_base[0, 0]))
         yaw_seed_residual = wrap_angle(delta_yaw - yaw_seed)
         reasons: list[str] = []
         if not result.converged:
@@ -337,6 +346,14 @@ def main() -> int:
             "translation_update_tolerance_m": float(icp["translation_update_tolerance_m"]),
             "rotation_update_tolerance_rad": float(icp["rotation_update_tolerance_rad"]),
             "relative_cost_tolerance": float(icp["relative_cost_tolerance"]),
+        },
+        "laser_to_base_geometry_used": {
+            "x_m": float(hardware["laser_to_base_x_m"]),
+            "y_m": float(hardware["laser_to_base_y_m"]),
+            "z_m": float(hardware.get("laser_to_base_z_m", 0.0)),
+            "yaw_rad": float(hardware.get("laser_to_base_yaw_rad", 0.0)),
+            "base_frame_id": hardware.get("base_frame_id"),
+            "laser_frame_id": hardware.get("laser_frame_id"),
         },
     }
     (derived / "lidar_motion_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
