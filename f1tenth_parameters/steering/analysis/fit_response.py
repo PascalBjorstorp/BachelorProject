@@ -300,10 +300,12 @@ def _effective_series(
         "t_command_s": (t_ns.astype(float) - float(start_ns)) * 1e-9,
         "vx_lidar_mps": vx,
         "imu_yaw_rate_rad_s": gz,
+        "imu_lateral_accel_mps2": im.ay.to_numpy(dtype=float),
         "lidar_nearest_gap_s": nearest_gap_s,
         "effective_valid": valid,
         "curvature_inv_m": curvature,
         "delta_eq_rad": delta,
+        "lateral_accel_kinematic_mps2": vx * gz,
     })
 
 
@@ -390,9 +392,33 @@ def _analyse_segment(
         row["effective_static_gain_rad_per_servo"] = delta_step / raw_step if abs(raw_step) > 1e-6 else math.nan
         final_curvature = math.tan(_num(row.get("effective_final_rad"))) / float(cfg["hardware"]["wheelbase_m"])
         row["effective_final_curvature_inv_m"] = final_curvature
+        final_window = effective[
+            effective.effective_valid.astype(bool)
+            & (effective.t_command_s >= max(0.0, float(effective.t_command_s.max()) - 0.75))
+        ].copy()
+        if len(final_window):
+            row["effective_final_yaw_rate_rad_s"] = float(np.nanmedian(final_window.imu_yaw_rate_rad_s.to_numpy(dtype=float)))
+            row["effective_final_lateral_accel_kinematic_mps2"] = float(np.nanmedian(final_window.lateral_accel_kinematic_mps2.to_numpy(dtype=float)))
+            row["effective_final_imu_lateral_accel_mps2"] = float(np.nanmedian(final_window.imu_lateral_accel_mps2.to_numpy(dtype=float)))
+            row["effective_curvature_gain_inv_m_per_servo"] = final_curvature / raw_step if abs(raw_step) > 1e-6 else math.nan
+            row["effective_yaw_rate_gain_rad_s_per_servo"] = row["effective_final_yaw_rate_rad_s"] / raw_step if abs(raw_step) > 1e-6 else math.nan
+            row["effective_lateral_accel_gain_mps2_per_servo"] = row["effective_final_lateral_accel_kinematic_mps2"] / raw_step if abs(raw_step) > 1e-6 else math.nan
+        else:
+            row["effective_final_yaw_rate_rad_s"] = math.nan
+            row["effective_final_lateral_accel_kinematic_mps2"] = math.nan
+            row["effective_final_imu_lateral_accel_mps2"] = math.nan
+            row["effective_curvature_gain_inv_m_per_servo"] = math.nan
+            row["effective_yaw_rate_gain_rad_s_per_servo"] = math.nan
+            row["effective_lateral_accel_gain_mps2_per_servo"] = math.nan
     else:
         row["effective_static_gain_rad_per_servo"] = math.nan
         row["effective_final_curvature_inv_m"] = math.nan
+        row["effective_final_yaw_rate_rad_s"] = math.nan
+        row["effective_final_lateral_accel_kinematic_mps2"] = math.nan
+        row["effective_final_imu_lateral_accel_mps2"] = math.nan
+        row["effective_curvature_gain_inv_m_per_servo"] = math.nan
+        row["effective_yaw_rate_gain_rad_s_per_servo"] = math.nan
+        row["effective_lateral_accel_gain_mps2_per_servo"] = math.nan
     for channel, frame in channel_frames.items():
         effective[channel] = _interpolate_channel(frame, effective.bag_ns.to_numpy(dtype=np.int64))
     effective["trial_id"] = trial_id
@@ -492,6 +518,21 @@ def main() -> int:
             "not_measured": [
                 "physical servo-shaft angle", "physical servo-shaft velocity", "road-wheel angle",
                 "separate servo, linkage, tyre and vehicle-yaw contributions",
+            ],
+        },
+        "simulation_seed_scope": {
+            "available_from_current_tests": [
+                "steady-state effective steering gain",
+                "steady-state curvature gain",
+                "steady-state yaw-rate gain",
+                "steady-state lateral-acceleration gain",
+                "command-path timing",
+                "effective steering FOPDT lag and time constant",
+            ],
+            "not_identifiable_without_extra_sensor": [
+                "physical servo-shaft angle/rate",
+                "road-wheel angle",
+                "separate tyre slip-angle and cornering-stiffness terms",
             ],
         },
         "segments_total": int(len(table)),

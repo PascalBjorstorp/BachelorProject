@@ -23,6 +23,7 @@ def main() -> int:
         'centre': load_json(out/'centre_trim_offline.json'),
         'static_map': load_json(out/'candidate_static_steering_map.json'),
         'effective_response': load_json(out/'command_to_effective_steering_response_summary.json'),
+        'simulation_seed_report': load_json(out/'steering_simulation_seed_report.json'),
         'icp_observability': load_json(out/'icp_observability_report.json'),
         'review_required': True,
         'automatic_installation_performed': False,

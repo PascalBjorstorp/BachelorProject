@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail offline analysis when the all-topics campaign has incomplete capture evidence."""
+"""Fail offline analysis when the stage-targeted campaign has incomplete capture evidence."""
 from __future__ import annotations
 import argparse, json
 from pathlib import Path

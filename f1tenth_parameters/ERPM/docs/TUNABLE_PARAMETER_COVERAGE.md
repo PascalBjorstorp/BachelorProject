@@ -1,50 +1,43 @@
-# Longitudinal tuneable-parameter coverage
+# Longitudinal parameter and full-stack coverage
 
-This campaign is intentionally **not** a generic driving demonstration. Every
-identified parameter is tied to a raw input, a non-circular reference, a
-hold-out or integration check, and a candidate output. The authoritative
-reference for ground speed is scan-to-scan LiDAR ICP; ERPM-derived odometry is
-recorded at 200 Hz but is never used to fit itself.
+## Command conversion — selected independently
 
-| Configuration parameter | Evidence / stage | Candidate output | Confirmation |
-|---|---|---|---|
-| `speed_to_erpm_gain`, `speed_to_erpm_offset` | Raw selected-ERPM plateaus, Stage 3 (VESC measured ERPM retained separately for drivetrain/odometry) | `analysis/candidate_vesc_patch.yaml` | Stage 4 raw-ERPM hold-out and Stage 11 temporary VEL_TO_ERPM deployment verification |
-| `odom_speed_scale` | LiDAR-vs-VESC-measured-ERPM relation over raw ERPM plateaus | Candidate Odom scale relative to the candidate ERPM map | Stage 4 held-out error and Stage 11 velocity verification |
-| `vesc_to_odom_node.speed_deadband` | Stationary LiDAR velocity noise plus low-speed launch data | Candidate speed deadband | Low-speed Stage 2 and Stage 11 review |
-| `slow_start_threshold`, `slow_start_increment` | Raw launch evidence plus low-speed `VEL_TO_ERPM` pipeline audit, Stages 2 and 5 | Candidate startup values | Stage 5 current pipeline audit and Stage 11 deployment verification |
-| `stop_speed_deadzone` | Stationary/low-speed noise and `VEL_TO_ERPM` zero-speed transition evidence | Candidate stop deadband | VEL_TO_ERPM pipeline records and candidate verification |
-| `accel_drag_coulomb`, `accel_drag_viscous`, `accel_drag_quadratic` | Current-zero coastdown, Stage 7 | Non-negative drag model | Coast-down fit R² gate and use in current-model hold-out |
-| `accel_to_current_gain` | Raw drive-current pulses, Stage 8 | A/(m/s²) gain | Stage 9 independent raw-current hold-out and Stage 12 temporary ACCEL_TO_CURRENT verification |
-| `accel_to_brake_gain` | Raw brake-current pulses, Stage 8 | A/(m/s²) brake gain | Stage 9 independent raw-brake hold-out and Stage 12 temporary ACCEL_TO_CURRENT verification |
-| `accel_deadzone` | Ground-acceleration noise floor around current pulses | Candidate interface deadzone | Stage 10 interface residual report |
-| `speed_to_braking_max` | Derived from identified brake gain and an explicit desired stop deceleration | Safe candidate stop-brake level | Candidate Stage 11/12 reports; not a thermal safety maximum |
+| Parameter / structure | Evidence | Deployment rule |
+|---|---|---|
+| `speed_to_erpm_gain` | Stage 3/4 zero-intercept command hold-out | Candidate value only |
+| `speed_to_erpm_quadratic` | Same, selected only when it materially improves unseen delivery error | Requires C++ map support |
+| command LUT | Same | Requires C++ map support |
+| `speed_to_erpm_offset` | Physical boundary condition | Forced to `0.0`; never fitted |
+| `slow_start_threshold`, `slow_start_increment`, `stop_speed_deadzone` | Stage 2 + Stage 5 low-speed behaviour | Candidate values; not a substitute for an ERPM offset |
 
-## Recorded and audited, but not scientifically identified as “safe maxima”
+## Ground-speed estimator — selected on held-out dynamics
 
-The campaign logs current, voltage, motor temperature, FET temperature, duty
-cycle, and VESC fault code for every test. It never claims to identify safe
-values for:
+| Parameter / structure | Evidence |
+|---|---|
+| Static measured-ERPM map | Stage 3/4, independent from command-map selection |
+| `odom_erpm_to_speed_linear/quadratic` or LUT | Selected wheel-speed observation |
+| Stationary IMU longitudinal bias + acceleration filter time constant | Stage 1 neutral capture plus Stage 6/8/10 training versus Stage 9 whole-trajectory hold-out |
+| Drive/brake acceleration/current correction terms | Same dynamic model selection |
+| Fusion wheel trust schedule | High-drive/high-brake held-out ground-speed error |
+| `speed_deadband` | Stationary LiDAR noise plus low-speed ladder |
 
-```text
-max_drive_current
-max_brake_current
-max_regen_input_current
-speed_min / speed_max
-current_min / current_max
-brake_min / brake_max
-```
+## ACCEL_TO_CURRENT and traction
 
-These are electrical, battery, thermal, mechanical, or firmware protection
-limits. Determining their **maximum safe values** needs motor/ESC/battery
-specifications, thermal qualification and a separate safety test—not only a
-short indoor calibration run. The output instead reports the maximum current
-and temperature demanded by the calibrated manoeuvres, which establishes the
-minimum capability exercised.
+| Parameter / structure | Evidence |
+|---|---|
+| Drag coefficients | Stage 7 current-zero coast-down |
+| `accel_to_current_gain`, `accel_to_brake_gain` | Low-slip subset of Stage 8, checked on Stage 9 |
+| Nonlinear current/speed traction surface | Stage 8/9 full current grid; retained when scalar gains fail |
+| `accel_deadzone` | Near-zero acceleration noise evidence |
+| Maximum observed straight-line ground accel/decel and simple `mu` estimate | Summarized from accepted Stage 8/9 runs | Diagnostic evidence, not a firmware parameter |
 
-## Parameters not used by the present `AckermannToVesc` code path
+A nonlinear traction surface is experimental evidence for MPC/longitudinal
+model improvement. It must not be silently compressed into scalar
+`ACCEL_TO_CURRENT` gains.
 
-`speed_to_braking_gain`, `speed_to_braking_center`, and `speed_to_braking_min`
-are retained in the existing YAML but are not used by the current stop branch,
-which applies `speed_to_braking_max` for a VEL_TO_ERPM stop/direction change.
-They are recorded in the configuration snapshot and explicitly excluded from
-candidate fitting rather than being given meaningless numbers.
+## Not claimed as safe maxima
+
+The campaign does not establish VESC/battery/motor current limits, regen
+limits, firmware speed bounds or thermal safety maxima. Those must be reviewed
+before setting `approved_*_test_current_a`, and require a separate electrical
+and thermal qualification campaign.

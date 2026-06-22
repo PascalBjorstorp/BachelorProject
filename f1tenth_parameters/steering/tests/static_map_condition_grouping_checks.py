@@ -91,6 +91,7 @@ def check_source_and_config_contract() -> None:
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "5 repetitions per speed / side / step size" in readme
+    assert "steering_simulation_seed_report.json" in readme
 
 
 def main() -> int:

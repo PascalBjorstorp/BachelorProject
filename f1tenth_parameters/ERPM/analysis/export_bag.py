@@ -24,7 +24,7 @@ def main()->int:
         from rosidl_runtime_py.utilities import get_message
     except ImportError as exc: raise SystemExit('source ROS workspace and install pandas/pyarrow: '+repr(exc))
     derived=bag.parent/'derived'; derived.mkdir(exist_ok=True)
-    names=['events','imu','vesc','odom','drive','ackermann','motor_command','motor_raw_speed','motor_raw_current','motor_raw_brake','motor_selected_speed','motor_selected_current','motor_selected_brake','motor_selector_status','scan_index','tf_index','parameter_event_index','topic_index']
+    names=['events','imu','vesc','odom','drive','ackermann','motor_command','motor_raw_speed','motor_raw_current','motor_raw_brake','motor_selected_speed','motor_selected_current','motor_selected_brake','motor_selector_status','candidate_odom','candidate_odom_debug','candidate_accel_debug','scan_index','tf_index','parameter_event_index','topic_index']
     rows={n:[] for n in names}; reader=rosbag2_py.SequentialReader(); reader.open(rosbag2_py.StorageOptions(uri=str(bag),storage_id='mcap'),rosbag2_py.ConverterOptions(input_serialization_format='cdr',output_serialization_format='cdr'))
     types={x.name:x.type for x in reader.get_all_topics_and_types()}; classes={}
     while reader.has_next():
@@ -34,8 +34,8 @@ def main()->int:
         except Exception as exc: rows['topic_index'].append({'topic':topic,'bag_ns':int(bag_ns),'type':t,'decode_error':repr(exc)}); continue
         common={'topic':topic,'bag_ns':int(bag_ns),'header_ns':header_ns(msg),'type':t}; rows['topic_index'].append({**common,'decode_error':None})
         if topic=='/sensors/imu/raw': rows['imu'].append({**common,'ax':msg.linear_acceleration.x,'ay':msg.linear_acceleration.y,'az':msg.linear_acceleration.z,'gx':msg.angular_velocity.x,'gy':msg.angular_velocity.y,'gz':msg.angular_velocity.z})
-        elif topic=='/ego_racecar/odom':
-            tw=msg.twist.twist; po=msg.pose.pose; rows['odom'].append({**common,'x':po.position.x,'y':po.position.y,'vx':tw.linear.x,'vy':tw.linear.y,'vz':tw.linear.z,'wz':tw.angular.z})
+        elif topic in {'/ego_racecar/odom','/erpm_calibration/candidate_odom'}:
+            tw=msg.twist.twist; po=msg.pose.pose; key='candidate_odom' if topic=='/erpm_calibration/candidate_odom' else 'odom'; rows[key].append({**common,'x':po.position.x,'y':po.position.y,'vx':tw.linear.x,'vy':tw.linear.y,'vz':tw.linear.z,'wz':tw.angular.z})
         elif topic=='/sensors/core':
             st=msg.state; rows['vesc'].append({**common,'erpm':getattr(st,'speed',math.nan),'motor_current':getattr(st,'current_motor',math.nan),'input_current':getattr(st,'current_input',math.nan),'battery_voltage':getattr(st,'voltage_input',math.nan),'temp_motor':getattr(st,'temp_motor',math.nan),'temp_fet':getattr(st,'temp_fet',math.nan),'duty_cycle':getattr(st,'duty_cycle',math.nan),'fault_code':getattr(st,'fault_code',math.nan)})
         elif topic in {'/drive','/ackermann_cmd'}:
@@ -47,6 +47,10 @@ def main()->int:
         elif topic=='/erpm_calibration/motor_selected_speed': rows['motor_selected_speed'].append({**common,'value':msg.data})
         elif topic=='/erpm_calibration/motor_selected_current': rows['motor_selected_current'].append({**common,'value':msg.data})
         elif topic=='/erpm_calibration/motor_selected_brake': rows['motor_selected_brake'].append({**common,'value':msg.data})
+        elif topic.startswith('/erpm_calibration/candidate_odom/'):
+            rows['candidate_odom_debug'].append({**common,'signal':topic.rsplit('/',1)[-1],'value':msg.data})
+        elif topic.startswith('/erpm_calibration/candidate_accel/'):
+            rows['candidate_accel_debug'].append({**common,'signal':topic.rsplit('/',1)[-1],'value':msg.data})
         elif topic=='/erpm_calibration/motor_selector_status': rows['motor_selector_status'].append({**common,**parse(msg.data)})
         elif topic=='/scan': rows['scan_index'].append({**common,'frame_id':msg.header.frame_id,'range_count':len(msg.ranges),'finite_range_count':sum(math.isfinite(x) for x in msg.ranges),'angle_min':msg.angle_min,'angle_max':msg.angle_max,'angle_increment':msg.angle_increment,'time_increment':msg.time_increment,'scan_time':msg.scan_time,'range_min':msg.range_min,'range_max':msg.range_max})
         elif topic in {'/tf','/tf_static'}: rows['tf_index'].append({**common,'transform_count':len(msg.transforms)})

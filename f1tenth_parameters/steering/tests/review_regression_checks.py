@@ -73,6 +73,7 @@ def check_static_map_gate() -> None:
     assert "static_map_condition_coverage.parquet" in source
     runner = (ROOT / "analysis" / "run_analysis.py").read_text(encoding="utf-8")
     assert '"--strict"' in runner
+    assert "summarize_simulation_seeds.py" in runner
 
 
 def main() -> int:
@@ -83,6 +84,8 @@ def main() -> int:
     assert "max_center_servo_spread" not in cfg["centre_trim"]
     assert "measurements_per_side" not in cfg["endstops"]
     assert int(cfg["response"]["repetitions"]) == 5
+    outputs = (ROOT / "docs" / "STEERING_PARAMETER_OUTPUTS.md").read_text(encoding="utf-8")
+    assert "steering_simulation_seed_report.json" in outputs
     print("review regression checks passed")
     return 0
 

@@ -18,6 +18,7 @@ motion unless a real position/angle sensor is added.
 | Nominal-condition map table | `static_map_nominal_condition_summary.parquet` | Median command echo and effective steering response per commanded side/fraction condition. |
 | Command-path timing | `command_to_effective_steering_response_metrics.parquet` | Raw request to selector, bus and driver-command echo timing. |
 | Effective dynamics | same response table | Command-to-equivalent-steering delay, rise, settling, overshoot, effective peak rate and FOPDT fit. |
+| Simulation seeds | `steering_simulation_seed_report.json` | Early lateral-model / simulator seed values: effective steering gain, yaw-rate gain, curvature gain, lateral-acceleration gain, and lag by speed/side/step. |
 | Geometry confidence | `icp_observability_report.json` and `lidar_velocity.parquet` | LiDAR/ICP noise floor, residual, conditioning and scan-pair validity. |
 
 ## Meaning of “effective dynamics”
@@ -41,6 +42,12 @@ G(s)=\frac{K\,e^{-Ls}}{\tau s+1}.
 
 `L` is the **effective** dead time and `tau` the **effective** time constant.
 They are reported by side, speed, step magnitude, repeat and return direction.
+
+`steering_simulation_seed_report.json` deliberately stays at the vehicle level.
+It packages what the current sensors can support for early simulation work:
+speed-dependent effective steering gain, curvature gain, yaw-rate gain,
+lateral-acceleration gain, hysteresis, repeatability, and the effective lag
+terms. It does **not** claim full Pacejka or separate tyre/actuator parameters.
 
 ## Not identifiable without another sensor
 

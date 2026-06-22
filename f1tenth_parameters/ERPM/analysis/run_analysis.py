@@ -16,7 +16,7 @@ def main()->int:
         call([sys.executable,str(ROOT/'analysis'/'export_bag.py'),str(bag)])
         # All motion analysis has access to raw scans. Stage 0 does not need ICP.
         if stage!='00_command_chain_audit': call([sys.executable,str(ROOT/'analysis'/'estimate_lidar_motion.py'),str(bag),'--config',str(session/'calibration_config_snapshot.yaml')])
-    for name in ['fit_speed_map.py','fit_coastdown.py','fit_current_model.py','fit_erpm_response.py','fit_accel_interface.py','assess_voltage_temperature.py','assemble_candidate.py']:
+    for name in ['fit_speed_map.py','fit_coastdown.py','fit_current_model.py','fit_traction_transients.py','fit_erpm_response.py','fit_accel_interface.py','fit_odom_model_selection.py','assemble_candidate.py','summarize_forward_motion.py']:
         call([sys.executable,str(ROOT/'analysis'/name),str(session)])
     return 0
 if __name__=='__main__': raise SystemExit(main())

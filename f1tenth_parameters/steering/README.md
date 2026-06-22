@@ -171,6 +171,14 @@ The dynamic stage reports both:
 
 The latter yields delay, 10–90% rise time, 5% settling time, overshoot, peak effective steering rate, local steady gain, and a first-order-plus-dead-time fit `K exp(-Ls)/(tau s + 1)`, separately by left/right, step magnitude, speed, repeat and return direction.
 
+For early simulator or lateral-model work, the offline analysis now also emits
+`analysis/steering_simulation_seed_report.json`. That report packages the
+vehicle-level quantities the current sensors can actually support: effective
+steering gain, curvature gain, yaw-rate gain, lateral-acceleration gain,
+hysteresis, repeatability, and effective lag by speed/side/step. It is useful
+for seeding a better bicycle/simulation model, but it is not presented as full
+Pacejka identification.
+
 `/sensors/servo_position_command` is only a command echo, **not a measured servo-shaft or wheel angle**. Therefore this session cannot truthfully identify mechanical servo-shaft delay/rate in isolation. It identifies the combined steering-to-vehicle response used by the MPC plant. A real steering-angle sensor is required to split servo, linkage, tyre and vehicle-yaw dynamics.
 
 ---

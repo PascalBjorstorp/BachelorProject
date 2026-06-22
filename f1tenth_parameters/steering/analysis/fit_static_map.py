@@ -96,6 +96,7 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
         valid_fraction = float(len(lv) / len(lv_all))
         vx, gz = float(lv.vx.mean()), float(im.gz.mean())
         vx_std, gz_std = float(lv.vx.std()), float(im.gz.std())
+        ay_mean, ay_std = float(im.ay.mean()), float(im.ay.std())
         rmse = float(lv.icp_rmse_m.mean())
         accepted = (
             valid_fraction >= float(criteria["min_valid_scan_fraction"]) and
@@ -119,6 +120,10 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
             "vx_lidar_std": vx_std,
             "yaw_rate": gz,
             "yaw_rate_std": gz_std,
+            "imu_ay_mean": ay_mean,
+            "imu_ay_std": ay_std,
+            "curvature_inv_m": float(gz / vx),
+            "lateral_accel_kinematic_mps2": float(vx * gz),
             "icp_rmse_m": rmse,
             "valid_scan_fraction": valid_fraction,
             "delta_eq_rad": delta,

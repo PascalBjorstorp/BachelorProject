@@ -41,6 +41,7 @@ def main() -> int:
     run([sys.executable, str(ROOT / "analysis" / "fit_static_map.py"), str(session),
          "--config", str(session / "calibration_config_snapshot.yaml")])
     run([sys.executable, str(ROOT / "analysis" / "fit_response.py"), str(session)])
+    run([sys.executable, str(ROOT / "analysis" / "summarize_simulation_seeds.py"), str(session)])
     run([sys.executable, str(ROOT / "analysis" / "assemble_steering_summary.py"), str(session)])
     print("\nOffline analysis complete. Review session/analysis before applying any parameters.")
     return 0

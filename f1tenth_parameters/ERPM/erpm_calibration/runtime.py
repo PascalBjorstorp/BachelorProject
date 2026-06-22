@@ -23,6 +23,7 @@ from .events import EventPublisher
 class Latest:
     imu_ax: float=math.nan; imu_ay: float=math.nan; imu_gz: float=math.nan
     odom_vx: float=math.nan; odom_vy: float=math.nan
+    candidate_odom_vx: float=math.nan; candidate_odom_vy: float=math.nan
     erpm: float=math.nan; motor_current_a: float=math.nan; input_current_a: float=math.nan
     battery_v: float=math.nan; motor_temp_c: float=math.nan; fet_temp_c: float=math.nan
     selected_speed_erpm: float=math.nan; selected_current_a: float=math.nan; selected_brake_a: float=math.nan
@@ -40,6 +41,7 @@ class CalibrationNode(Node):
         self.mode_pub=self.create_publisher(String,'/erpm_calibration/motor_mode',qos)
         self.create_subscription(Imu,'/sensors/imu/raw',self._imu,400)
         self.create_subscription(Odometry,'/ego_racecar/odom',self._odom,400)
+        self.create_subscription(Odometry,'/erpm_calibration/candidate_odom',self._candidate_odom,400)
         self.create_subscription(LaserScan,'/scan',self._scan,100)
         self.create_subscription(Float64,'/erpm_calibration/motor_selected_speed',self._selected_speed,200)
         self.create_subscription(Float64,'/erpm_calibration/motor_selected_current',self._selected_current,200)
@@ -59,6 +61,10 @@ class CalibrationNode(Node):
     def _odom(self,msg:Odometry)->None:
         self.latest.odom_vx=float(msg.twist.twist.linear.x); self.latest.odom_vy=float(msg.twist.twist.linear.y); self.latest.seen.add('odom')
         self._rec(odom_vx=self.latest.odom_vx,odom_vy=self.latest.odom_vy)
+
+    def _candidate_odom(self,msg:Odometry)->None:
+        self.latest.candidate_odom_vx=float(msg.twist.twist.linear.x); self.latest.candidate_odom_vy=float(msg.twist.twist.linear.y); self.latest.seen.add('candidate_odom')
+        self._rec(candidate_odom_vx=self.latest.candidate_odom_vx,candidate_odom_vy=self.latest.candidate_odom_vy)
     def _scan(self,msg:LaserScan)->None:
         self.latest.scan_count+=1; self.latest.seen.add('scan')
     def _vesc(self,msg:Any)->None:
@@ -93,10 +99,10 @@ class CalibrationNode(Node):
     @staticmethod
     def _float(v:float)->Float64:
         m=Float64(); m.data=float(v); return m
-    def _drive_message(self, speed_mps:float, acceleration_mps2:float)->None:
-        msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(self.cfg['session']['steering_angle_rad']); self.drive_pub.publish(msg)
-    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0)->None:
-        self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2)
+    def _drive_message(self, speed_mps:float, acceleration_mps2:float, steering_angle_rad:float|None=None)->None:
+        msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad); self.drive_pub.publish(msg)
+    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None)->None:
+        self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad)
     def _steering_keepalive(self)->None:
         # AckermannToVesc must receive a normal zero-speed / zero-angle command
         # so it continues to publish the installed steering map. Its motor output
@@ -105,18 +111,25 @@ class CalibrationNode(Node):
         self._drive_message(0.0,0.0)
     def raw_erpm(self, erpm:float)->None:
         self._mode('raw_erpm'); self._steering_keepalive(); self.raw_speed_pub.publish(self._float(erpm))
-    def raw_current(self, current_a:float)->None:
+    def raw_current(self, current_a: float) -> None:
+        cap = float(self.cfg['operating_envelope']['approved_drive_test_current_a'])
+        if not math.isfinite(current_a) or current_a < -1e-9 or current_a > cap + 1e-9:
+            raise RuntimeError(f'raw drive-current request {current_a!r} exceeds calibrated test envelope [0, {cap}] A')
         self._mode('raw_current'); self._steering_keepalive(); self.raw_current_pub.publish(self._float(current_a))
-    def raw_brake(self, brake_a:float)->None:
+
+    def raw_brake(self, brake_a: float) -> None:
+        cap = float(self.cfg['operating_envelope']['approved_brake_test_current_a'])
+        if not math.isfinite(brake_a) or brake_a < -1e-9 or brake_a > cap + 1e-9:
+            raise RuntimeError(f'raw brake-current request {brake_a!r} exceeds calibrated test envelope [0, {cap}] A')
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(); self.spin(0.04); self._mode('neutral')
-    def command(self, kind:str, target:float, *, speed_hint:float=0.0)->None:
+    def command(self, kind:str, target:float, *, speed_hint:float=0.0, steering_angle_rad:float|None=None)->None:
         if kind=='raw_erpm': self.raw_erpm(target)
         elif kind=='raw_current': self.raw_current(target)
         elif kind=='raw_brake': self.raw_brake(target)
-        elif kind=='ackermann_speed': self.ackermann(target,0.0)
-        elif kind=='ackermann_accel': self.ackermann(speed_hint,target)
+        elif kind=='ackermann_speed': self.ackermann(target,0.0,steering_angle_rad)
+        elif kind=='ackermann_accel': self.ackermann(speed_hint,target,steering_angle_rad)
         elif kind=='neutral': self.neutral()
         else: raise ValueError(kind)
     def _safety(self, motion:bool)->None:
@@ -125,15 +138,23 @@ class CalibrationNode(Node):
         if math.isfinite(self.latest.motor_temp_c) and self.latest.motor_temp_c>float(s['max_motor_temp_c']): raise RuntimeError(f'motor thermal threshold exceeded: {self.latest.motor_temp_c:.1f} C')
         if math.isfinite(self.latest.fet_temp_c) and self.latest.fet_temp_c>float(s['max_fet_temp_c']): raise RuntimeError(f'FET thermal threshold exceeded: {self.latest.fet_temp_c:.1f} C')
         if motion and math.isfinite(self.latest.odom_vx) and abs(self.latest.odom_vx)>float(s['hard_speed_limit_mps']): raise RuntimeError(f'odom exceeded hard speed limit: {self.latest.odom_vx:.3f} m/s')
-    def hold(self, *, kind:str,target:float,duration_s:float,phase:str,segment_id:str,trial_id:str|None,capture:bool=True,speed_hint:float=0.0,window_fields:tuple[str,...]=(), **meta:Any)->dict[str,float]:
+    def hold(self, *, kind:str,target:float,duration_s:float,phase:str,segment_id:str,trial_id:str|None,capture:bool=True,speed_hint:float=0.0,steering_angle_rad:float|None=None,window_fields:tuple[str,...]=(), **meta:Any)->dict[str,float]:
+        """Hold one nominal command and emit a self-describing capture window.
+
+        The steering angle is recorded on both phase boundaries.  This matters for
+        candidate cross-axis validation: the offline verifier must key its grid on
+        the commanded condition rather than infer steering from the noisy command
+        stream after the fact.
+        """
         hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
-        self.event.emit('phase_start',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),**meta)
+        active_steering=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad)
+        self.event.emit('phase_start',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**meta)
         if window_fields: self.begin_window(*window_fields)
         end=time.monotonic()+duration_s
         while time.monotonic()<end:
-            self.command(kind,target,speed_hint=speed_hint); self.spin(period); self._safety(motion=kind!='neutral')
+            self.command(kind,target,speed_hint=speed_hint,steering_angle_rad=active_steering); self.spin(period); self._safety(motion=kind!='neutral')
         result=self.end_window() if window_fields else {}
-        self.event.emit('phase_end',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),**result,**meta)
+        self.event.emit('phase_end',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**result,**meta)
         return result
     def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str)->dict[str,Any]:
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz
@@ -158,14 +179,14 @@ class CalibrationNode(Node):
             if stable:
                 out={'stable':True,'elapsed_s':now-start,'erpm_median':float(np.median(e)),'erpm_std':float(np.std(e)),'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
         out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.neutral(); return out
-    def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str)->dict[str,Any]:
+    def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str,steering_angle_rad:float|None=None)->dict[str,Any]:
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
         initial_scan_count = self.latest.scan_count
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
         while time.monotonic()<deadline:
-            self.ackermann(speed_mps,0.0); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
+            self.ackermann(speed_mps,0.0,steering_angle_rad); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
             if now-start>=minimum and not exclusion: self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
             if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
             hist.append((now,self.latest.odom_vx,self.latest.imu_ax))

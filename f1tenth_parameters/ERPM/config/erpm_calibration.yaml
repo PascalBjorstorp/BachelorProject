@@ -1,21 +1,27 @@
 session:
   runs_dir: runs
-  min_free_disk_gb: 25.0
+  min_free_disk_gb: 12.0
   battery_min_v: 10.5
-  hard_speed_limit_mps: 1.2
+  hard_speed_limit_mps: 3.4
   command_publish_hz: 100.0
   event_topic: /erpm_calibration/event
   steering_angle_rad: 0.0
   max_motor_temp_c: 80.0
   max_fet_temp_c: 85.0
-  cooling_pause_every_accepted_trials: 12
-  cooling_pause_s: 90.0
+  cooling_pause_every_accepted_trials: 0
+  cooling_pause_s: 0.0
 workspace:
   vesc_config_relpath: f1tenth_system/f1tenth_stack/config/vesc.yaml
   colcon_build_command:
   - colcon
   - build
   - --symlink-install
+site:
+  straight_usable_length_m: 35.0
+  setup_margin_m: 4.0
+  minimum_full_envelope_length_m: 30.0
+  require_full_envelope_track: true
+  surface_description: fixed indoor high-grip surface
 hardware:
   lidar_ip_address: 192.168.10.10
   base_frame_id: ego_racecar/base_link
@@ -25,11 +31,27 @@ hardware:
   laser_to_base_y_m: 0.0
   laser_to_base_z_m: 0.05
   laser_to_base_yaw_rad: 0.0
+operating_envelope:
+  maximum_test_speed_mps: 3.0
+  maximum_test_accel_mps2: 5.5
+  maximum_test_brake_mps2: 5.0
+  minimum_test_speed_mps: 0.08
+  approved_drive_test_current_a: 0.0
+  approved_brake_test_current_a: 0.0
+  high_speed_capture_s: 1.75
+  high_demand_pulse_duration_s:
+    low_fraction: 0.7
+    medium_fraction: 0.45
+    high_fraction: 0.28
+  dynamic_capture_min_s: 0.2
+  speed_guard_margin_mps: 0.15
+  brake_guard_margin_mps: 0.1
 profiles:
   vel_to_erpm:
     operation_mode: VEL_TO_ERPM
     accel_to_current_gain: 0.0
     accel_to_brake_gain: 0.0
+    speed_to_erpm_offset: 0.0
   accel_to_current_bootstrap:
     operation_mode: ACCEL_TO_CURRENT
     fallback_accel_to_current_gain: 5.0
@@ -37,160 +59,207 @@ profiles:
 preflight:
   required_accel_to_current_gain_vel: 0.0
   required_accel_to_brake_gain_vel: 0.0
+  required_speed_to_erpm_offset_vel: 0.0
   raw_motor_tolerance_erpm: 1.0
   raw_motor_tolerance_current_a: 0.25
   max_selector_publishers: 1
   min_command_change_erpm: 100.0
+  min_command_change_current_a: 1.0
   max_straight_yaw_rate_rad_s: 0.2
   max_straight_lateral_accel_mps2: 1.2
-  min_command_change_current_a: 1.0
 motion_startup:
   minimum_startup_s: 0.75
   stability_window_s: 0.6
   stability_timeout_s: 8.0
-  max_odom_speed_std_mps: 0.08
-  max_abs_imu_ax_mps2: 1.0
-  max_erpm_std: 160.0
+  max_odom_speed_std_mps: 0.1
+  max_abs_imu_ax_mps2: 1.25
+  max_erpm_std: 220.0
   raw_erpm_relative_error_fraction: 0.15
-  raw_erpm_absolute_error: 120.0
+  raw_erpm_absolute_error: 150.0
 observability:
-  stationary_duration_s: 20.0
+  stationary_duration_s: 15.0
   straight_probe_speeds_mps:
-  - 0.35
-  - 0.65
-  straight_probe_repetitions: 3
-  straight_probe_capture_s: 4.0
+  - 0.3
+  - 1.4
+  - 2.4
+  straight_probe_repetitions: 2
+  straight_probe_capture_s: 1.5
 low_speed_launch:
   nominal_speeds_mps:
-  - 0.1
+  - 0.08
   - 0.14
-  - 0.18
   - 0.22
-  - 0.26
-  - 0.3
-  repetitions: 4
-  capture_s: 2.5
+  - 0.32
+  repetitions: 3
+  capture_s: 1.5
   minimum_lidar_speed_mps: 0.06
 raw_erpm_map_training:
   nominal_speeds_mps:
-  - 0.25
-  - 0.35
+  - 0.18
   - 0.45
-  - 0.55
-  - 0.65
-  - 0.75
-  - 0.85
-  - 0.95
-  repetitions: 5
-  capture_s: 4.0
+  - 0.9
+  - 1.4
+  - 1.9
+  - 2.45
+  - 2.95
+  repetitions: 3
+  capture_s: 1.5
 raw_erpm_map_holdout:
   nominal_speeds_mps:
   - 0.3
-  - 0.4
-  - 0.5
-  - 0.6
-  - 0.7
-  - 0.8
-  - 0.9
-  repetitions: 3
-  capture_s: 4.0
+  - 0.65
+  - 1.15
+  - 1.65
+  - 2.15
+  - 2.7
+  repetitions: 2
+  capture_s: 1.5
 vel_to_erpm_pipeline_audit:
   speed_commands_mps:
   - 0.1
-  - 0.14
-  - 0.18
-  - 0.22
   - 0.3
-  - 0.45
-  - 0.6
-  - 0.75
   - 0.9
-  repetitions: 4
-  capture_s: 4.0
+  - 1.75
+  - 2.35
+  - 2.95
+  repetitions: 2
+  capture_s: 1.5
 raw_erpm_response:
   steps_mps:
-  - - 0.25
-    - 0.5
-  - - 0.35
-    - 0.7
-  - - 0.45
-    - 0.85
-  - - 0.55
-    - 0.95
-  repetitions: 4
-  pre_step_hold_s: 2.5
-  response_capture_s: 4.0
+  - - 0.2
+    - 0.65
+  - - 0.7
+    - 1.85
+  - - 1.45
+    - 3.0
+  repetitions: 3
+  pre_step_hold_s: 1.0
+  response_capture_s: 2.0
 coastdown:
   initial_speeds_mps:
-  - 0.45
   - 0.6
-  - 0.75
-  - 0.9
-  repetitions: 4
-  pre_coast_hold_s: 2.5
-  coast_capture_s: 4.0
+  - 1.6
+  - 2.3
+  - 3.0
+  repetitions: 3
+  pre_coast_hold_s: 1.0
+  coast_capture_s: 2.3
   max_abs_motor_current_a: 1.0
 raw_current_training:
-  drive_currents_a:
-  - 3.0
-  - 5.0
-  - 8.0
-  - 12.0
-  - 16.0
-  brake_currents_a:
-  - 3.0
-  - 5.0
-  - 8.0
-  - 12.0
-  repetitions: 4
-  initial_speed_mps_drive: 0.25
-  initial_speed_mps_brake: 0.7
-  pre_pulse_hold_s: 1.5
-  pulse_capture_s: 1.4
-raw_current_holdout:
-  drive_currents_a:
-  - 4.0
-  - 10.0
-  - 14.0
-  brake_currents_a:
-  - 4.0
-  - 7.0
-  - 10.0
+  drive_conditions:
+  - initial_speed_mps: 0.35
+    current_fractions:
+    - 0.12
+    - 0.4
+    - 0.75
+  - initial_speed_mps: 1.35
+    current_fractions:
+    - 0.12
+    - 0.4
+    - 0.75
+  - initial_speed_mps: 2.15
+    current_fractions:
+    - 0.12
+    - 0.35
+  brake_conditions:
+  - initial_speed_mps: 1.0
+    current_fractions:
+    - 0.18
+    - 0.45
+  - initial_speed_mps: 1.8
+    current_fractions:
+    - 0.18
+    - 0.45
+    - 0.75
+  - initial_speed_mps: 2.6
+    current_fractions:
+    - 0.18
+    - 0.45
+    - 0.75
   repetitions: 3
-  initial_speed_mps_drive: 0.25
-  initial_speed_mps_brake: 0.7
-  pre_pulse_hold_s: 1.5
-  pulse_capture_s: 1.4
+  pre_pulse_hold_s: 1.0
+raw_current_holdout:
+  drive_conditions:
+  - initial_speed_mps: 0.7
+    current_fractions:
+    - 0.22
+    - 0.55
+  - initial_speed_mps: 1.75
+    current_fractions:
+    - 0.22
+    - 0.55
+  - initial_speed_mps: 2.45
+    current_fractions:
+    - 0.22
+    - 0.45
+  brake_conditions:
+  - initial_speed_mps: 1.3
+    current_fractions:
+    - 0.28
+    - 0.6
+  - initial_speed_mps: 2.2
+    current_fractions:
+    - 0.28
+    - 0.6
+  - initial_speed_mps: 2.8
+    current_fractions:
+    - 0.28
+    - 0.6
+  repetitions: 2
+  pre_pulse_hold_s: 1.0
 accel_to_current_interface:
+  initial_speeds_mps:
+  - 0.6
+  - 1.8
+  - 2.5
   acceleration_commands_mps2:
-  - -1.0
-  - -0.6
-  - 0.5
-  - 1.0
-  - 1.5
-  repetitions: 4
-  initial_speed_mps: 0.45
-  pre_pulse_hold_s: 1.5
-  pulse_capture_s: 1.4
+  - -5.0
+  - -2.5
+  - 2.5
+  - 5.0
+  repetitions: 2
+  pre_pulse_hold_s: 1.0
 candidate_verification:
   velocity_holdout_commands_mps:
-  - 0.28
-  - 0.46
-  - 0.64
-  - 0.82
+  - 0.24
+  - 0.7
+  - 1.35
+  - 2.1
+  - 2.8
+  velocity_repetitions: 2
+  acceleration_initial_speeds_mps:
+  - 0.6
+  - 1.7
+  - 2.5
   acceleration_holdout_commands_mps2:
-  - -0.8
-  - -0.4
-  - 0.4
+  - -4.0
+  - -2.0
+  - 2.0
+  - 4.5
+  acceleration_repetitions: 2
+  capture_s: 1.5
+cross_axis_validation:
+  enabled: false
+  steering_angle_rad:
+  - 0.04
+  - -0.04
+  speed_commands_mps:
   - 0.8
-  - 1.2
+  - 1.5
+  - 2.2
   repetitions: 3
-  capture_s: 3.0
+  capture_s: 1.5
 analysis:
   min_lidar_speed_mps: 0.08
   max_lidar_gap_s: 0.075
   max_straight_yaw_rate_rad_s: 0.16
   max_abs_lateral_accel_mps2: 1.5
+  max_static_abs_longitudinal_accel_mps2: 0.35
+  slip:
+    speed_floor_mps: 0.25
+    high_slip_ratio_threshold: 0.12
+    nonlinear_model_min_holdout_improvement_fraction: 0.08
+    max_high_demand_slip_fraction_for_linear_candidate: 0.2
   icp:
     downsample: 2
     normal_neighbors: 12
@@ -205,22 +274,91 @@ analysis:
     max_pair_rmse_m: 0.06
     max_hessian_condition_number: 10000.0
     max_imu_yaw_residual_rad: 0.12
+  static_map:
+    model_candidates:
+    - linear
+    - quadratic
+    - monotone_lut
+    lut_max_knots: 8
+    minimum_holdout_improvement_fraction: 0.05
+    minimum_abs_quadratic_erpm_per_mps2: 0.0
+    max_nonmonotonic_slope_fraction: 0.0
+  odometry_model_selection:
+    candidate_models:
+    - legacy_scalar
+    - static_linear
+    - static_quadratic
+    - static_lut
+    - adaptive_wheel
+    - fused_adaptive
+    accel_filter_time_constants_s:
+    - 0.03
+    - 0.05
+    - 0.08
+    - 0.12
+    ridge_lambda: 0.02
+    fused_wheel_weight_coast:
+    - 0.65
+    - 0.8
+    - 0.92
+    fused_wheel_weight_high_demand:
+    - 0.05
+    - 0.12
+    - 0.22
+    - 0.35
+    fused_accel_transition_mps2:
+    - 0.8
+    - 1.4
+    - 2.2
+    fused_min_wheel_weight: 0.04
+    correction_limit_mps: 1.5
+    speed_regimes_mps:
+    - 0.0
+    - 0.55
+    - 1.5
+    - 99.0
+    acceleration_regimes_mps2:
+    - 0.45
+    - 1.5
+    min_holdout_samples_per_regime: 18
+    tie_score_fraction: 0.02
   gates:
     min_valid_lidar_fraction: 0.7
-    min_training_repetitions: 5
-    min_holdout_repetitions: 3
-    max_speed_map_training_rmse_mps: 0.05
-    max_speed_map_holdout_rmse_mps: 0.06
-    max_speed_map_holdout_bias_mps: 0.035
-    max_odom_holdout_rmse_mps: 0.07
-    min_current_model_r2: 0.8
-    max_current_model_holdout_rmse_mps2: 0.35
-    min_coastdown_r2: 0.7
+    min_training_repetitions: 3
+    min_holdout_repetitions: 2
+    max_command_map_relative_holdout_rmse: 0.08
+    max_command_map_relative_holdout_bias: 0.04
+    max_speed_map_training_rmse_mps: 0.1
+    max_speed_map_holdout_rmse_mps: 0.12
+    max_speed_map_holdout_bias_mps: 0.05
+    max_odom_holdout_rmse_mps: 0.14
+    max_odom_holdout_bias_mps: 0.06
+    max_odom_holdout_p95_abs_error_mps: 0.28
+    max_high_accel_odom_rmse_mps: 0.2
+    max_high_accel_odom_bias_mps: 0.09
+    max_high_brake_odom_rmse_mps: 0.22
+    max_high_brake_odom_bias_mps: 0.1
+    max_cross_axis_odom_rmse_mps: 0.2
+    max_cross_axis_odom_bias_mps: 0.08
+    max_cross_axis_odom_p95_abs_error_mps: 0.35
+    max_candidate_odom_acceleration_rmse_mps2: 0.85
+    max_candidate_odom_acceleration_bias_mps2: 0.35
+    min_current_model_r2: 0.72
+    max_current_model_holdout_rmse_mps2: 0.7
+    max_current_model_holdout_bias_mps2: 0.32
+    max_candidate_acceleration_bias_mps2: 0.3
+    min_coastdown_r2: 0.65
     max_command_to_erpm_delay_s: 0.15
-    max_command_to_ground_speed_delay_s: 0.75
-    max_accel_interface_current_rmse_a: 2.0
+    max_command_to_ground_speed_delay_s: 0.9
+    max_accel_interface_current_rmse_a: 2.5
     max_raw_erpm_delivery_error_erpm: 5.0
   desired_vel_stop_decel_mps2: 2.0
   desired_stop_speed_deadband_mps: 0.05
   desired_odom_deadband_mps: 0.05
   voltage_stratification_min_span_v: 0.5
+traction_transients:
+  minimum_current_fraction_for_transient_metrics: 0.5
+  slip_recovery_capture_s: 0.5
+  min_high_demand_transient_repetitions: 2
+  max_peak_slip_ratio_for_scalar_candidate: 0.15
+  max_median_slip_onset_delay_s_for_scalar_candidate: 0.35

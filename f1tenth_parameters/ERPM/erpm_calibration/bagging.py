@@ -1,10 +1,11 @@
-"""Lossless-enough MCAP recording and per-stage evidence capture.
+"""Stage-targeted MCAP recording and per-stage evidence capture.
 
-The calibration stack is dedicated, so the bagger records *all* visible and
-hidden topics instead of relying on a hand-maintained shortlist. A required
-subset is verified from metadata after recording stops; the complete topic
-inventory, ROS graph, parameter dumps and bag topic counts are stored beside
-each MCAP bag.
+The calibration stack is dedicated, but recording every visible and hidden topic
+for every stage drives disk use far above what this campaign actually needs.
+The bagger therefore records an explicit per-stage topic set: required analysis
+topics plus a small shared redundancy/debug bundle. Required topics are still
+verified from metadata after recording stops, and ROS graph/parameter snapshots
+are archived beside each MCAP bag.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ class BagProcess:
     process: subprocess.Popen
     stdout_handle: object
     required_topics: list[str]
+    recorded_topics: list[str]
 
 
 def _run_capture(command: list[str], output: Path, *, timeout_s: float = 12.0) -> None:
@@ -91,13 +93,10 @@ def start_bag(
     stage_dir: Path,
     recording: dict[str, Any],
     required_topics: list[str],
+    recorded_topics: list[str],
     calibration_root: Path,
 ) -> BagProcess:
-    """Start MCAP recording before the stage runtime node exists.
-
-    The explicit ALL-topics strategy is deliberate. The required topic list is
-    only a post-run integrity check; it is not a restrictive allowlist.
-    """
+    """Start MCAP recording before the stage runtime node exists."""
     stage_dir.mkdir(parents=True, exist_ok=True)
     bag_dir = stage_dir / "bag"
     if bag_dir.exists():
@@ -112,6 +111,7 @@ def start_bag(
         "include_hidden_topics": bool(recording.get("include_hidden_topics", True)),
         "qos_profile_overrides": str(qos_path) if qos_path else None,
         "required_topics": required_topics,
+        "recorded_topics": recorded_topics,
     }
     (stage_dir / "recording_plan.yaml").write_text(yaml.safe_dump(plan, sort_keys=False), encoding="utf-8")
     snapshot_ros_graph(stage_dir, "before", required_topics)
@@ -120,6 +120,8 @@ def start_bag(
     command = ["ros2", "bag", "record", "-s", "mcap", "-o", str(bag_dir)]
     if bool(recording.get("record_all_topics", True)):
         command.append("-a")
+    else:
+        command += list(recorded_topics)
     if bool(recording.get("include_hidden_topics", True)):
         command.append("--include-hidden-topics")
     if qos_path:
@@ -132,7 +134,8 @@ def start_bag(
         detail = log_path.read_text(encoding="utf-8", errors="replace")
         raise RuntimeError(f"rosbag failed to start:\n{detail}")
     return BagProcess(stage_dir=stage_dir, bag_dir=bag_dir, process=process,
-                      stdout_handle=handle, required_topics=list(required_topics))
+                      stdout_handle=handle, required_topics=list(required_topics),
+                      recorded_topics=list(recorded_topics))
 
 
 def stop_bag(session: BagProcess, timeout_s: float = 20.0) -> dict[str, Any]:

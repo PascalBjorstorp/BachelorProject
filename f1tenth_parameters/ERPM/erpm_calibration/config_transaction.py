@@ -73,7 +73,7 @@ class VescModeTransaction:
         self.directory.mkdir(parents=True,exist_ok=True); shutil.copy2(self.config_path,self.backup)
         doc=self._read_backup_yaml(); ack=self._params(doc,'ackermann_to_vesc_node'); glob=self._params(doc,'/**'); odom=self._params(doc,'vesc_to_odom_node')
         metadata={'state':'active','created_utc':datetime.now(timezone.utc).isoformat(),'workspace':str(self.workspace),'source_config':str(self.config_path),'backup':str(self.backup),'original_sha256':self._sha(self.backup),'original_values':{
-          'speed_to_erpm_gain':glob.get('speed_to_erpm_gain'),'speed_to_erpm_offset':glob.get('speed_to_erpm_offset'),'servo_min':glob.get('servo_min'),'servo_max':glob.get('servo_max'),
+          'speed_to_erpm_gain':glob.get('speed_to_erpm_gain'),'speed_to_erpm_offset':glob.get('speed_to_erpm_offset'),'servo_min':glob.get('servo_min'),'servo_max':glob.get('servo_max'),'current_max':glob.get('current_max'),'brake_max':glob.get('brake_max'),
           'accel_to_current_gain':ack.get('accel_to_current_gain'),'accel_to_brake_gain':ack.get('accel_to_brake_gain'),'accel_deadzone':ack.get('accel_deadzone'),
           'accel_drag_coulomb':ack.get('accel_drag_coulomb'),'accel_drag_viscous':ack.get('accel_drag_viscous'),'accel_drag_quadratic':ack.get('accel_drag_quadratic'),
           'slow_start_threshold':ack.get('slow_start_threshold'),'slow_start_increment':ack.get('slow_start_increment'),'stop_speed_deadzone':ack.get('stop_speed_deadzone'),
@@ -89,29 +89,43 @@ class VescModeTransaction:
         original=self.original_values(); patch={'profile':name}
         if name=='vel_to_erpm':
             ack['operation_mode']='VEL_TO_ERPM'; ack['accel_to_current_gain']=0.0; ack['accel_to_brake_gain']=0.0
-            patch.update({'operation_mode':'VEL_TO_ERPM','accel_to_current_gain':0.0,'accel_to_brake_gain':0.0})
-        elif name in {'accel_to_current_bootstrap','accel_to_current_candidate'}:
+            # The static ERPM map is constrained through (0, 0).  A low-speed
+            # launch threshold is handled by slow-start logic, never by a global
+            # ERPM intercept that would corrupt VESC-derived odometry.
+            glob['speed_to_erpm_offset']=0.0
+            patch.update({'operation_mode':'VEL_TO_ERPM','accel_to_current_gain':0.0,'accel_to_brake_gain':0.0,'speed_to_erpm_offset':0.0})
+        elif name in {'accel_to_current_bootstrap','accel_to_current_candidate','accel_to_current_interim'}:
             spec=self.profiles['accel_to_current_bootstrap']
             drive=original.get('accel_to_current_gain')
             brake=original.get('accel_to_brake_gain')
             if not isinstance(drive,(int,float)) or float(drive)<=0: drive=float(spec['fallback_accel_to_current_gain'])
             if not isinstance(brake,(int,float)) or float(brake)<=0: brake=float(spec['fallback_accel_to_brake_gain'])
             ack['operation_mode']='ACCEL_TO_CURRENT'; ack['accel_to_current_gain']=float(drive); ack['accel_to_brake_gain']=float(brake)
-            patch.update({'operation_mode':'ACCEL_TO_CURRENT','accel_to_current_gain':float(drive),'accel_to_brake_gain':float(brake)})
-            if name=='accel_to_current_candidate':
+            # Keep the zero-speed ERPM invariant across profiles. Although
+            # ACCEL_TO_CURRENT does not command motor speed through this map,
+            # vesc_to_odom continues to consume it.
+            glob['speed_to_erpm_offset']=0.0
+            patch.update({'operation_mode':'ACCEL_TO_CURRENT','accel_to_current_gain':float(drive),'accel_to_brake_gain':float(brake),'speed_to_erpm_offset':0.0})
+            if name in {'accel_to_current_candidate','accel_to_current_interim'}:
                 if not candidate_patch: raise ConfigTransactionError('candidate profile needs candidate patch')
                 for key in ['accel_to_current_gain','accel_to_brake_gain','accel_deadzone','accel_drag_coulomb','accel_drag_viscous','accel_drag_quadratic','max_drive_current','max_brake_current','max_regen_input_current','slow_start_threshold','slow_start_increment','stop_speed_deadzone','speed_to_braking_max']:
                     if key in candidate_patch: ack[key]=candidate_patch[key]
-                for key in ['speed_to_erpm_gain','speed_to_erpm_offset']:
-                    if key in candidate_patch: glob[key]=candidate_patch[key]
+                # A candidate can change the scalar gain but may never
+                # reintroduce an ERPM intercept: E(0) = 0 is a hard model
+                # constraint, not an optional candidate value.
+                if 'speed_to_erpm_gain' in candidate_patch:
+                    glob['speed_to_erpm_gain']=candidate_patch['speed_to_erpm_gain']
+                glob['speed_to_erpm_offset']=0.0
                 for key in ['odom_speed_scale','speed_deadband']:
                     if key in candidate_patch: odom[key]=candidate_patch[key]
                 patch['candidate_patch']=candidate_patch
-        elif name=='vel_to_erpm_candidate':
+        elif name in {'vel_to_erpm_candidate','vel_to_erpm_interim'}:
             if not candidate_patch: raise ConfigTransactionError('candidate VEL profile needs candidate patch')
             ack['operation_mode']='VEL_TO_ERPM'; ack['accel_to_current_gain']=0.0; ack['accel_to_brake_gain']=0.0
-            for key in ['speed_to_erpm_gain','speed_to_erpm_offset']:
-                if key in candidate_patch: glob[key]=candidate_patch[key]
+            glob['speed_to_erpm_offset']=0.0
+            if 'speed_to_erpm_gain' in candidate_patch:
+                glob['speed_to_erpm_gain']=candidate_patch['speed_to_erpm_gain']
+            glob['speed_to_erpm_offset']=0.0
             for key in ['slow_start_threshold','slow_start_increment','stop_speed_deadzone','speed_to_braking_max']:
                 if key in candidate_patch: ack[key]=candidate_patch[key]
             for key in ['odom_speed_scale','speed_deadband']:
