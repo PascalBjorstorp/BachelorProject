@@ -1,0 +1,226 @@
+session:
+  runs_dir: runs
+  min_free_disk_gb: 25.0
+  battery_min_v: 10.5
+  hard_speed_limit_mps: 1.2
+  command_publish_hz: 100.0
+  event_topic: /erpm_calibration/event
+  steering_angle_rad: 0.0
+  max_motor_temp_c: 80.0
+  max_fet_temp_c: 85.0
+  cooling_pause_every_accepted_trials: 12
+  cooling_pause_s: 90.0
+workspace:
+  vesc_config_relpath: f1tenth_system/f1tenth_stack/config/vesc.yaml
+  colcon_build_command:
+  - colcon
+  - build
+  - --symlink-install
+hardware:
+  lidar_ip_address: 192.168.10.10
+  base_frame_id: ego_racecar/base_link
+  laser_frame_id: ego_racecar/laser
+  imu_frame_id: ego_racecar/imu
+  laser_to_base_x_m: 0.265
+  laser_to_base_y_m: 0.0
+  laser_to_base_z_m: 0.05
+  laser_to_base_yaw_rad: 0.0
+profiles:
+  vel_to_erpm:
+    operation_mode: VEL_TO_ERPM
+    accel_to_current_gain: 0.0
+    accel_to_brake_gain: 0.0
+  accel_to_current_bootstrap:
+    operation_mode: ACCEL_TO_CURRENT
+    fallback_accel_to_current_gain: 5.0
+    fallback_accel_to_brake_gain: 6.0
+preflight:
+  required_accel_to_current_gain_vel: 0.0
+  required_accel_to_brake_gain_vel: 0.0
+  raw_motor_tolerance_erpm: 1.0
+  raw_motor_tolerance_current_a: 0.25
+  max_selector_publishers: 1
+  min_command_change_erpm: 100.0
+  max_straight_yaw_rate_rad_s: 0.2
+  max_straight_lateral_accel_mps2: 1.2
+  min_command_change_current_a: 1.0
+motion_startup:
+  minimum_startup_s: 0.75
+  stability_window_s: 0.6
+  stability_timeout_s: 8.0
+  max_odom_speed_std_mps: 0.08
+  max_abs_imu_ax_mps2: 1.0
+  max_erpm_std: 160.0
+  raw_erpm_relative_error_fraction: 0.15
+  raw_erpm_absolute_error: 120.0
+observability:
+  stationary_duration_s: 20.0
+  straight_probe_speeds_mps:
+  - 0.35
+  - 0.65
+  straight_probe_repetitions: 3
+  straight_probe_capture_s: 4.0
+low_speed_launch:
+  nominal_speeds_mps:
+  - 0.1
+  - 0.14
+  - 0.18
+  - 0.22
+  - 0.26
+  - 0.3
+  repetitions: 4
+  capture_s: 2.5
+  minimum_lidar_speed_mps: 0.06
+raw_erpm_map_training:
+  nominal_speeds_mps:
+  - 0.25
+  - 0.35
+  - 0.45
+  - 0.55
+  - 0.65
+  - 0.75
+  - 0.85
+  - 0.95
+  repetitions: 5
+  capture_s: 4.0
+raw_erpm_map_holdout:
+  nominal_speeds_mps:
+  - 0.3
+  - 0.4
+  - 0.5
+  - 0.6
+  - 0.7
+  - 0.8
+  - 0.9
+  repetitions: 3
+  capture_s: 4.0
+vel_to_erpm_pipeline_audit:
+  speed_commands_mps:
+  - 0.1
+  - 0.14
+  - 0.18
+  - 0.22
+  - 0.3
+  - 0.45
+  - 0.6
+  - 0.75
+  - 0.9
+  repetitions: 4
+  capture_s: 4.0
+raw_erpm_response:
+  steps_mps:
+  - - 0.25
+    - 0.5
+  - - 0.35
+    - 0.7
+  - - 0.45
+    - 0.85
+  - - 0.55
+    - 0.95
+  repetitions: 4
+  pre_step_hold_s: 2.5
+  response_capture_s: 4.0
+coastdown:
+  initial_speeds_mps:
+  - 0.45
+  - 0.6
+  - 0.75
+  - 0.9
+  repetitions: 4
+  pre_coast_hold_s: 2.5
+  coast_capture_s: 4.0
+  max_abs_motor_current_a: 1.0
+raw_current_training:
+  drive_currents_a:
+  - 3.0
+  - 5.0
+  - 8.0
+  - 12.0
+  - 16.0
+  brake_currents_a:
+  - 3.0
+  - 5.0
+  - 8.0
+  - 12.0
+  repetitions: 4
+  initial_speed_mps_drive: 0.25
+  initial_speed_mps_brake: 0.7
+  pre_pulse_hold_s: 1.5
+  pulse_capture_s: 1.4
+raw_current_holdout:
+  drive_currents_a:
+  - 4.0
+  - 10.0
+  - 14.0
+  brake_currents_a:
+  - 4.0
+  - 7.0
+  - 10.0
+  repetitions: 3
+  initial_speed_mps_drive: 0.25
+  initial_speed_mps_brake: 0.7
+  pre_pulse_hold_s: 1.5
+  pulse_capture_s: 1.4
+accel_to_current_interface:
+  acceleration_commands_mps2:
+  - -1.0
+  - -0.6
+  - 0.5
+  - 1.0
+  - 1.5
+  repetitions: 4
+  initial_speed_mps: 0.45
+  pre_pulse_hold_s: 1.5
+  pulse_capture_s: 1.4
+candidate_verification:
+  velocity_holdout_commands_mps:
+  - 0.28
+  - 0.46
+  - 0.64
+  - 0.82
+  acceleration_holdout_commands_mps2:
+  - -0.8
+  - -0.4
+  - 0.4
+  - 0.8
+  - 1.2
+  repetitions: 3
+  capture_s: 3.0
+analysis:
+  min_lidar_speed_mps: 0.08
+  max_lidar_gap_s: 0.075
+  max_straight_yaw_rate_rad_s: 0.16
+  max_abs_lateral_accel_mps2: 1.5
+  icp:
+    downsample: 2
+    normal_neighbors: 12
+    max_iterations: 80
+    max_correspondence_m: 0.35
+    trim_fraction: 0.85
+    min_correspondences: 120
+    min_inlier_ratio: 0.45
+    translation_update_tolerance_m: 1.0e-06
+    rotation_update_tolerance_rad: 1.0e-06
+    relative_cost_tolerance: 1.0e-07
+    max_pair_rmse_m: 0.06
+    max_hessian_condition_number: 10000.0
+    max_imu_yaw_residual_rad: 0.12
+  gates:
+    min_valid_lidar_fraction: 0.7
+    min_training_repetitions: 5
+    min_holdout_repetitions: 3
+    max_speed_map_training_rmse_mps: 0.05
+    max_speed_map_holdout_rmse_mps: 0.06
+    max_speed_map_holdout_bias_mps: 0.035
+    max_odom_holdout_rmse_mps: 0.07
+    min_current_model_r2: 0.8
+    max_current_model_holdout_rmse_mps2: 0.35
+    min_coastdown_r2: 0.7
+    max_command_to_erpm_delay_s: 0.15
+    max_command_to_ground_speed_delay_s: 0.75
+    max_accel_interface_current_rmse_a: 2.0
+    max_raw_erpm_delivery_error_erpm: 5.0
+  desired_vel_stop_decel_mps2: 2.0
+  desired_stop_speed_deadband_mps: 0.05
+  desired_odom_deadband_mps: 0.05
+  voltage_stratification_min_span_v: 0.5

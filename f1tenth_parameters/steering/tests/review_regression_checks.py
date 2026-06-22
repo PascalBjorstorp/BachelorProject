@@ -6,7 +6,8 @@ Run from the steering package root:
 
 These checks intentionally avoid ROS hardware. They protect source contracts
 that previously allowed an undefined runtime variable, launch/analysis geometry
-drift, report-only holdout validation, and a no-op centre-search quality gate.
+drift, report-only holdout validation, a no-op centre-search quality gate,
+and exact-float static-map grouping.
 """
 from __future__ import annotations
 
@@ -67,6 +68,9 @@ def check_static_map_gate() -> None:
     source = (ROOT / "analysis" / "fit_static_map.py").read_text(encoding="utf-8")
     assert "accepted_for_deployment" in source
     assert "static-map hold-out validation failed" in source
+    assert 'groupby(["raw_servo_echo"' not in source
+    assert 'index=["raw_servo_echo"' not in source
+    assert "static_map_condition_coverage.parquet" in source
     runner = (ROOT / "analysis" / "run_analysis.py").read_text(encoding="utf-8")
     assert '"--strict"' in runner
 
@@ -75,6 +79,10 @@ def main() -> int:
     check_stage_source()
     check_geometry_contract()
     check_static_map_gate()
+    cfg = yaml.safe_load((ROOT / "config" / "steering_calibration.yaml").read_text(encoding="utf-8"))
+    assert "max_center_servo_spread" not in cfg["centre_trim"]
+    assert "measurements_per_side" not in cfg["endstops"]
+    assert int(cfg["response"]["repetitions"]) == 5
     print("review regression checks passed")
     return 0
 

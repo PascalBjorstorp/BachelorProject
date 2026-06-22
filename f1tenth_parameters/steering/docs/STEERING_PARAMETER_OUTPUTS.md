@@ -12,8 +12,10 @@ motion unless a real position/angle sensor is added.
 | Raw centre | `centre_trim_offline.json` | Raw servo command at zero steady yaw/curvature. |
 | Static map | `candidate_static_steering_map.json` | Raw servo to effective bicycle steering angle, including local map slope. |
 | Map quality | `static_map_holdout_evaluated.parquet` | Independent hold-out error. |
-| Hysteresis / backlash proxy | `static_map_hysteresis.parquet` | Difference between outward and inward approach at equal raw command. |
-| Repeatability | `static_map_repeatability.parquet` | Scatter across repeated accepted captures. |
+| Hysteresis / backlash proxy | `static_map_hysteresis.parquet` | Difference between outward and inward approach at the same nominal commanded side/fraction condition. |
+| Repeatability | `static_map_repeatability.parquet` | Scatter across repeated accepted captures at the same nominal commanded side/fraction/approach condition. |
+| Static-map coverage | `static_map_condition_coverage.parquet` | Required versus accepted repetition count for every nominal training and hold-out condition. |
+| Nominal-condition map table | `static_map_nominal_condition_summary.parquet` | Median command echo and effective steering response per commanded side/fraction condition. |
 | Command-path timing | `command_to_effective_steering_response_metrics.parquet` | Raw request to selector, bus and driver-command echo timing. |
 | Effective dynamics | same response table | Command-to-equivalent-steering delay, rise, settling, overshoot, effective peak rate and FOPDT fit. |
 | Geometry confidence | `icp_observability_report.json` and `lidar_velocity.parquet` | LiDAR/ICP noise floor, residual, conditioning and scan-pair validity. |

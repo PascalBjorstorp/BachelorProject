@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
-"""Fit and validate the raw-servo to effective-steering static map offline."""
+"""Fit and validate the raw-servo to effective-steering static map offline.
+
+The experimental key is the commanded nominal condition:
+
+    side + configured fraction + approach direction
+
+The servo command echo is deliberately *not* used as a grouping key.  It is a
+measured regressor inside each repeated condition and is retained in the output
+for command-path diagnostics and the final interpolation axis.
+"""
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import yaml
 
 from trials import accepted_trial_ids
+
+
+TRAINING_APPROACHES = ("outward", "inward")
+HOLDOUT_APPROACHES = ("shuffled",)
 
 
 def capture_intervals(events: pd.DataFrame) -> list[tuple[dict, dict]]:
@@ -35,6 +49,29 @@ def latest_target(events: pd.DataFrame, before_ns: int, trial_id: str) -> dict:
     if not len(candidates):
         return {}
     return candidates.iloc[-1].to_dict()
+
+
+def _fraction_key(value: Any) -> str:
+    """Stable condition label for a configured fraction, not a measured value."""
+    if pd.isna(value):
+        return "missing"
+    return f"{float(value):.6f}"
+
+
+def add_nominal_condition_keys(rows: pd.DataFrame) -> pd.DataFrame:
+    """Add deterministic keys based only on the commanded experiment condition."""
+    result = rows.copy()
+    if len(result) == 0:
+        result["fraction_key"] = pd.Series(dtype="string")
+        result["condition_key"] = pd.Series(dtype="string")
+        result["condition_approach_key"] = pd.Series(dtype="string")
+        return result
+    result["side"] = result["side"].astype(str)
+    result["approach"] = result["approach"].astype(str)
+    result["fraction_key"] = result["fraction"].map(_fraction_key)
+    result["condition_key"] = result["side"] + "|f=" + result["fraction_key"]
+    result["condition_approach_key"] = result["condition_key"] + "|approach=" + result["approach"]
+    return result
 
 
 def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dict) -> pd.DataFrame:
@@ -69,25 +106,161 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
         )
         delta = float(np.arctan(wheelbase * gz / vx))
         rows.append({
-            "trial_id": start.get("trial_id"), "segment_id": start["segment_id"], "raw_servo_target": target.get("raw_servo_target"),
-            "raw_servo_echo": float(ec.value.mean()), "side": target.get("side"),
-            "fraction": target.get("fraction"), "approach": target.get("approach"),
-            "vx_lidar": vx, "vx_lidar_std": vx_std, "yaw_rate": gz, "yaw_rate_std": gz_std,
-            "icp_rmse_m": rmse, "valid_scan_fraction": valid_fraction, "delta_eq_rad": delta, "accepted": bool(accepted),
+            "trial_id": start.get("trial_id"),
+            "condition_id": target.get("condition_id", start.get("segment_id")),
+            "segment_id": start["segment_id"],
+            "raw_servo_target": target.get("raw_servo_target"),
+            "raw_servo_echo": float(ec.value.mean()),
+            "side": target.get("side"),
+            "fraction": target.get("fraction"),
+            "approach": target.get("approach"),
+            "sweep": target.get("sweep"),
+            "vx_lidar": vx,
+            "vx_lidar_std": vx_std,
+            "yaw_rate": gz,
+            "yaw_rate_std": gz_std,
+            "icp_rmse_m": rmse,
+            "valid_scan_fraction": valid_fraction,
+            "delta_eq_rad": delta,
+            "accepted": bool(accepted),
         })
+    return add_nominal_condition_keys(pd.DataFrame(rows))
+
+
+def _condition_summary(accepted: pd.DataFrame) -> pd.DataFrame:
+    """Collapse only repeated *nominal* conditions, never exact echo floats."""
+    return (
+        accepted.groupby(["side", "fraction_key"], dropna=False)
+        .agg(
+            fraction=("fraction", "first"),
+            raw_servo_target_median=("raw_servo_target", "median"),
+            raw_servo_echo_median=("raw_servo_echo", "median"),
+            raw_servo_echo_mean=("raw_servo_echo", "mean"),
+            raw_servo_echo_std=("raw_servo_echo", "std"),
+            condition_sample_count=("delta_eq_rad", "count"),
+            delta_eq_median=("delta_eq_rad", "median"),
+            delta_eq_mean=("delta_eq_rad", "mean"),
+            delta_eq_std=("delta_eq_rad", "std"),
+        )
+        .reset_index()
+        .sort_values("raw_servo_echo_median")
+        .reset_index(drop=True)
+    )
+
+
+def _repeatability_summary(accepted: pd.DataFrame) -> pd.DataFrame:
+    """Scatter for repeated same-side/fraction/approach conditions."""
+    return (
+        accepted.groupby(["side", "fraction_key", "approach"], dropna=False)
+        .agg(
+            fraction=("fraction", "first"),
+            raw_servo_target_median=("raw_servo_target", "median"),
+            raw_servo_echo_median=("raw_servo_echo", "median"),
+            raw_servo_echo_mean=("raw_servo_echo", "mean"),
+            raw_servo_echo_std=("raw_servo_echo", "std"),
+            repeat_count=("delta_eq_rad", "count"),
+            delta_eq_mean=("delta_eq_rad", "mean"),
+            delta_eq_median=("delta_eq_rad", "median"),
+            repeatability_std_rad=("delta_eq_rad", "std"),
+        )
+        .reset_index()
+        .sort_values(["side", "fraction", "approach"])
+        .reset_index(drop=True)
+    )
+
+
+def _hysteresis_summary(repeatability: pd.DataFrame) -> pd.DataFrame:
+    """Outward/inward median difference at the same nominal command condition."""
+    if len(repeatability) == 0:
+        return pd.DataFrame(columns=["side", "fraction_key", "fraction", "outward", "inward", "hysteresis_delta_rad"])
+    pivot = (
+        repeatability.pivot_table(
+            index=["side", "fraction_key", "fraction"],
+            columns="approach",
+            values="delta_eq_median",
+            aggfunc="first",
+        )
+        .reset_index()
+        .sort_values(["side", "fraction"])
+        .reset_index(drop=True)
+    )
+    if "outward" in pivot.columns and "inward" in pivot.columns:
+        pivot["hysteresis_delta_rad"] = pivot["outward"] - pivot["inward"]
+    else:
+        pivot["hysteresis_delta_rad"] = np.nan
+    return pivot
+
+
+def _expected_condition_coverage(
+    fractions: list[float],
+    approaches: tuple[str, ...],
+    required_count: int,
+) -> pd.DataFrame:
+    rows = []
+    for side in ("high_raw", "low_raw"):
+        for fraction in fractions:
+            for approach in approaches:
+                rows.append({
+                    "side": side,
+                    "fraction": float(fraction),
+                    "fraction_key": _fraction_key(fraction),
+                    "approach": approach,
+                    "required_count": int(required_count),
+                })
     return pd.DataFrame(rows)
 
 
-def map_interpolate(training: pd.DataFrame, centre_servo: float) -> tuple[np.ndarray, np.ndarray]:
-    # Median across repeated outward/inward captures. Include the experimentally
-    # identified centre as delta=0 so the two side maps meet at a physical origin.
-    grouped = training.groupby("raw_servo_echo", as_index=False).delta_eq_rad.median().sort_values("raw_servo_echo")
-    x = np.r_[centre_servo, grouped.raw_servo_echo.to_numpy(dtype=float)]
-    y = np.r_[0.0, grouped.delta_eq_rad.to_numpy(dtype=float)]
+def _coverage_report(
+    accepted: pd.DataFrame,
+    *,
+    fractions: list[float],
+    approaches: tuple[str, ...],
+    required_count: int,
+    label: str,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Return explicit condition coverage and human-readable gate failures."""
+    expected = _expected_condition_coverage(fractions, approaches, required_count)
+    observed = (
+        accepted.groupby(["side", "fraction_key", "approach"], dropna=False)
+        .size()
+        .rename("accepted_count")
+        .reset_index()
+    )
+    report = expected.merge(observed, how="left", on=["side", "fraction_key", "approach"])
+    report["accepted_count"] = report["accepted_count"].fillna(0).astype(int)
+    report["coverage_status"] = np.where(
+        report["accepted_count"] >= report["required_count"], "pass", "under_replicated"
+    )
+    failures = []
+    for row in report[report.coverage_status != "pass"].itertuples(index=False):
+        failures.append(
+            f"{label} {row.side} fraction={float(row.fraction):.6f} approach={row.approach}: "
+            f"{int(row.accepted_count)} accepted < required {int(row.required_count)}"
+        )
+    return report, failures
+
+
+def map_interpolate(condition_summary: pd.DataFrame, centre_servo: float) -> tuple[np.ndarray, np.ndarray]:
+    """Construct a single candidate map from median measured echo per nominal condition."""
+    if len(condition_summary) == 0:
+        raise ValueError("no nominal static-map conditions available")
+    x = np.r_[centre_servo, condition_summary.raw_servo_echo_median.to_numpy(dtype=float)]
+    y = np.r_[0.0, condition_summary.delta_eq_median.to_numpy(dtype=float)]
     order = np.argsort(x)
     x, y = x[order], y[order]
-    unique, indices = np.unique(x, return_index=True)
-    return unique, y[indices]
+    if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("non-finite static-map interpolation values")
+    if np.any(np.diff(x) <= 1e-9):
+        raise ValueError(
+            "two nominal static-map conditions have indistinguishable measured servo echo; "
+            "inspect command clipping/deadband before fitting a map"
+        )
+    return x, y
+
+
+def _safe_median(series: pd.Series) -> float | None:
+    values = series.dropna().to_numpy(dtype=float)
+    return float(np.median(values)) if len(values) else None
 
 
 def main() -> int:
@@ -100,76 +273,115 @@ def main() -> int:
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     centre = json.loads((session / "analysis" / "centre_trim_offline.json").read_text(encoding="utf-8"))
     criteria = cfg["analysis"]["map"]
+    static_cfg = cfg["static_map"]
     wheelbase = float(cfg["hardware"]["wheelbase_m"])
     train = segment_rows(session / "04_static_map_training", wheelbase, float(criteria["trim_s"]), criteria)
     holdout = segment_rows(session / "05_static_map_holdout", wheelbase, float(criteria["trim_s"]), criteria)
     if len(train) == 0:
         raise SystemExit("no usable static-map training segments")
-    train.to_parquet(session / "analysis" / "static_map_training_segments.parquet", index=False)
-    holdout.to_parquet(session / "analysis" / "static_map_holdout_segments.parquet", index=False)
-    accepted = train[train.accepted].copy()
+    analysis_dir = session / "analysis"
+    train.to_parquet(analysis_dir / "static_map_training_segments.parquet", index=False)
+    holdout.to_parquet(analysis_dir / "static_map_holdout_segments.parquet", index=False)
+
+    accepted = add_nominal_condition_keys(train[train.accepted].copy())
+    valid = add_nominal_condition_keys(holdout[holdout.accepted].copy())
     min_training = int(criteria["min_training_points"])
     if len(accepted) < min_training:
         raise SystemExit(
             f"static-map training gate failed: {len(accepted)} accepted points < required {min_training}; "
             "inspect LiDAR motion quality and repeat rejected conditions"
         )
-    # Preserve approach-specific observations before collapsing to the candidate
-    # map.  This quantifies backlash/hysteresis and repeated-run scatter rather
-    # than hiding those effects in a median lookup table.
-    repeatability = (
-        accepted.groupby(["raw_servo_echo", "side", "fraction", "approach"], dropna=False)
-        .delta_eq_rad.agg(["count", "mean", "std", "median"])
-        .reset_index()
-        .rename(columns={"count": "repeat_count", "std": "repeatability_std_rad"})
+
+    # Coverage is a hard gate. It prevents skipped/failed conditions from being
+    # hidden by a global point count or by NaN repeatability/hysteresis metrics.
+    train_coverage, train_coverage_failures = _coverage_report(
+        accepted,
+        fractions=list(static_cfg["training_fractions"]),
+        approaches=TRAINING_APPROACHES,
+        required_count=int(static_cfg["training_sweep_repetitions"]),
+        label="training",
     )
-    approaches = (
-        accepted.pivot_table(index=["raw_servo_echo", "side", "fraction"], columns="approach",
-                             values="delta_eq_rad", aggfunc="median")
-        .reset_index()
+    holdout_coverage, holdout_coverage_failures = _coverage_report(
+        valid,
+        fractions=list(static_cfg["validation_fractions"]),
+        approaches=HOLDOUT_APPROACHES,
+        required_count=int(static_cfg["validation_repetitions"]),
+        label="holdout",
     )
-    if "outward" in approaches.columns and "inward" in approaches.columns:
-        approaches["hysteresis_delta_rad"] = approaches["outward"] - approaches["inward"]
-    else:
-        approaches["hysteresis_delta_rad"] = np.nan
-    repeatability.to_parquet(session / "analysis" / "static_map_repeatability.parquet", index=False)
-    approaches.to_parquet(session / "analysis" / "static_map_hysteresis.parquet", index=False)
+    coverage = pd.concat([
+        train_coverage.assign(dataset="training"),
+        holdout_coverage.assign(dataset="holdout"),
+    ], ignore_index=True)
+    coverage.to_parquet(analysis_dir / "static_map_condition_coverage.parquet", index=False)
+
+    # Repeated condition summaries are keyed by nominal command condition. Echo
+    # is deliberately preserved as a measured axis, never used as an exact key.
+    repeatability = _repeatability_summary(accepted)
+    approaches = _hysteresis_summary(repeatability)
+    condition_summary = _condition_summary(accepted)
+    repeatability.to_parquet(analysis_dir / "static_map_repeatability.parquet", index=False)
+    approaches.to_parquet(analysis_dir / "static_map_hysteresis.parquet", index=False)
+    condition_summary.to_parquet(analysis_dir / "static_map_nominal_condition_summary.parquet", index=False)
+
     hysteresis = approaches["hysteresis_delta_rad"].dropna()
-    x, y = map_interpolate(accepted, float(centre["centre_servo_raw"]))
+    try:
+        x, y = map_interpolate(condition_summary, float(centre["centre_servo_raw"]))
+        interpolation_failure: str | None = None
+    except ValueError as exc:
+        x = np.array([], dtype=float)
+        y = np.array([], dtype=float)
+        interpolation_failure = str(exc)
     slope = np.gradient(y, x).tolist() if len(x) >= 2 else []
-    candidate = {
+
+    candidate: dict[str, Any] = {
         "centre_servo_raw": float(centre["centre_servo_raw"]),
-        "raw_servo": x.tolist(), "delta_eq_rad": y.tolist(),
+        "raw_servo": x.tolist(),
+        "delta_eq_rad": y.tolist(),
         "local_gain_rad_per_servo": slope,
         "training_points": int(len(accepted)),
+        "training_nominal_conditions": int(len(condition_summary)),
         "hysteresis_median_abs_rad": float(np.median(np.abs(hysteresis))) if len(hysteresis) else None,
         "hysteresis_max_abs_rad": float(np.max(np.abs(hysteresis))) if len(hysteresis) else None,
-        "repeatability_median_std_rad": float(repeatability.repeatability_std_rad.dropna().median()) if len(repeatability) else None,
+        "repeatability_median_std_rad": _safe_median(repeatability["repeatability_std_rad"]),
+        "interpolation_failure": interpolation_failure,
+        "condition_coverage": {
+            "training_required_per_condition": int(static_cfg["training_sweep_repetitions"]),
+            "holdout_required_per_condition": int(static_cfg["validation_repetitions"]),
+            "training_status": "pass" if not train_coverage_failures else "fail",
+            "holdout_status": "pass" if not holdout_coverage_failures else "fail",
+        },
     }
-    valid = holdout[holdout.accepted].copy()
-    if len(valid):
+
+    if len(valid) and len(x):
         valid["delta_pred_rad"] = np.interp(valid.raw_servo_echo, x, y)
         valid["error_rad"] = valid.delta_pred_rad - valid.delta_eq_rad
         candidate["holdout_points"] = int(len(valid))
         candidate["holdout_rmse_rad"] = float(np.sqrt(np.mean(valid.error_rad ** 2)))
         candidate["holdout_bias_rad"] = float(valid.error_rad.mean())
-        valid.to_parquet(session / "analysis" / "static_map_holdout_evaluated.parquet", index=False)
+        valid.to_parquet(analysis_dir / "static_map_holdout_evaluated.parquet", index=False)
     else:
-        candidate["holdout_points"] = 0
+        candidate["holdout_points"] = int(len(valid))
         candidate["holdout_rmse_rad"] = None
         candidate["holdout_bias_rad"] = None
+        if len(valid):
+            valid.to_parquet(analysis_dir / "static_map_holdout_evaluated.parquet", index=False)
 
     # Hold-out validation is an acceptance gate, not a report-only diagnostic.
-    # The candidate remains written for diagnosis, but cannot be treated as a
-    # deployable map when any configured criterion fails.
     gates = {
+        "min_training_points": min_training,
         "min_holdout_points": int(criteria["min_holdout_points"]),
         "max_holdout_rmse_rad": float(criteria["max_holdout_rmse_rad"]),
         "max_abs_holdout_bias_rad": float(criteria["max_abs_holdout_bias_rad"]),
         "max_hysteresis_median_abs_rad": float(criteria["max_hysteresis_median_abs_rad"]),
         "max_repeatability_median_std_rad": float(criteria["max_repeatability_median_std_rad"]),
+        "training_repetitions_per_nominal_condition": int(static_cfg["training_sweep_repetitions"]),
+        "holdout_repetitions_per_nominal_condition": int(static_cfg["validation_repetitions"]),
     }
     failures: list[str] = []
+    failures.extend(train_coverage_failures)
+    failures.extend(holdout_coverage_failures)
+    if interpolation_failure is not None:
+        failures.append(interpolation_failure)
     holdout_points = int(candidate["holdout_points"])
     if holdout_points < gates["min_holdout_points"]:
         failures.append(f"holdout points {holdout_points} < {gates['min_holdout_points']}")
@@ -178,13 +390,20 @@ def main() -> int:
         failures.append(f"holdout RMSE {rmse} exceeds {gates['max_holdout_rmse_rad']:.6f} rad")
     bias = candidate["holdout_bias_rad"]
     if bias is None or abs(float(bias)) > gates["max_abs_holdout_bias_rad"]:
-        failures.append(f"absolute holdout bias {None if bias is None else abs(float(bias))} exceeds {gates['max_abs_holdout_bias_rad']:.6f} rad")
+        failures.append(
+            f"absolute holdout bias {None if bias is None else abs(float(bias))} "
+            f"exceeds {gates['max_abs_holdout_bias_rad']:.6f} rad"
+        )
     hysteresis_median = candidate["hysteresis_median_abs_rad"]
     if hysteresis_median is None or float(hysteresis_median) > gates["max_hysteresis_median_abs_rad"]:
         failures.append(f"median hysteresis {hysteresis_median} exceeds {gates['max_hysteresis_median_abs_rad']:.6f} rad")
     repeatability_median = candidate["repeatability_median_std_rad"]
     if repeatability_median is None or float(repeatability_median) > gates["max_repeatability_median_std_rad"]:
-        failures.append(f"median repeatability standard deviation {repeatability_median} exceeds {gates['max_repeatability_median_std_rad']:.6f} rad")
+        failures.append(
+            f"median repeatability standard deviation {repeatability_median} "
+            f"exceeds {gates['max_repeatability_median_std_rad']:.6f} rad"
+        )
+
     validation = {
         "status": "pass" if not failures else "fail",
         "gates": gates,
@@ -193,7 +412,6 @@ def main() -> int:
     }
     candidate["validation"] = validation
     candidate["accepted_for_deployment"] = not failures
-    analysis_dir = session / "analysis"
     (analysis_dir / "static_map_validation.json").write_text(json.dumps(validation, indent=2) + "\n")
     (analysis_dir / "candidate_static_steering_map.json").write_text(json.dumps(candidate, indent=2) + "\n")
     print(json.dumps(candidate, indent=2))

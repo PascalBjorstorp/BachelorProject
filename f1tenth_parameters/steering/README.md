@@ -121,9 +121,11 @@ All timing thresholds are in `config/steering_calibration.yaml` under `motion_st
 | 3 | Ground | Sensor observability and stationary ICP noise floor | 3 straight runs per speed; 3 turns per side |
 | 4 | Ground | Static raw-servo → curvature training map | 4 outward/inward sweeps per side |
 | 5 | Ground | Hold-out static-map validation | 3 shuffled repetitions per side |
-| 6 | Ground | Command-to-curvature response dynamics | 4 repetitions per speed / side / step size |
+| 6 | Ground | Command-to-curvature response dynamics | 5 repetitions per speed / side / step size |
 
 The number of conditions is deliberately high. The static-map fit must be repeatable across approach direction and across independent hold-out data, not merely interpolate one sweep.
+
+Static-map repeatability and hysteresis are grouped by the **nominal commanded condition**—side, configured safe-span fraction and approach direction. The measured servo echo remains a recorded regressor and interpolation axis, but it is never used as an exact floating-point grouping key.
 
 ---
 
@@ -286,18 +288,3 @@ numeric interval in the source configuration before building, so the current
 Stage 2 is the physical protection: the operator moves outward manually from
 the identified centre and records the last clearly free position. The resulting
 inward-offset safe interval is then used for every later manoeuvre.
-
-
-## Review-fix acceptance gates
-
-The calibration stack reads LiDAR extrinsics only from the immutable
-`calibration_config_snapshot.yaml` stored in the session directory. That same
-snapshot is passed to the runtime launch and to offline ICP; the per-launch
-geometry evidence is written in `environment/launch_*_geometry.yaml`.
-
-The following are blocking gates, not report-only diagnostics:
-
-- Stage 0 command-chain audit: all raw/selector/bus/echo discrepancies must be within configured tolerances.
-- Stage 1 centre trim: the yaw-zero candidate and servo-bracket resolution gates must pass, and the final confirmation yaw-rate gate must pass.
-- Every stage: required-topic metadata verification must pass before analysis begins.
-- Static map: accepted training count, hold-out count, hold-out RMSE, hold-out bias, hysteresis, and repeatability must pass the configured `analysis.map` limits. A failed hold-out writes diagnostics but causes `analysis/run_analysis.py` to exit non-zero and marks the candidate `accepted_for_deployment: false`.
