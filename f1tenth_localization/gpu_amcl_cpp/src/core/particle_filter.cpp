@@ -558,6 +558,11 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
                                                 int num_ranges,
                                                 float angle_min,
                                                 float angle_inc) {
+    const auto nan = std::numeric_limits<double>::quiet_NaN();
+    last_stage_diag_.raycast_setup_ms = nan;
+    last_stage_diag_.raycast_score_ms = nan;
+    last_stage_diag_.raycast_correction_ms = nan;
+
     if (!cfg_.enable_raycast_verification ||
         n_ <= 0 ||
         num_ranges <= 0 ||
@@ -591,6 +596,8 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
     if (num_ranges > max_ranges_) {
         return false;
     }
+
+    const auto setup_start = std::chrono::high_resolution_clock::now();
     memcpy(h_ranges_pinned_, ranges, static_cast<size_t>(num_ranges) * sizeof(float));
     CUDA_CHECK(cudaMemcpyAsync(
         d_ranges_.ptr(), h_ranges_pinned_,
@@ -825,6 +832,10 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
 
     const int candidate_count = static_cast<int>(candidate_indices.size());
     if (candidate_count <= 0 || clusters.size() < 2) {
+        const auto setup_stop = std::chrono::high_resolution_clock::now();
+        last_stage_diag_.raycast_setup_ms =
+            std::chrono::duration<double, std::milli>(
+                setup_stop - setup_start).count();
         return false;
     }
 
@@ -837,6 +848,12 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
         d_raycast_candidate_counts_.allocate(candidate_indices.size());
     }
 
+    const auto setup_stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.raycast_setup_ms =
+        std::chrono::duration<double, std::milli>(
+            setup_stop - setup_start).count();
+
+    const auto score_start = std::chrono::high_resolution_clock::now();
     sensor_.compute_raycast_scores(
         d_active_particles_,
         d_raycast_candidate_indices_.ptr(),
@@ -860,7 +877,12 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
                                static_cast<size_t>(candidate_count) * sizeof(int),
                                cudaMemcpyDeviceToHost, stream_.get()));
     CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    const auto score_stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.raycast_score_ms =
+        std::chrono::duration<double, std::milli>(
+            score_stop - score_start).count();
 
+    const auto correction_start = std::chrono::high_resolution_clock::now();
     std::vector<double> cluster_score_sum(clusters.size(), 0.0);
     std::vector<double> cluster_weight_sum(clusters.size(), 0.0);
     for (int i = 0; i < candidate_count; ++i) {
@@ -888,6 +910,10 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
         }
     }
     if (!std::isfinite(best_score)) {
+        const auto correction_stop = std::chrono::high_resolution_clock::now();
+        last_stage_diag_.raycast_correction_ms =
+            std::chrono::duration<double, std::milli>(
+                correction_stop - correction_start).count();
         return false;
     }
 
@@ -913,6 +939,10 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
     }
 
     if (!any_penalty) {
+        const auto correction_stop = std::chrono::high_resolution_clock::now();
+        last_stage_diag_.raycast_correction_ms =
+            std::chrono::duration<double, std::milli>(
+                correction_stop - correction_start).count();
         return false;
     }
 
@@ -939,6 +969,10 @@ bool ParticleFilter::apply_raycast_verification(const float* ranges,
         n_, stream_.get());
     CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
     std::swap(d_weights_, d_scratch_w_);
+    const auto correction_stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.raycast_correction_ms =
+        std::chrono::duration<double, std::milli>(
+            correction_stop - correction_start).count();
     return true;
 }
 

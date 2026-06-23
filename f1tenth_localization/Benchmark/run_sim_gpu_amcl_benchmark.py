@@ -266,6 +266,38 @@ def run_gpu(args: argparse.Namespace) -> int:
         f'amcl_kld_bin_theta:={args.amcl_kld_bin_theta}',
         f'amcl_enable_recovery_injection:={str(args.amcl_enable_recovery_injection).lower()}',
         f'amcl_recovery_injection_ratio:={args.amcl_recovery_injection_ratio}',
+        f'amcl_enable_local_roughening:={str(args.amcl_enable_local_roughening).lower()}',
+        f'amcl_local_roughening_ratio:={args.amcl_local_roughening_ratio}',
+        f'amcl_local_roughening_xy_std_m:={args.amcl_local_roughening_xy_std_m}',
+        f'amcl_local_roughening_yaw_std_rad:={args.amcl_local_roughening_yaw_std_rad}',
+        f'amcl_local_roughening_bad_log_weight_per_beam:={args.amcl_local_roughening_bad_log_weight_per_beam}',
+        f'amcl_local_roughening_max_cloud_std_m:={args.amcl_local_roughening_max_cloud_std_m}',
+        f'amcl_enable_raycast_verification:={str(args.amcl_enable_raycast_verification).lower()}',
+        f'amcl_raycast_verification_global_only:={str(args.amcl_raycast_verification_global_only).lower()}',
+        f'amcl_raycast_verification_max_clusters:={args.amcl_raycast_verification_max_clusters}',
+        f'amcl_raycast_verification_particles_per_cluster:={args.amcl_raycast_verification_particles_per_cluster}',
+        f'amcl_raycast_verification_top_particles:={args.amcl_raycast_verification_top_particles}',
+        f'amcl_raycast_verification_max_beams:={args.amcl_raycast_verification_max_beams}',
+        f'amcl_raycast_verification_cluster_radius_m:={args.amcl_raycast_verification_cluster_radius_m}',
+        f'amcl_raycast_verification_yaw_tolerance_rad:={args.amcl_raycast_verification_yaw_tolerance_rad}',
+        f'amcl_raycast_verification_beta:={args.amcl_raycast_verification_beta}',
+        f'amcl_raycast_verification_min_factor:={args.amcl_raycast_verification_min_factor}',
+        f'amcl_raycast_verification_step_m:={args.amcl_raycast_verification_step_m}',
+        f'amcl_enable_startup_scan_refinement:={str(args.amcl_enable_startup_scan_refinement).lower()}',
+        f'amcl_startup_scan_refinement_max_beams:={args.amcl_startup_scan_refinement_max_beams}',
+        f'amcl_startup_scan_refinement_iterations:={args.amcl_startup_scan_refinement_iterations}',
+        f'amcl_startup_scan_refinement_max_match_distance_m:={args.amcl_startup_scan_refinement_max_match_distance_m}',
+        f'amcl_startup_scan_refinement_max_translation_m:={args.amcl_startup_scan_refinement_max_translation_m}',
+        f'amcl_startup_scan_refinement_max_yaw_rad:={args.amcl_startup_scan_refinement_max_yaw_rad}',
+        f'amcl_startup_scan_refinement_max_step_translation_m:={args.amcl_startup_scan_refinement_max_step_translation_m}',
+        f'amcl_startup_scan_refinement_max_step_yaw_rad:={args.amcl_startup_scan_refinement_max_step_yaw_rad}',
+        f'amcl_pose_jump_gate_enabled:={str(args.amcl_pose_jump_gate_enabled).lower()}',
+        f'amcl_pose_jump_max_distance_m:={args.amcl_pose_jump_max_distance_m}',
+        f'amcl_pose_jump_max_yaw_rad:={args.amcl_pose_jump_max_yaw_rad}',
+        f'amcl_pose_jump_confirm_scans:={args.amcl_pose_jump_confirm_scans}',
+        f'amcl_pose_jump_confirm_distance_m:={args.amcl_pose_jump_confirm_distance_m}',
+        f'amcl_pose_jump_confirm_yaw_rad:={args.amcl_pose_jump_confirm_yaw_rad}',
+        f'amcl_force_max_particles_initial_sec:={args.amcl_force_max_particles_initial_sec}',
         f'amcl_normalize_likelihood_by_beams:={str(args.amcl_normalize_likelihood_by_beams).lower()}',
         f'amcl_likelihood_scale:={args.amcl_likelihood_scale}',
         f'amcl_alpha1:={args.amcl_alpha1}',
@@ -434,7 +466,9 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--amcl-min-particles', type=int, default=1000)
     parser.add_argument('--amcl-max-particles', type=int, default=1000)
     parser.add_argument('--amcl-max-beams', type=int, default=270)
-    parser.add_argument('--amcl-use-kld', action='store_true')
+    parser.add_argument('--amcl-use-kld',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
     parser.add_argument('--amcl-kld-epsilon', type=float, default=0.02)
     parser.add_argument('--amcl-kld-z', type=float, default=1.96)
     parser.add_argument('--amcl-kld-bin-x', type=float, default=0.5)
@@ -444,6 +478,86 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
                         action=argparse.BooleanOptionalAction,
                         default=True)
     parser.add_argument('--amcl-recovery-injection-ratio', type=float, default=0.0)
+    parser.add_argument('--amcl-enable-local-roughening',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
+    parser.add_argument('--amcl-local-roughening-ratio', type=float, default=0.25)
+    parser.add_argument('--amcl-local-roughening-xy-std-m', type=float, default=0.20)
+    parser.add_argument('--amcl-local-roughening-yaw-std-rad',
+                        type=float,
+                        default=0.0872664626)
+    parser.add_argument('--amcl-local-roughening-bad-log-weight-per-beam',
+                        type=float,
+                        default=-1.0)
+    parser.add_argument('--amcl-local-roughening-max-cloud-std-m',
+                        type=float,
+                        default=0.75)
+    parser.add_argument('--amcl-enable-raycast-verification',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
+    parser.add_argument('--amcl-raycast-verification-global-only',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
+    parser.add_argument('--amcl-raycast-verification-max-clusters',
+                        type=int,
+                        default=4)
+    parser.add_argument('--amcl-raycast-verification-particles-per-cluster',
+                        type=int,
+                        default=20)
+    parser.add_argument('--amcl-raycast-verification-top-particles',
+                        type=int,
+                        default=20)
+    parser.add_argument('--amcl-raycast-verification-max-beams',
+                        type=int,
+                        default=90)
+    parser.add_argument('--amcl-raycast-verification-cluster-radius-m',
+                        type=float,
+                        default=0.35)
+    parser.add_argument('--amcl-raycast-verification-yaw-tolerance-rad',
+                        type=float,
+                        default=0.5235987756)
+    parser.add_argument('--amcl-raycast-verification-beta', type=float, default=0.30)
+    parser.add_argument('--amcl-raycast-verification-min-factor',
+                        type=float,
+                        default=0.20)
+    parser.add_argument('--amcl-raycast-verification-step-m', type=float, default=0.05)
+    parser.add_argument('--amcl-enable-startup-scan-refinement',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
+    parser.add_argument('--amcl-startup-scan-refinement-max-beams',
+                        type=int,
+                        default=90)
+    parser.add_argument('--amcl-startup-scan-refinement-iterations',
+                        type=int,
+                        default=20)
+    parser.add_argument('--amcl-startup-scan-refinement-max-match-distance-m',
+                        type=float,
+                        default=0.80)
+    parser.add_argument('--amcl-startup-scan-refinement-max-translation-m',
+                        type=float,
+                        default=0.70)
+    parser.add_argument('--amcl-startup-scan-refinement-max-yaw-rad',
+                        type=float,
+                        default=0.52)
+    parser.add_argument('--amcl-startup-scan-refinement-max-step-translation-m',
+                        type=float,
+                        default=0.08)
+    parser.add_argument('--amcl-startup-scan-refinement-max-step-yaw-rad',
+                        type=float,
+                        default=0.06)
+    parser.add_argument('--amcl-pose-jump-gate-enabled',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
+    parser.add_argument('--amcl-pose-jump-max-distance-m', type=float, default=1.0)
+    parser.add_argument('--amcl-pose-jump-max-yaw-rad', type=float, default=1.2)
+    parser.add_argument('--amcl-pose-jump-confirm-scans', type=int, default=3)
+    parser.add_argument('--amcl-pose-jump-confirm-distance-m',
+                        type=float,
+                        default=0.75)
+    parser.add_argument('--amcl-pose-jump-confirm-yaw-rad', type=float, default=0.6)
+    parser.add_argument('--amcl-force-max-particles-initial-sec',
+                        type=float,
+                        default=0.0)
     parser.add_argument('--amcl-normalize-likelihood-by-beams',
                         action=argparse.BooleanOptionalAction,
                         default=True)

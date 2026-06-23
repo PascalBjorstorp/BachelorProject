@@ -78,6 +78,9 @@ private:
     double amcl_callback_to_pose_publish_ms{-1.0};
     double amcl_pose_published{-1.0};
     double amcl_cluster_weight{-1.0};
+    double amcl_raycast_setup_ms{-1.0};
+    double amcl_raycast_score_ms{-1.0};
+    double amcl_raycast_correction_ms{-1.0};
     bool   has_scan{false};
     bool   has_amcl{false};
     bool   has_ekf{false};
@@ -124,6 +127,9 @@ private:
     double amcl_callback_to_pose_publish_ms,
     double amcl_pose_published,
     double amcl_cluster_weight,
+    double amcl_raycast_setup_ms,
+    double amcl_raycast_score_ms,
+    double amcl_raycast_correction_ms,
     double scan_to_amcl_ms,
     double amcl_to_ekf_ms,
     double scan_to_ekf_ms,
@@ -189,6 +195,9 @@ private:
   double latest_amcl_callback_to_pose_publish_ms_{-1.0};
   double latest_amcl_pose_published_{-1.0};
   double latest_amcl_cluster_weight_{-1.0};
+  double latest_amcl_raycast_setup_ms_{-1.0};
+  double latest_amcl_raycast_score_ms_{-1.0};
+  double latest_amcl_raycast_correction_ms_{-1.0};
   double latest_amcl_gpu_timing_recv_ns_{0.0};
 
   // Accumulators for mean/variance over print_every_ cycles

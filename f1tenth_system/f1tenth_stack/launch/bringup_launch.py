@@ -13,7 +13,7 @@
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Mapping mode (270 beams @ 20 Hz, no scan splitter or lateral planner):
+#   Mapping mode (right 110 deg, left 135 deg, no scan splitter or lateral planner):
 #     ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 #
 #   Teleop only (no LiDAR):
@@ -68,8 +68,10 @@ def generate_launch_description():
                               description='Launch joystick teleop and mux'),
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
+        DeclareLaunchArgument('lidar_ip_address', default_value='192.168.10.10',
+                              description='Hokuyo LiDAR IPv4 address'),
         DeclareLaunchArgument('mapping_mode', default_value='false',
-                              description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
+                              description='Mapping mode: right 110 deg, left 135 deg, no scan splitter or lateral planner'),
         DeclareLaunchArgument('trajectory_file', default_value='__from_yaml__',
                       description='Optional override for lateral planner trajectory_file (default: YAML value)'),
         DeclareLaunchArgument('map_file', default_value=default_map,
@@ -90,6 +92,7 @@ def generate_launch_description():
 
     use_teleop = LaunchConfiguration('use_teleop')
     use_lidar = LaunchConfiguration('use_lidar')
+    lidar_ip_address = LaunchConfiguration('lidar_ip_address')
     mapping_mode = LaunchConfiguration('mapping_mode')
     use_system_monitor = LaunchConfiguration('use_system_monitor')
 
@@ -215,20 +218,32 @@ def generate_launch_description():
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'skip': 0}],
+        parameters=[hokuyo_config, {
+            'ip_address': lidar_ip_address,
+            'skip': 0,
+        }],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' != 'true'"
         ])),
     ))
 
-    # Mapping mode: 540 beams @ 40 Hz (cluster=2, skip=0)
+    # Mapping mode: asymmetric front scan, right 110 deg and left full 135 deg.
     # This reduces SLAM load while retaining enough wall detail for track mapping.
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'skip': 0, 'cluster': 2}],
+        parameters=[
+            hokuyo_config,
+            {
+                'ip_address': lidar_ip_address,
+                'skip': 0,
+                'cluster': 2,
+                'angle_min': -1.91986217719,
+                'angle_max':  2.35619449019,
+            },
+        ],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),

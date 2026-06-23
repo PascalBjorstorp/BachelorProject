@@ -9,11 +9,11 @@ Usage:
   # Test network connectivity only (no ROS needed)
   python3 hokuyo_lidar_diagnostic.py --test-network
   
-  # Monitor scan data (requires ROS2 and urg_node running)
-  ros2 run f1tenth_localization hokuyo_lidar_diagnostic.py
-  
+  # Monitor scan data (requires ROS2 and hokuyo_scip_driver_node running)
+  ros2 run f1tenth_lidar hokuyo_lidar_diagnostic.py
+
   # Monitor with custom settings
-  ros2 run f1tenth_localization hokuyo_lidar_diagnostic.py --ros-args -p ip_address:=192.168.1.10
+  ros2 run f1tenth_lidar hokuyo_lidar_diagnostic.py --ros-args -p ip_address:=192.168.10.10
 """
 
 import argparse
@@ -25,7 +25,7 @@ import socket
 from datetime import datetime
 
 # Default LiDAR settings
-DEFAULT_IP = "192.168.0.10"
+DEFAULT_IP = "192.168.10.10"
 DEFAULT_PORT = 10940
 
 
@@ -59,7 +59,7 @@ def test_network_connectivity(ip_address: str = DEFAULT_IP, port: int = DEFAULT_
             print("  Troubleshooting:")
             print(f"    1. Check Ethernet cable connection")
             print(f"    2. Configure Jetson's IP on same subnet:")
-            print(f"       sudo ip addr add 192.168.0.15/24 dev eth0")
+            print(f"       sudo ip addr add 192.168.10.15/24 dev eth0")
             print(f"    3. Verify LiDAR has power (LED should be on)")
             return False
     except subprocess.TimeoutExpired:
@@ -158,7 +158,7 @@ def run_ros_diagnostic():
             self.range_stats = {'min': float('inf'), 'max': 0, 'valid_count': 0, 'invalid_count': 0}
             self.start_time = time.time()
             
-            # Subscriber — use SensorDataQoS to match urg_node's publisher
+            # Subscriber uses sensor QoS and remains compatible with the SCIP driver.
             from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
             sensor_qos = QoSProfile(
                 reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -208,7 +208,7 @@ def run_ros_diagnostic():
         def print_status(self):
             if self.scan_count == 0:
                 self.get_logger().warn('No scan data received yet!')
-                self.get_logger().warn(f'  Check if urg_node is running')
+                self.get_logger().warn(f'  Check if hokuyo_scip_driver_node is running')
                 self.get_logger().warn(f'  Check topic: ros2 topic list | grep scan')
                 return
             
@@ -256,10 +256,10 @@ Examples:
   python3 hokuyo_lidar_diagnostic.py --test-network
   
   # Test with custom IP
-  python3 hokuyo_lidar_diagnostic.py --test-network --ip 192.168.1.10
-  
+  python3 hokuyo_lidar_diagnostic.py --test-network --ip 192.168.10.10
+
   # Run as ROS2 node (monitor scan data)
-  ros2 run f1tenth_localization hokuyo_lidar_diagnostic.py
+  ros2 run f1tenth_lidar hokuyo_lidar_diagnostic.py
 """
     )
     parser.add_argument(

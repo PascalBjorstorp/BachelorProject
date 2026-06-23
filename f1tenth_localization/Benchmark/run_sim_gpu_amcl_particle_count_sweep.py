@@ -144,6 +144,9 @@ def load_pipeline_csv(path: Path, skip_first_sec: float) -> List[Dict[str, float
             "amcl_callback_to_pose_publish_ms": float_field(raw, "amcl_callback_to_pose_publish_ms"),
             "amcl_pose_published": float_field(raw, "amcl_pose_published"),
             "amcl_cluster_weight": float_field(raw, "amcl_cluster_weight"),
+            "amcl_raycast_setup_ms": float_field(raw, "amcl_raycast_setup_ms"),
+            "amcl_raycast_score_ms": float_field(raw, "amcl_raycast_score_ms"),
+            "amcl_raycast_correction_ms": float_field(raw, "amcl_raycast_correction_ms"),
         })
     return rows
 
@@ -462,6 +465,9 @@ def summarize(particles: int,
             "amcl_full_compute_ms",
             "amcl_callback_to_pose_publish_ms",
             "amcl_cluster_weight",
+            "amcl_raycast_setup_ms",
+            "amcl_raycast_score_ms",
+            "amcl_raycast_correction_ms",
         )
     }
     row: Dict[str, object] = {

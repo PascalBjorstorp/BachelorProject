@@ -10,12 +10,12 @@
 #
 # Defaults:
 #   interface: eth0
-#   jetson_ip: 192.168.0.2
-#   lidar_ip:  192.168.0.10 (UST-10LX factory default)
+#   jetson_ip: 192.168.10.15
+#   lidar_ip:  192.168.10.10 (after UST-10LX reconfiguration)
 
 INTERFACE=${1:-eth0}
-JETSON_IP=${2:-192.168.0.2}
-LIDAR_IP=${3:-192.168.0.10}
+JETSON_IP=${2:-192.168.10.15}
+LIDAR_IP=${3:-192.168.10.10}
 
 echo "==================================="
 echo "Hokuyo UST-10LX Network Setup"
@@ -67,6 +67,6 @@ else
     echo "Troubleshooting:"
     echo "1. Check Ethernet cable connection"
     echo "2. Verify LiDAR power (should show activity LEDs)"
-    echo "3. Check LiDAR IP setting (factory default: 192.168.0.10)"
+    echo "3. Check LiDAR IP setting (expected: 192.168.10.10; factory default: 192.168.0.10)"
     echo "4. Try: arp -a | grep $INTERFACE"
 fi

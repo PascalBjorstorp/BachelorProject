@@ -21,7 +21,7 @@ namespace f1tenth_lidar
  * MD command, bypassing urg_node's synchronous request/reply limitation.
  *
  * Parameters (loaded from config/hokuyo_ust10lx.yaml):
- *   ip_address      — sensor IP  (default "192.168.0.10")
+ *   ip_address      — sensor IP  (default "192.168.10.10")
  *   ip_port         — sensor TCP port (default 10940)
  *   laser_frame_id  — TF frame   (default "ego_racecar/laser")
  *   scan_topic      — publish topic (default "/scan")
@@ -43,6 +43,7 @@ private:
   void send_command(const std::string & cmd);
   std::string read_response(double timeout_sec = 2.0);
   void parse_sensor_params(const std::string & response);
+  void apply_angle_limits();
 
   // ── Streaming ──────────────────────────────────────────────────────
   void start_streaming();
@@ -65,8 +66,12 @@ private:
   int         skip_{0};
 
   // ── Sensor specs (updated from PP response) ────────────────────────
+  int    sensor_step_min_{0};
+  int    sensor_step_max_{1080};
   int    step_min_{0};
   int    step_max_{1080};
+  double scan_angle_min_{-2.356194};
+  double scan_angle_max_{ 2.356194};
   double angular_resolution_{0.004363323};  // 0.25° in radians
   double scan_time_{0.025};                 // 25 ms = 40 Hz
 

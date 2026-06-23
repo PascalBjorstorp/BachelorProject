@@ -201,6 +201,9 @@ void PipelineLatencyMonitor::amcl_callback(
     it->second.amcl_callback_to_pose_publish_ms = latest_amcl_callback_to_pose_publish_ms_;
     it->second.amcl_pose_published = latest_amcl_pose_published_;
     it->second.amcl_cluster_weight = latest_amcl_cluster_weight_;
+    it->second.amcl_raycast_setup_ms = latest_amcl_raycast_setup_ms_;
+    it->second.amcl_raycast_score_ms = latest_amcl_raycast_score_ms_;
+    it->second.amcl_raycast_correction_ms = latest_amcl_raycast_correction_ms_;
   }
 }
 
@@ -254,6 +257,9 @@ void PipelineLatencyMonitor::amcl_gpu_timing_callback(
   latest_amcl_callback_to_pose_publish_ms_ = msg->data.size() > 19 ? msg->data[19] : -1.0;
   latest_amcl_pose_published_ = msg->data.size() > 20 ? msg->data[20] : -1.0;
   latest_amcl_cluster_weight_ = msg->data.size() > 21 ? msg->data[21] : -1.0;
+  latest_amcl_raycast_setup_ms_ = msg->data.size() > 22 ? msg->data[22] : -1.0;
+  latest_amcl_raycast_score_ms_ = msg->data.size() > 23 ? msg->data[23] : -1.0;
+  latest_amcl_raycast_correction_ms_ = msg->data.size() > 24 ? msg->data[24] : -1.0;
   latest_amcl_gpu_timing_recv_ns_ = recv;
 }
 
@@ -605,6 +611,9 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
   const double amcl_callback_to_pose_publish_ms = e.amcl_callback_to_pose_publish_ms;
   const double amcl_pose_published = e.amcl_pose_published;
   const double amcl_cluster_weight = e.amcl_cluster_weight;
+  const double amcl_raycast_setup_ms = e.amcl_raycast_setup_ms;
+  const double amcl_raycast_score_ms = e.amcl_raycast_score_ms;
+  const double amcl_raycast_correction_ms = e.amcl_raycast_correction_ms;
 
   double ekf_to_drive_ms = -1.0;
   if (e.has_drive) {
@@ -652,6 +661,9 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
     amcl_callback_to_pose_publish_ms,
     amcl_pose_published,
     amcl_cluster_weight,
+    amcl_raycast_setup_ms,
+    amcl_raycast_score_ms,
+    amcl_raycast_correction_ms,
     scan_to_amcl_ms,
     amcl_to_ekf_ms,
     scan_to_ekf_ms,
@@ -774,7 +786,7 @@ void PipelineLatencyMonitor::initialize_csv_logging()
       return;
     }
 
-    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_particle_count,amcl_processing_ms,amcl_pose_compute_ms,cpu_to_gpu_scan_ms,gpu_to_cpu_particles_ms,gpu_to_cpu_weights_ms,cpu_gpu_transfer_total_ms,cpu_to_gpu_scan_bytes,gpu_to_cpu_particles_bytes,gpu_to_cpu_weights_bytes,amcl_predict_ms,amcl_sensor_model_ms,amcl_normalize_ms,amcl_scan_confidence_ms,amcl_update_weights_total_ms,amcl_cluster_estimate_ms,amcl_resample_ms,amcl_kld_target_ms,amcl_full_compute_ms,amcl_callback_to_pose_publish_ms,amcl_pose_published,amcl_cluster_weight,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
+    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_particle_count,amcl_processing_ms,amcl_pose_compute_ms,cpu_to_gpu_scan_ms,gpu_to_cpu_particles_ms,gpu_to_cpu_weights_ms,cpu_gpu_transfer_total_ms,cpu_to_gpu_scan_bytes,gpu_to_cpu_particles_bytes,gpu_to_cpu_weights_bytes,amcl_predict_ms,amcl_sensor_model_ms,amcl_normalize_ms,amcl_scan_confidence_ms,amcl_update_weights_total_ms,amcl_cluster_estimate_ms,amcl_resample_ms,amcl_kld_target_ms,amcl_full_compute_ms,amcl_callback_to_pose_publish_ms,amcl_pose_published,amcl_cluster_weight,amcl_raycast_setup_ms,amcl_raycast_score_ms,amcl_raycast_correction_ms,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
     csv_file_.flush();
   } catch (const std::exception & e) {
     csv_path_.clear();
@@ -807,6 +819,9 @@ void PipelineLatencyMonitor::write_csv_row(
   double amcl_callback_to_pose_publish_ms,
   double amcl_pose_published,
   double amcl_cluster_weight,
+  double amcl_raycast_setup_ms,
+  double amcl_raycast_score_ms,
+  double amcl_raycast_correction_ms,
   double scan_to_amcl_ms,
   double amcl_to_ekf_ms,
   double scan_to_ekf_ms,
@@ -847,6 +862,9 @@ void PipelineLatencyMonitor::write_csv_row(
             << amcl_callback_to_pose_publish_ms << ','
             << amcl_pose_published << ','
             << amcl_cluster_weight << ','
+            << amcl_raycast_setup_ms << ','
+            << amcl_raycast_score_ms << ','
+            << amcl_raycast_correction_ms << ','
             << scan_to_amcl_ms << ','
             << amcl_to_ekf_ms << ','
             << scan_to_ekf_ms << ','

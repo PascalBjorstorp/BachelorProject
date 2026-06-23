@@ -43,6 +43,7 @@ def generate_launch_description():
     use_ackermann_mux_arg = LaunchConfiguration('use_ackermann_mux')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
+    lidar_ip_address_arg = LaunchConfiguration('lidar_ip_address')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
     use_lateral_planner_arg = LaunchConfiguration('use_lateral_planner')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
@@ -54,6 +55,8 @@ def generate_launch_description():
     use_localization_arg = LaunchConfiguration('use_localization')
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
     amcl_cloud_publish_rate_arg = LaunchConfiguration('amcl_cloud_publish_rate')
+    amcl_debug_pre_resample_particles_arg = LaunchConfiguration(
+        'amcl_debug_pre_resample_particles')
     use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
     monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
     monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
@@ -113,6 +116,10 @@ def generate_launch_description():
                                 default_value='4',
                                 description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
 
+        DeclareLaunchArgument(  'lidar_ip_address',
+                                default_value='192.168.10.10',
+                                description='Hokuyo LiDAR IPv4 address'),
+
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='false',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
@@ -157,6 +164,11 @@ def generate_launch_description():
             'amcl_cloud_publish_rate',
             default_value='0.0',
             description='Particle cloud publish rate in Hz; 0 disables particle cloud downloads'),
+
+        DeclareLaunchArgument(
+            'amcl_debug_pre_resample_particles',
+            default_value='false',
+            description='Publish weighted pre-resample particle cloud debug topic'),
 
         DeclareLaunchArgument(
             'use_system_monitor',
@@ -215,6 +227,8 @@ def generate_launch_description():
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
                     'cloud_publish_rate': ParameterValue(
                         amcl_cloud_publish_rate_arg, value_type=float),
+                    'debug_pre_resample_particles': ParameterValue(
+                        amcl_debug_pre_resample_particles_arg, value_type=bool),
 
                 },
             ],
@@ -396,7 +410,11 @@ def generate_launch_description():
                     executable='hokuyo_scip_driver_node',
                     name='hokuyo_scip_driver',
                     output='screen',
-                    parameters=[hokuyo_config, {'skip': 0, 'cluster': lidar_cluster_arg}],
+                    parameters=[hokuyo_config, {
+                        'ip_address': lidar_ip_address_arg,
+                        'skip': 0,
+                        'cluster': lidar_cluster_arg,
+                    }],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
                         mapping_mode_arg, "' != 'true'"
@@ -408,7 +426,11 @@ def generate_launch_description():
                     executable='hokuyo_scip_driver_node',
                     name='hokuyo_scip_driver',
                     output='screen',
-                    parameters=[hokuyo_config, {'skip': 0, 'cluster': 1}],
+                    parameters=[hokuyo_config, {
+                        'ip_address': lidar_ip_address_arg,
+                        'skip': 0,
+                        'cluster': 1,
+                    }],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
                         mapping_mode_arg, "' == 'true'"

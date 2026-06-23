@@ -972,6 +972,9 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
             callback_to_pose_publish_ms,
             pose_published ? 1.0 : 0.0,
             cluster_weight,
+            stages.raycast_setup_ms,
+            stages.raycast_score_ms,
+            stages.raycast_correction_ms,
         };
         gpu_timing_pub_->publish(timing_msg);
     }
