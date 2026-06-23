@@ -2685,8 +2685,8 @@ def main():
 
     args = argparse.Namespace(
         # Map and output paths
-        map=os.path.join(workspace, 'f1tenth_planning', 'maps', 'my_track_map.yaml'),
-        track_name='my_track',
+        map=os.path.join(workspace, 'f1tenth_planning', 'maps', 'race.yaml'),
+        track_name='race',
         output=default_output,
 
         # Minimum-time optimizer settings
