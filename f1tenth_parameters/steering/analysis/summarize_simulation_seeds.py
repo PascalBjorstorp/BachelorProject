@@ -54,6 +54,7 @@ def main() -> int:
     response_summary = _read_json(out / "command_to_effective_steering_response_summary.json")
     steering_summary = _read_json(out / "steering_calibration_review_summary.json")
     static_candidate = _read_json(out / "candidate_static_steering_map.json")
+    imu_bias = _read_json(out / "imu_bias.json")
 
     accepted_static = static_train[static_train.accepted.astype(bool)].copy() if "accepted" in static_train else static_train
     valid_static_hold = static_hold[static_hold.accepted.astype(bool)].copy() if "accepted" in static_hold else static_hold
@@ -77,6 +78,7 @@ def main() -> int:
                 "pure actuator shaft dynamics without a steering-angle sensor",
             ],
         },
+        "stationary_imu_bias_removed": imu_bias,
         "static_steering_observations": {
             "candidate_static_map_available": static_candidate is not None,
             "training_points": None if static_candidate is None else static_candidate.get("training_points"),

@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from imu_bias import estimate_imu_bias
 from trials import accepted_trial_ids
 
 
@@ -74,7 +75,8 @@ def add_nominal_condition_keys(rows: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dict) -> pd.DataFrame:
+def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dict,
+                 bias=None) -> pd.DataFrame:
     d = stage_dir / "derived"
     events = pd.read_parquet(d / "events.parquet")
     imu = pd.read_parquet(d / "imu.parquet")
@@ -94,9 +96,13 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
         if len(im) < 10 or len(ec) < 3 or len(lv_all) < 3 or len(lv) < 3:
             continue
         valid_fraction = float(len(lv) / len(lv_all))
-        vx, gz = float(lv.vx.mean()), float(im.gz.mean())
+        # Subtract the stationary gyro-z offset (at this segment's time) before
+        # deriving any curvature; ay offset removes the resting gravity tilt.
+        gz_bias = bias.gz_at(0.5 * (a + b)) if bias is not None else 0.0
+        ay_bias = bias.ay_bias if bias is not None else 0.0
+        vx, gz = float(lv.vx.mean()), float(im.gz.mean()) - gz_bias
         vx_std, gz_std = float(lv.vx.std()), float(im.gz.std())
-        ay_mean, ay_std = float(im.ay.mean()), float(im.ay.std())
+        ay_mean, ay_std = float(im.ay.mean()) - ay_bias, float(im.ay.std())
         rmse = float(lv.icp_rmse_m.mean())
         accepted = (
             valid_fraction >= float(criteria["min_valid_scan_fraction"]) and
@@ -280,11 +286,14 @@ def main() -> int:
     criteria = cfg["analysis"]["map"]
     static_cfg = cfg["static_map"]
     wheelbase = float(cfg["hardware"]["wheelbase_m"])
-    train = segment_rows(session / "04_static_map_training", wheelbase, float(criteria["trim_s"]), criteria)
-    holdout = segment_rows(session / "05_static_map_holdout", wheelbase, float(criteria["trim_s"]), criteria)
+    bias = estimate_imu_bias(session)
+    train = segment_rows(session / "04_static_map_training", wheelbase, float(criteria["trim_s"]), criteria, bias)
+    holdout = segment_rows(session / "05_static_map_holdout", wheelbase, float(criteria["trim_s"]), criteria, bias)
     if len(train) == 0:
         raise SystemExit("no usable static-map training segments")
     analysis_dir = session / "analysis"
+    analysis_dir.mkdir(exist_ok=True)
+    (analysis_dir / "imu_bias.json").write_text(json.dumps(bias.to_dict(), indent=2) + "\n", encoding="utf-8")
     train.to_parquet(analysis_dir / "static_map_training_segments.parquet", index=False)
     holdout.to_parquet(analysis_dir / "static_map_holdout_segments.parquet", index=False)
 
@@ -340,6 +349,7 @@ def main() -> int:
 
     candidate: dict[str, Any] = {
         "centre_servo_raw": float(centre["centre_servo_raw"]),
+        "gyro_z_bias": bias.to_dict(),
         "raw_servo": x.tolist(),
         "delta_eq_rad": y.tolist(),
         "local_gain_rad_per_servo": slope,

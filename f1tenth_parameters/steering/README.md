@@ -105,7 +105,7 @@ The stability test uses encoder-derived odometry and IMU longitudinal accelerati
 - low variation over a 0.60 s window;
 - low median longitudinal acceleration.
 
-That runtime use of odometry does **not** make odometry the reference used for the calibration. The offline static steering fit uses accepted raw LiDAR scan-matching velocity with IMU yaw rate.
+That runtime use of odometry does **not** make odometry the reference used for the calibration. The offline static steering fit uses accepted raw LiDAR scan-matching velocity with IMU yaw rate. The IMU yaw rate has its stationary gyro-z bias removed first (estimated from the Stage 3 stationary capture, falling back to the Stage 0 stand); the value used is recorded in `analysis/imu_bias.json`. A single stationary estimate cannot track in-run thermal drift of the gyro.
 
 All timing thresholds are in `config/steering_calibration.yaml` under `motion_startup`.
 
@@ -206,6 +206,17 @@ Every scan pair therefore also receives independent quality gates:
 - uncertainty estimates from the final normal-equation covariance.
 
 Only scan pairs passing all gates are marked `valid`. A static-map capture is accepted for fitting only when at least 70% of its retained scan pairs are valid, and its LiDAR-speed and yaw-rate variation are low.
+
+At 40 Hz the LiDAR sweeps each beam at a slightly different instant while the
+car is moving, so a single scan is not a rigid snapshot. The motion estimator
+therefore (a) **deskews** each scan to its first-beam time using the
+constant-velocity prediction carried from the previous pair, and (b) **warm
+starts** the ICP translation from that same prediction so the first
+correspondence search begins near the true per-frame displacement instead of at
+zero. Both are on by default (`analysis.icp.motion_deskew`,
+`analysis.icp.constant_velocity_seed`) and reported in `lidar_motion_summary.json`;
+set them false to reproduce the original behaviour. They matter most at the
+higher steering speeds.
 
 The stationary section of Stage 3 generates `analysis/icp_observability_report.json`; inspect its stationary apparent-motion noise before trusting the later map.
 

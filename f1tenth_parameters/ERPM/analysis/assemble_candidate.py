@@ -116,6 +116,7 @@ def main() -> int:
         'accel_drag_coulomb': float(drag['accel_drag_coulomb_mps2']),
         'accel_drag_viscous': float(drag['accel_drag_viscous_per_s']),
         'accel_drag_quadratic': float(drag['accel_drag_quadratic_per_m']),
+        'hold_speed_min_mps': float(env.get('hold_speed_min_mps', 0.12)),
         'max_drive_current': float(env['approved_drive_test_current_a']),
         'max_brake_current': float(env['approved_brake_test_current_a']),
         'slow_start_threshold': float(speed['candidate_slow_start_threshold_mps']),

@@ -36,9 +36,23 @@ operating_envelope:
   maximum_test_accel_mps2: 5.5
   maximum_test_brake_mps2: 5.0
   minimum_test_speed_mps: 0.08
-  approved_drive_test_current_a: 0.0
-  approved_brake_test_current_a: 0.0
+  # ----------------------------------------------------------------------------
+  # DEVELOPER-SET maximum motor/brake currents the high-demand stages (8-12) may
+  # command (commanded current = this ceiling x condition fraction; top training
+  # fraction is 0.75). Set from measured hardware (Traxxas Velineon 3500 motor):
+  # real aggressive runs in all_data/data plateau at ~65 A drive motor current
+  # (VESC motor-current limit; brief peaks ~74 A) and clip at ~29.5 A brake.
+  # 0.75 x 85 = 63.75 A drive and 0.75 x 40 = 30 A brake place the top of the
+  # sweep at the measured envelope while keeping every fraction distinct and just
+  # under the VESC clip. Confirm against your own vesc.yaml `current_max` before a
+  # session; the operator then runs `python3 erpm_calibration.py` with no blocking.
+  # ----------------------------------------------------------------------------
+  approved_drive_test_current_a: 85.0
+  approved_brake_test_current_a: 40.0
   high_speed_capture_s: 1.75
+  # Below this speed a commanded a=0 yields zero current (lets the car stop);
+  # above it, a=0 must hold speed via drag-compensating current.
+  hold_speed_min_mps: 0.12
   high_demand_pulse_duration_s:
     low_fraction: 0.7
     medium_fraction: 0.45
@@ -67,6 +81,20 @@ preflight:
   min_command_change_current_a: 1.0
   max_straight_yaw_rate_rad_s: 0.2
   max_straight_lateral_accel_mps2: 1.2
+straight_assist:
+  # Closed-loop heading-hold that trims the steering during straight-running
+  # stages so the car actually goes straight instead of drifting and failing.
+  # The integral (ki) term absorbs steering slack / centre offset. Bounded so it
+  # can never command a real turn, and automatically disabled when an intentional
+  # non-zero steering angle is commanded (the cornering arcs). Gains are a sane
+  # starting point; tune on the car if it under/over-corrects.
+  enabled: true
+  kp_yaw_rad_per_rad_s: 0.35
+  ki_heading_rad_per_rad: 0.8
+  kvy_rad_per_mps: 0.10
+  max_trim_rad: 0.07
+  max_rate_rad_s: 0.6
+  min_speed_mps: 0.2
 motion_startup:
   minimum_startup_s: 0.75
   stability_window_s: 0.6
@@ -189,9 +217,12 @@ raw_current_holdout:
     - 0.22
     - 0.55
   - initial_speed_mps: 2.45
+    # Capped at 0.35 (not 0.45): from 2.45 m/s the 0.40 m/s headroom to the
+    # 3.0 m/s ceiling cannot sustain a higher drive fraction for the minimum
+    # capture window. Matches the training schedule's high-entry cap.
     current_fractions:
     - 0.22
-    - 0.45
+    - 0.35
   brake_conditions:
   - initial_speed_mps: 1.3
     current_fractions:
@@ -234,21 +265,32 @@ candidate_verification:
   acceleration_holdout_commands_mps2:
   - -4.0
   - -2.0
+  - 0.0
   - 2.0
   - 4.5
   acceleration_repetitions: 2
   capture_s: 1.5
 cross_axis_validation:
-  enabled: false
+  # Now used to FIT (not just validate) the turn-induced longitudinal-slip
+  # correction: real bags showed the driven wheels over-read ground speed in
+  # turns, growing with cornering load, so a single ERPM gain is not trustworthy
+  # while steering. These are steady constant-speed arcs spanning a range of
+  # lateral acceleration; they need open lateral space (circling room), and the
+  # analysis holds out a subset of (angle, speed) cells for validation.
+  enabled: true
+  fit_turn_slip: true
   steering_angle_rad:
-  - 0.04
-  - -0.04
+  - 0.08
+  - -0.08
+  - 0.16
+  - -0.16
+  - 0.24
+  - -0.24
   speed_commands_mps:
-  - 0.8
-  - 1.5
+  - 1.2
   - 2.2
   repetitions: 3
-  capture_s: 1.5
+  capture_s: 2.0
 analysis:
   min_lidar_speed_mps: 0.08
   max_lidar_gap_s: 0.075
@@ -260,8 +302,22 @@ analysis:
     high_slip_ratio_threshold: 0.12
     nonlinear_model_min_holdout_improvement_fraction: 0.08
     max_high_demand_slip_fraction_for_linear_candidate: 0.2
+  turn_slip:
+    # Causal cornering-slip correction fit from Stage 13 steady arcs.
+    # a_lat = v_wheel*|yaw_rate|; v_odom = v_wheel*(1 - clip(c1*a_lat,0,clip)).
+    lateral_accel_source: yaw_rate_times_speed
+    min_valid_lidar_fraction: 0.6
+    min_speed_mps: 0.5
+    min_coefficient_per_mps2: 0.002
+    min_train_r2: 0.4
+    correction_clip_fraction: 0.25
   icp:
-    downsample: 2
+    downsample: 1
+    # Within-scan motion compensation and constant-velocity translation warm
+    # start; important at the 3 m/s end of the speed envelope. Set either false
+    # to reproduce the original zero-seed, non-deskewed behaviour.
+    motion_deskew: true
+    constant_velocity_seed: true
     normal_neighbors: 12
     max_iterations: 80
     max_correspondence_m: 0.35
@@ -341,6 +397,9 @@ analysis:
     max_cross_axis_odom_rmse_mps: 0.2
     max_cross_axis_odom_bias_mps: 0.08
     max_cross_axis_odom_p95_abs_error_mps: 0.35
+    max_turn_slip_holdout_rmse_mps: 0.12
+    max_turn_slip_holdout_bias_mps: 0.06
+    max_hold_speed_accel_mps2: 0.2
     max_candidate_odom_acceleration_rmse_mps2: 0.85
     max_candidate_odom_acceleration_bias_mps2: 0.35
     min_current_model_r2: 0.72

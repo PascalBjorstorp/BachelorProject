@@ -26,7 +26,7 @@ WINDOW = (
     'imu_ax', 'imu_ay', 'imu_gz', 'odom_vx', 'odom_vy', 'candidate_odom_vx', 'candidate_odom_vy', 'erpm',
     'motor_current_a', 'input_current_a', 'battery_v', 'motor_temp_c',
     'fet_temp_c', 'selected_speed_erpm', 'selected_current_a',
-    'selected_brake_a',
+    'selected_brake_a', 'straight_assist_trim_rad',
 )
 
 

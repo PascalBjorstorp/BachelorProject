@@ -51,6 +51,10 @@ class CandidateAccelMap(Node):
         self.drive_gain = float(self.p.get('accel_to_current_gain', 0.0))
         self.brake_gain = float(self.p.get('accel_to_brake_gain', 0.0))
         self.deadzone = max(0.0, float(self.p.get('accel_deadzone', 0.02)))
+        # Below this speed a=0 commands zero current so the car can come to rest;
+        # above it, a=0 means HOLD speed and must apply the drag-compensating
+        # current instead of coasting.
+        self.hold_speed_min = max(0.0, float(self.p.get('hold_speed_min_mps', 0.12)))
         self.drag_c0 = max(0.0, float(self.p.get('accel_drag_coulomb', 0.0)))
         self.drag_c1 = max(0.0, float(self.p.get('accel_drag_viscous', 0.0)))
         self.drag_c2 = max(0.0, float(self.p.get('accel_drag_quadratic', 0.0)))
@@ -129,8 +133,14 @@ class CandidateAccelMap(Node):
         elif accel < -self.deadzone:
             brake, target = self._brake_current(accel, speed)
             self.brake_pub.publish(self._float(brake))
+        elif abs(speed) > self.hold_speed_min:
+            # a == 0 means HOLD speed: apply the drag-compensating current
+            # (= drive current for a net acceleration of 0) so the car does not
+            # coast down. This is the fix for "commanding a=0 slowly coasts".
+            drive, target = self._drive_current(0.0, speed)
+            self.current_pub.publish(self._float(drive))
         else:
-            # Explicit zero current prevents a stale drive/brake setpoint.
+            # Near rest, command zero so the vehicle can actually stop.
             self.current_pub.publish(self._float(0.0))
 
         self._debug('target_accel', accel)

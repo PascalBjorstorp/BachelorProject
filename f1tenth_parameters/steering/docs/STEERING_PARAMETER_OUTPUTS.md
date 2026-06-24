@@ -9,7 +9,8 @@ motion unless a real position/angle sensor is added.
 | Product | Output | Meaning |
 |---|---|---|
 | Safe servo interval | `proposed_post_session_vesc_servo_limits.yaml` | Operator-confirmed last-free endpoints with inward safety margin. |
-| Raw centre | `centre_trim_offline.json` | Raw servo command at zero steady yaw/curvature. |
+| Stationary IMU bias | `imu_bias.json` | Median stationary gyro-z (and lateral/longitudinal accel) offset removed before any yaw-rate is used. |
+| Raw centre | `centre_trim_offline.json` | Raw servo command at zero steady yaw/curvature (gyro-z bias removed). |
 | Static map | `candidate_static_steering_map.json` | Raw servo to effective bicycle steering angle, including local map slope. |
 | Map quality | `static_map_holdout_evaluated.parquet` | Independent hold-out error. |
 | Hysteresis / backlash proxy | `static_map_hysteresis.parquet` | Difference between outward and inward approach at the same nominal commanded side/fraction condition. |

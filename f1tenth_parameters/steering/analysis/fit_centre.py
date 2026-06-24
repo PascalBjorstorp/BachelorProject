@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from imu_bias import estimate_imu_bias
 from trials import accepted_trial_ids
 
 
@@ -37,6 +38,10 @@ def main() -> int:
     events = pd.read_parquet(stage / "events.parquet")
     imu = pd.read_parquet(stage / "imu.parquet")
     echo = pd.read_parquet(stage / "servo_echo.parquet")
+    # Remove the stationary gyro-z offset (drift-tracked over the session);
+    # otherwise the centre is identified at the servo command where the *biased*
+    # yaw rate is zero, not the true zero.
+    bias = estimate_imu_bias(session)
     rows = []
     for start, end in intervals(events, "centre_trim_capture"):
         a, b = int(start["bag_ns"] + args.trim_s * 1e9), int(end["bag_ns"] - args.trim_s * 1e9)
@@ -44,12 +49,14 @@ def main() -> int:
         ec = echo[(echo.bag_ns >= a) & (echo.bag_ns <= b)]
         if len(im) < 10 or len(ec) < 3:
             continue
+        gz_bias = bias.gz_at(0.5 * (a + b))
         rows.append({
             "trial_id": start.get("trial_id"),
             "raw_servo_target": float(start.get("raw_servo_target")),
             "raw_servo_echo": float(ec.value.mean()),
-            "yaw_rate_rad_s": float(im.gz.mean()),
+            "yaw_rate_rad_s": float(im.gz.mean()) - gz_bias,
             "yaw_rate_std_rad_s": float(im.gz.std()),
+            "gyro_z_bias_rad_s": float(gz_bias),
             "sample_count": int(len(im)),
         })
     table = pd.DataFrame(rows)
@@ -64,6 +71,7 @@ def main() -> int:
         "yaw_vs_servo_slope_rad_s_per_servo": float(coef[0]),
         "accepted_training_points": int(len(table)),
         "trim_s": float(args.trim_s),
+        "gyro_z_bias": bias.to_dict(),
     }
     output = session / "analysis"
     output.mkdir(exist_ok=True)

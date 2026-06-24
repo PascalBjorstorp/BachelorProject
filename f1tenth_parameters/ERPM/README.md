@@ -35,29 +35,69 @@ usable length, currently **30 m minimum**, and explicitly approved drive/brake
 test-current ceilings. The runner checks these developer-set declarations before
 touching `vesc.yaml`.
 
-The shipped configuration keeps
-`operating_envelope.approved_drive_test_current_a` and
-`operating_envelope.approved_brake_test_current_a` at `0.0` until a responsible
-developer replaces them with reviewed non-zero limits. That placeholder is
-intentional: the full-envelope runner refuses to invent safe current maxima.
+`operating_envelope.approved_drive_test_current_a` (85 A) and
+`operating_envelope.approved_brake_test_current_a` (40 A) are now set from the
+measured Velineon 3500 envelope (see the comment in the config and the
+"Developer one-time setup" section below). The runner still refuses to invent
+these maxima; confirm them against your own `vesc.yaml current_max` before a
+session. They previously shipped at `0.0` as an intentional fail-fast placeholder.
+
+### Developer one-time setup vs. third-party operator
+
+These are **two separate roles**, and this is by design — not a defect:
+
+- **Developer (you), once, before handing off the car:** the two
+  `approved_*_test_current_a` values in `config/erpm_calibration.yaml` (a config
+  file, *not* code) are now populated from the measured Velineon 3500 envelope —
+  85 A drive and 40 A brake, so the top condition fraction (0.75) reaches the
+  ~65 A / ~30 A maxima seen in the recorded data while staying just under the
+  VESC clip. Confirm these against your own `vesc.yaml current_max` for the
+  battery/motor on the car; they are the only manual values because the maximum
+  motor and brake current is a hardware-safety decision the tool must not guess.
+- **Third-party operator, afterwards:** runs `python3 erpm_config_calibration.py`
+  (and, when a C++ port is being validated, `python3 erpm_candidate_port.py`) and
+  nothing else. They never edit code or YAML.
+
+The check runs at launch (fail-fast), so a forgotten value stops the run in the
+first seconds, not after hours of collection. Once both values are set, every
+stage — including the high-current stages 8–12 — proceeds with no blocking.
 
 A 15 m room is suitable for steering and reduced low-speed work. It is **not**
 a defensible site for this full high-speed, high-current acceleration/braking
 identification. Do not lower the site value merely to bypass the preflight;
 create a deliberately limited-envelope configuration instead.
 
-## One-command operator workflow
+## Two-script workflow (split at the C++-edit boundary)
+
+The campaign is split into two scripts so the directly-deployable results are
+not entangled with the ones that need a C++ port:
+
+**Tier 1 — config-deployable (no C++ edits).** Stages 0-10 + offline fit. Emits
+`analysis/config_only_vesc_patch.yaml`: ERPM/odom gain, odom scale, accel/brake
+current gains, the coast-down drag feed-forward (makes `a=0` hold speed instead
+of coasting), and current clamps. Every key is already supported by the
+production C++, so you copy it straight into `vesc.yaml`.
 
 ```bash
 cd ~/BachelorProject/f1tenth_parameters/ERPM
 source ~/BachelorProject/install/setup.bash
-python3 erpm_calibration.py --workspace ~/BachelorProject
+python3 erpm_config_calibration.py --workspace ~/BachelorProject
+```
+
+**Tier 2 — candidate port (needs the C++ port to deploy).** Runs on the Tier-1
+session and validates, in shadow, the features the current parameters cannot
+express: quadratic/LUT command map, fused odometry, traction surface, `a=0`
+hold-speed gate and the cornering turn-slip correction. Deployment still
+requires `full_stack/PRODUCTION_PORT_CONTRACT.md`.
+
+```bash
+python3 erpm_candidate_port.py --session runs/<session-id> --workspace ~/BachelorProject
 ```
 
 Optional no-drive preflight before handing the car to a third party:
 
 ```bash
-python3 erpm_calibration.py --workspace ~/BachelorProject --preflight-only
+python3 erpm_config_calibration.py --workspace ~/BachelorProject --preflight-only
 ```
 
 The third-party operator does not edit `vesc.yaml`, run `colcon`, launch ROS,
@@ -80,10 +120,10 @@ After Stage 9 it fits drag and bootstrap acceleration/current terms, then
 relaunches Stage 10 with that learned forward-motion patch instead of a blind
 fallback gain.
 
-Recovery after power loss or forced termination:
+Recovery after power loss or forced termination (either script):
 
 ```bash
-python3 erpm_calibration.py --recover --workspace ~/BachelorProject
+python3 erpm_config_calibration.py --recover --workspace ~/BachelorProject
 ```
 
 ## What is selected
@@ -120,6 +160,14 @@ The selected model is not the one with the lowest training error. It must meet
 coverage, RMSE, signed-bias, 95th-percentile error, high-drive, high-brake,
 and non-zero-steering hold-out gates.
 
+On top of the chosen straight-line estimator, Stage 13 fits a **cornering
+longitudinal-slip correction**: the driven wheels over-read ground speed in
+turns (grows with lateral acceleration; negligible sideslip; no time lag), so
+the deployable odometry applies `v_odom = v_wheel * (1 - clip(c1*v_wheel*|yaw|))`.
+It is zero on straights by construction, so it never disturbs the validated
+straight-line gain — it only makes the velocity trustworthy while turning. See
+`docs/PARAMETER_OUTPUTS.md`.
+
 ## Experimental stages
 
 | Stage | State / experiment | Purpose |
@@ -138,12 +186,33 @@ and non-zero-steering hold-out gates.
 | offline | Model selection | Compares every causal estimator family using whole held-out trajectories. |
 | 11 | Candidate `VEL_TO_ERPM` shadow validation | Candidate command map and candidate odom feed the live speed loop; plateau hold-outs. |
 | 12 | Candidate `ACCEL_TO_CURRENT` shadow validation | Candidate odom feeds the live acceleration loop; dynamic hold-outs. |
-| 13 | Candidate non-zero-steering speed hold-out | Optional and disabled by default in the fast campaign; verifies speed accuracy on small calibrated steering arcs and never refits longitudinal parameters. |
+| 13 | Cornering slip arcs + non-zero-steering hold-out | Steady constant-speed arcs spanning a range of lateral acceleration. Fits the causal turn-induced longitudinal-slip correction (`fit_turn_slip.py`) on a training subset of arc cells and validates it on held-out cells, so odometry is trustworthy while turning and not only on straights. Needs open lateral (circling) space. |
 
 Each requested physical trial can be `ACCEPT`, `REDO`, `SKIP`, or `ABORT`.
 `REDO` is unlimited. Rejected attempts are retained in MCAP; only accepted
 attempts enter fit/validation. Missing accepted repetitions are an explicit
 coverage failure, never a silent `NaN` metric.
+
+## Straight-line self-alignment
+
+The straight-running stages do not just abort on drift — they **actively hold a
+straight line**. A bounded closed-loop heading-hold (`straight_assist` in the
+config) trims the steering each command tick to null measured yaw rate and
+lateral motion. Its integral term converges to the steady trim that overcomes
+the mechanical steering slack / centre offset, so the car goes straight instead
+of relying on a perfectly calibrated centre or on the operator re-running and
+hoping. The trim is bounded (`max_trim_rad`, default 0.07 rad) so it can never
+command a real turn, is slew-rate limited, and is **automatically disabled when
+an intentional non-zero steering angle is commanded** (the cornering arcs), so
+it never fights a commanded turn. The applied trim is recorded per window
+(`straight_assist_trim_rad`) so the residual slack is visible. Gains are a sane
+starting point; tune them on the car if it under- or over-corrects.
+
+The gains assume the standard convention that a positive `steering_angle`
+produces a positive (left) yaw rate. Verify this on the first low-speed run: if
+the car *diverges* faster instead of straightening, the steering→yaw sign is
+inverted for your vehicle — negate `kp_yaw`, `ki_heading` and `kvy`. The
+`max_trim_rad` bound limits how far a wrong sign can push before you catch it.
 
 ## Full-stack candidate validation
 

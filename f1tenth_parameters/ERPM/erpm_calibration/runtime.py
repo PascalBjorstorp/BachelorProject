@@ -18,6 +18,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Imu, LaserScan
 from std_msgs.msg import Float64, String
 from .events import EventPublisher
+from .straight_assist import from_config as _straight_assist_from_config
 
 @dataclass
 class Latest:
@@ -32,6 +33,7 @@ class Latest:
 class CalibrationNode(Node):
     def __init__(self, name: str, config: dict[str,Any]) -> None:
         super().__init__(name); self.cfg=config; self.latest=Latest(); self._samples={}; self._window=False
+        self.straight_assist=_straight_assist_from_config(config); self._sa_last_t=None
         self.event=EventPublisher(self,config['session']['event_topic'])
         self.drive_pub=self.create_publisher(AckermannDriveStamped,'/drive',50)
         self.raw_speed_pub=self.create_publisher(Float64,'/erpm_calibration/motor_raw_speed',100)
@@ -99,8 +101,24 @@ class CalibrationNode(Node):
     @staticmethod
     def _float(v:float)->Float64:
         m=Float64(); m.data=float(v); return m
+    def reset_straight_assist(self)->None:
+        self.straight_assist.reset(); self._sa_last_t=None
+    def _straight_trim(self)->float:
+        now=time.monotonic(); dt=0.0 if self._sa_last_t is None else now-self._sa_last_t; self._sa_last_t=now
+        trim=self.straight_assist.step(yaw_rate=self.latest.imu_gz,lateral_velocity=self.latest.odom_vy,speed=self.latest.odom_vx,dt=dt)
+        self._rec(straight_assist_trim_rad=trim); return trim
     def _drive_message(self, speed_mps:float, acceleration_mps2:float, steering_angle_rad:float|None=None)->None:
-        msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad); self.drive_pub.publish(msg)
+        base=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad)
+        # Closed-loop straight-assist: when the commanded steering is straight,
+        # add a bounded trim that nulls measured yaw/lateral drift so the car
+        # actually holds a line (overcoming steering slack/centre offset). For an
+        # intentional non-zero angle (e.g. cornering arcs), pass it through and
+        # keep the assist neutral so it cannot fight the commanded turn.
+        if self.straight_assist.enabled and abs(base)<=1e-3:
+            steer=base+self._straight_trim()
+        else:
+            self.reset_straight_assist(); steer=base
+        msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(steer); self.drive_pub.publish(msg)
     def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None)->None:
         self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad)
     def _steering_keepalive(self)->None:
@@ -159,7 +177,7 @@ class CalibrationNode(Node):
     def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str)->dict[str,Any]:
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz
         start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
-        initial_scan_count = self.latest.scan_count
+        initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='raw_erpm',target_erpm=float(target_erpm),minimum_startup_s=minimum)
         while time.monotonic()<deadline:
             self.raw_erpm(target_erpm); self.spin(dt); self._safety(motion=abs(target_erpm)>1)
@@ -183,7 +201,7 @@ class CalibrationNode(Node):
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
-        initial_scan_count = self.latest.scan_count
+        initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
         while time.monotonic()<deadline:
             self.ackermann(speed_mps,0.0,steering_angle_rad); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()

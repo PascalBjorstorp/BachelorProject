@@ -67,9 +67,13 @@ class SessionRunner:
             raise RuntimeError('approved drive/brake test currents must be explicit finite positive values') from exc
         if not (drive_current > 0.0 and brake_current > 0.0):
             raise RuntimeError(
-                'full-envelope current preflight failed: set operating_envelope.approved_drive_test_current_a '
-                'and approved_brake_test_current_a from an independently reviewed hardware safety envelope. '
-                'The campaign refuses to invent safe current maxima.'
+                'full-envelope current preflight failed (this is a one-time DEVELOPER config step, not a '
+                'code change, and not the third-party operator). Edit operating_envelope.'
+                'approved_drive_test_current_a and approved_brake_test_current_a in '
+                'config/erpm_calibration.yaml to reviewed positive amps, e.g. ~0.5-0.7 of the motor '
+                'continuous current rating and never above the VESC current_max. Once set, the operator '
+                'runs the campaign with no further blocking. The tool refuses to invent a current ceiling '
+                f'because it bounds motor/battery safety (got drive={drive_current}, brake={brake_current}).'
             )
 
         # Prove every configured high-demand condition can collect a minimum
@@ -431,6 +435,12 @@ class SessionRunner:
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
         (self.session / 'analysis' / 'verify_candidate.log').write_text(result.stdout, encoding='utf-8')
         if result.returncode: raise RuntimeError('candidate verification analysis failed')
+        # Fit the cornering longitudinal-slip correction from the Stage 13 arcs so
+        # odometry is trustworthy while turning, not only on straights. Additive:
+        # a failure here is logged but does not discard the verified candidate.
+        slip = subprocess.run(['python3', str(self.root / 'analysis' / 'fit_turn_slip.py'), str(self.session)],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
+        (self.session / 'analysis' / 'fit_turn_slip.log').write_text(slip.stdout, encoding='utf-8')
         report = load_yaml(self.session / 'analysis' / 'candidate_deployment_verification_report.yaml')
         accepted = bool(report.get('accepted_for_permanent_review'))
         return {
@@ -461,66 +471,141 @@ class SessionRunner:
             )
             raise
 
-    def run(self)->None:
-        banner('PREPARING FULL ERPM / LONGITUDINAL CALIBRATION','The runner owns temporary profiles, all builds, dedicated launch, MCAP bags, and automatic restoration.')
+    def _emit_config_only_patch(self) -> None:
+        """Write the directly-deployable vesc.yaml parameters (Tier 1).
+
+        These keys are already supported by the production C++ nodes
+        (``ackermann_to_vesc`` / ``vesc_to_odom``): the ERPM/odom scalar gain,
+        odom scale, accel/brake current gains, the coast-down drag feed-forward
+        (which makes ``a=0`` hold speed instead of coasting) and the current
+        clamps. They can be copied straight into ``vesc.yaml`` with NO C++ edit.
+        Quadratic/LUT command maps, the fused estimator, the traction surface and
+        the turn-slip correction are NOT here — they need the C++ port and are
+        validated by the Tier-2 candidate-port run.
+        """
+        a = self.session / 'analysis'
+        speed = load_yaml(a / 'erpm_speed_map_report.yaml')
+        drag = load_yaml(a / 'coastdown_drag_report.yaml')
+        current = load_yaml(a / 'current_acceleration_report.yaml')
+        command_kind = str(speed['command_map']['selected_model'])
+        gain = float(speed['candidate_speed_to_erpm_gain'])
+        odom_scale = self._finite_or(speed.get('candidate_odom_speed_scale'),
+                                     self._finite_or(speed.get('current_odom_speed_scale'), 1.0))
+        env = self.config['operating_envelope']
+        patch = {
+            'note': ('Tier-1 config-only parameters. The production C++ already supports these keys; '
+                     'copy them into vesc.yaml with NO code edit. Linear command map only — quadratic/LUT '
+                     'maps, fused odometry, the traction surface and the turn-slip correction require the '
+                     'C++ port and are produced/validated by erpm_candidate_port.py.'),
+            'directly_config_deployable': bool(command_kind == 'linear'),
+            'selected_command_map': command_kind,
+            'ackermann_to_vesc_node': {'ros__parameters': {
+                'speed_to_erpm_gain': gain,
+                'speed_to_erpm_offset': 0.0,
+                'accel_to_current_gain': float(current['candidate_accel_to_current_gain']),
+                'accel_to_brake_gain': float(current['candidate_accel_to_brake_gain']),
+                'accel_deadzone': float(current['candidate_accel_deadzone_mps2']),
+                'accel_drag_coulomb': float(drag['accel_drag_coulomb_mps2']),
+                'accel_drag_viscous': float(drag['accel_drag_viscous_per_s']),
+                'accel_drag_quadratic': float(drag['accel_drag_quadratic_per_m']),
+                'max_drive_current': float(env['approved_drive_test_current_a']),
+                'max_brake_current': float(env['approved_brake_test_current_a']),
+                'slow_start_threshold': float(speed['candidate_slow_start_threshold_mps']),
+                'slow_start_increment': float(speed['candidate_slow_start_increment_mps']),
+                'stop_speed_deadzone': float(speed['candidate_stop_speed_deadzone_mps']),
+            }},
+            'vesc_to_odom_node': {'ros__parameters': {
+                'speed_to_erpm_gain': gain,
+                'speed_to_erpm_offset': 0.0,
+                'odom_speed_scale': odom_scale,
+                'speed_deadband': float(speed['candidate_odom_speed_deadband_mps']),
+            }},
+        }
+        if command_kind != 'linear':
+            patch['warning'] = (f"selected command map is '{command_kind}', which the current C++ command "
+                                "conversion cannot represent; the linear gain above is the safe config-only "
+                                "fallback. Run erpm_candidate_port.py and the C++ port to deploy the full map.")
+        dump_yaml(a / 'config_only_vesc_patch.yaml', patch)
+        print(f'Tier-1 config-only patch written: {a / "config_only_vesc_patch.yaml"}')
+
+    def run(self, *, identification: bool = True, candidate: bool = True) -> None:
+        title = ('FULL ERPM / LONGITUDINAL CALIBRATION' if (identification and candidate)
+                 else 'ERPM CONFIG-DEPLOYABLE CALIBRATION (TIER 1)' if identification
+                 else 'ERPM CANDIDATE SHADOW VERIFICATION (TIER 2 — needs C++ port to deploy)')
+        banner(f'PREPARING {title}', 'The runner owns temporary profiles, all builds, dedicated launch, MCAP bags, and automatic restoration.')
         print(f'Session directory: {self.session}'); print('The operator does not edit vesc.yaml, build, launch ROS or start rosbag manually.')
         try:
             site = self._verify_site_envelope()
             self._update(site_preflight=site)
             tx=self.transaction.begin(); gain,offset=self._initial_map(tx['original_values']); self.runtime['initial_speed_map']={'gain':gain,'offset':offset}; self._save_runtime(); self._update(vesc_config_transaction=tx)
-            self.transaction.apply_profile('vel_to_erpm'); self._launch('vel_to_erpm'); self._verify_live_profile('vel_to_erpm')
-            require_ready('Type READY to begin Stage 0, or ABORT')
-            for name, group in [
-                ('00_command_chain_audit', 'command_audit'),
-                ('01_longitudinal_observability', 'raw_erpm'),
-                ('02_low_speed_launch', 'raw_erpm'),
-                ('03_raw_erpm_map_training', 'raw_erpm'),
-                ('04_raw_erpm_map_holdout', 'raw_erpm'),
-                ('05_vel_to_erpm_pipeline_audit', 'ackermann_vel'),
-            ]:
-                self._run_stage(name, group, lambda d, n=name: run_stage(n, self.config, d, gain, offset, self.counter))
+            if identification:
+                self.transaction.apply_profile('vel_to_erpm'); self._launch('vel_to_erpm'); self._verify_live_profile('vel_to_erpm')
+                require_ready('Type READY to begin Stage 0, or ABORT')
+                for name, group in [
+                    ('00_command_chain_audit', 'command_audit'),
+                    ('01_longitudinal_observability', 'raw_erpm'),
+                    ('02_low_speed_launch', 'raw_erpm'),
+                    ('03_raw_erpm_map_training', 'raw_erpm'),
+                    ('04_raw_erpm_map_holdout', 'raw_erpm'),
+                    ('05_vel_to_erpm_pipeline_audit', 'ackermann_vel'),
+                ]:
+                    self._run_stage(name, group, lambda d, n=name: run_stage(n, self.config, d, gain, offset, self.counter))
 
-            self._stop_stack()
-            velocity_patch_full, velocity_patch_flat = self._run_velocity_checkpoint()
-            self.transaction.apply_profile('vel_to_erpm_interim', candidate_patch=velocity_patch_flat)
-            self._launch('vel_to_erpm_interim')
-            self._verify_live_profile('vel_to_erpm_interim')
+                self._stop_stack()
+                velocity_patch_full, velocity_patch_flat = self._run_velocity_checkpoint()
+                self.transaction.apply_profile('vel_to_erpm_interim', candidate_patch=velocity_patch_flat)
+                self._launch('vel_to_erpm_interim')
+                self._verify_live_profile('vel_to_erpm_interim')
 
-            for name, group in [
-                ('06_raw_erpm_response', 'raw_erpm'),
-                ('07_coastdown', 'raw_current'),
-                ('08_raw_current_training', 'raw_current'),
-                ('09_raw_current_holdout', 'raw_current'),
-            ]:
+                for name, group in [
+                    ('06_raw_erpm_response', 'raw_erpm'),
+                    ('07_coastdown', 'raw_current'),
+                    ('08_raw_current_training', 'raw_current'),
+                    ('09_raw_current_holdout', 'raw_current'),
+                ]:
+                    self._run_stage(
+                        name, group,
+                        lambda d, n=name: run_stage(n, self.config, d, gain, offset, self.counter, speed_command_patch=velocity_patch_full),
+                    )
+
+                self._stop_stack()
+                accel_patch_full, accel_patch_flat = self._run_forward_motion_checkpoint(velocity_patch_full)
+                self.transaction.apply_profile('accel_to_current_interim', candidate_patch=accel_patch_flat)
+                self._launch('accel_to_current_interim')
+                self._verify_live_profile('accel_to_current_interim')
                 self._run_stage(
-                    name, group,
-                    lambda d, n=name: run_stage(n, self.config, d, gain, offset, self.counter, speed_command_patch=velocity_patch_full),
+                    '10_accel_to_current_interface', 'ackermann_accel',
+                    lambda d: run_stage('10_accel_to_current_interface', self.config, d, gain, offset, self.counter, speed_command_patch=accel_patch_full),
                 )
+                self._stop_stack()
+                print('Running strict offline analysis...')
+                self._run_offline_analysis()
+                self._emit_config_only_patch()
+            elif not (self.session / 'analysis' / 'longitudinal_candidate_summary.yaml').is_file():
+                # Tier-2 on a resumed identification session: regenerate the
+                # candidate from the existing raw bags if it is not present.
+                print('Regenerating candidate from existing raw bags...')
+                self._run_offline_analysis()
 
-            self._stop_stack()
-            accel_patch_full, accel_patch_flat = self._run_forward_motion_checkpoint(velocity_patch_full)
-            self.transaction.apply_profile('accel_to_current_interim', candidate_patch=accel_patch_flat)
-            self._launch('accel_to_current_interim')
-            self._verify_live_profile('accel_to_current_interim')
-            self._run_stage(
-                '10_accel_to_current_interface', 'ackermann_accel',
-                lambda d: run_stage('10_accel_to_current_interface', self.config, d, gain, offset, self.counter, speed_command_patch=accel_patch_full),
-            )
-            self._stop_stack()
-            print('Running strict offline analysis to generate a temporary candidate and its acceptance decision...')
-            self._run_offline_analysis()
-            verification = self._run_temporary_candidate_verification()
-            verification_accepted = bool(verification.get('report', {}).get('accepted_for_permanent_review'))
-            final_status = 'completed' if verification_accepted else 'completed_candidate_rejected'
-            self._update(status=final_status, completed_utc=dt.datetime.now(dt.timezone.utc).isoformat(), candidate_verification=verification)
-            if verification_accepted:
-                banner('ERPM CALIBRATION AND TEMPORARY CANDIDATE VERIFICATION COMPLETE')
-                print('Candidate verification passed all coverage, RMSE and signed-bias gates. It is eligible for human permanent-review only.')
+            if candidate:
+                verification = self._run_temporary_candidate_verification()
+                verification_accepted = bool(verification.get('report', {}).get('accepted_for_permanent_review'))
+                final_status = 'completed' if verification_accepted else 'completed_candidate_rejected'
+                self._update(status=final_status, completed_utc=dt.datetime.now(dt.timezone.utc).isoformat(), candidate_verification=verification)
+                if verification_accepted:
+                    banner('CANDIDATE SHADOW VERIFICATION COMPLETE')
+                    print('Candidate passed all coverage, RMSE and signed-bias gates. It is eligible for human permanent-review (C++ port) only.')
+                else:
+                    banner('CANDIDATE REJECTED')
+                    print('Raw evidence is preserved, but the candidate did not pass complete deployment verification.')
             else:
-                banner('ERPM CALIBRATION COMPLETE — TEMPORARY CANDIDATE REJECTED')
-                print('Raw evidence is preserved, but the candidate did not pass complete deployment verification and is not eligible for permanent review.')
-            print(f'All raw bags, candidate outputs and verification evidence are in: {self.session}')
-            print('The original VESC configuration will now be restored automatically. Candidate values are never installed permanently by this runner.')
+                self._update(status='completed_config_only', completed_utc=dt.datetime.now(dt.timezone.utc).isoformat())
+                banner('TIER 1 COMPLETE — CONFIG-DEPLOYABLE PARAMETERS READY')
+                print('Apply analysis/config_only_vesc_patch.yaml to vesc.yaml. No C++ edit is required for these.')
+                print('For quadratic/LUT maps, fused odometry, the traction surface and the turn-slip correction,')
+                print('run erpm_candidate_port.py on this session (those need the C++ port).')
+            print(f'All raw bags and outputs are in: {self.session}')
+            print('The original VESC configuration will now be restored automatically. Calibrated values are never installed permanently by this runner.')
         except KeyboardInterrupt:
             self._update(status='interrupted'); print(f'Interrupted; raw bags preserved. Resume with --resume {self.session}'); raise
         except Exception:
@@ -528,3 +613,11 @@ class SessionRunner:
         finally:
             self._stop_stack(); restored=self.transaction.restore(build=True)
             if restored: self._update(vesc_config_transaction=restored); print('Original VESC YAML restored byte-for-byte and workspace rebuilt.')
+
+    def run_identification(self) -> None:
+        """Tier 1: gather data, fit, and emit config-only vesc.yaml parameters."""
+        self.run(identification=True, candidate=False)
+
+    def run_candidate_port(self) -> None:
+        """Tier 2: candidate shadow verification (needs the C++ port to deploy)."""
+        self.run(identification=False, candidate=True)

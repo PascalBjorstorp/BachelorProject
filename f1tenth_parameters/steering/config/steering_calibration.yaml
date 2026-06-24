@@ -2,7 +2,10 @@ session:
   runs_dir: runs
   min_free_disk_gb: 8.0
   battery_min_v: 10.5
-  hard_speed_limit_mps: 1.2
+  # Longitudinal safety cut-off. Raised to admit the higher-speed response
+  # conditions used to expose speed-dependent (tyre-slip) steering behaviour;
+  # requires a wide test area. Keep above the maximum response speed below.
+  hard_speed_limit_mps: 2.6
   command_publish_hz: 100.0
   event_topic: /steering_calibration/event
 workspace:
@@ -65,6 +68,7 @@ observability:
   - 0.4
   - 0.6
   - 0.8
+  - 1.5
   straight_repetitions: 3
   straight_capture_s: 7.0
   gentle_turn_fraction_of_safe_span: 0.12
@@ -95,9 +99,14 @@ static_map:
   validation_repetitions: 3
   raw_servo_echo_tolerance: 0.004
 response:
+  # Multiple speeds expose how the effective steering gain and lag change with
+  # speed (the kinematic bicycle map is speed-independent; the real vehicle is
+  # not). The higher speeds need a wide area and a ready emergency stop.
   speeds_mps:
   - 0.6
   - 0.9
+  - 1.5
+  - 2.1
   target_fractions:
   - 0.15
   - 0.3
@@ -112,12 +121,18 @@ response:
   settling_hold_s: 0.3
 analysis:
   icp:
-    max_iterations: 80
+    max_iterations: 120
     translation_update_tolerance_m: 1.0e-06
     rotation_update_tolerance_rad: 1.0e-06
     relative_cost_tolerance: 1.0e-07
     max_correspondence_m: 0.3
     downsample: 1
+    # Within-scan motion compensation and constant-velocity translation warm
+    # start. Both improve scan matching at speed; set false to reproduce the
+    # original zero-seed, non-deskewed behaviour.
+    motion_deskew: true
+    constant_velocity_seed: true
+    max_scan_period_s: 0.20
     normal_neighbors: 9
     trim_fraction: 0.85
     min_correspondences: 140

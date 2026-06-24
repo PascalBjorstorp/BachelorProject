@@ -29,6 +29,7 @@ import yaml
 from scipy.optimize import least_squares
 from scipy.signal import savgol_filter
 
+from imu_bias import estimate_imu_bias
 from trials import accepted_trial_ids
 
 
@@ -269,6 +270,7 @@ def _effective_series(
     wheelbase_m: float,
     min_speed_mps: float,
     max_lidar_gap_s: float,
+    bias=None,
 ) -> pd.DataFrame:
     """Time-align IMU yaw rate with valid LiDAR longitudinal speed."""
     im = imu[(imu.bag_ns >= start_ns - 1_000_000_000) & (imu.bag_ns <= end_ns)].copy()
@@ -285,7 +287,11 @@ def _effective_series(
     lt = lv.bag_ns.to_numpy(dtype=np.int64)
     vx = np.interp(t_ns.astype(float), lt.astype(float), lv.vx.to_numpy(dtype=float), left=np.nan, right=np.nan)
     nearest_gap_s = _nearest_gap_ns(lt.astype(float), t_ns.astype(float)) * 1e-9
-    gz = im.gz.to_numpy(dtype=float)
+    # Stationary IMU offsets are removed before any curvature/lateral-accel use;
+    # the gyro-z offset is evaluated per sample so a drifting bias is tracked.
+    gz_bias = bias.gz_at(t_ns) if bias is not None else 0.0
+    ay_bias = bias.ay_bias if bias is not None else 0.0
+    gz = im.gz.to_numpy(dtype=float) - gz_bias
     valid = (
         np.isfinite(vx) & np.isfinite(gz) &
         (np.abs(vx) >= min_speed_mps) &
@@ -300,7 +306,7 @@ def _effective_series(
         "t_command_s": (t_ns.astype(float) - float(start_ns)) * 1e-9,
         "vx_lidar_mps": vx,
         "imu_yaw_rate_rad_s": gz,
-        "imu_lateral_accel_mps2": im.ay.to_numpy(dtype=float),
+        "imu_lateral_accel_mps2": im.ay.to_numpy(dtype=float) - ay_bias,
         "lidar_nearest_gap_s": nearest_gap_s,
         "effective_valid": valid,
         "curvature_inv_m": curvature,
@@ -342,6 +348,7 @@ def _analyse_segment(
     imu: pd.DataFrame,
     lidar: pd.DataFrame,
     cfg: dict[str, Any],
+    bias=None,
 ) -> tuple[dict[str, Any], pd.DataFrame]:
     response_cfg = cfg["response"]
     analysis_cfg = cfg["analysis"]["response"]
@@ -368,6 +375,7 @@ def _analyse_segment(
         wheelbase_m=float(cfg["hardware"]["wheelbase_m"]),
         min_speed_mps=float(analysis_cfg["min_lidar_speed_mps"]),
         max_lidar_gap_s=float(analysis_cfg["max_lidar_interpolation_gap_s"]),
+        bias=bias,
     )
     if effective.empty:
         row.update({"effective_response_valid": False, "reason": "missing_or_insufficient_imu_lidar_data"})
@@ -458,6 +466,7 @@ def main() -> int:
     if events.empty:
         raise SystemExit("response stage contains no exported events")
     channel_frames = {name: _read(stage / f"{file_name}.parquet") for name, file_name in CHANNELS.items()}
+    bias = estimate_imu_bias(session)
     accepted = accepted_trial_ids(events)
     steps = events[(events.event == "response_step_command") & (events.trial_id.astype(str).isin(accepted))].copy()
     rows: list[dict[str, Any]] = []
@@ -481,7 +490,7 @@ def main() -> int:
         step_row, step_series = _analyse_segment(
             trial_id=trial_id, segment="outbound_step", start_ns=step_start, end_ns=return_start,
             raw_target=_num(event.get("raw_target")), metadata=metadata, channel_frames=channel_frames,
-            imu=imu, lidar=lidar, cfg=cfg,
+            imu=imu, lidar=lidar, cfg=cfg, bias=bias,
         )
         rows.append(step_row)
         if not step_series.empty:
@@ -493,7 +502,7 @@ def main() -> int:
         return_row, return_series = _analyse_segment(
             trial_id=trial_id, segment="return_to_centre", start_ns=return_start, end_ns=return_end,
             raw_target=return_target, metadata=metadata, channel_frames=channel_frames,
-            imu=imu, lidar=lidar, cfg=cfg,
+            imu=imu, lidar=lidar, cfg=cfg, bias=bias,
         )
         rows.append(return_row)
         if not return_series.empty:
@@ -535,6 +544,7 @@ def main() -> int:
                 "separate tyre slip-angle and cornering-stiffness terms",
             ],
         },
+        "stationary_imu_bias": bias.to_dict(),
         "segments_total": int(len(table)),
         "segments_with_valid_effective_response": int(len(valid)),
         "outbound_step_segments": int((table.segment == "outbound_step").sum()) if len(table) else 0,

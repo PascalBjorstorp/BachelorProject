@@ -93,6 +93,19 @@ w = clamp(w_high + (w_coast - w_high) exp(-|a_f|/a_transition), w_min, 1)
 v_hat = v_pred + w (v_obs - v_pred)
 ```
 
+Finally, apply the cornering longitudinal-slip correction (Stage 13) as the last
+step, after `v_hat` is formed from the chosen estimator:
+
+```text
+a_lat = |v_hat| * |yaw_rate|                       # yaw_rate from the IMU
+v_out = v_hat * (1 - clip(odom_turn_slip_coeff_per_mps2 * a_lat,
+                          0, odom_turn_slip_clip_fraction))
+```
+
+It is zero at `a_lat = 0`, so straight-line odometry is identical to the
+validated ERPM map; it only removes the driven-wheel over-read in turns. Apply
+it only when `odom_turn_slip_accepted` is true in the patch.
+
 Required odometry parameters are exactly those emitted in
 `analysis/selected_odometry_candidate_patch.yaml`.
 
@@ -139,4 +152,12 @@ shadow mapper's bounded inversion exactly. For each polarity, evaluate
 acceleration. Positive acceleration uses `a_cmd + drag(v)`; braking uses
 `max(0, |a_cmd|-drag(v))`. Emit the selected drive/brake currents and debug
 values as ROS topics. Do not use an unconstrained symbolic quadratic root.
+
+**Hold speed at `a=0` (both scalar and traction_surface).** Inside the
+acceleration deadzone the map must NOT command zero current while moving — that
+coasts. When `|v| > hold_speed_min_mps`, command the drive current for a net
+acceleration of zero (`target = drag(v)`), i.e. the drag feed-forward, so the
+vehicle holds speed. Command zero current only when `|v| <= hold_speed_min_mps`
+so it can come to rest. Stage 12 verifies this: residual ground acceleration at
+`a=0` must satisfy `max_hold_speed_accel_mps2`.
 

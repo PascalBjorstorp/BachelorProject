@@ -1,17 +1,26 @@
 # ERPM / longitudinal model-selection operator card
 
-## Only command
+## Commands
+
+Tier 1 — config-deployable calibration (run this first):
 
 ```bash
 cd ~/BachelorProject/f1tenth_parameters/ERPM
 source ~/BachelorProject/install/setup.bash
-python3 erpm_calibration.py --workspace ~/BachelorProject
+python3 erpm_config_calibration.py --workspace ~/BachelorProject
+```
+
+Tier 2 — candidate shadow verification (only when validating a C++ port), on the
+Tier-1 session:
+
+```bash
+python3 erpm_candidate_port.py --session runs/<session-id> --workspace ~/BachelorProject
 ```
 
 Optional no-drive preflight:
 
 ```bash
-python3 erpm_calibration.py --workspace ~/BachelorProject --preflight-only
+python3 erpm_config_calibration.py --workspace ~/BachelorProject --preflight-only
 ```
 
 Do **not** edit `vesc.yaml`, run `colcon`, start normal bringup, start MPC,
@@ -57,7 +66,7 @@ Do not move LiDAR features while a capture is active.
 Do not drive. Run:
 
 ```bash
-python3 erpm_calibration.py --recover --workspace ~/BachelorProject
+python3 erpm_config_calibration.py --recover --workspace ~/BachelorProject
 ```
 
 This restores the byte-exact original VESC YAML and rebuilds.

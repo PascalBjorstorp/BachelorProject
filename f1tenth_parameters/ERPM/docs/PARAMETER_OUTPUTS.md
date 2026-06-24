@@ -41,9 +41,44 @@ analysis/candidate_cross_axis_speed_samples.parquet
 analysis/candidate_deployment_verification_report.yaml
 ```
 
+### Cornering longitudinal-slip correction
+
+```text
+analysis/turn_slip_report.yaml
+analysis/turn_slip_coverage.parquet
+analysis/turn_slip_samples.parquet
+```
+
+The driven wheels over-read ground speed while turning (real-bag analysis: the
+gap grows with cornering load, sideslip is negligible, no time lag), so a single
+ERPM gain is accurate on straights but not in turns. `fit_turn_slip.py` fits a
+causal correction from the Stage 13 steady arcs using window-averaged LiDAR
+speed as truth:
+
+```text
+a_lat  = v_wheel * |yaw_rate|
+v_odom = v_wheel * (1 - clip(c1 * a_lat, 0, clip_fraction))
+```
+
+It is constrained through the origin in `a_lat`, so straight-line motion is left
+exactly as the validated ERPM map predicts — the correction only removes speed
+in turns. `c1` is fit on a training subset of arc cells and validated on
+held-out cells (`turn_slip_report.yaml` carries train R², the held-out
+uncorrected-vs-corrected RMSE/bias, coverage and the accept gates). On
+acceptance, `odom_turn_slip_coeff_per_mps2` / `odom_turn_slip_clip_fraction`
+are appended to `selected_odometry_candidate_patch.yaml` for the production port.
+
 A candidate is rejected when any configured final condition lacks enough
 accepted usable trials, or when it fails RMSE, signed-bias, p95, high-drive,
-high-brake, acceleration-derivative, or non-zero-steering gates.
+high-brake, acceleration-derivative, hold-speed (`a=0`), or non-zero-steering
+gates.
+
+**Hold-speed (`a=0`).** Stage 12 now includes an `acceleration_command = 0`
+condition at each verification speed. Because the candidate ACCEL→current map
+applies a drag feed-forward, commanding `a=0` holds speed instead of coasting;
+the residual ground acceleration there is gated by
+`max_hold_speed_accel_mps2`. Below `operating_envelope.hold_speed_min_mps` the
+map commands zero current so the car can still come to rest.
 
 ## Deployment meaning
 

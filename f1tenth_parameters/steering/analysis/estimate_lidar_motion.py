@@ -35,13 +35,40 @@ def stamp_ns(msg, fallback: int) -> int:
     return value if value > 0 else int(fallback)
 
 
-def scan_points(msg, downsample: int) -> np.ndarray:
+def scan_points(msg, downsample: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return (points, per-beam relative time in seconds from the scan start)."""
     ranges = np.asarray(msg.ranges, dtype=float)
-    angles = msg.angle_min + np.arange(ranges.size, dtype=float) * msg.angle_increment
+    n = ranges.size
+    angles = msg.angle_min + np.arange(n, dtype=float) * msg.angle_increment
+    time_increment = float(getattr(msg, "time_increment", 0.0) or 0.0)
+    rel_t = np.arange(n, dtype=float) * time_increment
     valid = np.isfinite(ranges) & (ranges > msg.range_min) & (ranges < msg.range_max)
-    ranges, angles = ranges[valid], angles[valid]
+    ranges, angles, rel_t = ranges[valid], angles[valid], rel_t[valid]
     points = np.column_stack((ranges * np.cos(angles), ranges * np.sin(angles)))
-    return points[::max(1, downsample)]
+    step = max(1, downsample)
+    return points[::step], rel_t[::step]
+
+
+def deskew_scan(points: np.ndarray, rel_t: np.ndarray, v_laser: np.ndarray, omega: float) -> np.ndarray:
+    """Motion-compensate a scan to its first-beam time under constant velocity.
+
+    A spinning LiDAR samples each beam at a different instant (``rel_t`` seconds
+    after the scan start) while the vehicle is moving, so a single scan is not a
+    rigid snapshot. At 40 Hz and a few m/s this within-scan skew is several
+    centimetres and biases scan-to-scan matching. Expressing every point in the
+    sensor pose at the scan start removes it. ``v_laser`` (sensor-frame linear
+    velocity) and ``omega`` (yaw rate) come from the constant-velocity
+    prediction carried between pairs; when no motion estimate or per-beam time is
+    available the scan is returned unchanged.
+    """
+    if points.size == 0 or rel_t.size != len(points) or not np.any(rel_t > 0.0):
+        return points
+    if not (np.all(np.isfinite(v_laser)) and math.isfinite(omega)):
+        return points
+    cos_t, sin_t = np.cos(omega * rel_t), np.sin(omega * rel_t)
+    x = cos_t * points[:, 0] - sin_t * points[:, 1] + v_laser[0] * rel_t
+    y = sin_t * points[:, 0] + cos_t * points[:, 1] + v_laser[1] * rel_t
+    return np.column_stack((x, y))
 
 
 def pca_normals(points: np.ndarray, neighbors: int) -> np.ndarray:
@@ -120,6 +147,7 @@ def robust_point_to_line_icp(
     translation_tolerance_m: float,
     rotation_tolerance_rad: float,
     relative_cost_tolerance: float,
+    translation_seed: np.ndarray | None = None,
 ) -> IcpResult:
     from scipy.spatial import cKDTree
 
@@ -127,7 +155,10 @@ def robust_point_to_line_icp(
         raise RuntimeError("too few valid scan points")
     tree = cKDTree(target)
     R = rot(yaw_seed)
-    t = np.zeros(2, dtype=float)
+    # Warm-start the translation from the constant-velocity prediction; this
+    # keeps the first correspondence search near the true motion at speed, which
+    # a zero start cannot do once per-frame displacement approaches max_corr.
+    t = np.zeros(2, dtype=float) if translation_seed is None else np.asarray(translation_seed, dtype=float).copy()
     previous_cost = math.inf
     converged = False
     final_A = None
@@ -237,7 +268,15 @@ def main() -> int:
     if "/scan" not in types:
         raise SystemExit("bag contains no /scan topic")
     scan_type = get_message(types["/scan"])
+    deskew_enabled = bool(icp.get("motion_deskew", True))
+    seed_enabled = bool(icp.get("constant_velocity_seed", True))
+    max_gap_s = float(icp.get("max_scan_period_s", 0.20))
     previous = None
+    # Constant-velocity state carried between pairs (LiDAR frame) for deskew and
+    # translation seeding. Both default to zero, so the cold start matches the
+    # previous zero-seed behaviour.
+    last_v_laser = np.zeros(2, dtype=float)
+    last_omega = 0.0
     rows: list[dict] = []
     while reader.has_next():
         topic, raw, bag_ns = reader.read_next()
@@ -245,14 +284,19 @@ def main() -> int:
             continue
         scan = deserialize_message(raw, scan_type)
         t_ns = stamp_ns(scan, bag_ns)
-        points = scan_points(scan, int(icp["downsample"]))
+        points, rel_t = scan_points(scan, int(icp["downsample"]))
+        omega_now = float(np.interp(t_ns, imu_t, imu_gz, left=np.nan, right=np.nan))
+        if not math.isfinite(omega_now):
+            omega_now = last_omega
+        if deskew_enabled:
+            points = deskew_scan(points, rel_t, last_v_laser, omega_now)
         if previous is None:
             previous = (t_ns, points)
             continue
         previous_ns, target = previous
         previous = (t_ns, points)
         dt_s = (t_ns - previous_ns) * 1e-9
-        if dt_s <= 0.005 or dt_s > 0.20:
+        if dt_s <= 0.005 or dt_s > max_gap_s:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
                          "valid": False, "reason": "scan_period_out_of_range"})
             continue
@@ -263,6 +307,7 @@ def main() -> int:
                          "valid": False, "reason": "missing_imu_yaw_seed"})
             continue
         yaw_seed = yaw_rate_seed * dt_s
+        translation_seed = last_v_laser * dt_s if seed_enabled else None
         try:
             target_normals = pca_normals(target, int(icp["normal_neighbors"]))
             result = robust_point_to_line_icp(
@@ -277,11 +322,18 @@ def main() -> int:
                 translation_tolerance_m=float(icp["translation_update_tolerance_m"]),
                 rotation_tolerance_rad=float(icp["rotation_update_tolerance_rad"]),
                 relative_cost_tolerance=float(icp["relative_cost_tolerance"]),
+                translation_seed=translation_seed,
             )
         except Exception as exc:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
                          "valid": False, "reason": repr(exc)})
             continue
+        # Carry the LiDAR-frame velocity forward as the next pair's prediction.
+        # Only from a converged solve, so one bad pair cannot poison the next
+        # frame's seed/deskew; otherwise the last good velocity persists.
+        if result.converged and math.isfinite(result.rmse_m):
+            last_v_laser = result.t / dt_s
+            last_omega = math.atan2(float(result.R[1, 0]), float(result.R[0, 0])) / dt_s
         # Convert the scan-to-scan transform from the LiDAR frame to the
         # base frame.  The previous implementation silently assumed laser yaw
         # was zero; this applies all configured planar extrinsics.
@@ -341,6 +393,8 @@ def main() -> int:
         "scan_pairs": int(len(table)),
         "valid_pairs": int(table["valid"].sum()) if len(table) and "valid" in table else 0,
         "method": "IMU-yaw-seeded, odometry-unseeded robust point-to-line ICP",
+        "motion_deskew_enabled": deskew_enabled,
+        "constant_velocity_translation_seed_enabled": seed_enabled,
         "solver_tolerances": {
             "max_iterations": int(icp["max_iterations"]),
             "translation_update_tolerance_m": float(icp["translation_update_tolerance_m"]),
