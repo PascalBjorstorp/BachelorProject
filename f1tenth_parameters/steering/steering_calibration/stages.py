@@ -202,6 +202,41 @@ def raw_command_path_audit(config: dict[str, Any], stage_dir: Path) -> dict[str,
         _finish_node(node, seed)
 
 
+def imu_bias_ground(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any]) -> dict[str, Any]:
+    """Stationary on-ground IMU-bias capture with the true resting attitude.
+
+    The gyro-z bias and the ay/ax gravity-projection offsets must be measured in
+    the attitude the car actually drives in. This is therefore captured on the
+    ground (never on a stand), and provides the early epoch the bias-drift model
+    pairs with the on-ground Stage 3 baseline.
+    """
+    banner("STAGE 1b — ON-GROUND IMU BIAS", "Stationary IMU characterisation on the ground.")
+    checklist([
+        "Car is on the ground on a flat, level surface (NOT on a stand).",
+        "Wheels are physically straight and nothing leans on or touches the car.",
+        "No MPC, MPCC, planner, teleoperation, or other command publisher is running.",
+    ])
+    require_ready()
+    node = _start_node("steering_imu_bias_ground", config, {"imu", "vesc", "odom"})
+    c = float(centre["centre_servo_raw"])
+    duration = float(config["imu_bias"]["stationary_s"])
+    try:
+        pause_for_reposition("ON-GROUND IMU BIAS CAPTURE\nDo not touch the car during recording.")
+        node.event.emit("trial_start", stage="imu_bias_ground", condition_id="imu_bias_stationary",
+                        trial_id="imu_bias_stationary", attempt=1, raw_servo_target=c)
+        summary = node.hold(speed_mps=0.0, raw_servo=c, duration_s=duration,
+                            phase="imu_bias_stationary", segment_id="imu_bias_stationary",
+                            capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS,
+                            trial_id="imu_bias_stationary")
+        result = {"status": "pass", "centre_servo_raw": c, "stationary_s": duration,
+                  "capture": summary}
+        dump_json(stage_dir / "runtime_result.json", result)
+        print(f"\nPASS — on-ground stationary IMU capture ({duration:.0f}s)")
+        return result
+    finally:
+        _finish_node(node, c)
+
+
 def _accepted_yaw(records: list[dict[str, Any]]) -> tuple[float, list[float]]:
     yaw = [float(r["capture"]["imu_gz_mean"]) for r in records
            if r.get("decision") == "accepted" and r.get("capture") is not None]

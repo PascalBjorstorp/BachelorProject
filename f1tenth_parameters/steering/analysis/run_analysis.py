@@ -12,7 +12,9 @@ FULL_STAGES = [
     "00_command_chain_audit", "01_zero_curvature_centre", "03_sensor_observability",
     "04_static_map_training", "05_static_map_holdout", "06_command_to_curvature_response",
 ]
-ALL_STAGES = ["02_physical_endstops", *FULL_STAGES]
+# 01b_imu_bias_ground is exported but excluded from FULL_STAGES: it records no
+# /scan, so the lidar-motion estimation loop must not run on it.
+ALL_STAGES = ["02_physical_endstops", "01b_imu_bias_ground", *FULL_STAGES]
 
 
 def run(command: list[str]) -> None:

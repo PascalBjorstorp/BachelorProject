@@ -92,12 +92,19 @@ def start_bag(
     recording: dict[str, Any],
     required_topics: list[str],
     steering_root: Path,
+    redundancy_topics: list[str] | None = None,
 ) -> BagProcess:
     """Start MCAP recording before the stage runtime node exists.
 
-    The explicit ALL-topics strategy is deliberate. The required topic list is
-    only a post-run integrity check; it is not a restrictive allowlist.
+    By default each stage records only its relevant topics: ``required_topics``
+    plus ``redundancy_topics``. The all-topics path remains available behind the
+    ``record_all_topics`` flag, but recording every visible and hidden topic
+    forced the lidar stream into stationary stages and overran the embedded
+    board, so it is no longer the default. ``ros2 bag record`` subscribes to a
+    named topic even before it exists, so a not-yet-present topic is simply
+    empty and is still caught by the post-run :func:`verify_bag_topics` check.
     """
+    redundancy_topics = list(redundancy_topics or [])
     stage_dir.mkdir(parents=True, exist_ok=True)
     bag_dir = stage_dir / "bag"
     if bag_dir.exists():
@@ -106,22 +113,30 @@ def start_bag(
     qos_path = (steering_root / qos_rel).resolve() if qos_rel else None
     if qos_path and not qos_path.is_file():
         raise FileNotFoundError(f"bag QoS override file missing: {qos_path}")
+    record_all = bool(recording.get("record_all_topics", False))
+    # Preserve order while de-duplicating required + redundancy topics.
+    recorded_topics = list(dict.fromkeys([*required_topics, *redundancy_topics]))
+    if not record_all and not recorded_topics:
+        raise ValueError("scoped recording requested but no topics to record")
     plan = {
         "storage": "mcap",
-        "record_all_topics": bool(recording.get("record_all_topics", True)),
-        "include_hidden_topics": bool(recording.get("include_hidden_topics", True)),
+        "record_all_topics": record_all,
+        "include_hidden_topics": bool(recording.get("include_hidden_topics", False)),
         "qos_profile_overrides": str(qos_path) if qos_path else None,
         "required_topics": required_topics,
+        "recorded_topics": None if record_all else recorded_topics,
     }
     (stage_dir / "recording_plan.yaml").write_text(yaml.safe_dump(plan, sort_keys=False), encoding="utf-8")
     snapshot_ros_graph(stage_dir, "before", required_topics)
     log_path = stage_dir / "rosbag_record.log"
     handle = log_path.open("w", encoding="utf-8")
     command = ["ros2", "bag", "record", "-s", "mcap", "-o", str(bag_dir)]
-    if bool(recording.get("record_all_topics", True)):
+    if record_all:
         command.append("-a")
-    if bool(recording.get("include_hidden_topics", True)):
-        command.append("--include-hidden-topics")
+        if bool(recording.get("include_hidden_topics", False)):
+            command.append("--include-hidden-topics")
+    else:
+        command += recorded_topics
     if qos_path:
         command += ["--qos-profile-overrides-path", str(qos_path)]
     process = subprocess.Popen(command, stdout=handle, stderr=subprocess.STDOUT,

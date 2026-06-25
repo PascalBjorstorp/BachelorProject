@@ -11,9 +11,9 @@ import yaml
 from trials import accepted_trial_ids
 
 EXPECTED = [
-    "00_command_chain_audit", "01_zero_curvature_centre", "02_physical_endstops",
-    "03_sensor_observability", "04_static_map_training", "05_static_map_holdout",
-    "06_command_to_curvature_response",
+    "00_command_chain_audit", "01_zero_curvature_centre", "01b_imu_bias_ground",
+    "02_physical_endstops", "03_sensor_observability", "04_static_map_training",
+    "05_static_map_holdout", "06_command_to_curvature_response",
 ]
 
 

@@ -36,6 +36,7 @@ ABORT   stop safely and preserve the session
 |---|---|
 | 0: command-path audit | On a stand; wheels cannot drive |
 | 1: centre trim | On the ground, at the start of a clear straight lane |
+| 1b: on-ground IMU bias | On the ground, flat and level; follows Stage 1 without leaving the ground; hold still |
 | 2: end-stops | On a stand; inspect linkage continuously |
 | 3–6: all driving tests | On the ground, in the prepared test area |
 

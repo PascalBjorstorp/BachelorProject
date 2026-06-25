@@ -11,13 +11,15 @@ slowly varying constant: a 0.01 rad/s bias over a 0.05 s scan pair is only
 5e-4 rad of residual, well under the gate, yet it is a real steady-state error.
 
 The offset is also not perfectly constant: MEMS gyro bias drifts with
-temperature over a session.  We therefore estimate it from *every* available
-stationary epoch (the on-stand Stage 0 audit and the on-ground Stage 3
-observability capture) and, when those epochs disagree by more than their own
-within-epoch noise, model the gyro bias as a clamped linear function of time so
-each driving stage is corrected with the bias appropriate to *its* moment in
-the session.  Outside the bracketed epochs the bias is held constant (never
-extrapolated).  This mirrors the longitudinal IMU-bias handling in the ERPM
+temperature over a session.  We therefore estimate it from every available
+*on-ground* stationary epoch (the dedicated early Stage 1b IMU capture and the
+on-ground Stage 3 observability baseline) and, when those epochs disagree by
+more than their own within-epoch noise, model the gyro bias as a clamped linear
+function of time so each driving stage is corrected with the bias appropriate to
+*its* moment in the session.  Outside the bracketed epochs the bias is held
+constant (never extrapolated).  The on-stand Stage 0 audit is deliberately *not*
+used here: on a stand the resting attitude differs from the driving attitude, so
+its ay/ax gravity projection would be wrong.  This mirrors the longitudinal IMU-bias handling in the ERPM
 campaign (``fit_odom_model_selection._stationary_imu_ax_bias``) and extends it
 with drift tracking.
 
@@ -38,7 +40,7 @@ from trials import accepted_trial_ids
 
 STATIONARY_STAGE = "03_sensor_observability"
 STATIONARY_PHASE = "observability_stationary"
-STAND_STAGE = "00_command_chain_audit"
+GROUND_EARLY_STAGE = "01b_imu_bias_ground"
 _MIN_EPOCH_SAMPLES = 20
 _MIN_DRIFT_SPAN_S = 20.0
 
@@ -142,11 +144,11 @@ def estimate_imu_bias(session: Path, *, trim_s: float = 1.0) -> ImuBias:
             if len(window):
                 epoch_frames.append((STATIONARY_STAGE, window))
 
-    stand = session / STAND_STAGE / "derived" / "imu.parquet"
-    if stand.exists():
-        window = pd.read_parquet(stand)
+    ground_early = session / GROUND_EARLY_STAGE / "derived" / "imu.parquet"
+    if ground_early.exists():
+        window = pd.read_parquet(ground_early)
         if len(window):
-            epoch_frames.append((STAND_STAGE, window))
+            epoch_frames.append((GROUND_EARLY_STAGE, window))
 
     epochs = [e for e in (_epoch(frame, stage, trim_s) for stage, frame in epoch_frames) if e is not None]
     if not epochs:
