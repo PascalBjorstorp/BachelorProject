@@ -35,12 +35,34 @@ def _single_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
+_SENSOR_STREAMS = {"imu", "vesc", "odom", "scan"}
+_COMMAND_ECHO_STREAMS = {"servo_echo", "servo_selected", "servo_bus"}
+
+
 def _start_node(name: str, config: dict[str, Any], required: set[str]) -> CalibrationNode:
     rclpy.init(args=None)
     node = CalibrationNode(name, config)
     try:
-        node.wait_for(required)
+        # Free-running sensor streams (imu/vesc/odom/scan) appear as soon as their
+        # drivers are up, so wait for those first.
+        node.wait_for(required & _SENSOR_STREAMS)
         node.set_steering_mode("raw")
+        # The selector output, VESC command bus and servo echo only publish once a
+        # raw-servo command has flowed through the chain. Prime it with a neutral
+        # hold at the configured seed (speed 0, no motor demand) so those echo
+        # streams come alive, then confirm them. Without this the startup
+        # deadlocks: wait_for would block on echoes that never appear before the
+        # first command is sent.
+        echo_required = required & _COMMAND_ECHO_STREAMS
+        if echo_required:
+            seed = float(config["initial"]["raw_servo_seed"])
+            warmup_deadline = time.monotonic() + 3.0
+            while time.monotonic() < warmup_deadline:
+                node.command(0.0, seed)
+                node.spin(0.05)
+                if echo_required.issubset(node.latest.seen):
+                    break
+            node.wait_for(echo_required, timeout_s=5.0)
         node.spin(0.10)
     except Exception:
         node.destroy_node()
