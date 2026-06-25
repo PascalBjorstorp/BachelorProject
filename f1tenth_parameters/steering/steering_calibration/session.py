@@ -271,10 +271,26 @@ class SessionRunner:
     def _stage_done(self, stage_name: str) -> bool:
         return self._manifest().get("stages", {}).get(stage_name, {}).get("status") == "completed"
 
+    def _completed_stage_result(self, stage_name: str) -> dict[str, Any]:
+        result = self.runtime.get(stage_name)
+        if result is not None:
+            return result
+        result_path = self.session_dir / stage_name / "runtime_result.json"
+        if result_path.is_file():
+            import json
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            self.runtime[stage_name] = result
+            self._save_runtime()
+            return result
+        raise RuntimeError(
+            f"Stage {stage_name} is marked completed, but no runtime result was found. "
+            f"Expected {result_path} or an entry in runtime_state.json."
+        )
+
     def _run_stage(self, stage_name: str, topic_group: str, fn: Callable[[Path], dict[str, Any]]) -> dict[str, Any] | None:
         if self._stage_done(stage_name):
             print(f"Skipping completed stage: {stage_name}")
-            return self.runtime.get(stage_name)
+            return self._completed_stage_result(stage_name)
         stage_dir = self.session_dir / stage_name
         if stage_dir.exists():
             stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
