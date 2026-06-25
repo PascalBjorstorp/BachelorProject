@@ -92,7 +92,7 @@ static_map:
   - 0.57
   - 0.72
   - 0.87
-  training_sweep_repetitions: 4
+  training_sweep_repetitions: 2
   validation_fractions:
   - 0.06
   - 0.2
@@ -100,7 +100,7 @@ static_map:
   - 0.5
   - 0.65
   - 0.8
-  validation_repetitions: 3
+  validation_repetitions: 2
   raw_servo_echo_tolerance: 0.004
 response:
   # Multiple speeds expose how the effective steering gain and lag change with
@@ -111,6 +111,7 @@ response:
   - 0.9
   - 1.5
   - 2.1
+  - 4.0
   target_fractions:
   - 0.15
   - 0.3
