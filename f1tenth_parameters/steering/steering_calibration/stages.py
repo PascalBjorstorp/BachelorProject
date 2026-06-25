@@ -125,6 +125,79 @@ def _capture_after_startup(
     return startup, summary
 
 
+def _settle_raw_servo(
+    node: CalibrationNode,
+    *,
+    raw_servo: float,
+    centre_raw: float,
+    phase: str,
+    segment_id: str,
+    trial_id: str,
+    tolerance: float,
+    initial_s: float,
+    timeout_s: float,
+    final_window_s: float,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    """Wait until the final servo echo window, not the full transient, matches."""
+    hz = float(node.cfg["session"]["command_publish_hz"])
+    period = 1.0 / hz
+    start = time.monotonic()
+    deadline = start + max(initial_s, timeout_s)
+    initial_deadline = start + initial_s
+    samples: list[tuple[float, float]] = []
+    node.event.emit("phase_start", phase=phase, segment_id=segment_id,
+                    trial_id=trial_id, capture=True, raw_servo_target=raw_servo,
+                    **metadata)
+    try:
+        while time.monotonic() < deadline:
+            node.command(0.0, raw_servo)
+            node.spin(period)
+            now = time.monotonic()
+            if math.isfinite(node.latest.servo_echo):
+                samples.append((now, float(node.latest.servo_echo)))
+            while samples and now - samples[0][0] > final_window_s:
+                samples.pop(0)
+            if now < initial_deadline or len(samples) < 3:
+                continue
+            values = np.asarray([value for _, value in samples], dtype=float)
+            error = abs(float(np.mean(values)) - raw_servo)
+            final_window_max_error = float(np.max(np.abs(values - raw_servo)))
+            if error <= tolerance and final_window_max_error <= tolerance:
+                summary = {
+                    "servo_echo_mean": float(np.mean(values)),
+                    "servo_echo_std": float(np.std(values)),
+                    "servo_echo_count": int(values.size),
+                    "settle_echo_error": error,
+                    "settle_echo_max_error": final_window_max_error,
+                    "settle_elapsed_s": float(now - start),
+                    "settle_within_tolerance": True,
+                }
+                node.event.emit("phase_end", phase=phase, segment_id=segment_id,
+                                trial_id=trial_id, capture=True, **summary, **metadata)
+                return summary
+    except Exception as exc:
+        node.event.emit("safety_abort", phase=phase, segment_id=segment_id,
+                        trial_id=trial_id, reason=repr(exc))
+        node.neutral_drive(centre_raw)
+        raise
+
+    values = np.asarray([value for _, value in samples], dtype=float)
+    mean = float(np.mean(values)) if values.size else math.nan
+    summary = {
+        "servo_echo_mean": mean,
+        "servo_echo_std": float(np.std(values)) if values.size else math.nan,
+        "servo_echo_count": int(values.size),
+        "settle_echo_error": abs(mean - raw_servo) if values.size else math.inf,
+        "settle_echo_max_error": float(np.max(np.abs(values - raw_servo))) if values.size else math.inf,
+        "settle_elapsed_s": float(time.monotonic() - start),
+        "settle_within_tolerance": False,
+    }
+    node.event.emit("phase_end", phase=phase, segment_id=segment_id,
+                    trial_id=trial_id, capture=True, **summary, **metadata)
+    return summary
+
+
 def _motion_loop(
     node: CalibrationNode,
     *, stage: str,
@@ -660,14 +733,48 @@ def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], 
                 node.event.emit("static_map_target", condition_id=condition, trial_id=trial_id, side=side,
                                 fraction=fraction, raw_servo_target=raw, approach=approach, sweep=sweep,
                                 validation=validation)
-                settle = node.hold(speed_mps=0.0, raw_servo=raw, duration_s=float(p["steering_settle_s"]),
-                                   phase="static_map_steering_settle", segment_id=condition, capture=True,
-                                   centre_raw_servo=c, begin_window_fields=("servo_echo",), trial_id=trial_id,
-                                   side=side, fraction=fraction, approach=approach, sweep=sweep)
-                echo_error = abs(float(settle["servo_echo_mean"]) - raw)
-                if echo_error > float(p["raw_servo_echo_tolerance"]):
+                settle = _settle_raw_servo(
+                    node, raw_servo=raw, centre_raw=c,
+                    phase="static_map_steering_settle", segment_id=condition,
+                    trial_id=trial_id, tolerance=float(p["raw_servo_echo_tolerance"]),
+                    initial_s=float(p["steering_settle_s"]),
+                    timeout_s=float(p.get("steering_settle_timeout_s", p["steering_settle_s"])),
+                    final_window_s=float(p.get("steering_settle_final_window_s", p["steering_settle_s"])),
+                    metadata={"side": side, "fraction": fraction, "approach": approach,
+                              "sweep": sweep, "validation": validation},
+                )
+                echo_error = float(settle["settle_echo_error"])
+                if not bool(settle["settle_within_tolerance"]):
                     node.neutral_drive(c)
-                    raise RuntimeError(f"raw servo command clipped or stale at {condition}: error={echo_error:.5f}")
+                    node.event.emit("static_map_settle_echo_mismatch", condition_id=condition,
+                                    trial_id=trial_id, side=side, fraction=fraction,
+                                    raw_servo_target=raw, approach=approach, sweep=sweep,
+                                    validation=validation, settle_echo_error=echo_error,
+                                    settle_echo_max_error=float(settle["settle_echo_max_error"]),
+                                    settle_elapsed_s=float(settle["settle_elapsed_s"]),
+                                    tolerance=float(p["raw_servo_echo_tolerance"]))
+                    decision = _disposition(
+                        node, stage="static_map", condition_id=condition, trial_id=trial_id,
+                        attempt=attempt, automatic_ok=False,
+                        automatic_summary={
+                            "settle_echo_error": echo_error,
+                            "settle_echo_max_error": float(settle["settle_echo_max_error"]),
+                            "settle_elapsed_s": float(settle["settle_elapsed_s"]),
+                            "tolerance": float(p["raw_servo_echo_tolerance"]),
+                            "reason": "raw servo command clipped or stale",
+                        },
+                    )
+                    records.append({"condition_id": condition, "trial_id": trial_id,
+                                    "attempt": attempt, "side": side, "fraction": fraction,
+                                    "raw_servo_target": raw, "approach": approach,
+                                    "sweep": sweep, "validation": validation,
+                                    "startup": None, "capture": None, "decision": decision,
+                                    "settle": settle, "settle_echo_error": echo_error,
+                                    "reason": "raw_servo_echo_mismatch"})
+                    if decision != "redo":
+                        break
+                    attempt += 1
+                    continue
                 startup, summary = _capture_after_startup(
                     node, speed_mps=float(p["speed_mps"]), raw_servo=raw, centre_raw=c,
                     phase="static_map_capture", segment_id=condition, trial_id=trial_id,

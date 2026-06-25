@@ -82,6 +82,8 @@ observability:
 static_map:
   speed_mps: 0.6
   steering_settle_s: 0.4
+  steering_settle_timeout_s: 1.2
+  steering_settle_final_window_s: 0.15
   capture_s: 8.0
   training_fractions:
   - 0.04
