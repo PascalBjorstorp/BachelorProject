@@ -50,11 +50,11 @@ centre_trim:
   expansion_step_servo: 0.015
   max_bracket_expansions: 3
   candidate_repetitions: 1
-  max_refinement_iterations: 7
+  max_refinement_iterations: 10
   search_tolerance_servo: 0.001
-  max_abs_yaw_rate_for_candidate_rad_s: 0.025
+  max_abs_yaw_rate_for_candidate_rad_s: 0.01
   confirmation_repetitions: 3
-  max_abs_yaw_rate_for_confirmation_rad_s: 0.06
+  max_abs_yaw_rate_for_confirmation_rad_s: 0.03
 endstops:
   coarse_step_servo: 0.01
   fine_step_servo: 0.002

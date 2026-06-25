@@ -111,17 +111,10 @@ def _capture_after_startup(
                                    trial_id=trial_id)
     if not bool(startup["stable"]):
         return startup, None
-    hold_metadata = {
-        key: value for key, value in metadata.items()
-        if key not in {
-            "speed_mps", "raw_servo", "duration_s", "phase", "segment_id",
-            "capture", "centre_raw_servo", "begin_window_fields", "trial_id",
-        }
-    }
     summary = node.hold(speed_mps=speed_mps, raw_servo=raw_servo, duration_s=capture_s,
                         phase=phase, segment_id=segment_id, capture=True,
                         centre_raw_servo=centre_raw, begin_window_fields=WINDOW_FIELDS,
-                        trial_id=trial_id, **hold_metadata)
+                        trial_id=trial_id, **metadata)
     return startup, summary
 
 

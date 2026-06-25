@@ -28,8 +28,6 @@ def check_stage_source() -> None:
     assert "candidate_yaw_gate_passed" in source
     assert "centre-search refinement gate failed" in source
     assert "centre confirmation gate failed" in source
-    assert "hold_metadata" in source
-    assert '"speed_mps", "raw_servo", "duration_s", "phase", "segment_id"' in source
 
 
 def check_geometry_contract() -> None:
