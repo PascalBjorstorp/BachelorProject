@@ -102,7 +102,7 @@ class SessionRunner:
                 "vesc_config_relpath", "f1tenth_system/f1tenth_stack/config/vesc.yaml"
             ),
             build_command=list(self.config.get("workspace", {}).get(
-                "colcon_build_command", ["colcon", "build", "--symlink-install"]
+                "colcon_build_command", ["colcon", "build", "--symlink-install", "--packages-ignore state_receiver_udp"]
             )),
         )
 
