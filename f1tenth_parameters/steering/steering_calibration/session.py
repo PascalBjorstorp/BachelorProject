@@ -24,6 +24,7 @@ from .config import copy_config_file, dump_json, dump_yaml, load_yaml
 from .config_transaction import VescConfigTransaction
 from .stages import (
     command_to_curvature_response,
+    imu_bias_ground,
     physical_endstops,
     raw_command_path_audit,
     sensor_observability,
@@ -293,7 +294,8 @@ class SessionRunner:
         body_error: BaseException | None = None
         try:
             bag = start_bag(stage_dir, self.topic_policy["recording"],
-                            list(self.topic_policy["required"][topic_group]), self.root)
+                            list(self.topic_policy["required"][topic_group]), self.root,
+                            redundancy_topics=list(self.topic_policy.get("redundancy_topics", [])))
             print(f"\nMCAP recording started: {bag.bag_dir}")
             result = fn(stage_dir)
             status = "completed"
@@ -349,6 +351,10 @@ class SessionRunner:
             centre = self._run_stage("01_zero_curvature_centre", "full_motion", lambda directory: zero_curvature_centre(self.config, directory))
             if audit is None or centre is None:
                 raise RuntimeError("required raw-command audit or centre result unavailable")
+            # On-ground stationary IMU-bias epoch. Runs here while still on the
+            # ground (calibration_stack active) so it adds no stand<->ground move.
+            self._run_stage("01b_imu_bias_ground", "imu_stationary",
+                            lambda directory: imu_bias_ground(self.config, directory, centre))
 
             self._launch("hardware_only", raw_min=full_low, raw_max=full_high)
             limits = self._run_stage("02_physical_endstops", "hardware_only",

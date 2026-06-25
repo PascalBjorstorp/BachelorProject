@@ -62,6 +62,10 @@ endstops:
   safety_margin_servo: 0.006
   raw_servo_domain_min: 0.0
   raw_servo_domain_max: 1.0
+imu_bias:
+  # On-ground stationary IMU-bias capture (Stage 1b). Comfortably above the
+  # analysis _MIN_EPOCH_SAMPLES / _MIN_DRIFT_SPAN_S floors in analysis/imu_bias.py.
+  stationary_s: 30.0
 observability:
   stationary_s: 30.0
   straight_speeds_mps:
