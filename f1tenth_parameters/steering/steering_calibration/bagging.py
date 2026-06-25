@@ -139,8 +139,11 @@ def start_bag(
         command += recorded_topics
     if qos_path:
         command += ["--qos-profile-overrides-path", str(qos_path)]
-    process = subprocess.Popen(command, stdout=handle, stderr=subprocess.STDOUT,
-                               start_new_session=True, text=True)
+    # stdin must be DEVNULL: the rosbag2 recorder reads the terminal for its
+    # SPACE pause/resume key, which would otherwise steal the operator's stdin
+    # and make the next stage's require_ready() input() raise EOFError.
+    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=handle,
+                               stderr=subprocess.STDOUT, start_new_session=True, text=True)
     time.sleep(1.2)
     if process.poll() is not None:
         handle.close()

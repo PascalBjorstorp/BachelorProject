@@ -72,8 +72,9 @@ def review_trial(
         print("  REDO = repeat this condition after repositioning")
         print("  SKIP = exclude this condition and continue")
         allowed = {"REDO": "redo", "R": "redo", "SKIP": "skipped", "S": "skipped"}
+    options = "ACCEPT/REDO/SKIP/ABORT" if automatic_ok else "REDO/SKIP/ABORT"
     while True:
-        answer = input("Decision [ACCEPT/REDO/SKIP/ABORT]: ").strip().upper()
+        answer = input(f"Decision [{options}]: ").strip().upper()
         if answer in {"ABORT", "QUIT", "Q"}:
             raise KeyboardInterrupt("operator aborted during trial review")
         if answer in allowed:

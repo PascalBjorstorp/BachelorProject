@@ -54,8 +54,10 @@ class StackProcess:
         ]
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self.log_path.open("w", encoding="utf-8")
-        self.process = subprocess.Popen(command, stdout=self._handle, stderr=subprocess.STDOUT,
-                                        start_new_session=True, text=True)
+        # stdin=DEVNULL so the launched stack never competes for the operator's
+        # terminal (see the same guard on the bag recorder in bagging.py).
+        self.process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=self._handle,
+                                        stderr=subprocess.STDOUT, start_new_session=True, text=True)
         time.sleep(3.0)
         if self.process.poll() is not None:
             detail = self.log_path.read_text(encoding="utf-8", errors="replace")

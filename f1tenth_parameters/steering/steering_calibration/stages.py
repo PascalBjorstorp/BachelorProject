@@ -136,9 +136,12 @@ def _motion_loop(
     while True:
         trial_id = _trial_id(condition_id, attempt)
         pause_for_reposition(operator_message + f"\nAttempt {attempt}. REDO has no retry limit.")
-        node.event.emit("trial_start", stage=stage, condition_id=condition_id,
-                        trial_id=trial_id, attempt=attempt, speed_mps=speed_mps,
-                        raw_servo_target=raw_servo, **metadata)
+        # metadata may itself carry raw_servo_target/side/etc.; merge into one
+        # dict (last value wins) so emit() never gets a duplicated keyword.
+        trial_payload = {"stage": stage, "condition_id": condition_id,
+                         "trial_id": trial_id, "attempt": attempt,
+                         "speed_mps": speed_mps, "raw_servo_target": raw_servo, **metadata}
+        node.event.emit("trial_start", **trial_payload)
         startup, summary = _capture_after_startup(
             node, speed_mps=speed_mps, raw_servo=raw_servo, centre_raw=centre_raw,
             phase=phase, segment_id=condition_id, trial_id=trial_id,

@@ -278,7 +278,12 @@ class CalibrationNode(Node):
             history.append((now, self.latest.odom_vx, self.latest.imu_ax))
             while history and now - history[0][0] > window_s:
                 history.popleft()
-            if not history or now - history[0][0] < window_s:
+            # Evaluate once a full window of post-startup time has elapsed, over the
+            # most recent <=window_s of samples. The old check required the oldest
+            # buffered sample to be >= window_s old, but the trim above removes
+            # anything older than window_s, so with discrete sampling that condition
+            # almost never fired and the gate timed out even on a clean steady pass.
+            if now - startup_end < window_s or len(history) < 3:
                 continue
             speeds = np.asarray([x[1] for x in history], dtype=float)
             ax = np.asarray([x[2] for x in history], dtype=float)

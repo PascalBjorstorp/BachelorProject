@@ -44,16 +44,16 @@ motion_startup:
   max_speed_std_mps: 0.09
   max_abs_longitudinal_accel_mps2: 0.45
 centre_trim:
-  speed_mps: 0.5
-  capture_s: 5.0
+  speed_mps: 1.0
+  capture_s: 6.0
   initial_half_width_servo: 0.02
   expansion_step_servo: 0.015
   max_bracket_expansions: 3
-  candidate_repetitions: 3
+  candidate_repetitions: 1
   max_refinement_iterations: 7
   search_tolerance_servo: 0.001
   max_abs_yaw_rate_for_candidate_rad_s: 0.025
-  confirmation_repetitions: 5
+  confirmation_repetitions: 3
   max_abs_yaw_rate_for_confirmation_rad_s: 0.06
 endstops:
   coarse_step_servo: 0.01
