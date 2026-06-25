@@ -30,6 +30,10 @@ def check_stage_source() -> None:
     assert "centre confirmation gate failed" in source
     assert "hold_metadata" in source
     assert '"speed_mps", "raw_servo", "duration_s", "phase", "segment_id"' in source
+    assert "static_map_settle_echo_mismatch" in source
+    assert "raw_servo_echo_mismatch" in source
+    assert "_settle_raw_servo" in source
+    assert "settle_echo_max_error" in source
 
 
 def check_geometry_contract() -> None:
@@ -83,6 +87,8 @@ def main() -> int:
     check_geometry_contract()
     check_static_map_gate()
     cfg = yaml.safe_load((ROOT / "config" / "steering_calibration.yaml").read_text(encoding="utf-8"))
+    assert "steering_settle_timeout_s" in cfg["static_map"]
+    assert "steering_settle_final_window_s" in cfg["static_map"]
     assert "max_center_servo_spread" not in cfg["centre_trim"]
     assert "measurements_per_side" not in cfg["endstops"]
     assert int(cfg["response"]["repetitions"]) == 5
