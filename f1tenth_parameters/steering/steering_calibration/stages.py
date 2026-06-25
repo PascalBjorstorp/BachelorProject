@@ -803,8 +803,27 @@ def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], 
         _finish_node(node, c)
 
 
+def _response_sequence(config: dict[str, Any], limits: dict[str, Any]) -> list[tuple[float, str, float, float, int, int]]:
+    """Expand configured response conditions into speed/side/fraction targets."""
+    sequence: list[tuple[float, str, float, float, int, int]] = []
+    if "conditions" in config:
+        for condition in config["conditions"]:
+            speed = float(condition["speed_mps"])
+            repetitions = int(condition.get("repetitions", config.get("repetitions", 1)))
+            for side, fraction, raw in _raw_targets(limits, list(condition["target_fractions"])):
+                for rep in range(1, repetitions + 1):
+                    sequence.append((speed, side, fraction, raw, rep, repetitions))
+        return sequence
+    for speed in config["speeds_mps"]:
+        repetitions = int(config["repetitions"])
+        for side, fraction, raw in _raw_targets(limits, list(config["target_fractions"])):
+            for rep in range(1, repetitions + 1):
+                sequence.append((float(speed), side, fraction, raw, rep, repetitions))
+    return sequence
+
+
 def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], limits: dict[str, Any]) -> dict[str, Any]:
-    banner("STAGE 6 OF 6 — COMMAND-TO-CURVATURE RESPONSE", "Repeated raw-servo steps at two low speeds.")
+    banner("STAGE 6 OF 6 — COMMAND-TO-CURVATURE RESPONSE", "Targeted raw-servo steps at selected speeds.")
     checklist(["Clear test area and static LiDAR surroundings.", "Vehicle can be repositioned between trials.",
                "Physical emergency stop is available."])
     require_ready()
@@ -814,58 +833,57 @@ def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centr
     records: list[dict[str, Any]] = []
     index = 0
     try:
-        for speed in p["speeds_mps"]:
-            for side, fraction, raw_target in _raw_targets(limits, list(p["target_fractions"])):
-                for rep in range(1, int(p["repetitions"]) + 1):
-                    condition = f"response_{float(speed):.2f}_{side}_{fraction:.2f}_rep_{rep:02d}"
-                    attempt = 1
-                    while True:
-                        trial_id = _trial_id(condition, attempt)
-                        pause_for_reposition(
-                            f"RESPONSE TRIAL {index + 1}\nSpeed {float(speed):.2f} m/s; {side}; "
-                            f"{fraction:.2f} safe-span; repetition {rep}/{p['repetitions']}.\n"
-                            "The car stabilises at centre, steps raw steering, returns to centre, then stops."
-                        )
-                        node.event.emit("trial_start", stage="command_to_curvature_response", condition_id=condition,
-                                        trial_id=trial_id, attempt=attempt, speed_mps=float(speed), side=side,
-                                        fraction=fraction, raw_servo_target=raw_target, repetition=rep)
-                        startup = node.establish_speed(speed_mps=float(speed), raw_servo=c, centre_raw_servo=c,
-                                                       segment_id=condition, trial_id=trial_id)
-                        if bool(startup["stable"]):
-                            centre_summary = node.hold(speed_mps=float(speed), raw_servo=c,
-                                duration_s=float(p["centre_hold_s"]), phase="response_centre", segment_id=condition,
-                                capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
-                                side=side, fraction=fraction, repetition=rep)
-                            node.event.emit("response_step_command", trial_id=trial_id, condition_id=condition,
-                                            trial_index=index, speed_mps=float(speed), side=side, fraction=fraction,
-                                            raw_target=raw_target, repetition=rep)
-                            step_summary = node.hold(speed_mps=float(speed), raw_servo=raw_target,
-                                duration_s=float(p["step_hold_s"]), phase="response_step", segment_id=condition,
-                                capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
-                                side=side, fraction=fraction, repetition=rep)
-                            node.event.emit("response_return_command", trial_id=trial_id, condition_id=condition,
-                                            trial_index=index, raw_target=c)
-                            return_summary = node.hold(speed_mps=float(speed), raw_servo=c,
-                                duration_s=float(p["return_hold_s"]), phase="response_return", segment_id=condition,
-                                capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
-                                side=side, fraction=fraction, repetition=rep)
-                        else:
-                            centre_summary = step_summary = return_summary = None
-                        node.neutral_drive(c)
-                        automatic_ok = bool(startup["stable"])
-                        decision = _disposition(node, stage="command_to_curvature_response",
-                            condition_id=condition, trial_id=trial_id, attempt=attempt, automatic_ok=automatic_ok,
-                            automatic_summary={"startup": startup, "centre": centre_summary or {},
-                                               "step": step_summary or {}, "return": return_summary or {}})
-                        records.append({"trial_index": index, "condition_id": condition, "trial_id": trial_id,
-                                        "attempt": attempt, "speed_mps": float(speed), "side": side,
-                                        "fraction": fraction, "raw_target": raw_target, "startup": startup,
-                                        "centre_summary": centre_summary, "step_summary": step_summary,
-                                        "return_summary": return_summary, "decision": decision})
-                        if decision != "redo":
-                            break
-                        attempt += 1
-                    index += 1
+        sequence = _response_sequence(p, limits)
+        for speed, side, fraction, raw_target, rep, repetitions in sequence:
+            condition = f"response_{speed:.2f}_{side}_{fraction:.2f}_rep_{rep:02d}"
+            attempt = 1
+            while True:
+                trial_id = _trial_id(condition, attempt)
+                pause_for_reposition(
+                    f"RESPONSE TRIAL {index + 1}/{len(sequence)}\nSpeed {speed:.2f} m/s; {side}; "
+                    f"{fraction:.2f} safe-span; repetition {rep}/{repetitions}.\n"
+                    "The car stabilises at centre, steps raw steering, returns to centre, then stops."
+                )
+                node.event.emit("trial_start", stage="command_to_curvature_response", condition_id=condition,
+                                trial_id=trial_id, attempt=attempt, speed_mps=speed, side=side,
+                                fraction=fraction, raw_servo_target=raw_target, repetition=rep)
+                startup = node.establish_speed(speed_mps=speed, raw_servo=c, centre_raw_servo=c,
+                                               segment_id=condition, trial_id=trial_id)
+                if bool(startup["stable"]):
+                    centre_summary = node.hold(speed_mps=speed, raw_servo=c,
+                        duration_s=float(p["centre_hold_s"]), phase="response_centre", segment_id=condition,
+                        capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
+                        side=side, fraction=fraction, repetition=rep)
+                    node.event.emit("response_step_command", trial_id=trial_id, condition_id=condition,
+                                    trial_index=index, speed_mps=speed, side=side, fraction=fraction,
+                                    raw_target=raw_target, repetition=rep)
+                    step_summary = node.hold(speed_mps=speed, raw_servo=raw_target,
+                        duration_s=float(p["step_hold_s"]), phase="response_step", segment_id=condition,
+                        capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
+                        side=side, fraction=fraction, repetition=rep)
+                    node.event.emit("response_return_command", trial_id=trial_id, condition_id=condition,
+                                    trial_index=index, raw_target=c)
+                    return_summary = node.hold(speed_mps=speed, raw_servo=c,
+                        duration_s=float(p["return_hold_s"]), phase="response_return", segment_id=condition,
+                        capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
+                        side=side, fraction=fraction, repetition=rep)
+                else:
+                    centre_summary = step_summary = return_summary = None
+                node.neutral_drive(c)
+                automatic_ok = bool(startup["stable"])
+                decision = _disposition(node, stage="command_to_curvature_response",
+                    condition_id=condition, trial_id=trial_id, attempt=attempt, automatic_ok=automatic_ok,
+                    automatic_summary={"startup": startup, "centre": centre_summary or {},
+                                       "step": step_summary or {}, "return": return_summary or {}})
+                records.append({"trial_index": index, "condition_id": condition, "trial_id": trial_id,
+                                "attempt": attempt, "speed_mps": speed, "side": side,
+                                "fraction": fraction, "raw_target": raw_target, "startup": startup,
+                                "centre_summary": centre_summary, "step_summary": step_summary,
+                                "return_summary": return_summary, "decision": decision})
+                if decision != "redo":
+                    break
+                attempt += 1
+            index += 1
         result = {"status": "captured", "records": records}
         dump_json(stage_dir / "runtime_result.json", result)
         return result

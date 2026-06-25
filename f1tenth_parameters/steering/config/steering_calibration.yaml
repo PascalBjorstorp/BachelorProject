@@ -105,19 +105,24 @@ static_map:
   validation_repetitions: 3
   raw_servo_echo_tolerance: 0.004
 response:
-  # Multiple speeds expose how the effective steering gain and lag change with
-  # speed (the kinematic bicycle map is speed-independent; the real vehicle is
-  # not). The higher speeds need a wide area and a ready emergency stop.
-  speeds_mps:
-  - 0.6
-  - 0.9
-  - 1.5
-  - 2.1
-  target_fractions:
-  - 0.15
-  - 0.3
-  - 0.6
-  repetitions: 5
+  # Per-speed conditions keep the response stage short while still probing
+  # large steering at speeds where it is safe. Total nominal trials below:
+  # sum(len(target_fractions) * 2 sides * repetitions) = 30.
+  conditions:
+  - speed_mps: 0.6
+    target_fractions:
+    - 0.3
+    - 0.87
+    repetitions: 3
+  - speed_mps: 1.5
+    target_fractions:
+    - 0.3
+    - 0.72
+    repetitions: 3
+  - speed_mps: 2.1
+    target_fractions:
+    - 0.15
+    repetitions: 3
   centre_hold_s: 2.5
   step_hold_s: 3.5
   return_hold_s: 2.5

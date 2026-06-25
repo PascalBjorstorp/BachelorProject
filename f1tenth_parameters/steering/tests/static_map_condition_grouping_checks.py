@@ -87,10 +87,10 @@ def check_source_and_config_contract() -> None:
     cfg = yaml.safe_load((ROOT / "config" / "steering_calibration.yaml").read_text(encoding="utf-8"))
     assert "max_center_servo_spread" not in cfg["centre_trim"]
     assert "measurements_per_side" not in cfg["endstops"]
-    assert int(cfg["response"]["repetitions"]) == 5
+    assert sum(len(c["target_fractions"]) * 2 * int(c["repetitions"]) for c in cfg["response"]["conditions"]) == 30
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "5 repetitions per speed / side / step size" in readme
+    assert "30 targeted trials" in readme
     assert "steering_simulation_seed_report.json" in readme
 
 

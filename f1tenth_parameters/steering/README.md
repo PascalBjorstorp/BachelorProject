@@ -121,7 +121,7 @@ All timing thresholds are in `config/steering_calibration.yaml` under `motion_st
 | 3 | Ground | Sensor observability and stationary ICP noise floor | 3 straight runs per speed; 3 turns per side |
 | 4 | Ground | Static raw-servo → curvature training map | 4 outward/inward sweeps per side |
 | 5 | Ground | Hold-out static-map validation | 3 shuffled repetitions per side |
-| 6 | Ground | Command-to-curvature response dynamics | 5 repetitions per speed / side / step size |
+| 6 | Ground | Command-to-curvature response dynamics | 30 targeted trials across selected speed / side / step-size conditions |
 
 The number of conditions is deliberately high. The static-map fit must be repeatable across approach direction and across independent hold-out data, not merely interpolate one sweep.
 

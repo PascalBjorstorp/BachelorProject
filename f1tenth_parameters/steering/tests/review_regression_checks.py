@@ -91,7 +91,7 @@ def main() -> int:
     assert "steering_settle_final_window_s" in cfg["static_map"]
     assert "max_center_servo_spread" not in cfg["centre_trim"]
     assert "measurements_per_side" not in cfg["endstops"]
-    assert int(cfg["response"]["repetitions"]) == 5
+    assert sum(len(c["target_fractions"]) * 2 * int(c["repetitions"]) for c in cfg["response"]["conditions"]) == 30
     outputs = (ROOT / "docs" / "STEERING_PARAMETER_OUTPUTS.md").read_text(encoding="utf-8")
     assert "steering_simulation_seed_report.json" in outputs
     print("review regression checks passed")
