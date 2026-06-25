@@ -1144,6 +1144,10 @@ int main(void)
     const double sim_front_peak_drop_pow = get_env_double("SIM_FRONT_PEAK_DROP_POW", 1.03);
     const double sim_front_combined_gain = get_env_double("SIM_FRONT_COMBINED_GAIN", 0.13366870620631957);
     const double sim_front_peak_floor = get_env_double("SIM_FRONT_PEAK_FLOOR", 0.2708096984131235);
+    /* Tyre relaxation length: lateral force lags slip with time constant sigma/v.
+     * Default 0 = instant force (unchanged legacy behaviour, see guard in macro). */
+    const double sim_rel_len_front = get_env_double("SIM_REL_LEN_FRONT", 0.0);
+    const double sim_rel_len_rear = get_env_double("SIM_REL_LEN_REAR", 0.0);
     const double sim_noise_pos_m = get_env_double("SIM_NOISE_POS_M", NOISE_POS_M);
     const double sim_noise_hdg_rad = get_env_double("SIM_NOISE_HDG_RAD", NOISE_HDG_RAD);
     const double sim_noise_vx_ms = get_env_double("SIM_NOISE_VX_MS", NOISE_VX_MS);
@@ -1807,6 +1811,8 @@ int main(void)
             static double st_V = 0.0;
             static double st_psi_dot = 0.0;
             static double st_beta = 0.0;
+            static double st_alpha_f_lag = 0.0;  /* relaxed front slip state */
+            static double st_alpha_r_lag = 0.0;  /* relaxed rear slip state */
             static int st_initialized = 0;
 
             if (!st_initialized) {
@@ -1814,6 +1820,9 @@ int main(void)
                 st_V = vx;
                 st_psi_dot = 0.0;
                 st_beta = 0.0;
+                /* Seed relaxation states at the initial steady-state slip. */
+                st_alpha_f_lag = sim_steer_gain * actual_steer;
+                st_alpha_r_lag = 0.0;
                 st_initialized = 1;
             }
 
@@ -1869,11 +1878,12 @@ int main(void)
              *   - atan2-based slip angles
              *   - cos(δ)/sin(δ) front force resolution
              *   - Full body-frame dynamics for V_DOT, BETA_DOT */
-            #define ST_DYNAMICS(X, Y, DELTA, V, PSI, PSI_DOT_VAL, BETA, SV, ACCL, \
-                               dX, dY, dDELTA, dV, dPSI, dPSI_DOT, dBETA) \
+            #define ST_DYNAMICS(X, Y, DELTA, V, PSI, PSI_DOT_VAL, BETA, ALPHA_F_LAG, ALPHA_R_LAG, SV, ACCL, \
+                               dX, dY, dDELTA, dV, dPSI, dPSI_DOT, dBETA, dALPHA_F, dALPHA_R) \
             do { \
                 if ((V) < 0.5) { \
                     /* Kinematic mode */ \
+                    (dALPHA_F) = 0.0; (dALPHA_R) = 0.0; \
                     double delta_eff = sim_steer_gain * (DELTA); \
                     double sv_eff = sim_steer_gain * (SV); \
                     double beta_hat = atan(tan(delta_eff) * lr / lwb); \
@@ -1909,8 +1919,19 @@ int main(void)
                     double steer_gain_eff_ = sim_steer_gain + (sim_steer_gain_high_slip - sim_steer_gain) * steer_blend_; \
                     double delta_eff = steer_gain_eff_ * (DELTA); \
                     /* atan2-based slip angles (not small-angle approx) */ \
-                    double alpha_f_ = delta_eff - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
-                    double alpha_r_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_f_static_ = delta_eff - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_r_static_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    /* First-order tyre relaxation: force follows the lagged slip \
+                     * (length-based time constant sigma/v). sigma<=0 => instant. */ \
+                    double alpha_f_, alpha_r_; \
+                    if (sim_rel_len_front > 1e-3) { \
+                        alpha_f_ = (ALPHA_F_LAG); \
+                        (dALPHA_F) = (alpha_f_static_ - (ALPHA_F_LAG)) * (vx_safe_ / sim_rel_len_front); \
+                    } else { alpha_f_ = alpha_f_static_; (dALPHA_F) = 0.0; } \
+                    if (sim_rel_len_rear > 1e-3) { \
+                        alpha_r_ = (ALPHA_R_LAG); \
+                        (dALPHA_R) = (alpha_r_static_ - (ALPHA_R_LAG)) * (vx_safe_ / sim_rel_len_rear); \
+                    } else { alpha_r_ = alpha_r_static_; (dALPHA_R) = 0.0; } \
                     double slip_front_ = fabs(alpha_f_); \
                     double slip_rear_ = fabs(alpha_r_); \
                     double slip_blend_front_; \
@@ -1997,49 +2018,51 @@ int main(void)
                 } \
             } while(0)
 
-            /* RK4 integration (matching gym's integrator) */
-            double k1[7], k2[7], k3[7], k4[7];
+            /* RK4 integration (matching gym's integrator). 9 states:
+             * [X, Y, delta, V, psi, psi_dot, beta, alpha_f_lag, alpha_r_lag]. */
+            double k1[9], k2[9], k3[9], k4[9];
             /* Use TRUE state for dynamics (not noisy measurement) */
             double true_px_dyn = (double)(true_state.pos_x);
             double true_py_dyn = (double)(true_state.pos_y);
             double true_psi_dyn = (double)(true_state.heading);
-            double s0[7] = {true_px_dyn, true_py_dyn, st_delta, st_V, true_psi_dyn, st_psi_dot, st_beta};
+            double s0[9] = {true_px_dyn, true_py_dyn, st_delta, st_V, true_psi_dyn, st_psi_dot, st_beta,
+                            st_alpha_f_lag, st_alpha_r_lag};
 
             /* k1 */
-            ST_DYNAMICS(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6],
+            ST_DYNAMICS(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6], s0[7], s0[8],
                         steer_vel, accl,
-                        k1[0], k1[1], k1[2], k1[3], k1[4], k1[5], k1[6]);
+                        k1[0], k1[1], k1[2], k1[3], k1[4], k1[5], k1[6], k1[7], k1[8]);
 
             /* k2 */
             {
-                double s1[7];
-                for (int i = 0; i < 7; i++) s1[i] = s0[i] + 0.5 * SIM_DT * k1[i];
-                ST_DYNAMICS(s1[0], s1[1], s1[2], s1[3], s1[4], s1[5], s1[6],
+                double s1[9];
+                for (int i = 0; i < 9; i++) s1[i] = s0[i] + 0.5 * SIM_DT * k1[i];
+                ST_DYNAMICS(s1[0], s1[1], s1[2], s1[3], s1[4], s1[5], s1[6], s1[7], s1[8],
                             steer_vel, accl,
-                            k2[0], k2[1], k2[2], k2[3], k2[4], k2[5], k2[6]);
+                            k2[0], k2[1], k2[2], k2[3], k2[4], k2[5], k2[6], k2[7], k2[8]);
             }
 
             /* k3 */
             {
-                double s2[7];
-                for (int i = 0; i < 7; i++) s2[i] = s0[i] + 0.5 * SIM_DT * k2[i];
-                ST_DYNAMICS(s2[0], s2[1], s2[2], s2[3], s2[4], s2[5], s2[6],
+                double s2[9];
+                for (int i = 0; i < 9; i++) s2[i] = s0[i] + 0.5 * SIM_DT * k2[i];
+                ST_DYNAMICS(s2[0], s2[1], s2[2], s2[3], s2[4], s2[5], s2[6], s2[7], s2[8],
                             steer_vel, accl,
-                            k3[0], k3[1], k3[2], k3[3], k3[4], k3[5], k3[6]);
+                            k3[0], k3[1], k3[2], k3[3], k3[4], k3[5], k3[6], k3[7], k3[8]);
             }
 
             /* k4 */
             {
-                double s3[7];
-                for (int i = 0; i < 7; i++) s3[i] = s0[i] + SIM_DT * k3[i];
-                ST_DYNAMICS(s3[0], s3[1], s3[2], s3[3], s3[4], s3[5], s3[6],
+                double s3[9];
+                for (int i = 0; i < 9; i++) s3[i] = s0[i] + SIM_DT * k3[i];
+                ST_DYNAMICS(s3[0], s3[1], s3[2], s3[3], s3[4], s3[5], s3[6], s3[7], s3[8],
                             steer_vel, accl,
-                            k4[0], k4[1], k4[2], k4[3], k4[4], k4[5], k4[6]);
+                            k4[0], k4[1], k4[2], k4[3], k4[4], k4[5], k4[6], k4[7], k4[8]);
             }
 
             /* RK4 update */
-            double sn[7];
-            for (int i = 0; i < 7; i++)
+            double sn[9];
+            for (int i = 0; i < 9; i++)
                 sn[i] = s0[i] + (SIM_DT / 6.0) * (k1[i] + 2.0*k2[i] + 2.0*k3[i] + k4[i]);
 
             /* Clamp steering angle */
@@ -2056,6 +2079,12 @@ int main(void)
             st_V = sn[3];
             st_psi_dot = sn[5];
             st_beta = sn[6];
+            st_alpha_f_lag = sn[7];
+            st_alpha_r_lag = sn[8];
+            if (st_alpha_f_lag > 1.5) st_alpha_f_lag = 1.5;
+            if (st_alpha_f_lag < -1.5) st_alpha_f_lag = -1.5;
+            if (st_alpha_r_lag > 1.5) st_alpha_r_lag = 1.5;
+            if (st_alpha_r_lag < -1.5) st_alpha_r_lag = -1.5;
 
             /* Convert ST state to MPC vehicle state */
             if (realistic_noise) {

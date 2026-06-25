@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+output/
+raw/
+*.pyc
+identification_results.zip
