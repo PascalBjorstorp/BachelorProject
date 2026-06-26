@@ -130,15 +130,13 @@ class CalibrationNode(Node):
     def raw_erpm(self, erpm:float)->None:
         self._mode('raw_erpm'); self._steering_keepalive(); self.raw_speed_pub.publish(self._float(erpm))
     def raw_current(self, current_a: float) -> None:
-        cap = float(self.cfg['operating_envelope']['approved_drive_test_current_a'])
-        if not math.isfinite(current_a) or current_a < -1e-9 or current_a > cap + 1e-9:
-            raise RuntimeError(f'raw drive-current request {current_a!r} exceeds calibrated test envelope [0, {cap}] A')
+        if not math.isfinite(current_a) or current_a < -1e-9:
+            raise RuntimeError(f'raw drive-current request {current_a!r} is invalid')
         self._mode('raw_current'); self._steering_keepalive(); self.raw_current_pub.publish(self._float(current_a))
 
     def raw_brake(self, brake_a: float) -> None:
-        cap = float(self.cfg['operating_envelope']['approved_brake_test_current_a'])
-        if not math.isfinite(brake_a) or brake_a < -1e-9 or brake_a > cap + 1e-9:
-            raise RuntimeError(f'raw brake-current request {brake_a!r} exceeds calibrated test envelope [0, {cap}] A')
+        if not math.isfinite(brake_a) or brake_a < -1e-9:
+            raise RuntimeError(f'raw brake-current request {brake_a!r} is invalid')
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(); self.spin(0.04); self._mode('neutral')

@@ -1,0 +1,10 @@
+/tf_static:
+  durability: transient_local
+  reliability: reliable
+  history: keep_last
+  depth: 10
+/parameter_events:
+  durability: volatile
+  reliability: reliable
+  history: keep_last
+  depth: 100

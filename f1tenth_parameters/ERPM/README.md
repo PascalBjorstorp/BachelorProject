@@ -24,23 +24,22 @@ and score the models. Existing ERPM odometry is never used as its own truth.
 The supplied default configuration is a **full-envelope** campaign:
 
 ```text
-maximum speed:                 3.0 m/s
-maximum drive acceleration:    5.5 m/s²
-maximum brake deceleration:    5.0 m/s²
-test-current ceiling:          explicitly configured after safety review
+maximum speed:                 9.0 m/s
+maximum drive acceleration:    uncapped by this runner
+maximum brake deceleration:    uncapped by this runner
+test-current command scale:    intentionally above expected VESC clipping
 ```
 
 It requires a static-featured, controlled straight with at least the configured
-usable length, currently **30 m minimum**, and explicitly approved drive/brake
-test-current ceilings. The runner checks these developer-set declarations before
+usable length, currently **20 m minimum**, and explicit drive/brake
+test-current command-scale values. The runner checks these developer-set declarations before
 touching `vesc.yaml`.
 
-`operating_envelope.approved_drive_test_current_a` (85 A) and
-`operating_envelope.approved_brake_test_current_a` (40 A) are now set from the
-measured Velineon 3500 envelope (see the comment in the config and the
-"Developer one-time setup" section below). The runner still refuses to invent
-these maxima; confirm them against your own `vesc.yaml current_max` before a
-session. They previously shipped at `0.0` as an intentional fail-fast placeholder.
+`operating_envelope.approved_drive_test_current_a` and
+`operating_envelope.approved_brake_test_current_a` are command scales for the
+raw-current grids. They are deliberately set high so the collected data shows
+the VESC/firmware clipping and motor response rather than a software-imposed
+acceleration ceiling.
 
 ### Developer one-time setup vs. third-party operator
 
@@ -48,12 +47,9 @@ These are **two separate roles**, and this is by design — not a defect:
 
 - **Developer (you), once, before handing off the car:** the two
   `approved_*_test_current_a` values in `config/erpm_calibration.yaml` (a config
-  file, *not* code) are now populated from the measured Velineon 3500 envelope —
-  85 A drive and 40 A brake, so the top condition fraction (0.75) reaches the
-  ~65 A / ~30 A maxima seen in the recorded data while staying just under the
-  VESC clip. Confirm these against your own `vesc.yaml current_max` for the
-  battery/motor on the car; they are the only manual values because the maximum
-  motor and brake current is a hardware-safety decision the tool must not guess.
+  file, *not* code) set the raw-current command scale. The default 20 m campaign
+  uses short pulses up to the full configured scale to capture high-demand
+  acceleration, braking and VESC clipping behavior up to about 9 m/s.
 - **Third-party operator, afterwards:** runs `python3 erpm_config_calibration.py`
   (and, when a C++ port is being validated, `python3 erpm_candidate_port.py`) and
   nothing else. They never edit code or YAML.
@@ -62,10 +58,9 @@ The check runs at launch (fail-fast), so a forgotten value stops the run in the
 first seconds, not after hours of collection. Once both values are set, every
 stage — including the high-current stages 8–12 — proceeds with no blocking.
 
-A 15 m room is suitable for steering and reduced low-speed work. It is **not**
-a defensible site for this full high-speed, high-current acceleration/braking
-identification. Do not lower the site value merely to bypass the preflight;
-create a deliberately limited-envelope configuration instead.
+A 20 m straight is the configured minimum for this high-speed, high-current
+campaign. The default top-speed evidence is around 9 m/s; use 25-30 m if you
+want repeated 10 m/s settled captures with more recovery room.
 
 ## Two-script workflow (split at the C++-edit boundary)
 
@@ -165,8 +160,10 @@ longitudinal-slip correction**: the driven wheels over-read ground speed in
 turns (grows with lateral acceleration; negligible sideslip; no time lag), so
 the deployable odometry applies `v_odom = v_wheel * (1 - clip(c1*v_wheel*|yaw|))`.
 It is zero on straights by construction, so it never disturbs the validated
-straight-line gain — it only makes the velocity trustworthy while turning. See
-`docs/PARAMETER_OUTPUTS.md`.
+straight-line gain. The configured Stage 13 cells now use straight run-up plus
+short turn segments, sweeping low-speed/high-curvature and high-speed/low-steer
+conditions up to a 7.5 m/s² expected lateral-acceleration budget without needing
+full circles. See `docs/PARAMETER_OUTPUTS.md`.
 
 ## Experimental stages
 
@@ -180,13 +177,14 @@ straight-line gain — it only makes the velocity trustworthy while turning. See
 | 5 | Existing `VEL_TO_ERPM` audit | Characterises the installed speed path before candidate deployment. |
 | 6 | Full-envelope raw-ERPM steps | Measures command/VESC/ground-speed delay and high-speed transient response. |
 | 7 | Current-zero coast-down ladder | Identifies Coulomb, viscous and quadratic drag. |
-| 8 | Full drive/brake current training schedule | Covers low/mid/high entry speed and fractions up to the approved current ceiling; condition-specific durations prevent speed or stopping-envelope violations and record slip onset/recovery. |
+| 8 | Full drive/brake current training schedule | Covers low/mid/high entry speed and fractions up to the configured command scale; short fixed durations record high-demand acceleration, braking, VESC clipping and slip onset/recovery. |
 | 9 | Independent current hold-out schedule | Selects the odometry estimator on unseen high-acceleration and braking trajectories. |
 | 10 | Learned `ACCEL_TO_CURRENT` routing audit | Audits requested acceleration → current/brake routing using the drag/current patch learned from Stages 6-9. |
 | offline | Model selection | Compares every causal estimator family using whole held-out trajectories. |
 | 11 | Candidate `VEL_TO_ERPM` shadow validation | Candidate command map and candidate odom feed the live speed loop; plateau hold-outs. |
 | 12 | Candidate `ACCEL_TO_CURRENT` shadow validation | Candidate odom feeds the live acceleration loop; dynamic hold-outs. |
-| 13 | Cornering slip arcs + non-zero-steering hold-out | Steady constant-speed arcs spanning a range of lateral acceleration. Fits the causal turn-induced longitudinal-slip correction (`fit_turn_slip.py`) on a training subset of arc cells and validates it on held-out cells, so odometry is trustworthy while turning and not only on straights. Needs open lateral (circling) space. |
+| 13 | Cornering slip arcs + non-zero-steering hold-out | Explicit short-turn cells span 2.0-8.8 m/s and up to 7.5 m/s² expected lateral acceleration. Fits the causal turn-induced longitudinal-slip correction (`fit_turn_slip.py`) on a training subset of cells and validates it on held-out cells, so odometry is trustworthy while turning and not only on straights. |
+| 14 | Post-calibration steering dynamics | Runs only after candidate ERPM/current verification. Straight setup at speed, then short steering-step captures up to 7.5 m/s² expected lateral acceleration for later steering delay, yaw-rate gain and understeer fitting. Not used to fit ERPM/current. |
 
 Each requested physical trial can be `ACCEPT`, `REDO`, `SKIP`, or `ABORT`.
 `REDO` is unlimited. Rejected attempts are retained in MCAP; only accepted
@@ -247,13 +245,15 @@ the shadow reference, and a final re-run of Stages 11–13 using the C++ node.
 Every stage invokes:
 
 ```bash
-ros2 bag record -s mcap <required stage topics...>
+ros2 bag record -s mcap --compression-mode file --compression-format zstd <required stage topics...>
 ```
 
 Required-topic checks are still enforced. The bags retain raw `/scan`, `/tf`,
 `/tf_static`, parameter events, ROS graph snapshots, VESC telemetry, command
 mirrors, raw and selected motor paths, IMU, production odom, candidate
 odom/debug signals when active, `/drive`, `/ackermann_cmd`, and structured
-trial events without recording unrelated ROS traffic.
+trial events without recording unrelated ROS traffic. Keep READY/review prompts
+moving: the stage bag stays open while waiting, so idle prompt time still records
+the LiDAR stream.
 
 Key model-selection outputs are listed in `docs/PARAMETER_OUTPUTS.md`. `docs/SOURCE_PARAMETER_AUDIT.md` identifies active parameters, safety-only limits, and longitudinal fields that are currently unused by the production source.

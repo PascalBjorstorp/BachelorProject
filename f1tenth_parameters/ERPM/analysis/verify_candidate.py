@@ -16,6 +16,16 @@ def _metrics(measured: np.ndarray, predicted: np.ndarray) -> dict:
     return {'n':int(m.sum()),'rmse':float(np.sqrt(np.mean(r*r))),'bias':float(np.mean(r)),'p95':float(np.quantile(np.abs(r),.95))}
 
 
+def _cross_axis_grid(sx: dict) -> list[tuple[float, float]]:
+    conditions = sx.get('conditions')
+    if conditions is not None:
+        return [
+            (float(c['steering_angle_rad']), float(c['speed_mps']))
+            for c in conditions
+        ]
+    return [(float(angle), float(speed)) for angle in sx['steering_angle_rad'] for speed in sx['speed_commands_mps']]
+
+
 def _accel(frame:pd.DataFrame,start:int,end:int,column:str)->float:
     f=frame[(frame.bag_ns>=start)&(frame.bag_ns<=end)].dropna(subset=[column]).sort_values('bag_ns')
     if len(f)<8:return math.nan
@@ -101,7 +111,7 @@ def main()->int:
     # speed estimator in the combined operating state but is never used to fit it.
     cross=stage_tables(session,'13_candidate_cross_axis_verification'); cw=accepted_capture_windows(cross['events'],'candidate_cross_axis_verification'); cpoints=_candidate_pointwise(cross,cw)
     cpoints.to_parquet(out/'candidate_cross_axis_speed_samples.parquet',index=False)
-    sx=cfg['cross_axis_validation']; cgrid=[(float(angle),float(speed)) for angle in sx['steering_angle_rad'] for speed in sx['speed_commands_mps']]
+    sx=cfg['cross_axis_validation']; cgrid=_cross_axis_grid(sx)
     ccov=expected_grid_coverage(cpoints,fields=['steering_angle_rad','speed_command_mps'],expected_grid=cgrid,expected_repetitions=int(sx['repetitions']),tolerances={'steering_angle_rad':1e-6,'speed_command_mps':1e-6},unique_by=['trial_id']) if bool(sx.get('enabled',False)) else pd.DataFrame()
     if not ccov.empty: ccov.to_parquet(out/'candidate_cross_axis_coverage.parquet',index=False)
     cross_metric=_metrics(cpoints.get('vx',pd.Series(dtype=float)).to_numpy(float),cpoints.get('candidate_vx_mps',pd.Series(dtype=float)).to_numpy(float))

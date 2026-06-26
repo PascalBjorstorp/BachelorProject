@@ -115,6 +115,8 @@ def start_bag(
         "storage": "mcap",
         "record_all_topics": record_all,
         "include_hidden_topics": bool(recording.get("include_hidden_topics", False)),
+        "compression_mode": recording.get("compression_mode"),
+        "compression_format": recording.get("compression_format"),
         "qos_profile_overrides": str(qos_path) if qos_path else None,
         "required_topics": required_topics,
         "recorded_topics": None if record_all else recorded_topics,
@@ -124,6 +126,12 @@ def start_bag(
     log_path = stage_dir / "rosbag_record.log"
     handle = log_path.open("w", encoding="utf-8")
     command = ["ros2", "bag", "record", "-s", "mcap", "-o", str(bag_dir)]
+    compression_mode = recording.get("compression_mode")
+    compression_format = recording.get("compression_format")
+    if compression_mode:
+        command += ["--compression-mode", str(compression_mode)]
+    if compression_format:
+        command += ["--compression-format", str(compression_format)]
     if record_all:
         command.append("-a")
         if bool(recording.get("include_hidden_topics", False)):

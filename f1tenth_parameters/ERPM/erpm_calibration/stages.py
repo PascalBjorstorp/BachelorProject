@@ -135,10 +135,8 @@ def _require_envelope(cfg: dict[str, Any], *, speed: float | None = None,
     env = cfg['operating_envelope']
     if speed is not None and abs(float(speed)) > float(env['maximum_test_speed_mps']) + 1e-9:
         raise RuntimeError(f'configured command {speed:.3f} m/s exceeds maximum_test_speed_mps')
-    if acceleration is not None:
-        cap = float(env['maximum_test_brake_mps2'] if brake or acceleration < 0 else env['maximum_test_accel_mps2'])
-        if abs(float(acceleration)) > cap + 1e-9:
-            raise RuntimeError(f'configured acceleration {acceleration:.3f} exceeds operating-envelope cap {cap:.3f}')
+    if acceleration is not None and not math.isfinite(float(acceleration)):
+        raise RuntimeError(f'configured acceleration {acceleration!r} is not finite')
 
 
 def _pulse_duration(cfg: dict[str, Any], fraction: float) -> float:
@@ -152,29 +150,14 @@ def _pulse_duration(cfg: dict[str, Any], fraction: float) -> float:
 
 
 def _safe_pulse_duration(cfg: dict[str, Any], fraction: float, *, initial_speed: float, polarity: str) -> float:
-    """Limit pulse time to the declared speed/stopping envelope.
-
-    This is conservative: it uses the maximum configured acceleration, not an
-    optimistic expected value.  An infeasible configured condition fails before
-    driving rather than becoming an uncontrolled over-speed event or a capture
-    too short for LiDAR identification.
-    """
-    env = cfg['operating_envelope']
-    nominal = _pulse_duration(cfg, fraction)
-    minimum = float(env['dynamic_capture_min_s'])
-    if polarity == 'drive':
-        headroom = float(env['maximum_test_speed_mps']) - float(env['speed_guard_margin_mps']) - float(initial_speed)
-        cap = float(env['maximum_test_accel_mps2']) * abs(float(fraction))
-    else:
-        headroom = float(initial_speed) - float(env['brake_guard_margin_mps'])
-        cap = float(env['maximum_test_brake_mps2']) * abs(float(fraction))
-    maximum = headroom / max(cap, 1e-9)
-    duration = min(nominal, maximum)
+    """Return the configured pulse time without imposing a software accel cap."""
+    duration = _pulse_duration(cfg, fraction)
+    minimum = float(cfg['operating_envelope']['dynamic_capture_min_s'])
     if duration + 1e-9 < minimum:
         raise RuntimeError(
-            f'infeasible {polarity} pulse: initial speed {initial_speed:.3f} m/s, fraction {fraction:.3f} '
-            f'allows only {duration:.3f} s before the configured envelope; minimum identifiable duration is {minimum:.3f} s. '
-            'Use a longer track/higher reviewed speed envelope or remove this condition from the schedule.'
+            f'configured {polarity} pulse duration {duration:.3f} s for initial speed '
+            f'{initial_speed:.3f} m/s, fraction {fraction:.3f} is below the minimum '
+            f'identifiable duration {minimum:.3f} s.'
         )
     return duration
 
@@ -599,7 +582,7 @@ def _current_conditions(cfg: dict[str, Any], section: str, polarity: str) -> Ite
         speed = float(entry['initial_speed_mps'])
         _require_envelope(cfg, speed=speed)
         for fraction in map(float, entry['current_fractions']):
-            if not (0.0 < fraction <= 1.0):
+            if not (0.0 < fraction):
                 raise RuntimeError(f'invalid {polarity} current fraction: {fraction}')
             duration = _safe_pulse_duration(cfg, fraction, initial_speed=speed, polarity=polarity)
             yield speed, fraction, limit * fraction, duration
@@ -714,8 +697,7 @@ def _run_accel_grid(
         initial_erpm = initial_erpm_fn(initial_speed) if initial_erpm_fn is not None else _raw_erpm(gain, offset, initial_speed)
         for acceleration in map(float, accelerations):
             _require_envelope(cfg, acceleration=acceleration, brake=acceleration < 0)
-            duration = min(float(capture_s), _pulse_duration(cfg, min(1.0, abs(acceleration) / max(
-                float(cfg['operating_envelope']['maximum_test_accel_mps2']), 1e-9))))
+            duration = float(capture_s)
             for rep in range(1, int(repetitions) + 1):
                 cid = f'accel_v_{initial_speed:.2f}_cmd_{acceleration:+.2f}_rep_{rep:02d}'
                 attempt = 1
@@ -857,6 +839,28 @@ def candidate_accel_verification(cfg: dict[str, Any], stage_dir: Path,
         finish_node(node)
 
 
+def _cross_axis_conditions(spec: dict[str, Any]) -> list[dict[str, float]]:
+    conditions = spec.get('conditions')
+    if conditions is not None:
+        return [
+            {
+                'speed_mps': float(c['speed_mps']),
+                'steering_angle_rad': float(c['steering_angle_rad']),
+                'expected_lateral_accel_mps2': float(c.get('expected_lateral_accel_mps2', math.nan)),
+            }
+            for c in conditions
+        ]
+    return [
+        {
+            'speed_mps': float(speed),
+            'steering_angle_rad': float(angle),
+            'expected_lateral_accel_mps2': math.nan,
+        }
+        for angle in spec['steering_angle_rad']
+        for speed in spec['speed_commands_mps']
+    ]
+
+
 def candidate_cross_axis_verification(cfg: dict[str, Any], stage_dir: Path,
                                       counter: TrialCounter) -> dict[str, Any]:
     """Independent candidate-speed hold-out with calibrated non-zero steering.
@@ -875,31 +879,145 @@ def candidate_cross_axis_verification(cfg: dict[str, Any], stage_dir: Path,
             result = {'enabled': False, 'records': []}
             dump_json(stage_dir / 'runtime_result.json', result)
             return result
-        for angle in spec['steering_angle_rad']:
-            for speed in spec['speed_commands_mps']:
-                for rep in range(1, int(spec['repetitions']) + 1):
-                    cid = f'cross_axis_delta_{float(angle):+.3f}_speed_{float(speed):.3f}_rep_{rep:02d}'
-                    attempt = 1
-                    while True:
-                        trial = _id(cid, attempt)
-                        pause_for_reposition(
-                            f'Position at the marked start. {cid}; candidate speed={float(speed):.3f} m/s, steering={float(angle):+.3f} rad.\nAttempt {attempt}; REDO has no limit.'
+        for condition in _cross_axis_conditions(spec):
+            speed = float(condition['speed_mps'])
+            angle = float(condition['steering_angle_rad'])
+            expected_lat = float(condition['expected_lateral_accel_mps2'])
+            for rep in range(1, int(spec['repetitions']) + 1):
+                cid = f'cross_axis_delta_{angle:+.3f}_speed_{speed:.3f}_rep_{rep:02d}'
+                attempt = 1
+                while True:
+                    trial = _id(cid, attempt)
+                    pause_for_reposition(
+                        f'Position at the marked start. {cid}; candidate speed={speed:.3f} m/s, steering={angle:+.3f} rad.\nAttempt {attempt}; REDO has no limit.'
+                    )
+                    node.event.emit(
+                        'trial_start', stage='13_candidate_cross_axis_verification',
+                        condition_id=cid, trial_id=trial, attempt=attempt,
+                        speed_command_mps=speed, steering_angle_rad=angle,
+                        expected_lateral_accel_mps2=expected_lat,
+                    )
+                    startup = node.establish_ackermann_speed(speed_mps=speed, segment_id=cid, trial_id=trial, steering_angle_rad=0.0)
+                    summary: dict[str, Any] | None = None
+                    if startup.get('stable'):
+                        pre_turn_s = float(spec.get('pre_turn_hold_s', 0.0))
+                        if pre_turn_s > 0.0:
+                            node.hold(
+                                kind='ackermann_speed', target=speed,
+                                duration_s=pre_turn_s,
+                                phase='candidate_cross_axis_turn_settle',
+                                segment_id=cid, trial_id=trial, capture=False,
+                                steering_angle_rad=angle,
+                                speed_command_mps=speed,
+                                expected_lateral_accel_mps2=expected_lat,
+                            )
+                        summary = node.hold(
+                            kind='ackermann_speed', target=speed,
+                            duration_s=float(spec['capture_s']),
+                            phase='candidate_cross_axis_verification',
+                            segment_id=cid, trial_id=trial, capture=True,
+                            steering_angle_rad=angle, window_fields=WINDOW,
+                            speed_command_mps=speed,
+                            expected_lateral_accel_mps2=expected_lat,
                         )
-                        node.event.emit('trial_start', stage='13_candidate_cross_axis_verification', condition_id=cid, trial_id=trial, attempt=attempt, speed_command_mps=float(speed), steering_angle_rad=float(angle))
-                        startup = node.establish_ackermann_speed(speed_mps=float(speed), segment_id=cid, trial_id=trial, steering_angle_rad=float(angle))
-                        summary: dict[str, Any] | None = None
-                        if startup.get('stable'):
-                            summary = node.hold(kind='ackermann_speed', target=float(speed), duration_s=float(spec['capture_s']), phase='candidate_cross_axis_verification', segment_id=cid, trial_id=trial, capture=True, steering_angle_rad=float(angle), window_fields=WINDOW, speed_command_mps=float(speed))
-                        node.neutral()
-                        auto = bool(startup.get('stable')) and summary is not None
-                        decision = _decision(node, stage='13_candidate_cross_axis_verification', condition_id=cid, trial_id=trial, attempt=attempt, auto_ok=auto, summary={'startup': startup, 'capture': summary or {}})
-                        records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary, 'speed_command_mps': float(speed), 'steering_angle_rad': float(angle)})
-                        if decision == 'accepted':
-                            counter.count(node)
-                            break
-                        if decision == 'skipped':
-                            break
-                        attempt += 1
+                    node.neutral()
+                    auto = bool(startup.get('stable')) and summary is not None
+                    decision = _decision(node, stage='13_candidate_cross_axis_verification', condition_id=cid, trial_id=trial, attempt=attempt, auto_ok=auto, summary={'startup': startup, 'capture': summary or {}})
+                    records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary, 'speed_command_mps': speed, 'steering_angle_rad': angle, 'expected_lateral_accel_mps2': expected_lat})
+                    if decision == 'accepted':
+                        counter.count(node)
+                        break
+                    if decision == 'skipped':
+                        break
+                    attempt += 1
+        result = {'enabled': True, 'records': records}
+        dump_json(stage_dir / 'runtime_result.json', result)
+        return result
+    finally:
+        finish_node(node)
+
+
+def post_calibration_steering_dynamics(cfg: dict[str, Any], stage_dir: Path,
+                                       counter: TrialCounter) -> dict[str, Any]:
+    """Post-calibration steering/yaw dynamics data.
+
+    This is deliberately after ERPM/current and turn-slip calibration.  It is a
+    bagged validation/identification dataset for later lateral-dynamics work:
+    establish speed with zero steering, then step steering and record yaw-rate,
+    lateral acceleration, LiDAR speed and candidate odometry response.
+    """
+    banner('STAGE 14 — POST-CALIBRATION STEERING DYNAMICS',
+           'Candidate odometry remains active. Each trial reaches speed straight, then applies a steering step for later high-speed steering/yaw fitting.')
+    node = start_node('erpm_post_calibration_steering', cfg, {'imu', 'odom', 'candidate_odom', 'vesc', 'scan', 'selected_speed'})
+    records: list[dict[str, Any]] = []
+    try:
+        spec = cfg['post_calibration_steering_dynamics']
+        if not bool(spec.get('enabled', False)):
+            result = {'enabled': False, 'records': []}
+            dump_json(stage_dir / 'runtime_result.json', result)
+            return result
+        for condition in _cross_axis_conditions(spec):
+            speed = float(condition['speed_mps'])
+            angle = float(condition['steering_angle_rad'])
+            expected_lat = float(condition['expected_lateral_accel_mps2'])
+            _require_envelope(cfg, speed=speed)
+            for rep in range(1, int(spec['repetitions']) + 1):
+                cid = f'steering_step_delta_{angle:+.3f}_speed_{speed:.3f}_rep_{rep:02d}'
+                attempt = 1
+                while True:
+                    trial = _id(cid, attempt)
+                    pause_for_reposition(
+                        f'Position at the marked start. {cid}; speed={speed:.3f} m/s, steering step={angle:+.3f} rad.\nAttempt {attempt}; REDO has no limit.'
+                    )
+                    node.event.emit(
+                        'trial_start', stage='14_post_calibration_steering_dynamics',
+                        condition_id=cid, trial_id=trial, attempt=attempt,
+                        speed_command_mps=speed, steering_angle_rad=angle,
+                        expected_lateral_accel_mps2=expected_lat,
+                    )
+                    startup = node.establish_ackermann_speed(speed_mps=speed, segment_id=cid, trial_id=trial, steering_angle_rad=0.0)
+                    summary: dict[str, Any] | None = None
+                    if startup.get('stable'):
+                        node.hold(
+                            kind='ackermann_speed', target=speed,
+                            duration_s=float(spec['pre_turn_hold_s']),
+                            phase='post_calibration_steering_baseline',
+                            segment_id=cid, trial_id=trial, capture=False,
+                            steering_angle_rad=0.0,
+                            speed_command_mps=speed,
+                            steering_step_target_rad=angle,
+                            expected_lateral_accel_mps2=expected_lat,
+                        )
+                        summary = node.hold(
+                            kind='ackermann_speed', target=speed,
+                            duration_s=float(spec['capture_s']),
+                            phase='post_calibration_steering_step',
+                            segment_id=cid, trial_id=trial, capture=True,
+                            steering_angle_rad=angle, window_fields=WINDOW,
+                            speed_command_mps=speed,
+                            steering_step_target_rad=angle,
+                            expected_lateral_accel_mps2=expected_lat,
+                        )
+                    node.neutral()
+                    auto = bool(startup.get('stable')) and summary is not None
+                    decision = _decision(
+                        node, stage='14_post_calibration_steering_dynamics',
+                        condition_id=cid, trial_id=trial, attempt=attempt,
+                        auto_ok=auto, summary={'startup': startup, 'steering_step_capture': summary or {}},
+                    )
+                    records.append({
+                        'trial_id': trial, 'condition_id': cid, 'decision': decision,
+                        'startup': startup, 'capture': summary,
+                        'speed_command_mps': speed,
+                        'steering_angle_rad': angle,
+                        'expected_lateral_accel_mps2': expected_lat,
+                    })
+                    if decision == 'accepted':
+                        counter.count(node)
+                        break
+                    if decision == 'skipped':
+                        break
+                    attempt += 1
         result = {'enabled': True, 'records': records}
         dump_json(stage_dir / 'runtime_result.json', result)
         return result
