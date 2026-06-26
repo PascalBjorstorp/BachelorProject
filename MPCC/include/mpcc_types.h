@@ -69,7 +69,7 @@ typedef struct
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
 
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.39f           /** F1/10th max steering [rad] */
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.45f           /** F1/10th max steering [rad] — 2026-06-25 calib (symmetric, was 0.39) */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  20.0f     /** F1/10th max velocity: 20.0 meters per second */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  0.0f      /** F1/10th min velocity: 0.0 meters per second */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS    0.166f                /** Distance from CG to front axle: 0.166 meters [CAD] */
