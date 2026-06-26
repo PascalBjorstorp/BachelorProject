@@ -18,7 +18,7 @@ class StackProcess:
         if self.candidate_patch is not None:
             if self.candidate_mode not in {'velocity','accel'}: raise RuntimeError('candidate stack needs velocity or accel mode')
             cmd += ['--candidate-patch',str(self.candidate_patch),'--candidate-mode',self.candidate_mode]
-        self.proc=subprocess.Popen(cmd,stdout=self.handle,stderr=subprocess.STDOUT,start_new_session=True,text=True)
+        self.proc=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=self.handle,stderr=subprocess.STDOUT,start_new_session=True,text=True)
         time.sleep(2.0)
         if self.proc.poll() is not None:
             self.handle.close(); raise RuntimeError('calibration stack failed to start:\n'+self.log.read_text(encoding='utf-8',errors='replace'))

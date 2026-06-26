@@ -24,6 +24,12 @@ hardware:
   base_frame_id: ego_racecar/base_link
   laser_frame_id: ego_racecar/laser
   imu_frame_id: ego_racecar/imu
+  self_scan_filter:
+    enabled: true
+    x_min_m: -0.35
+    x_max_m: 0.45
+    y_min_m: -0.22
+    y_max_m: 0.22
 initial:
   raw_servo_seed: 0.55
 preflight:
@@ -85,6 +91,11 @@ static_map:
   steering_settle_timeout_s: 1.2
   steering_settle_final_window_s: 0.15
   capture_s: 8.0
+  # Fractions of the Stage-2 safe span (centre -> safe end-stop). Fraction 1.0 is
+  # the operator-confirmed safe end-stop itself (already inset from the hard stop),
+  # so the sweep MUST reach it: the 2026-06-25 run stopped at 0.87 and left the top
+  # ~21-26 deg of travel unmeasured, forcing the servo->angle map and the steering
+  # limit to be linearly extrapolated. Denser near full lock where the limit lives.
   training_fractions:
   - 0.04
   - 0.08
@@ -93,7 +104,9 @@ static_map:
   - 0.42
   - 0.57
   - 0.72
-  - 0.87
+  - 0.85
+  - 0.93
+  - 1.0
   training_sweep_repetitions: 2
   validation_fractions:
   - 0.06
@@ -102,6 +115,8 @@ static_map:
   - 0.5
   - 0.65
   - 0.8
+  - 0.9
+  - 1.0
   validation_repetitions: 2
   raw_servo_echo_tolerance: 0.004
 response:
@@ -112,7 +127,7 @@ response:
   - speed_mps: 0.6
     target_fractions:
     - 0.3
-    - 0.87
+    - 1.0      # full lock: safe at 0.6 m/s and gives max-deflection rate/lag data
     repetitions: 3
   - speed_mps: 1.5
     target_fractions:

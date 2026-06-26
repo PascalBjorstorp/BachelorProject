@@ -19,6 +19,12 @@ def main() -> int:
     parser.add_argument("--runs-dir", type=Path, default=None)
     parser.add_argument("--resume", type=Path, default=None,
                         help="Resume an interrupted session; completed stages are skipped.")
+    parser.add_argument("--accept-partial-stage", action="append", default=[],
+                        help=(
+                            "With --resume, mark an existing failed/interrupted stage bag as completed "
+                            "after verifying required topics, then continue with later stages. "
+                            "May be repeated."
+                        ))
     parser.add_argument("--workspace", type=Path, default=None,
                         help="BachelorProject colcon workspace root. Auto-detected by default.")
     parser.add_argument("--recover", action="store_true",
@@ -28,7 +34,8 @@ def main() -> int:
         if args.recover:
             VescConfigTransaction.recover(steering_root=ROOT, workspace=args.workspace)
             return 0
-        SessionRunner(ROOT, args.config.resolve(), args.runs_dir, args.resume, args.workspace).run()
+        SessionRunner(ROOT, args.config.resolve(), args.runs_dir, args.resume, args.workspace,
+                      accept_partial_stages=args.accept_partial_stage).run()
         return 0
     except KeyboardInterrupt:
         return 130

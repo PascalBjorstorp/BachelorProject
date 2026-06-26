@@ -2685,7 +2685,7 @@ def main():
 
     args = argparse.Namespace(
         # Map and output paths
-        map=os.path.join(workspace, 'f1tenth_planning', 'maps', 'race.yaml'),
+        map=os.path.join(workspace, 'f1tenth_planning', 'maps', 'IV_2026_SIM.yaml'),
         track_name='race',
         output=default_output,
 

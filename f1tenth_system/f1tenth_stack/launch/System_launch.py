@@ -45,6 +45,7 @@ def generate_launch_description():
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
     lidar_ip_address_arg = LaunchConfiguration('lidar_ip_address')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
+    full_scan_arg = LaunchConfiguration('full_scan')
     use_lateral_planner_arg = LaunchConfiguration('use_lateral_planner')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
     lateral_planner_delay_sec_arg = LaunchConfiguration('lateral_planner_delay_sec')
@@ -119,6 +120,12 @@ def generate_launch_description():
         DeclareLaunchArgument(  'lidar_ip_address',
                                 default_value='192.168.10.10',
                                 description='Hokuyo LiDAR IPv4 address'),
+
+        DeclareLaunchArgument(  'full_scan',
+                                default_value='false',
+                                description='Run LiDAR at 1080 beams on /scan_full and downsample to /scan '
+                                            '(for bagging full-res scans for offline ICP analysis). '
+                                            'Pipeline still consumes the reduced /scan.'),
 
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='false',
@@ -417,7 +424,45 @@ def generate_launch_description():
                     }],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
-                        mapping_mode_arg, "' != 'true'"
+                        mapping_mode_arg, "' != 'true' and '",
+                        full_scan_arg, "' != 'true'"
+                    ])),
+                ),
+                # Full-scan mode (racing): driver at 1080 beams on /scan_full, then a
+                # downsampler republishes /scan (cluster=4) for the pipeline. Lets a
+                # full-resolution scan be bagged for offline ICP without slowing the
+                # pipeline (it still consumes the reduced /scan).
+                Node(
+                    package='f1tenth_lidar',
+                    executable='hokuyo_scip_driver_node',
+                    name='hokuyo_scip_driver',
+                    output='screen',
+                    parameters=[hokuyo_config, {
+                        'ip_address': lidar_ip_address_arg,
+                        'skip': 0,
+                        'cluster': 1,
+                        'scan_topic': '/scan_full',
+                    }],
+                    condition=IfCondition(PythonExpression([
+                        "'", use_lidar_arg, "' == 'true' and '",
+                        mapping_mode_arg, "' != 'true' and '",
+                        full_scan_arg, "' == 'true'"
+                    ])),
+                ),
+                Node(
+                    package='f1tenth_lidar',
+                    executable='scan_downsampler_node',
+                    name='scan_downsampler',
+                    output='screen',
+                    parameters=[{
+                        'input_topic': '/scan_full',
+                        'output_topic': '/scan',
+                        'cluster': lidar_cluster_arg,
+                    }],
+                    condition=IfCondition(PythonExpression([
+                        "'", use_lidar_arg, "' == 'true' and '",
+                        mapping_mode_arg, "' != 'true' and '",
+                        full_scan_arg, "' == 'true'"
                     ])),
                 ),
                 # Mapping mode: 1080 beams @ 40 Hz (cluster=1, skip=0 — full resolution)

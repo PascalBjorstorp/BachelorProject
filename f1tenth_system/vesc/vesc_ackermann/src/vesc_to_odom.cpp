@@ -196,6 +196,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   imu_yaw_base_weight_ =
     declare_parameter("imu_yaw_base_weight", imu_yaw_base_weight_);
   gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
+  imu_gyro_scale_ = declare_parameter("imu_gyro_scale", imu_gyro_scale_);
   imu_startup_calibration_enabled_ =
     declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
   imu_startup_calibration_duration_sec_ =
@@ -426,7 +427,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const double speed_for_blend = std::max(dynamic_model_min_speed_, kEpsilon);
   const double low_speed_imu_boost =
     1.0 - std::clamp(std::fabs(current_speed) / speed_for_blend, 0.0, 1.0);
-  const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
+  // Scale-factor correction applied after bias removal: bias is in raw gyro units,
+  // the scale corrects the slope. 2026-06-25 LiDAR-ICP vs IMU yaw -> ~1.6% low.
+  const double imu_yaw_rate = (imu_yaw_rate_raw - gyro_bias_) * imu_gyro_scale_;
   const double imu_yaw_weight = imu_fresh ?
     std::clamp(
     imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * low_speed_imu_boost,

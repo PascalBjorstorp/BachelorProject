@@ -49,6 +49,32 @@ def scan_points(msg, downsample: int) -> tuple[np.ndarray, np.ndarray]:
     return points[::step], rel_t[::step]
 
 
+def filter_self_points(points: np.ndarray, rel_t: np.ndarray, hardware: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Drop returns from the vehicle body before matching against room geometry."""
+    mask_cfg = hardware.get("self_scan_filter", {}) or {}
+    if not bool(mask_cfg.get("enabled", False)) or points.size == 0:
+        return points, rel_t
+    laser_yaw = float(hardware.get("laser_to_base_yaw_rad", 0.0))
+    c_yaw, s_yaw = math.cos(laser_yaw), math.sin(laser_yaw)
+    R_base_laser = np.array([[c_yaw, -s_yaw], [s_yaw, c_yaw]])
+    laser_offset_base = np.array([
+        float(hardware.get("laser_to_base_x_m", 0.0)),
+        float(hardware.get("laser_to_base_y_m", 0.0)),
+    ])
+    base_points = points @ R_base_laser.T + laser_offset_base
+    x_min = float(mask_cfg.get("x_min_m", -math.inf))
+    x_max = float(mask_cfg.get("x_max_m", math.inf))
+    y_min = float(mask_cfg.get("y_min_m", -math.inf))
+    y_max = float(mask_cfg.get("y_max_m", math.inf))
+    keep = ~(
+        (base_points[:, 0] >= x_min)
+        & (base_points[:, 0] <= x_max)
+        & (base_points[:, 1] >= y_min)
+        & (base_points[:, 1] <= y_max)
+    )
+    return points[keep], rel_t[keep]
+
+
 def deskew_scan(points: np.ndarray, rel_t: np.ndarray, v_laser: np.ndarray, omega: float) -> np.ndarray:
     """Motion-compensate a scan to its first-beam time under constant velocity.
 
@@ -236,6 +262,58 @@ def load_imu(derived: Path):
     return table["bag_ns"].to_numpy(dtype=float), table["gz"].to_numpy(dtype=float)
 
 
+def capture_windows(derived: Path) -> list[dict]:
+    """Accepted capture windows; scan pairs must not cross operator moves."""
+    import pandas as pd
+    from trials import accepted_trial_ids
+
+    ignored_phases = {"response_centre", "static_map_steering_settle"}
+    path = derived / "events.parquet"
+    if not path.exists():
+        return []
+    events = pd.read_parquet(path).sort_values("bag_ns")
+    if events.empty or "event" not in events:
+        return []
+    accepted = accepted_trial_ids(events)
+    starts = events[(events.get("event") == "phase_start") & (events.get("capture") == True)].copy()  # noqa: E712
+    ends = events[(events.get("event") == "phase_end") & (events.get("capture") == True)].copy()  # noqa: E712
+    windows: list[dict] = []
+    for _, start in starts.iterrows():
+        trial_id = str(start.get("trial_id"))
+        if accepted and trial_id not in accepted:
+            continue
+        phase = start.get("phase")
+        if str(phase) in ignored_phases:
+            continue
+        segment_id = start.get("segment_id")
+        matches = ends[
+            (ends.get("trial_id").astype(str) == trial_id)
+            & (ends.get("phase") == phase)
+            & (ends.get("segment_id") == segment_id)
+            & (ends.bag_ns > start.bag_ns)
+        ]
+        if not len(matches):
+            continue
+        end = matches.iloc[0]
+        windows.append({
+            "start_ns": int(start.bag_ns),
+            "end_ns": int(end.bag_ns),
+            "trial_id": trial_id,
+            "phase": None if pd.isna(phase) else str(phase),
+            "segment_id": None if pd.isna(segment_id) else str(segment_id),
+        })
+    windows.sort(key=lambda item: item["start_ns"])
+    return windows
+
+
+def _window_for(t_ns: int, windows: list[dict], index: int) -> tuple[dict | None, int]:
+    while index < len(windows) and t_ns > int(windows[index]["end_ns"]):
+        index += 1
+    if index < len(windows) and int(windows[index]["start_ns"]) <= t_ns <= int(windows[index]["end_ns"]):
+        return windows[index], index
+    return None, index
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bag", type=Path)
@@ -251,6 +329,7 @@ def main() -> int:
     hardware = cfg["hardware"]
     derived = bag_dir.parent / "derived"
     imu_t, imu_gz = load_imu(derived)
+    windows = capture_windows(derived)
     try:
         import pandas as pd
         import rosbag2_py
@@ -278,13 +357,29 @@ def main() -> int:
     last_v_laser = np.zeros(2, dtype=float)
     last_omega = 0.0
     rows: list[dict] = []
+    window_index = 0
+    active_window_key = None
     while reader.has_next():
         topic, raw, bag_ns = reader.read_next()
         if topic != "/scan":
             continue
         scan = deserialize_message(raw, scan_type)
         t_ns = stamp_ns(scan, bag_ns)
+        window, window_index = _window_for(t_ns, windows, window_index)
+        if windows and window is None:
+            previous = None
+            active_window_key = None
+            continue
+        window_key = None if window is None else (
+            window["trial_id"], window["phase"], window["segment_id"]
+        )
+        if window_key != active_window_key:
+            previous = None
+            last_v_laser = np.zeros(2, dtype=float)
+            last_omega = 0.0
+            active_window_key = window_key
         points, rel_t = scan_points(scan, int(icp["downsample"]))
+        points, rel_t = filter_self_points(points, rel_t, hardware)
         omega_now = float(np.interp(t_ns, imu_t, imu_gz, left=np.nan, right=np.nan))
         if not math.isfinite(omega_now):
             omega_now = last_omega
@@ -298,12 +393,18 @@ def main() -> int:
         dt_s = (t_ns - previous_ns) * 1e-9
         if dt_s <= 0.005 or dt_s > max_gap_s:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
+                         "trial_id": None if window is None else window["trial_id"],
+                         "phase": None if window is None else window["phase"],
+                         "segment_id": None if window is None else window["segment_id"],
                          "valid": False, "reason": "scan_period_out_of_range"})
             continue
         mid_ns = 0.5 * (t_ns + previous_ns)
         yaw_rate_seed = float(np.interp(mid_ns, imu_t, imu_gz, left=np.nan, right=np.nan))
         if not math.isfinite(yaw_rate_seed):
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
+                         "trial_id": None if window is None else window["trial_id"],
+                         "phase": None if window is None else window["phase"],
+                         "segment_id": None if window is None else window["segment_id"],
                          "valid": False, "reason": "missing_imu_yaw_seed"})
             continue
         yaw_seed = yaw_rate_seed * dt_s
@@ -326,6 +427,9 @@ def main() -> int:
             )
         except Exception as exc:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
+                         "trial_id": None if window is None else window["trial_id"],
+                         "phase": None if window is None else window["phase"],
+                         "segment_id": None if window is None else window["segment_id"],
                          "valid": False, "reason": repr(exc)})
             continue
         # Carry the LiDAR-frame velocity forward as the next pair's prediction.
@@ -367,6 +471,9 @@ def main() -> int:
             "bag_ns": int(t_ns),
             "previous_bag_ns": int(previous_ns),
             "dt_s": dt_s,
+            "trial_id": None if window is None else window["trial_id"],
+            "phase": None if window is None else window["phase"],
+            "segment_id": None if window is None else window["segment_id"],
             "vx": float(delta_base[0] / dt_s),
             "vy": float(delta_base[1] / dt_s),
             "yaw_rate_icp": float(delta_yaw / dt_s),
@@ -392,6 +499,11 @@ def main() -> int:
         "output": str(output),
         "scan_pairs": int(len(table)),
         "valid_pairs": int(table["valid"].sum()) if len(table) and "valid" in table else 0,
+        "capture_window_filter": {
+            "enabled": bool(windows),
+            "windows": len(windows),
+            "scope": "accepted trial capture windows only; scan pairs never cross window boundaries",
+        },
         "method": "IMU-yaw-seeded, odometry-unseeded robust point-to-line ICP",
         "motion_deskew_enabled": deskew_enabled,
         "constant_velocity_translation_seed_enabled": seed_enabled,
@@ -409,6 +521,7 @@ def main() -> int:
             "base_frame_id": hardware.get("base_frame_id"),
             "laser_frame_id": hardware.get("laser_frame_id"),
         },
+        "self_scan_filter": hardware.get("self_scan_filter", {}) or {},
     }
     (derived / "lidar_motion_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))

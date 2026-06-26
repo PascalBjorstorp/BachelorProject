@@ -96,9 +96,9 @@ tire:
 # ============================================================================
 
 steering:
-  max_steering_angle: 0.4189 # [CALIBRATED] Maximum steering angle (rad) (24.0°)
-                             # With polynomial servo correction, servo saturates at ~0.42 rad
-                             # Reduced from 0.4668 to stay within corrected servo range
+  max_steering_angle: 0.45 # [CALIBRATED 2026-06-25] Symmetric max steering angle (rad) (25.8°); was 0.4189
+                             # Limited to the smaller (right) physical side; both end-stops reach ~26 deg.
+                             # Maps to servo 0.532 +/- 0.399 (servo_min/max below), inside the safe end-stops.
   
   max_steering_rate: 2.8492       # [TESTED] Maximum steering rate (rad/s)
                              # From test_steering_rate.py
@@ -107,16 +107,16 @@ steering:
                              # = (60 * pi/180) / max_steering_rate
                              # From test_steering_rate.py
   
-  servo_offset: 0.5500       # [MEASURED] steering_angle_to_servo_offset
-  servo_gain: -0.7284        # [CALIBRATED] steering_angle_to_servo_gain
-  servo_min: 0.202           # [MEASURED] Minimum servo PWM (from find_servo_limits.py)
-  servo_max: 0.890           # [MEASURED] Maximum servo PWM (from find_servo_limits.py)
-  
-  # Nonlinearity correction polynomial (calibrated 2026-03-12, 7 angles)
-  # corrected = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
-  steering_correction_c2: 0.589566
-  steering_correction_c1: 0.918061
-  steering_correction_c0: 0.001490
+  servo_offset: 0.5321       # [CALIBRATED 2026-06-25] steering_angle_to_servo_offset (zero-yaw centre; was 0.5500)
+  servo_gain: -0.8667        # [CALIBRATED 2026-06-25] steering_angle_to_servo_gain (effective map; was -0.7284)
+  servo_min: 0.1333          # [CALIBRATED 2026-06-25] servo at +0.45 rad (symmetric; was 0.202)
+  servo_max: 0.9309          # [CALIBRATED 2026-06-25] servo at -0.45 rad (symmetric; was 0.890)
+
+  # Nonlinearity correction polynomial (2026-06-25 effective LiDAR/IMU map; near-linear)
+  # corrected = c2·|δ|² + c1·|δ| + c0  (sign-preserved). Matches vesc.yaml.
+  steering_correction_c2: 0.0498
+  steering_correction_c1: 1.0
+  steering_correction_c0: 0.0
 
 # ============================================================================
 # Motor / Drivetrain Properties
@@ -204,7 +204,7 @@ motor:
 # ============================================================================
 
 dynamics:
-  max_velocity: 10.0363      # [TESTED] Maximum achievable velocity (m/s)
+  max_velocity: 12.0         # [TESTED] Maximum achievable velocity (m/s)
                              # From test_max_dynamics.py
   
   max_accel: 7.31            # [TESTED] Maximum longitudinal acceleration (m/s²)
@@ -223,11 +223,11 @@ dynamics:
 # VESC Calibration (from vesc.yaml, for reference)
 # ============================================================================
 
-vesc_calibration:
-  speed_to_erpm_gain: 4550.0
+vesc_calibration:   # mirror of vesc.yaml (2026-06-25 calibration)
+  speed_to_erpm_gain: 4740.0
   speed_to_erpm_offset: 0.0
-  steering_angle_to_servo_gain: -0.7284
-  steering_angle_to_servo_offset: 0.5500
+  steering_angle_to_servo_gain: -0.8667
+  steering_angle_to_servo_offset: 0.5321
 
 # ============================================================================
 # Conversion Notes
