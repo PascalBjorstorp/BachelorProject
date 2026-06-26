@@ -1,0 +1,109 @@
+{
+  "session": "/home/akselmo/Downloads/steering/runs/20260625T124715Z_steering_calibration",
+  "rows": [
+    {
+      "stage": "00_command_chain_audit",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 19,
+      "exported": true,
+      "accepted_trials": 0,
+      "redo_attempts": 0,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "01_zero_curvature_centre",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 22,
+      "exported": true,
+      "accepted_trials": 12,
+      "redo_attempts": 0,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "01b_imu_bias_ground",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 16,
+      "exported": true,
+      "accepted_trials": 0,
+      "redo_attempts": 0,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "02_physical_endstops",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 13,
+      "exported": true,
+      "accepted_trials": 0,
+      "redo_attempts": 0,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "03_sensor_observability",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 22,
+      "exported": true,
+      "accepted_trials": 19,
+      "redo_attempts": 2,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "04_static_map_training",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 22,
+      "exported": true,
+      "accepted_trials": 64,
+      "redo_attempts": 3,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "05_static_map_holdout",
+      "manifest_status": "completed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 22,
+      "exported": true,
+      "accepted_trials": 24,
+      "redo_attempts": 7,
+      "skipped_conditions": 0
+    },
+    {
+      "stage": "06_command_to_curvature_response",
+      "manifest_status": "failed",
+      "mcap_present": true,
+      "all_topics_recording": false,
+      "topic_verification_ok": true,
+      "missing_required_topics": [],
+      "recorded_topic_count": 22,
+      "exported": true,
+      "accepted_trials": 28,
+      "redo_attempts": 14,
+      "skipped_conditions": 0
+    }
+  ]
+}

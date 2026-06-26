@@ -1,0 +1,4 @@
+source_path: /home/f1tenth/BachelorProject/f1tenth_system/f1tenth_stack/config/vesc.yaml
+exists: true
+session_copy: environment/vesc.yaml_at_session_start
+sha256: a69fb12bd3cc937f156ca09b6a14ad7d02e1862fbb3ee73c27d39025754f3532

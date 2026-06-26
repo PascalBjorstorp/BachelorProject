@@ -1,0 +1,170 @@
+session:
+  runs_dir: runs
+  min_free_disk_gb: 8.0
+  battery_min_v: 10.5
+  # Longitudinal safety cut-off. Raised to admit the higher-speed response
+  # conditions used to expose speed-dependent (tyre-slip) steering behaviour;
+  # requires a wide test area. Keep above the maximum response speed below.
+  hard_speed_limit_mps: 2.6
+  command_publish_hz: 100.0
+  event_topic: /steering_calibration/event
+workspace:
+  vesc_config_relpath: f1tenth_system/f1tenth_stack/config/vesc.yaml
+  colcon_build_command:
+  - colcon
+  - build
+  - --symlink-install
+hardware:
+  lidar_ip_address: 192.168.10.10
+  laser_to_base_x_m: 0.265
+  laser_to_base_y_m: 0.0
+  laser_to_base_yaw_rad: 0.0
+  wheelbase_m: 0.324
+  laser_to_base_z_m: 0.05
+  base_frame_id: ego_racecar/base_link
+  laser_frame_id: ego_racecar/laser
+  imu_frame_id: ego_racecar/imu
+  self_scan_filter:
+    enabled: true
+    x_min_m: -0.35
+    x_max_m: 0.45
+    y_min_m: -0.22
+    y_max_m: 0.22
+initial:
+  raw_servo_seed: 0.55
+preflight:
+  raw_servo_audit_delta: 0.02
+  raw_servo_echo_tolerance: 0.004
+  raw_servo_bus_tolerance: 0.004
+  raw_servo_selected_tolerance: 0.004
+  min_echo_span_servo: 0.01
+  required_accel_to_current_gain: 0.0
+  required_accel_to_brake_gain: 0.0
+  required_servo_min: 0.0
+  required_servo_max: 1.0
+motion_startup:
+  minimum_startup_s: 0.75
+  stability_window_s: 0.6
+  stability_timeout_s: 4.0
+  max_speed_error_mps: 0.18
+  max_speed_std_mps: 0.09
+  max_abs_longitudinal_accel_mps2: 0.45
+centre_trim:
+  speed_mps: 1.0
+  capture_s: 6.0
+  initial_half_width_servo: 0.02
+  expansion_step_servo: 0.015
+  max_bracket_expansions: 3
+  candidate_repetitions: 1
+  max_refinement_iterations: 10
+  search_tolerance_servo: 0.001
+  max_abs_yaw_rate_for_candidate_rad_s: 0.025
+  confirmation_repetitions: 3
+  max_abs_yaw_rate_for_confirmation_rad_s: 0.06
+endstops:
+  coarse_step_servo: 0.01
+  fine_step_servo: 0.002
+  ultra_fine_step_servo: 0.0005
+  safety_margin_servo: 0.006
+  raw_servo_domain_min: 0.0
+  raw_servo_domain_max: 1.0
+imu_bias:
+  # On-ground stationary IMU-bias capture (Stage 1b). Comfortably above the
+  # analysis _MIN_EPOCH_SAMPLES / _MIN_DRIFT_SPAN_S floors in analysis/imu_bias.py.
+  stationary_s: 30.0
+observability:
+  stationary_s: 30.0
+  straight_speeds_mps:
+  - 0.4
+  - 0.6
+  - 0.8
+  - 1.5
+  straight_repetitions: 3
+  straight_capture_s: 7.0
+  gentle_turn_fraction_of_safe_span: 0.12
+  turn_repetitions: 3
+  turn_speed_mps: 0.5
+  turn_capture_s: 7.0
+static_map:
+  speed_mps: 0.6
+  steering_settle_s: 0.4
+  capture_s: 8.0
+  training_fractions:
+  - 0.04
+  - 0.08
+  - 0.15
+  - 0.27
+  - 0.42
+  - 0.57
+  - 0.72
+  - 0.87
+  training_sweep_repetitions: 4
+  validation_fractions:
+  - 0.06
+  - 0.2
+  - 0.35
+  - 0.5
+  - 0.65
+  - 0.8
+  validation_repetitions: 3
+  raw_servo_echo_tolerance: 0.004
+response:
+  # Multiple speeds expose how the effective steering gain and lag change with
+  # speed (the kinematic bicycle map is speed-independent; the real vehicle is
+  # not). The higher speeds need a wide area and a ready emergency stop.
+  speeds_mps:
+  - 0.6
+  - 0.9
+  - 1.5
+  - 2.1
+  target_fractions:
+  - 0.15
+  - 0.3
+  - 0.6
+  repetitions: 5
+  centre_hold_s: 2.5
+  step_hold_s: 3.5
+  return_hold_s: 2.5
+  command_onset_hold_s: 0.02
+  effective_onset_hold_s: 0.05
+  settling_band_fraction: 0.05
+  settling_hold_s: 0.3
+analysis:
+  icp:
+    max_iterations: 120
+    translation_update_tolerance_m: 1.0e-06
+    rotation_update_tolerance_rad: 1.0e-06
+    relative_cost_tolerance: 1.0e-07
+    max_correspondence_m: 0.3
+    downsample: 1
+    # Within-scan motion compensation and constant-velocity translation warm
+    # start. Both improve scan matching at speed; set false to reproduce the
+    # original zero-seed, non-deskewed behaviour.
+    motion_deskew: true
+    constant_velocity_seed: true
+    max_scan_period_s: 0.20
+    normal_neighbors: 9
+    trim_fraction: 0.85
+    min_correspondences: 140
+    min_inlier_ratio: 0.45
+    max_pair_rmse_m: 0.03
+    max_hessian_condition_number: 10000.0
+    max_imu_yaw_residual_rad: 0.02
+  map:
+    trim_s: 1.5
+    min_lidar_speed_mps: 0.2
+    max_lidar_speed_std_mps: 0.08
+    max_yaw_std_rad_s: 0.08
+    max_icp_rmse_m: 0.03
+    min_valid_scan_fraction: 0.7
+    min_training_points: 24
+    min_holdout_points: 18
+    max_holdout_rmse_rad: 0.03
+    max_abs_holdout_bias_rad: 0.015
+    max_hysteresis_median_abs_rad: 0.03
+    max_repeatability_median_std_rad: 0.02
+  response:
+    min_lidar_speed_mps: 0.2
+    max_lidar_interpolation_gap_s: 0.12
+    min_effective_valid_sample_fraction: 0.7
+    min_effective_delta_amplitude_rad: 0.008

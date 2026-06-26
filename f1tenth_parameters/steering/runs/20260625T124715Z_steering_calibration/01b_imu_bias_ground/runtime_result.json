@@ -1,0 +1,28 @@
+{
+  "capture": {
+    "imu_ax_count": 6395,
+    "imu_ax_mean": -0.031774173684824214,
+    "imu_ax_std": 0.011866330148636639,
+    "imu_ay_count": 6395,
+    "imu_ay_mean": -0.10461540199725045,
+    "imu_ay_std": 0.02189815505771212,
+    "imu_gz_count": 6395,
+    "imu_gz_mean": -0.0013855644620369104,
+    "imu_gz_std": 0.001385993975172434,
+    "odom_vx_count": 6394,
+    "odom_vx_mean": 0.0,
+    "odom_vx_std": 0.0,
+    "servo_bus_count": 2799,
+    "servo_bus_mean": 0.5324785022262085,
+    "servo_bus_std": 0.0,
+    "servo_echo_count": 2799,
+    "servo_echo_mean": 0.5324785022262085,
+    "servo_echo_std": 0.0,
+    "servo_selected_count": 2799,
+    "servo_selected_mean": 0.5324785022262085,
+    "servo_selected_std": 0.0
+  },
+  "centre_servo_raw": 0.5324785022262085,
+  "stationary_s": 30.0,
+  "status": "pass"
+}

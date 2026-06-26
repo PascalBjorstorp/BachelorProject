@@ -1,0 +1,34 @@
+Type: std_msgs/msg/Float64
+
+Publisher count: 1
+
+Node name: ackermann_to_vesc_node
+Node namespace: /
+Topic type: std_msgs/msg/Float64
+Endpoint type: PUBLISHER
+GID: 01.0f.ae.7c.9e.62.92.26.00.00.00.00.00.00.48.03.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Subscription count: 1
+
+Node name: vesc_driver_node
+Node namespace: /
+Topic type: std_msgs/msg/Float64
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.ae.7c.9e.62.92.26.00.00.00.00.00.00.21.04.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+

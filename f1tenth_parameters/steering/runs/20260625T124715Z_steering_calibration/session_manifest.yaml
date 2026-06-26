@@ -1,0 +1,519 @@
+session_id: 20260625T124715Z_steering_calibration
+created_utc: 20260625T124715Z
+status: failed
+steering_root: /home/f1tenth/BachelorProject/f1tenth_parameters/steering
+workspace: /home/f1tenth/BachelorProject
+stages:
+  00_command_chain_audit:
+    status: completed
+    directory: 00_command_chain_audit
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/00_command_chain_audit/bag
+      topic_count: 19
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 1574
+        /sensors/core: 1536
+        /ego_racecar/odom: 1537
+        /drive: 386
+        /ackermann_cmd: 386
+        /steering_calibration/servo_raw: 386
+        /steering_calibration/servo_from_ackermann: 386
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 378
+        /steering_calibration/servo_selector_status: 381
+        /commands/servo/position: 378
+        /sensors/servo_position_command: 378
+        /steering_calibration/event: 12
+      all_topic_counts:
+        /ackermann_cmd: 386
+        /commands/motor/brake: 0
+        /commands/motor/current: 0
+        /commands/servo/position: 378
+        /diagnostics: 16
+        /drive: 386
+        /ego_racecar/odom: 1537
+        /parameter_events: 0
+        /rosout: 28
+        /sensors/core: 1536
+        /sensors/imu/raw: 1574
+        /sensors/servo_position_command: 378
+        /steering_calibration/event: 12
+        /steering_calibration/servo_from_ackermann: 386
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 386
+        /steering_calibration/servo_selected: 378
+        /steering_calibration/servo_selector_status: 381
+        /tf: 1570
+      ok: true
+  01_zero_curvature_centre:
+    status: completed
+    directory: 01_zero_curvature_centre
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/01_zero_curvature_centre/bag
+      topic_count: 22
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /scan
+      - /tf_static
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /commands/motor/speed
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 79335
+        /sensors/core: 79332
+        /ego_racecar/odom: 79333
+        /scan: 15828
+        /tf_static: 2
+        /drive: 9856
+        /ackermann_cmd: 9856
+        /steering_calibration/servo_raw: 9856
+        /steering_calibration/servo_from_ackermann: 9856
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 9856
+        /steering_calibration/servo_selector_status: 9858
+        /commands/servo/position: 9856
+        /sensors/servo_position_command: 9856
+        /commands/motor/speed: 9829
+        /steering_calibration/event: 99
+      all_topic_counts:
+        /ackermann_cmd: 9856
+        /commands/motor/brake: 18
+        /commands/motor/current: 0
+        /commands/motor/speed: 9829
+        /commands/servo/position: 9856
+        /diagnostics: 792
+        /drive: 9856
+        /ego_racecar/odom: 79333
+        /parameter_events: 0
+        /rosout: 187
+        /scan: 15828
+        /sensors/core: 79332
+        /sensors/imu/raw: 79335
+        /sensors/servo_position_command: 9856
+        /steering_calibration/event: 99
+        /steering_calibration/servo_from_ackermann: 9856
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 9856
+        /steering_calibration/servo_selected: 9856
+        /steering_calibration/servo_selector_status: 9858
+        /tf: 79331
+        /tf_static: 2
+      ok: true
+  01b_imu_bias_ground:
+    status: completed
+    directory: 01b_imu_bias_ground
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/01b_imu_bias_ground/bag
+      topic_count: 16
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 11074
+        /sensors/core: 11075
+        /ego_racecar/odom: 11075
+        /steering_calibration/servo_raw: 2801
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 2801
+        /steering_calibration/servo_selector_status: 2804
+        /commands/servo/position: 2801
+        /sensors/servo_position_command: 2801
+        /steering_calibration/event: 5
+      all_topic_counts:
+        /commands/motor/brake: 0
+        /commands/motor/current: 0
+        /commands/servo/position: 2801
+        /diagnostics: 111
+        /ego_racecar/odom: 11075
+        /parameter_events: 0
+        /rosout: 41
+        /sensors/core: 11075
+        /sensors/imu/raw: 11074
+        /sensors/servo_position_command: 2801
+        /steering_calibration/event: 5
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 2801
+        /steering_calibration/servo_selected: 2801
+        /steering_calibration/servo_selector_status: 2804
+        /tf: 11073
+      ok: true
+  02_physical_endstops:
+    status: completed
+    directory: 02_physical_endstops
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/02_physical_endstops/bag
+      topic_count: 13
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 51139
+        /sensors/core: 51140
+        /ego_racecar/odom: 51140
+        /steering_calibration/servo_raw: 497
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 497
+        /steering_calibration/servo_selector_status: 499
+        /commands/servo/position: 497
+        /sensors/servo_position_command: 497
+        /steering_calibration/event: 7
+      all_topic_counts:
+        /commands/servo/position: 497
+        /ego_racecar/odom: 51140
+        /parameter_events: 0
+        /rosout: 140
+        /sensors/core: 51140
+        /sensors/imu/raw: 51139
+        /sensors/servo_position_command: 497
+        /steering_calibration/event: 7
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 497
+        /steering_calibration/servo_selected: 497
+        /steering_calibration/servo_selector_status: 499
+        /tf: 51138
+      ok: true
+  03_sensor_observability:
+    status: completed
+    directory: 03_sensor_observability
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/03_sensor_observability/bag
+      topic_count: 22
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /scan
+      - /tf_static
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /commands/motor/speed
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 125166
+        /sensors/core: 125166
+        /ego_racecar/odom: 125164
+        /scan: 24959
+        /tf_static: 2
+        /drive: 20901
+        /ackermann_cmd: 20901
+        /steering_calibration/servo_raw: 20901
+        /steering_calibration/servo_from_ackermann: 20901
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 20898
+        /steering_calibration/servo_selector_status: 20901
+        /commands/servo/position: 20898
+        /sensors/servo_position_command: 20898
+        /commands/motor/speed: 18060
+        /steering_calibration/event: 146
+      all_topic_counts:
+        /ackermann_cmd: 20901
+        /commands/motor/brake: 25
+        /commands/motor/current: 0
+        /commands/motor/speed: 18060
+        /commands/servo/position: 20898
+        /diagnostics: 1250
+        /drive: 20901
+        /ego_racecar/odom: 125164
+        /parameter_events: 0
+        /rosout: 230
+        /scan: 24959
+        /sensors/core: 125166
+        /sensors/imu/raw: 125166
+        /sensors/servo_position_command: 20898
+        /steering_calibration/event: 146
+        /steering_calibration/servo_from_ackermann: 20901
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 20901
+        /steering_calibration/servo_selected: 20898
+        /steering_calibration/servo_selector_status: 20901
+        /tf: 125167
+        /tf_static: 2
+      ok: true
+  04_static_map_training:
+    status: completed
+    directory: 04_static_map_training
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/04_static_map_training/bag
+      topic_count: 22
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /scan
+      - /tf_static
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /commands/motor/speed
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 286369
+        /sensors/core: 286369
+        /ego_racecar/odom: 286367
+        /scan: 57143
+        /tf_static: 2
+        /drive: 69277
+        /ackermann_cmd: 69278
+        /steering_calibration/servo_raw: 69277
+        /steering_calibration/servo_from_ackermann: 69278
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 69278
+        /steering_calibration/servo_selector_status: 69281
+        /commands/servo/position: 69278
+        /sensors/servo_position_command: 69278
+        /commands/motor/speed: 66613
+        /steering_calibration/event: 671
+      all_topic_counts:
+        /ackermann_cmd: 69278
+        /commands/motor/brake: 86
+        /commands/motor/current: 0
+        /commands/motor/speed: 66613
+        /commands/servo/position: 69278
+        /diagnostics: 2862
+        /drive: 69277
+        /ego_racecar/odom: 286367
+        /parameter_events: 0
+        /rosout: 383
+        /scan: 57143
+        /sensors/core: 286369
+        /sensors/imu/raw: 286369
+        /sensors/servo_position_command: 69278
+        /steering_calibration/event: 671
+        /steering_calibration/servo_from_ackermann: 69278
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 69277
+        /steering_calibration/servo_selected: 69278
+        /steering_calibration/servo_selector_status: 69281
+        /tf: 286370
+        /tf_static: 2
+      ok: true
+  05_static_map_holdout:
+    status: completed
+    directory: 05_static_map_holdout
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/05_static_map_holdout/bag
+      topic_count: 22
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /scan
+      - /tf_static
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /commands/motor/speed
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 139579
+        /sensors/core: 139540
+        /ego_racecar/odom: 139533
+        /scan: 27875
+        /tf_static: 2
+        /drive: 32133
+        /ackermann_cmd: 32134
+        /steering_calibration/servo_raw: 32133
+        /steering_calibration/servo_from_ackermann: 32134
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 32134
+        /steering_calibration/servo_selector_status: 32137
+        /commands/servo/position: 32134
+        /sensors/servo_position_command: 32134
+        /commands/motor/speed: 30903
+        /steering_calibration/event: 311
+      all_topic_counts:
+        /ackermann_cmd: 32134
+        /commands/motor/brake: 40
+        /commands/motor/current: 0
+        /commands/motor/speed: 30903
+        /commands/servo/position: 32134
+        /diagnostics: 1396
+        /drive: 32133
+        /ego_racecar/odom: 139533
+        /parameter_events: 0
+        /rosout: 227
+        /scan: 27875
+        /sensors/core: 139540
+        /sensors/imu/raw: 139579
+        /sensors/servo_position_command: 32134
+        /steering_calibration/event: 311
+        /steering_calibration/servo_from_ackermann: 32134
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 32133
+        /steering_calibration/servo_selected: 32134
+        /steering_calibration/servo_selector_status: 32137
+        /tf: 139581
+        /tf_static: 2
+      ok: true
+  06_command_to_curvature_response:
+    status: failed
+    directory: 06_command_to_curvature_response
+    bag_verification:
+      bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/06_command_to_curvature_response/bag
+      topic_count: 22
+      required_topics:
+      - /sensors/imu/raw
+      - /sensors/core
+      - /ego_racecar/odom
+      - /scan
+      - /tf_static
+      - /drive
+      - /ackermann_cmd
+      - /steering_calibration/servo_raw
+      - /steering_calibration/servo_from_ackermann
+      - /steering_calibration/servo_mode
+      - /steering_calibration/servo_selected
+      - /steering_calibration/servo_selector_status
+      - /commands/servo/position
+      - /sensors/servo_position_command
+      - /commands/motor/speed
+      - /steering_calibration/event
+      missing_or_empty_required_topics: []
+      required_topic_counts:
+        /sensors/imu/raw: 268328
+        /sensors/core: 268324
+        /ego_racecar/odom: 268325
+        /scan: 53575
+        /tf_static: 2
+        /drive: 45426
+        /ackermann_cmd: 45426
+        /steering_calibration/servo_raw: 45426
+        /steering_calibration/servo_from_ackermann: 45426
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_selected: 45426
+        /steering_calibration/servo_selector_status: 45429
+        /commands/servo/position: 45426
+        /sensors/servo_position_command: 45426
+        /commands/motor/speed: 45337
+        /steering_calibration/event: 557
+      all_topic_counts:
+        /ackermann_cmd: 45426
+        /commands/motor/brake: 65
+        /commands/motor/current: 0
+        /commands/motor/speed: 45337
+        /commands/servo/position: 45426
+        /diagnostics: 2684
+        /drive: 45426
+        /ego_racecar/odom: 268325
+        /parameter_events: 0
+        /rosout: 470
+        /scan: 53575
+        /sensors/core: 268324
+        /sensors/imu/raw: 268328
+        /sensors/servo_position_command: 45426
+        /steering_calibration/event: 557
+        /steering_calibration/servo_from_ackermann: 45426
+        /steering_calibration/servo_mode: 2
+        /steering_calibration/servo_raw: 45426
+        /steering_calibration/servo_selected: 45426
+        /steering_calibration/servo_selector_status: 45429
+        /tf: 268323
+        /tf_static: 2
+      ok: true
+vesc_config_transaction:
+  activated_utc: '2026-06-25T14:48:35.419962+00:00'
+  backup: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/vesc_config_transaction/vesc.yaml.before_calibration
+  build_command:
+  - colcon
+  - build
+  - --symlink-install
+  calibration_patch:
+    accel_to_brake_gain: 0.0
+    accel_to_current_gain: 0.0
+    operation_mode: VEL_TO_ERPM
+    servo_max: 1.0
+    servo_min: 0.0
+  created_utc: '2026-06-25T14:48:26.286290+00:00'
+  original_sha256: a69fb12bd3cc937f156ca09b6a14ad7d02e1862fbb3ee73c27d39025754f3532
+  original_values:
+    accel_to_brake_gain: 7.38
+    accel_to_current_gain: 5.82
+    operation_mode: ACCEL_TO_CURRENT
+    servo_max: 0.91
+    servo_min: 0.19
+  restore_required: false
+  source_config: /home/f1tenth/BachelorProject/f1tenth_system/f1tenth_stack/config/vesc.yaml
+  state: restored
+  workspace: /home/f1tenth/BachelorProject
+  source_restored_utc: '2026-06-25T15:12:21.551185+00:00'
+  restored_utc: '2026-06-25T15:12:30.394147+00:00'
+active_selector_limits:
+  raw_low_safe: 0.11597850222620815
+  raw_high_safe: 0.9340000000000004
+  centre_servo_raw: 0.5324785022262085
+  applied_after_stage: 02_physical_endstops
+incomplete_attempts:
+- stage: 03_sensor_observability
+  archived_to: incomplete_attempts/03_sensor_observability_20260625T133511Z
+- stage: 03_sensor_observability
+  archived_to: incomplete_attempts/03_sensor_observability_20260625T134102Z
+- stage: 04_static_map_training
+  archived_to: incomplete_attempts/04_static_map_training_20260625T140349Z
+- stage: 06_command_to_curvature_response
+  archived_to: incomplete_attempts/06_command_to_curvature_response_20260625T144917Z

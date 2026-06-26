@@ -1,0 +1,37 @@
+{
+  "method": "delta_eq=arctan(L*yaw_IMU/v); v=baseline LiDAR (per-step median), odom cross-check",
+  "overall": {
+    "n": 28,
+    "peak_rate_rad_s_median": 2.6591744745981276,
+    "peak_rate_deg_s_median": 152.35947438339085,
+    "peak_rate_deg_s_max": 203.22297667189216,
+    "delay_s_median": 0.077504768,
+    "rise_10_90_s_median": 0.07749900800000001
+  },
+  "by_speed": {
+    "0.6": {
+      "n": 12,
+      "peak_rate_rad_s_median": 2.8881269886936245,
+      "peak_rate_deg_s_median": 165.47748714997232,
+      "peak_rate_deg_s_max": 203.22297667189216,
+      "delay_s_median": 0.072504704,
+      "rise_10_90_s_median": 0.08499891200000001
+    },
+    "1.5": {
+      "n": 12,
+      "peak_rate_rad_s_median": 2.601776044804977,
+      "peak_rate_deg_s_median": 149.07078660556536,
+      "peak_rate_deg_s_max": 192.48643462348193,
+      "delay_s_median": 0.08500492800000001,
+      "rise_10_90_s_median": 0.09249881600000001
+    },
+    "2.1": {
+      "n": 4,
+      "peak_rate_rad_s_median": 0.7594972818201382,
+      "peak_rate_deg_s_median": 43.515988799951984,
+      "peak_rate_deg_s_max": 60.028343106955305,
+      "delay_s_median": 0.06750489600000001,
+      "rise_10_90_s_median": 0.057500800000000005
+    }
+  }
+}

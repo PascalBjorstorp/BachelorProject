@@ -1,0 +1,15 @@
+temporary_calibration_configuration_required:
+  accel_to_current_gain: 0.0
+  accel_to_brake_gain: 0.0
+  servo_min: 0.0
+  servo_max: 1.0
+observed:
+  accel_to_current_gain: 0.0
+  accel_to_brake_gain: 0.0
+  servo_min: 0.0
+  servo_max: 1.0
+selector_numeric_range:
+  raw_min: 0.0
+  raw_max: 1.0
+commands_servo_position_publisher_count: 1
+errors: {}

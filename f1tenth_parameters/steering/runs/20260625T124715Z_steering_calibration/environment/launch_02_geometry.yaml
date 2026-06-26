@@ -1,0 +1,15 @@
+launch_index: 2
+mode: hardware_only
+calibration_config_snapshot: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/calibration_config_snapshot.yaml
+hardware_geometry_used_by_launch:
+  lidar_ip_address: 192.168.10.10
+  laser_to_base_x_m: 0.265
+  laser_to_base_y_m: 0.0
+  laser_to_base_yaw_rad: 0.0
+  wheelbase_m: 0.324
+  laser_to_base_z_m: 0.05
+  base_frame_id: ego_racecar/base_link
+  laser_frame_id: ego_racecar/laser
+  imu_frame_id: ego_racecar/imu
+selector_raw_min: 0.0
+selector_raw_max: 1.0

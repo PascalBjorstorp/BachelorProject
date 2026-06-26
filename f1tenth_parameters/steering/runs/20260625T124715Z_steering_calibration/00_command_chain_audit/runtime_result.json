@@ -1,0 +1,77 @@
+{
+  "echo_span_servo": 0.040000000000000036,
+  "max_bus_error_servo": 2.220446049250313e-16,
+  "max_command_path_error_servo": 2.220446049250313e-16,
+  "max_echo_error_servo": 2.220446049250313e-16,
+  "max_selected_bus_error_servo": 0.0,
+  "max_selected_error_servo": 2.220446049250313e-16,
+  "raw_servo_seed": 0.55,
+  "samples": [
+    {
+      "label": "centre_a",
+      "raw_servo_target": 0.55,
+      "servo_bus_count": 75,
+      "servo_bus_mean": 0.5499999999999998,
+      "servo_bus_std": 2.220446049250313e-16,
+      "servo_echo_count": 75,
+      "servo_echo_mean": 0.5499999999999998,
+      "servo_echo_std": 2.220446049250313e-16,
+      "servo_selected_count": 75,
+      "servo_selected_mean": 0.5499999999999998,
+      "servo_selected_std": 2.220446049250313e-16
+    },
+    {
+      "label": "high",
+      "raw_servo_target": 0.5700000000000001,
+      "servo_bus_count": 75,
+      "servo_bus_mean": 0.5700000000000002,
+      "servo_bus_std": 1.1102230246251565e-16,
+      "servo_echo_count": 75,
+      "servo_echo_mean": 0.5700000000000002,
+      "servo_echo_std": 1.1102230246251565e-16,
+      "servo_selected_count": 75,
+      "servo_selected_mean": 0.5700000000000002,
+      "servo_selected_std": 1.1102230246251565e-16
+    },
+    {
+      "label": "centre_b",
+      "raw_servo_target": 0.55,
+      "servo_bus_count": 75,
+      "servo_bus_mean": 0.5499999999999998,
+      "servo_bus_std": 2.220446049250313e-16,
+      "servo_echo_count": 75,
+      "servo_echo_mean": 0.5499999999999998,
+      "servo_echo_std": 2.220446049250313e-16,
+      "servo_selected_count": 75,
+      "servo_selected_mean": 0.5499999999999998,
+      "servo_selected_std": 2.220446049250313e-16
+    },
+    {
+      "label": "low",
+      "raw_servo_target": 0.53,
+      "servo_bus_count": 75,
+      "servo_bus_mean": 0.5300000000000001,
+      "servo_bus_std": 1.1102230246251565e-16,
+      "servo_echo_count": 75,
+      "servo_echo_mean": 0.5300000000000001,
+      "servo_echo_std": 1.1102230246251565e-16,
+      "servo_selected_count": 75,
+      "servo_selected_mean": 0.5300000000000001,
+      "servo_selected_std": 1.1102230246251565e-16
+    },
+    {
+      "label": "centre_c",
+      "raw_servo_target": 0.55,
+      "servo_bus_count": 75,
+      "servo_bus_mean": 0.5499999999999998,
+      "servo_bus_std": 2.220446049250313e-16,
+      "servo_echo_count": 75,
+      "servo_echo_mean": 0.5499999999999998,
+      "servo_echo_std": 2.220446049250313e-16,
+      "servo_selected_count": 75,
+      "servo_selected_mean": 0.5499999999999998,
+      "servo_selected_std": 2.220446049250313e-16
+    }
+  ],
+  "status": "pass"
+}

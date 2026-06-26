@@ -1,0 +1,34 @@
+{
+  "output": "/home/akselmo/Downloads/steering/runs/20260625T124715Z_steering_calibration/05_static_map_holdout/derived/lidar_velocity.parquet",
+  "scan_pairs": 7656,
+  "valid_pairs": 2436,
+  "capture_window_filter": {
+    "enabled": true,
+    "windows": 24,
+    "scope": "accepted trial capture windows only; scan pairs never cross window boundaries"
+  },
+  "method": "IMU-yaw-seeded, odometry-unseeded robust point-to-line ICP",
+  "motion_deskew_enabled": true,
+  "constant_velocity_translation_seed_enabled": true,
+  "solver_tolerances": {
+    "max_iterations": 120,
+    "translation_update_tolerance_m": 1e-06,
+    "rotation_update_tolerance_rad": 1e-06,
+    "relative_cost_tolerance": 1e-07
+  },
+  "laser_to_base_geometry_used": {
+    "x_m": 0.265,
+    "y_m": 0.0,
+    "z_m": 0.05,
+    "yaw_rad": 0.0,
+    "base_frame_id": "ego_racecar/base_link",
+    "laser_frame_id": "ego_racecar/laser"
+  },
+  "self_scan_filter": {
+    "enabled": true,
+    "x_min_m": -0.35,
+    "x_max_m": 0.45,
+    "y_min_m": -0.22,
+    "y_max_m": 0.22
+  }
+}

@@ -1,0 +1,80 @@
+# The bagger records exactly each stage's relevant topics: its `required` list
+# below plus `redundancy_topics`. Recording all/hidden topics is disabled because
+# it forced the lidar firehose into stationary stages (e.g. the Stage 0 servo
+# audit), which saturated the embedded board's IO/RAM and crashed it. The
+# `required` lists are still checked after every bag closes.
+recording:
+  record_all_topics: false
+  include_hidden_topics: false
+  qos_profile_overrides: config/bag_qos_overrides.yaml
+
+required:
+  hardware_only:
+    - /sensors/imu/raw
+    - /sensors/core
+    - /ego_racecar/odom
+    - /steering_calibration/servo_raw
+    - /steering_calibration/servo_mode
+    - /steering_calibration/servo_selected
+    - /steering_calibration/servo_selector_status
+    - /commands/servo/position
+    - /sensors/servo_position_command
+    - /steering_calibration/event
+    # Stage 0 moves steering only; speed=0 does not necessarily publish an ERPM command.
+  imu_stationary:
+    # On-ground stationary IMU-bias capture: no lidar, no tf, no drive command.
+    - /sensors/imu/raw
+    - /sensors/core
+    - /ego_racecar/odom
+    - /steering_calibration/servo_raw
+    - /steering_calibration/servo_mode
+    - /steering_calibration/servo_selected
+    - /steering_calibration/servo_selector_status
+    - /commands/servo/position
+    - /sensors/servo_position_command
+    - /steering_calibration/event
+  full_stationary:
+    # Stage 0 servo audit is stationary on a stand; lidar/tf are irrelevant here
+    # and recording them is what overran the embedded board.
+    - /sensors/imu/raw
+    - /sensors/core
+    - /ego_racecar/odom
+    - /drive
+    - /ackermann_cmd
+    - /steering_calibration/servo_raw
+    - /steering_calibration/servo_from_ackermann
+    - /steering_calibration/servo_mode
+    - /steering_calibration/servo_selected
+    - /steering_calibration/servo_selector_status
+    - /commands/servo/position
+    - /sensors/servo_position_command
+    - /steering_calibration/event
+  full_motion:
+    - /sensors/imu/raw
+    - /sensors/core
+    - /ego_racecar/odom
+    - /scan
+    - /tf_static
+    - /drive
+    - /ackermann_cmd
+    - /steering_calibration/servo_raw
+    - /steering_calibration/servo_from_ackermann
+    - /steering_calibration/servo_mode
+    - /steering_calibration/servo_selected
+    - /steering_calibration/servo_selector_status
+    - /commands/servo/position
+    - /sensors/servo_position_command
+    - /commands/motor/speed
+    - /steering_calibration/event
+
+# Topics that are not required in every stage, but will still be captured by
+# --all. Their absence is reported in the post-run capture audit.
+redundancy_topics:
+  - /commands/motor/current
+  - /commands/motor/brake
+  - /rosout
+  - /diagnostics
+  - /diagnostics_agg
+  - /clock
+  - /parameter_events
+  - /tf

@@ -1,0 +1,28 @@
+/vesc_driver_node:
+  ros__parameters:
+    brake_max: 200000.0
+    brake_min: -20000.0
+    current_max: 100.0
+    current_min: 0.0
+    duty_cycle_max: 0.0
+    duty_cycle_min: 0.0
+    imu_angular_velocity_covariance: 0.01
+    imu_frame: ego_racecar/imu
+    imu_linear_acceleration_covariance: 0.1
+    imu_orientation_covariance: 0.0001
+    port: /dev/sensors/vesc
+    position_max: 0.0
+    position_min: 0.0
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          durability: volatile
+          history: keep_last
+          reliability: reliable
+    servo_max: 1.0
+    servo_min: 0.0
+    speed_max: 100000.0
+    speed_min: -100000.0
+    use_sim_time: false
+
