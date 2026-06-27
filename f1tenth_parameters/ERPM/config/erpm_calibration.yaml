@@ -35,7 +35,7 @@ operating_envelope:
   maximum_test_speed_mps: 9.0
   maximum_test_accel_mps2: 999.0
   maximum_test_brake_mps2: 999.0
-  minimum_test_speed_mps: 0.5
+  minimum_test_speed_mps: 0.3
   # ----------------------------------------------------------------------------
   # Command-scale values for high-demand stages. These are intentionally above
   # the expected VESC clip so the bags show the real firmware/motor response.
@@ -46,7 +46,7 @@ operating_envelope:
   high_speed_capture_s: 0.6
   # Below this speed a commanded a=0 yields zero current (lets the car stop);
   # above it, a=0 must hold speed via drag-compensating current.
-  hold_speed_min_mps: 0.5
+  hold_speed_min_mps: 0.3
   high_demand_pulse_duration_s:
     low_fraction: 0.6
     medium_fraction: 0.45
@@ -88,18 +88,27 @@ straight_assist:
   #   - corrects too late                  -> raise max_trim_rate_rad_s slightly
   #   - immediately steers wrong way       -> set steer_sign to -1.0
   enabled: true
-  kp_heading_rad_per_rad: 0.16
+  kp_heading_rad_per_rad: 0.11
   deadband_rad: 0.0025          # ~0.14 deg: small enough for constant nudges
-  max_trim_rad: 0.025           # hard cap on correction (~1.4 deg)
-  max_trim_rate_rad_s: 0.08     # at 100 Hz: <=0.0008 rad per tick
-  max_trim_step_rad: 0.0015     # absolute per-command jump cap
-  min_speed_mps: 0.15           # keep assist active for 0.5 m/s ERPM probes
+  max_trim_rad: 0.018           # hard cap on correction (~1.0 deg)
+  max_trim_rate_rad_s: 0.05     # at 100 Hz: <=0.0005 rad per tick
+  max_trim_step_rad: 0.0010     # absolute per-command jump cap
+  min_speed_mps: 0.15           # keep assist active for low-speed ERPM probes
   steer_sign: 1.0
 motion_startup:
-  minimum_startup_s: 0.2
-  stability_window_s: 0.5
-  stability_timeout_s: 8.0
-  max_odom_speed_std_mps: 0.05
+  # Raw ERPM is a direct VESC speed command and can be jagged from rest on the
+  # sensorless motor. Use the same smooth Ackermann/V2E path as the steering
+  # calibration for startup, then switch to raw ERPM before the recorded capture.
+  raw_erpm_startup_mode: ackermann_speed
+  raw_erpm_switch_settle_s: 0.15
+  minimum_startup_s: 0.75
+  stability_window_s: 0.6
+  stability_timeout_s: 2.2
+  max_startup_speed_error_mps: 0.20
+  failed_attempt_brake_current_a: 12.0
+  failed_attempt_brake_s: 0.35
+  failed_attempt_settle_s: 0.25
+  max_odom_speed_std_mps: 0.09
   max_abs_imu_ax_mps2: 1.25
   max_erpm_std: 150.0
   raw_erpm_relative_error_fraction: 0.10
@@ -107,7 +116,7 @@ motion_startup:
 observability:
   stationary_duration_s: 15.0
   straight_probe_speeds_mps:
-  - 0.5
+  - 0.3
   - 2.5
   - 5.5
   - 8.0
@@ -115,7 +124,8 @@ observability:
   straight_probe_capture_s: 1.0
 low_speed_launch:
   nominal_speeds_mps:
-  - 0.5
+  - 0.3
+  - 0.4
   - 0.55
   - 0.75
   repetitions: 3
@@ -123,7 +133,7 @@ low_speed_launch:
   minimum_lidar_speed_mps: 0.3
 raw_erpm_map_training:
   nominal_speeds_mps:
-  - 0.5
+  - 0.3
   - 0.7
   - 1.2
   - 1.8
@@ -137,7 +147,7 @@ raw_erpm_map_training:
   capture_s: 0.6
 raw_erpm_map_holdout:
   nominal_speeds_mps:
-  - 0.5
+  - 0.45
   - 0.95
   - 1.5
   - 2.15

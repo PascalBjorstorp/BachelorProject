@@ -78,6 +78,20 @@ def _decision(
         trial_id=trial_id, attempt=attempt, decision=decision,
         accepted=decision == 'accepted', automatic_ok=effective_auto_ok,
     )
+    if decision == 'redo' and not effective_auto_ok:
+        node.fail_stop()
+        node.event.emit(
+            'failed_attempt_reset_required', stage=stage,
+            condition_id=condition_id, trial_id=trial_id, attempt=attempt,
+        )
+        require_ready(
+            'FAILED ATTEMPT STOPPED. Reposition the car at the start; '
+            'type READY only after it is physically reset, or ABORT'
+        )
+        node.event.emit(
+            'failed_attempt_reset_confirmed', stage=stage,
+            condition_id=condition_id, trial_id=trial_id, attempt=attempt,
+        )
     return decision
 
 
@@ -189,7 +203,8 @@ def _run_raw_erpm_plateau(
             raw_erpm_target=raw_erpm,
         )
         startup = node.establish_raw_erpm(
-            target_erpm=raw_erpm, segment_id=condition_id, trial_id=trial,
+            target_erpm=raw_erpm, startup_speed_mps=nominal_speed,
+            segment_id=condition_id, trial_id=trial,
         )
         summary: dict[str, Any] | None = None
         if startup.get('stable'):
@@ -468,7 +483,7 @@ def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         baseline_erpm=baseline_erpm, target_erpm=target_erpm,
                         baseline_speed_mps=float(baseline_speed), target_speed_mps=float(target_speed),
                     )
-                    startup = node.establish_raw_erpm(target_erpm=baseline_erpm, segment_id=cid, trial_id=trial)
+                    startup = node.establish_raw_erpm(target_erpm=baseline_erpm, startup_speed_mps=float(baseline_speed), segment_id=cid, trial_id=trial)
                     summary: dict[str, Any] | None = None
                     if startup.get('stable'):
                         node.hold(
@@ -530,7 +545,7 @@ def coastdown(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         trial_id=trial, attempt=attempt,
                         initial_speed_mps=float(initial_speed), initial_erpm=initial_erpm,
                     )
-                    startup = node.establish_raw_erpm(target_erpm=initial_erpm, segment_id=cid, trial_id=trial)
+                    startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
                     summary: dict[str, Any] | None = None
                     if startup.get('stable'):
                         node.hold(
@@ -627,7 +642,7 @@ def _current_pulses(cfg: dict[str, Any], stage_dir: Path, gain: float,
                             initial_speed_mps=initial_speed, initial_erpm=initial_erpm,
                             pulse_duration_s=pulse_s,
                         )
-                        startup = node.establish_raw_erpm(target_erpm=initial_erpm, segment_id=cid, trial_id=trial)
+                        startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
                         summary: dict[str, Any] | None = None
                         recovery: dict[str, Any] | None = None
                         high_demand = fraction >= float(cfg['traction_transients']['minimum_current_fraction_for_transient_metrics'])
@@ -717,7 +732,7 @@ def _run_accel_grid(
                         initial_speed_mps=initial_speed, initial_erpm=initial_erpm,
                         pulse_duration_s=duration,
                     )
-                    startup = node.establish_raw_erpm(target_erpm=initial_erpm, segment_id=cid, trial_id=trial)
+                    startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
                     summary: dict[str, Any] | None = None
                     if startup.get('stable'):
                         node.hold(

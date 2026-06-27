@@ -148,9 +148,26 @@ class CalibrationNode(Node):
         self._mode('neutral'); self._steering_keepalive(straight_assist_allowed=False); self.spin(0.04); self._mode('neutral')
     def fail_stop(self)->None:
         try:
+            cfg=self.cfg.get('motion_startup',{})
+            brake_a=max(0.0,float(cfg.get('failed_attempt_brake_current_a',0.0)))
+            brake_s=max(0.0,float(cfg.get('failed_attempt_brake_s',0.0)))
+            settle_s=max(0.0,float(cfg.get('failed_attempt_settle_s',0.0)))
+            hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
+            self.reset_straight_assist()
+            if brake_a>0.0 and brake_s>0.0:
+                self.event.emit('failed_attempt_stop_begin',brake_current_a=brake_a,duration_s=brake_s)
+                self._mode('raw_brake')
+                end=time.monotonic()+brake_s
+                while time.monotonic()<end:
+                    self._steering_keepalive(straight_assist_allowed=False)
+                    self.raw_brake_pub.publish(self._float(brake_a))
+                    self.spin(period)
+                self.event.emit('failed_attempt_stop_end')
             self.neutral()
+            if settle_s>0.0:
+                self.spin(settle_s)
         except Exception as exc:
-            self.get_logger().error(f'failed to publish neutral stop after runtime error: {exc}')
+            self.get_logger().error(f'failed to publish failed-attempt stop: {exc}')
     def command(self, kind:str, target:float, *, speed_hint:float=0.0, steering_angle_rad:float|None=None)->None:
         if kind=='raw_erpm': self.raw_erpm(target)
         elif kind=='raw_current': self.raw_current(target)
@@ -187,18 +204,30 @@ class CalibrationNode(Node):
         result=self.end_window() if window_fields else {}
         self.event.emit('phase_end',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**result,**meta)
         return result
-    def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str)->dict[str,Any]:
+    def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str, startup_speed_mps:float|None=None)->dict[str,Any]:
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz
         start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
         initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
-        self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='raw_erpm',target_erpm=float(target_erpm),minimum_startup_s=minimum)
+        use_ack_startup = (
+            str(cfg.get('raw_erpm_startup_mode', 'raw_erpm')).lower() == 'ackermann_speed'
+            and startup_speed_mps is not None
+            and math.isfinite(float(startup_speed_mps))
+        )
+        startup_speed = float(startup_speed_mps) if use_ack_startup else math.nan
+        startup_mode = 'ackermann_speed_then_raw_erpm' if use_ack_startup else 'raw_erpm'
+        self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode=startup_mode,target_erpm=float(target_erpm),startup_speed_mps=startup_speed,minimum_startup_s=minimum)
         try:
             while time.monotonic()<deadline:
-                self.raw_erpm(target_erpm); self.spin(dt); self._safety(motion=abs(target_erpm)>1)
+                if use_ack_startup:
+                    self.ackermann(startup_speed,0.0)
+                else:
+                    self.raw_erpm(target_erpm)
+                self.spin(dt); self._safety(motion=(abs(startup_speed)>1e-3 if use_ack_startup else abs(target_erpm)>1))
                 now=time.monotonic()
                 if now-start>=minimum and not exclusion:
                     self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
-                if now-start<minimum or not (math.isfinite(self.latest.erpm) and math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
+                if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
+                if not use_ack_startup and not math.isfinite(self.latest.erpm): continue
                 hist.append((now,self.latest.erpm,self.latest.odom_vx,self.latest.imu_ax))
                 while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
                 # Evaluate once a full window of post-startup time has elapsed, over the
@@ -211,13 +240,21 @@ class CalibrationNode(Node):
                 # A real scan must arrive after the command. This is an online observability
                 # guard only; final velocity is still calculated from the recorded raw scans.
                 scan_observed = self.latest.scan_count > initial_scan_count
-                stable=(scan_observed and abs(float(np.median(e))-target_erpm)<=err and float(np.std(e))<=float(cfg['max_erpm_std']) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
+                if use_ack_startup:
+                    stable=(scan_observed and abs(float(np.median(v))-startup_speed)<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
+                else:
+                    stable=(scan_observed and abs(float(np.median(e))-target_erpm)<=err and float(np.std(e))<=float(cfg['max_erpm_std']) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
                 if stable:
-                    out={'stable':True,'elapsed_s':now-start,'erpm_median':float(np.median(e)),'erpm_std':float(np.std(e)),'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+                    settle_s=max(0.0,float(cfg.get('raw_erpm_switch_settle_s',0.0))) if use_ack_startup else 0.0
+                    if settle_s>0.0:
+                        settle_end=time.monotonic()+settle_s
+                        while time.monotonic()<settle_end:
+                            self.raw_erpm(target_erpm); self.spin(dt); self._safety(motion=abs(target_erpm)>1)
+                    out={'stable':True,'elapsed_s':time.monotonic()-start,'startup_mode':startup_mode,'startup_speed_mps':startup_speed,'erpm_median':float(np.nanmedian(e)),'erpm_std':float(np.nanstd(e)),'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'raw_erpm_switch_settle_s':settle_s}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
         except BaseException:
             self.fail_stop()
             raise
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.neutral(); return out
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
     def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str,steering_angle_rad:float|None=None)->dict[str,Any]:
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
@@ -242,7 +279,7 @@ class CalibrationNode(Node):
         except BaseException:
             self.fail_stop()
             raise
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.neutral(); return out
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
 
 def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:
     rclpy.init(args=None); node=CalibrationNode(name,cfg)
