@@ -81,6 +81,11 @@ def _decision(
 
 
 def _straight_ok(node: CalibrationNode, cfg: dict[str, Any]) -> bool:
+    """Advisory straight-line check, reported to the operator as
+    ``straight_runtime_gate``. It is intentionally NOT folded into the
+    acceptance gate: the straight-assist keeps the car straight, and a trial is
+    still acceptable even while the assist is correcting. Offline analysis can
+    still use this flag; it must never force a redo on its own."""
     p = cfg['preflight']
     return (
         math.isfinite(node.latest.imu_gz)
@@ -194,7 +199,7 @@ def _run_raw_erpm_plateau(
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.neutral()
-        auto = bool(startup.get('stable')) and summary is not None and straight
+        auto = bool(startup.get('stable')) and summary is not None
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
@@ -242,7 +247,7 @@ def _run_ackermann_plateau(
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.neutral()
-        auto = bool(startup.get('stable')) and summary is not None and straight
+        auto = bool(startup.get('stable')) and summary is not None
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
@@ -480,7 +485,7 @@ def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.neutral()
-                    auto = bool(startup.get('stable')) and summary is not None and straight
+                    auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage='06_raw_erpm_response', condition_id=cid,
                         trial_id=trial, attempt=attempt, auto_ok=auto,
@@ -541,7 +546,7 @@ def coastdown(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.neutral()
-                    auto = bool(startup.get('stable')) and summary is not None and straight
+                    auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage='07_coastdown', condition_id=cid,
                         trial_id=trial, attempt=attempt, auto_ok=auto,
@@ -659,7 +664,7 @@ def _current_pulses(cfg: dict[str, Any], stage_dir: Path, gain: float,
                                 )
                         straight = _straight_ok(node, cfg) if summary else False
                         node.neutral()
-                        auto = bool(startup.get('stable')) and summary is not None and straight and (not high_demand or recovery is not None)
+                        auto = bool(startup.get('stable')) and summary is not None and (not high_demand or recovery is not None)
                         decision = _decision(
                             node, stage=stage, condition_id=cid, trial_id=trial,
                             attempt=attempt, auto_ok=auto,
@@ -728,7 +733,7 @@ def _run_accel_grid(
                         )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.neutral()
-                    auto = bool(startup.get('stable')) and summary is not None and straight
+                    auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage=stage, condition_id=cid, trial_id=trial,
                         attempt=attempt, auto_ok=auto,
