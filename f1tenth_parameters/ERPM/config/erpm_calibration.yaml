@@ -35,7 +35,7 @@ operating_envelope:
   maximum_test_speed_mps: 9.0
   maximum_test_accel_mps2: 999.0
   maximum_test_brake_mps2: 999.0
-  minimum_test_speed_mps: 0.3
+  minimum_test_speed_mps: 0.5
   # ----------------------------------------------------------------------------
   # Command-scale values for high-demand stages. These are intentionally above
   # the expected VESC clip so the bags show the real firmware/motor response.
@@ -46,7 +46,7 @@ operating_envelope:
   high_speed_capture_s: 0.6
   # Below this speed a commanded a=0 yields zero current (lets the car stop);
   # above it, a=0 must hold speed via drag-compensating current.
-  hold_speed_min_mps: 0.3
+  hold_speed_min_mps: 0.5
   high_demand_pulse_duration_s:
     low_fraction: 0.6
     medium_fraction: 0.45
@@ -91,33 +91,32 @@ straight_assist:
   #   - immediately steers HARD to one side     -> set steer_sign to -1.0
   #     (the car's steering convention is inverted; this flips the direction)
   enabled: true
-  kp_heading_rad_per_rad: 0.35
+  kp_heading_rad_per_rad: 0.2
   deadband_rad: 0.005          # ~0.5 deg: ignore drift smaller than this
-  max_trim_rad: 0.04            # hard cap on the correction (~4 deg)
-  min_speed_mps: 0.3
+  max_trim_rad: 0.07            # hard cap on the correction (~4 deg)
+  min_speed_mps: 0.5
   steer_sign: 1.0
 motion_startup:
   minimum_startup_s: 0.2
-  stability_window_s: 0.3
+  stability_window_s: 0.5
   stability_timeout_s: 8.0
-  max_odom_speed_std_mps: 0.1
+  max_odom_speed_std_mps: 0.05
   max_abs_imu_ax_mps2: 1.25
-  max_erpm_std: 220.0
-  raw_erpm_relative_error_fraction: 0.15
-  raw_erpm_absolute_error: 150.0
+  max_erpm_std: 150.0
+  raw_erpm_relative_error_fraction: 0.10
+  raw_erpm_absolute_error: 100.0
 observability:
   stationary_duration_s: 15.0
   straight_probe_speeds_mps:
-  - 0.3
+  - 0.5
   - 2.5
   - 5.5
   - 8.0
   straight_probe_repetitions: 2
-  straight_probe_capture_s: 0.6
+  straight_probe_capture_s: 1.0
 low_speed_launch:
   nominal_speeds_mps:
-  - 0.3
-  - 0.4
+  - 0.5
   - 0.55
   - 0.75
   repetitions: 3
@@ -125,7 +124,7 @@ low_speed_launch:
   minimum_lidar_speed_mps: 0.3
 raw_erpm_map_training:
   nominal_speeds_mps:
-  - 0.3
+  - 0.5
   - 0.7
   - 1.2
   - 1.8
@@ -139,7 +138,7 @@ raw_erpm_map_training:
   capture_s: 0.6
 raw_erpm_map_holdout:
   nominal_speeds_mps:
-  - 0.45
+  - 0.5
   - 0.95
   - 1.5
   - 2.15
@@ -152,7 +151,7 @@ raw_erpm_map_holdout:
   capture_s: 0.55
 vel_to_erpm_pipeline_audit:
   speed_commands_mps:
-  - 0.3
+  - 0.5
   - 0.8
   - 1.6
   - 2.9
@@ -163,7 +162,7 @@ vel_to_erpm_pipeline_audit:
   capture_s: 0.55
 raw_erpm_response:
   steps_mps:
-  - - 0.3
+  - - 0.5
     - 1.2
   - - 1.0
     - 3.5
@@ -187,7 +186,7 @@ coastdown:
   max_abs_motor_current_a: 1.0
 raw_current_training:
   drive_conditions:
-  - initial_speed_mps: 0.4
+  - initial_speed_mps: 0.5
     current_fractions:
     - 0.08
     - 0.25
@@ -323,7 +322,7 @@ accel_to_current_interface:
   pre_pulse_hold_s: 0.35
 candidate_verification:
   velocity_holdout_commands_mps:
-  - 0.3
+  - 0.5
   - 1.0
   - 2.4
   - 4.2

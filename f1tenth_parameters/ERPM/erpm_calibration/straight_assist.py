@@ -47,7 +47,7 @@ class StraightAssist:
     kp_heading: float = 0.35      # rad steering per rad of heading error (the P term)
     deadband_rad: float = 0.0087  # ignore heading errors below ~0.5 deg (no jitter)
     max_trim_rad: float = 0.07    # hard bound: assist can never command a real turn
-    min_speed_mps: float = 0.3    # below this, hold trim at zero and re-anchor the heading
+    min_speed_mps: float = 0.5    # below this, hold trim at zero and re-anchor the heading
     steer_sign: float = 1.0       # flip to -1.0 if the assist steers the car the wrong way
     yaw_ref: float | None = None  # absolute heading captured at the start of the run
 
@@ -86,6 +86,6 @@ def from_config(cfg: dict) -> StraightAssist:
         kp_heading=float(sa.get("kp_heading_rad_per_rad", 0.35)),
         deadband_rad=float(sa.get("deadband_rad", 0.0087)),
         max_trim_rad=float(sa.get("max_trim_rad", 0.07)),
-        min_speed_mps=float(sa.get("min_speed_mps", 0.3)),
+        min_speed_mps=float(sa.get("min_speed_mps", 0.5)),
         steer_sign=float(sa.get("steer_sign", 1.0)),
     )
