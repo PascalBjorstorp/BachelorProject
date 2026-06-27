@@ -63,6 +63,18 @@ def _raw_erpm(speed_to_erpm_gain: float, _ignored_offset: float, speed_mps: floa
     return float(speed_to_erpm_gain * speed_mps)
 
 
+def _pre_capture_settle_s(cfg: dict[str, Any], speed_mps: float) -> float:
+    startup = cfg.get('motion_startup', {})
+    distance = max(0.0, float(startup.get('pre_capture_settle_distance_m', 0.0)))
+    minimum = max(0.0, float(startup.get('pre_capture_settle_min_s', 0.0)))
+    maximum = max(minimum, float(startup.get('pre_capture_settle_max_s', minimum)))
+    speed = abs(float(speed_mps))
+    if distance <= 0.0:
+        return minimum
+    by_distance = distance / max(speed, 0.05)
+    return min(maximum, max(minimum, by_distance))
+
+
 def _decision(
     node: CalibrationNode, *, stage: str, condition_id: str, trial_id: str,
     attempt: int, auto_ok: bool, summary: dict[str, Any],
@@ -231,7 +243,18 @@ def _run_raw_erpm_plateau(
             segment_id=condition_id, trial_id=trial,
         )
         summary: dict[str, Any] | None = None
+        settle_s = 0.0
         if startup.get('stable'):
+            settle_s = _pre_capture_settle_s(cfg, nominal_speed)
+            if settle_s > 0.0:
+                node.hold(
+                    kind='raw_erpm', target=raw_erpm, duration_s=settle_s,
+                    phase=f'{phase}_pre_capture_settle',
+                    segment_id=condition_id, trial_id=trial,
+                    capture=False, window_fields=(),
+                    nominal_speed_mps=nominal_speed, raw_erpm_target=raw_erpm,
+                    pre_capture_settle_s=settle_s,
+                )
             summary = node.hold(
                 kind='raw_erpm', target=raw_erpm, duration_s=capture_s,
                 phase=phase, segment_id=condition_id, trial_id=trial,
@@ -245,11 +268,12 @@ def _run_raw_erpm_plateau(
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
-            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture_speed_gate': speed_gate, 'capture': summary or {}},
+            summary={'startup': startup, 'pre_capture_settle_s': settle_s, 'straight_runtime_gate': straight, 'capture_speed_gate': speed_gate, 'capture': summary or {}},
         )
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
             'startup': startup, 'capture': summary,
+            'pre_capture_settle_s': settle_s,
             'raw_erpm_target': raw_erpm, 'nominal_speed_mps': nominal_speed,
         })
         if decision == 'accepted':
@@ -281,7 +305,18 @@ def _run_ackermann_plateau(
             speed_mps=speed, segment_id=condition_id, trial_id=trial,
         )
         summary: dict[str, Any] | None = None
+        settle_s = 0.0
         if startup.get('stable'):
+            settle_s = _pre_capture_settle_s(cfg, speed)
+            if settle_s > 0.0:
+                node.hold(
+                    kind='ackermann_speed', target=speed, duration_s=settle_s,
+                    phase=f'{phase}_pre_capture_settle',
+                    segment_id=condition_id, trial_id=trial,
+                    capture=False, window_fields=(),
+                    speed_command_mps=speed,
+                    pre_capture_settle_s=settle_s,
+                )
             summary = node.hold(
                 kind='ackermann_speed', target=speed, duration_s=capture_s,
                 phase=phase, segment_id=condition_id, trial_id=trial,
@@ -297,6 +332,7 @@ def _run_ackermann_plateau(
             attempt=attempt, auto_ok=auto,
             summary={
                 'startup': startup,
+                'pre_capture_settle_s': settle_s,
                 'straight_runtime_gate': straight,
                 'capture_speed_gate': speed_gate,
                 'observability_allows_speed_sensor_mismatch': observability_probe and not speed_gate,
@@ -305,7 +341,8 @@ def _run_ackermann_plateau(
         )
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
-            'startup': startup, 'capture': summary, 'speed_command_mps': speed,
+            'startup': startup, 'capture': summary, 'pre_capture_settle_s': settle_s,
+            'speed_command_mps': speed,
         })
         if decision == 'accepted':
             counter.count(node)

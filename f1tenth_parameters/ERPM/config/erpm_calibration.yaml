@@ -104,6 +104,9 @@ motion_startup:
   minimum_startup_s: 0.75
   stability_window_s: 0.6
   stability_timeout_s: 2.2
+  pre_capture_settle_distance_m: 0.4
+  pre_capture_settle_min_s: 0.15
+  pre_capture_settle_max_s: 0.85
   max_startup_speed_error_mps: 0.20
   failed_attempt_brake_current_a: 12.0
   failed_attempt_brake_s: 0.35

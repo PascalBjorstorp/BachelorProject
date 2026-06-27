@@ -130,6 +130,10 @@ def main() -> int:
             'selector must document that active speed mode may not publish real zero current/brake commands')
     require('capture_speed_gate' in stage and '_capture_speed_ok' in stage,
             'Ackermann speed captures must fail automatically if requested speed was not reached')
+    require('_pre_capture_settle_s' in stage and "capture=False" in stage and "pre_capture_settle_s" in stage,
+            'Startup and recorded trial capture must remain separate phases')
+    require('pre_capture_settle_distance_m' in (ROOT / 'config' / 'erpm_calibration.yaml').read_text(),
+            'Pre-capture settling must be configurable from erpm_calibration.yaml')
     ack_startup = runtime.split('def establish_ackermann_speed', 1)[1].split('def start_node', 1)[0]
     require("float(np.nanstd(v))<=float(cfg['max_odom_speed_std_mps'])" not in ack_startup,
             'Ackermann startup must not reject a good launch only because odom speed std is high')
@@ -139,6 +143,10 @@ def main() -> int:
             'Ackermann startup diagnostics must report whether odom or ERPM opened the gate')
     require('command_scan_ok' in ack_startup and "'command_scan'" in ack_startup,
             'Ackermann startup must be able to capture observability evidence when speed sensors disagree')
+    require('odom_motion' in ack_startup and 'erpm_motion' in ack_startup,
+            'command+scan fallback must require measured motion before capture starts')
+    require('odom_vx_max_abs' in ack_startup and 'erpm_max_abs' in ack_startup,
+            'startup diagnostics must expose whether any motion was measured')
     require("observability_probe = stage == '01_longitudinal_observability'" in stage,
             'Only Stage 1 should allow operator review when speed sensors disagree with a live command')
     require('speed_gate or observability_probe' in stage,
