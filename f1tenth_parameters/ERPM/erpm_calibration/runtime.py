@@ -153,24 +153,43 @@ class CalibrationNode(Node):
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(straight_assist_allowed=False); self.spin(0.04); self._mode('neutral')
+    def _brake_burst(self, brake_a:float, brake_s:float, event_prefix:str)->None:
+        """Apply a timed brake-current burst, then go neutral."""
+        hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
+        self.reset_straight_assist()
+        if brake_a>0.0 and brake_s>0.0:
+            self.event.emit(f'{event_prefix}_begin',brake_current_a=brake_a,duration_s=brake_s)
+            self._mode('raw_brake')
+            end=time.monotonic()+brake_s
+            while time.monotonic()<end:
+                self._steering_keepalive(straight_assist_allowed=False)
+                self.raw_brake_pub.publish(self._float(brake_a))
+                self.spin(period)
+            self.event.emit(f'{event_prefix}_end')
+        self.neutral()
+    def active_stop(self)->None:
+        """Active-brake stop used after every trial capture.
+
+        The VESC does not brake when it receives a zero command — it coasts.
+        This method applies a short burst of brake current so the car actually
+        decelerates, saving track space between repositions.
+        """
+        try:
+            cfg=self.cfg.get('motion_startup',{})
+            brake_a=max(0.0,float(cfg.get('active_stop_brake_current_a',
+                                          cfg.get('failed_attempt_brake_current_a',12.0))))
+            brake_s=max(0.0,float(cfg.get('active_stop_brake_s',
+                                          cfg.get('failed_attempt_brake_s',0.35))))
+            self._brake_burst(brake_a,brake_s,'active_stop')
+        except Exception as exc:
+            self.get_logger().error(f'active_stop error: {exc}')
     def fail_stop(self)->None:
         try:
             cfg=self.cfg.get('motion_startup',{})
             brake_a=max(0.0,float(cfg.get('failed_attempt_brake_current_a',0.0)))
             brake_s=max(0.0,float(cfg.get('failed_attempt_brake_s',0.0)))
             settle_s=max(0.0,float(cfg.get('failed_attempt_settle_s',0.0)))
-            hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
-            self.reset_straight_assist()
-            if brake_a>0.0 and brake_s>0.0:
-                self.event.emit('failed_attempt_stop_begin',brake_current_a=brake_a,duration_s=brake_s)
-                self._mode('raw_brake')
-                end=time.monotonic()+brake_s
-                while time.monotonic()<end:
-                    self._steering_keepalive(straight_assist_allowed=False)
-                    self.raw_brake_pub.publish(self._float(brake_a))
-                    self.spin(period)
-                self.event.emit('failed_attempt_stop_end')
-            self.neutral()
+            self._brake_burst(brake_a,brake_s,'failed_attempt_stop')
             if settle_s>0.0:
                 self.spin(settle_s)
         except Exception as exc:
@@ -286,14 +305,20 @@ class CalibrationNode(Node):
     def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str,steering_angle_rad:float|None=None)->dict[str,Any]:
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
-        cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
+        cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic()
+        minimum=float(cfg['minimum_startup_s'])
+        base_timeout=float(cfg.get('stability_timeout_s',4.0))
+        per_mps=float(cfg.get('stability_timeout_per_mps_s',0.6))
+        total_timeout=base_timeout+per_mps*abs(float(speed_mps))
+        deadline=start+total_timeout
+        hist=deque(); exclusion=False
         initial_scan_count = self.latest.scan_count
         initial_imu_count = self.latest.imu_count
         initial_odom_count = self.latest.odom_count
         initial_vesc_count = self.latest.vesc_count
         initial_selected_speed_count = self.latest.selected_speed_count
         self.reset_straight_assist()
-        self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
+        self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum,total_timeout_s=total_timeout)
         try:
             while time.monotonic()<deadline:
                 self.ackermann(speed_mps,0.0,steering_angle_rad,straight_assist_allowed=False); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
@@ -301,10 +326,6 @@ class CalibrationNode(Node):
                 if now-start<minimum or not math.isfinite(self.latest.imu_ax): continue
                 hist.append((now,self.latest.odom_vx,self.latest.imu_ax,self.latest.erpm,self.latest.selected_speed_erpm))
                 while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
-                # Evaluate once a full window of post-startup time has elapsed, over the
-                # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
-                # almost never fired (the popleft trim above already drops anything older
-                # than window_s), so the gate timed out even on a clean steady pass.
                 if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
                 v=np.asarray([x[1] for x in hist])
                 a=np.asarray([x[2] for x in hist])
