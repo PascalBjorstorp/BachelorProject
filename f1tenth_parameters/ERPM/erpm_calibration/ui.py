@@ -26,19 +26,29 @@ def checklist(items: Iterable[str]) -> None:
         print(f"  [ ] {item}")
 
 
-def require_ready(prompt: str = "Type READY to continue, or ABORT to stop") -> None:
+class SkipCondition(Exception):
+    """Raised when the operator chooses to skip the current trial/condition."""
+    pass
+
+
+def require_ready(prompt: str = "Type READY to continue, or ABORT to stop", allow_skip: bool = False) -> None:
     while True:
         answer = input(f"\n{prompt}: ").strip().upper()
         if answer == "READY":
             return
+        if allow_skip and answer == "SKIP":
+            raise SkipCondition()
         if answer in {"ABORT", "QUIT", "Q"}:
             raise KeyboardInterrupt("operator aborted the session")
-        print("Please type READY or ABORT.")
+        if allow_skip:
+            print("Please type READY, SKIP or ABORT.")
+        else:
+            print("Please type READY or ABORT.")
 
 
 def pause_for_reposition(message: str) -> None:
     print("\n" + message)
-    require_ready("Type READY when the vehicle is positioned, or ABORT to stop")
+    require_ready("Type READY when the vehicle is positioned, or ABORT to stop, or SKIP to skip this trial", allow_skip=True)
 
 
 def review_trial(
