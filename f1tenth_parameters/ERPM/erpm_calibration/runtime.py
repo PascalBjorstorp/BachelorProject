@@ -83,9 +83,13 @@ class CalibrationNode(Node):
         end=time.monotonic()+max(0.0,duration_s)
         while time.monotonic()<end:
             rclpy.spin_once(self,timeout_sec=0.0); time.sleep(0.0005)
-    def wait_for(self, required:set[str], timeout_s:float=15.0)->None:
+    def wait_for(self, required:set[str], timeout_s:float=15.0, primer:Callable[[],None]|None=None)->None:
         start=time.monotonic()
         while time.monotonic()-start<timeout_s:
+            # The selector's echo streams (selected_*) only appear once it has
+            # received a mode, so an optional primer re-publishes that mode each
+            # iteration; the selector then mirrors it back and the chain is seen.
+            if primer is not None: primer()
             self.spin(0.05)
             if required.issubset(self.latest.seen): return
         raise RuntimeError('missing required streams: '+', '.join(sorted(required-self.latest.seen)))
@@ -223,7 +227,9 @@ class CalibrationNode(Node):
 
 def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:
     rclpy.init(args=None); node=CalibrationNode(name,cfg)
-    try: node.wait_for(required); node.neutral(); node.spin(0.15); return node
+    # Prime the selector with the neutral mode while waiting so its selected_*
+    # echo streams (which are part of `required`) can actually appear.
+    try: node.wait_for(required, primer=lambda: node._mode('neutral')); node.neutral(); node.spin(0.15); return node
     except Exception: node.destroy_node(); rclpy.shutdown(); raise
 
 def finish_node(node:CalibrationNode)->None:
