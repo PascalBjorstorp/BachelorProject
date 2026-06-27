@@ -52,7 +52,7 @@ def check_disabled_passthrough():
 
 def check_from_config_defaults():
     sa = from_config({})
-    assert sa.enabled and sa.max_trim_rad > 0 and sa.ki_heading > 0
+    assert sa.enabled and sa.max_trim_rad > 0 and sa.kp_heading > 0
 
 
 def main():

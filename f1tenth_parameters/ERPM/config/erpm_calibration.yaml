@@ -80,14 +80,21 @@ straight_assist:
   # stages so the car actually goes straight instead of drifting and failing.
   # The integral (ki) term absorbs steering slack / centre offset. Bounded so it
   # can never command a real turn, and automatically disabled when an intentional
-  # non-zero steering angle is commanded (the cornering arcs). Gains are a sane
-  # starting point; tune on the car if it under/over-corrects.
+  # non-zero steering angle is commanded (the cornering arcs).
+  #
+  # This is a deliberately small *proportional* heading-hold: trim =
+  # -kp_heading * (heading drift since the run started). No integral (which used
+  # to wind up and over-correct past straight) and no raw-yaw-rate term (which
+  # fed gyro noise into the steering and made it weave). Tune on the car:
+  #   - drifts slowly off to one side  -> raise kp_heading a little
+  #   - weaves / over-corrects          -> lower kp_heading (and/or max_rate_rad_s)
+  # kd_yaw is an optional damping term; leave it 0 unless you need to settle a
+  # slow weave at the highest speeds.
   enabled: true
-  kp_yaw_rad_per_rad_s: 0.35
-  ki_heading_rad_per_rad: 0.8
-  kvy_rad_per_mps: 0.10
+  kp_heading_rad_per_rad: 0.35
+  kd_yaw_rad_per_rad_s: 0.0
   max_trim_rad: 0.07
-  max_rate_rad_s: 0.6
+  max_rate_rad_s: 0.4
   min_speed_mps: 0.3
 motion_startup:
   minimum_startup_s: 0.2
