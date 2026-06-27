@@ -270,22 +270,22 @@ class CalibrationNode(Node):
             while time.monotonic()<deadline:
                 self.ackermann(speed_mps,0.0,steering_angle_rad,straight_assist_allowed=False); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
                 if now-start>=minimum and not exclusion: self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
-                if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
-                hist.append((now,self.latest.odom_vx,self.latest.imu_ax))
+                if now-start<minimum or not math.isfinite(self.latest.imu_ax): continue
+                hist.append((now,self.latest.odom_vx,self.latest.imu_ax,self.latest.erpm,self.latest.selected_speed_erpm))
                 while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
                 # Evaluate once a full window of post-startup time has elapsed, over the
                 # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
                 # almost never fired (the popleft trim above already drops anything older
                 # than window_s), so the gate timed out even on a clean steady pass.
                 if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
-                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; speed_error=abs(float(np.median(v))-float(speed_mps)); stable=scan_observed and speed_error<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
+                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); e=np.asarray([x[3] for x in hist],dtype=float); s=np.asarray([x[4] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count; speed_error=abs(float(np.nanmedian(v))-float(speed_mps)); selected_med=float(np.nanmedian(s)) if s.size else math.nan; erpm_med=float(np.nanmedian(e)) if e.size else math.nan; erpm_std=float(np.nanstd(e)) if e.size else math.nan; erpm_error=abs(erpm_med-selected_med) if math.isfinite(erpm_med) and math.isfinite(selected_med) else math.inf; erpm_tol=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(selected_med)) if math.isfinite(selected_med) else math.inf; erpm_std_limit=max(float(cfg['max_erpm_std']),0.25*abs(selected_med)) if math.isfinite(selected_med) else float(cfg['max_erpm_std']); odom_ok=math.isfinite(speed_error) and speed_error<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.nanstd(v))<=float(cfg['max_odom_speed_std_mps']); erpm_ok=math.isfinite(selected_med) and abs(selected_med)>1.0 and math.isfinite(erpm_med) and erpm_error<=erpm_tol and erpm_std<=erpm_std_limit; stable=scan_observed and (odom_ok or erpm_ok) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
                 if stable:
-                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'startup_speed_error_mps':speed_error}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.nanmedian(v)),'odom_vx_std':float(np.nanstd(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'startup_speed_error_mps':speed_error,'erpm_median':erpm_med,'erpm_std':erpm_std,'selected_speed_erpm_median':selected_med,'erpm_error':erpm_error,'startup_gate_source':'erpm' if erpm_ok and not odom_ok else 'odom'}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
         except BaseException:
             self.fail_stop()
             raise
-        v=np.asarray([x[1] for x in hist],dtype=float); a=np.asarray([x[2] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan}
+        v=np.asarray([x[1] for x in hist],dtype=float); a=np.asarray([x[2] for x in hist],dtype=float); e=np.asarray([x[3] for x in hist],dtype=float); s=np.asarray([x[4] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan,'erpm_median':float(np.nanmedian(e)) if e.size else math.nan,'erpm_std':float(np.nanstd(e)) if e.size else math.nan,'selected_speed_erpm_median':float(np.nanmedian(s)) if s.size else math.nan}
         if v.size:
             out['startup_speed_error_mps']=abs(float(np.nanmedian(v))-float(speed_mps))
         self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out

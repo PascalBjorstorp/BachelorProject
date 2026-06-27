@@ -98,15 +98,25 @@ def _decision(
 def _capture_speed_ok(summary: dict[str, Any] | None, target_mps: float) -> bool:
     if summary is None:
         return False
-    measured = summary.get('odom_vx_mean')
     try:
-        measured_f = float(measured)
+        measured_f = float(summary.get('odom_vx_mean'))
     except (TypeError, ValueError):
-        return False
-    if not math.isfinite(measured_f):
-        return False
+        measured_f = math.nan
     tolerance = max(0.25, 0.15 * abs(float(target_mps)))
-    return abs(measured_f - float(target_mps)) <= tolerance
+    odom_ok = math.isfinite(measured_f) and abs(measured_f - float(target_mps)) <= tolerance
+    try:
+        erpm_f = float(summary.get('erpm_mean'))
+        selected_f = float(summary.get('selected_speed_erpm_mean'))
+    except (TypeError, ValueError):
+        return odom_ok
+    erpm_tol = max(150.0, 0.12 * abs(selected_f))
+    erpm_ok = (
+        math.isfinite(erpm_f)
+        and math.isfinite(selected_f)
+        and abs(selected_f) > 1.0
+        and abs(erpm_f - selected_f) <= erpm_tol
+    )
+    return odom_ok or erpm_ok
 
 
 def _straight_ok(node: CalibrationNode, cfg: dict[str, Any]) -> bool:
