@@ -50,7 +50,16 @@ ament_target_dependencies(hokuyo_scip_driver_node
   sensor_msgs
 )
 
-install(TARGETS scan_splitter_node hokuyo_scip_driver_node
+# ── Scan downsampler (full-res /scan_full -> reduced /scan for the pipeline) ──
+add_executable(scan_downsampler_node
+  src/scan_downsampler_node.cpp
+)
+ament_target_dependencies(scan_downsampler_node
+  rclcpp
+  sensor_msgs
+)
+
+install(TARGETS scan_splitter_node hokuyo_scip_driver_node scan_downsampler_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

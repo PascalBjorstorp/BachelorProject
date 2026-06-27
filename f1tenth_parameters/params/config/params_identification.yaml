@@ -1,0 +1,150 @@
+session:
+  runs_dir: runs
+  min_free_disk_gb: 20.0
+  battery_min_v: 10.5
+  command_publish_hz: 100.0
+  event_topic: /params_identification/event
+  max_race_speed_mps: 8.0
+
+site:
+  clear_pad_min_m: [9.0, 9.0]
+  clear_pad_preferred_m: [10.0, 10.0]
+  straight_runway_available_m: 20.0
+  optional_extended_runway_m: 25.0
+  verified_braking_mps2: 8.0
+  post_stable_corridor_available_m: 9.0
+
+hardware:
+  base_frame_id: ego_racecar/base_link
+  laser_frame_id: ego_racecar/laser
+  imu_frame_id: ego_racecar/imu
+  wheelbase_m: 0.324
+  laser_to_base_x_m: 0.265
+  laser_to_base_y_m: 0.0
+  laser_to_base_z_m: 0.05
+  laser_to_base_yaw_rad: 0.0
+
+prerequisites:
+  steering_command_to_effective_steering_deployed: true
+  steering_actuator_delay_deployed: true
+  erpm_current_accel_brake_deployed: true
+  lidar_to_base_transform_deployed: true
+  straight_line_speed_estimation_deployed: true
+
+physical_identification:
+  # Fill these from direct measurement before fitting tyre/chassis parameters.
+  # Values may be null at suite-design time, but the analysis must refuse to
+  # publish a final parameter file until measured values and uncertainties exist.
+  wheelbase_m:
+    value: 0.324
+    uncertainty_m: 0.002
+    source: vehicle_params.yaml
+  mass_kg:
+    value: 3.314
+    uncertainty_kg: 0.05
+    source: vehicle_params.yaml
+  front_axle_load_n:
+    value: null
+    uncertainty_n: null
+    source: direct_measurement_required
+  rear_axle_load_n:
+    value: null
+    uncertainty_n: null
+    source: direct_measurement_required
+  cg_height_m:
+    value: 0.0703
+    uncertainty_m: 0.01
+    source: vehicle_params.yaml
+  yaw_inertia_prior_kgm2:
+    value: 0.035
+    uncertainty_kgm2: 0.015
+    source: vehicle_params.yaml
+
+steady_lateral:
+  enabled: true
+  radii_m: [2.5, 3.0]
+  directions: [left, right]
+  ay_ladder_g_initial: [0.15, 0.30, 0.45, 0.60]
+  ay_increment_near_limit_g: 0.05
+  steady_capture_s: 1.2
+  repetitions: 2
+  settle_min_s: 0.4
+  curvature_drop_stop_fraction: 0.10
+  radius_growth_stop_fraction: 0.10
+  ay_plateau_stop_fraction: 0.05
+  repeat_saturation_once: true
+  record_one_condition_below_saturation: true
+  operator_escalates_near_limit: true
+  notes:
+    - Use fixed steering during capture.
+    - Do not use a path controller to hold the circle.
+    - Stop at first repeatable saturation onset, not at spin.
+
+steering_transients:
+  enabled: true
+  speed_fractions_of_vmax: [0.50, 0.75, 1.00]
+  lateral_response_targets_g: [0.18, 0.32]
+  baseline_s: 0.05
+  first_step_s: 0.10
+  reverse_step_s: 0.10
+  recovery_s: 0.30
+  capture_s: 0.55
+  doublet_orders: [left_right, right_left]
+  repetitions: 3
+  post_capture_terminal_margin_m: 0.25
+  stage1_parameters_held_fixed_initially: true
+  split_front_rear_relaxation_only_if_identifiable: true
+
+combined_slip:
+  enabled: true
+  lateral_utilisation: [0.35, 0.60, 0.80]
+  longitudinal_utilisation: [-0.60, -0.30, 0.30, 0.60]
+  directions: [left, right]
+  baseline_s: 0.10
+  min_pulse_s: 0.15
+  max_pulse_s: 0.30
+  recovery_s: 0.25
+  max_speed_change_fraction: 0.15
+  repetitions: 2
+  pure_lateral_parameters_fixed_during_fit: true
+
+limit_laps:
+  enabled: true
+  blocks:
+    moderate_pace: 4
+    coast_corners: 4
+    brake_biased_entries: 4
+    drive_biased_exits: 4
+    near_limit: 8
+  hold_out_by_whole_lap: true
+  fit_only_high_slip_residuals: true
+
+fitting_order:
+  - stage: physical_identification
+    free_parameters: [mass, wheelbase, lf, lr, cg_height, yaw_inertia_prior]
+    rule: direct_measurement_only
+  - stage: steady_lateral
+    free_parameters: [Cf, Cr, steering_gain_under_load, understeer_gradient, mu_f, mu_r, saturation_shape]
+    rule: pure_lateral_only
+  - stage: steering_transients
+    free_parameters: [Iz, sigma_common]
+    conditional_parameters: [sigma_f, sigma_r]
+    rule: hold_stage1_near_estimate
+  - stage: combined_slip
+    free_parameters: [combined_slip_reduction, drive_brake_asymmetry, friction_ellipse_exponent]
+    rule: hold_pure_lateral_fixed
+  - stage: limit_laps
+    free_parameters: [race_envelope_residuals, high_slip_correction]
+    rule: no_global_refit_from_laps
+
+acceptance:
+  require_trial_metadata: true
+  require_whole_trial_bootstrap: true
+  require_sensitivity_condition_number: true
+  require_parameter_correlation_report: true
+  retain_parameter_only_if:
+    stable_under_resampling: true
+    materially_reduces_multistep_error: true
+    not_collinear_with_other_free_parameter: true
+    physically_plausible: true
+    improves_multiple_manoeuvre_families: true

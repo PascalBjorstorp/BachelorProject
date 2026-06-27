@@ -1,0 +1,31 @@
+{
+  "activated_utc": "2026-06-25T13:34:40.003158+00:00",
+  "backup": "/home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/vesc_config_transaction/vesc.yaml.before_calibration",
+  "build_command": [
+    "colcon",
+    "build",
+    "--symlink-install"
+  ],
+  "calibration_patch": {
+    "accel_to_brake_gain": 0.0,
+    "accel_to_current_gain": 0.0,
+    "operation_mode": "VEL_TO_ERPM",
+    "servo_max": 1.0,
+    "servo_min": 0.0
+  },
+  "created_utc": "2026-06-25T13:34:29.971888+00:00",
+  "original_sha256": "a69fb12bd3cc937f156ca09b6a14ad7d02e1862fbb3ee73c27d39025754f3532",
+  "original_values": {
+    "accel_to_brake_gain": 7.38,
+    "accel_to_current_gain": 5.82,
+    "operation_mode": "ACCEL_TO_CURRENT",
+    "servo_max": 0.91,
+    "servo_min": 0.19
+  },
+  "restore_required": false,
+  "restored_utc": "2026-06-25T13:37:26.848943+00:00",
+  "source_config": "/home/f1tenth/BachelorProject/f1tenth_system/f1tenth_stack/config/vesc.yaml",
+  "source_restored_utc": "2026-06-25T13:37:18.031565+00:00",
+  "state": "restored",
+  "workspace": "/home/f1tenth/BachelorProject"
+}

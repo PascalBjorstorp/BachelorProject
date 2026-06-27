@@ -117,6 +117,7 @@ private:
 
   // IMU filtering
   double imu_angular_velocity_alpha_{0.45};  // fallback EMA if Butterworth is disabled
+  double imu_gyro_scale_{1.0};  // gyro-z scale-factor correction (1.0 = none)
   bool imu_use_butterworth_filter_{true};
   double imu_butterworth_gyro_cutoff_hz_{18.0};
   double imu_butterworth_lateral_accel_cutoff_hz_{12.0};

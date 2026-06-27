@@ -74,8 +74,8 @@ bridge:
     vehicle_lf: 0.166       # [CAD] CG to front axle (m)
     vehicle_lr: 0.16        # [CAD] CG to rear axle (m)
     vehicle_h: 0.0703       # [CAD] CG height (m)
-    vehicle_s_max: 0.4189   # [CALIBRATED] Max steering angle (rad) — with polynomial correction
-    vehicle_sv_max: 2.8492  # [TESTED] Max steering rate (rad/s)
+    vehicle_s_max: 0.45     # [CALIBRATED] Symmetric max steering angle (rad), 25.78 deg — 2026-06-25 session: clean limit just below physical end-stops (left +0.469/right -0.4535 rad)
+    vehicle_sv_max: 2.8492  # [TESTED] Max steering rate (rad/s) — confirmed by 2026-06-25 session (peak effective rate median 2.66, max 3.55 rad/s)
     vehicle_a_max: 7.31     # [TESTED] Max accel (m/s^2), bounded by mu*g
     vehicle_v_max: 20.0     # Sim speed limit (m/s)
     vehicle_v_min: -5.0     # Min velocity (m/s) — matches gym default

@@ -1,0 +1,230 @@
+# F1TENTH VESC Configuration
+# ==========================
+# These parameters are shared across all VESC-related nodes.
+# Calibrate these values for your specific car!
+
+/**:
+  ros__parameters:
+    # ===================
+    # VESC Device Config
+    # ===================
+    port: /dev/sensors/vesc
+    
+    # ===================
+    # Speed Calibration
+    # ===================
+    # ERPM = speed_to_erpm_gain * v + speed_to_erpm_offset
+    # Calibrate by: drive at known speed, record ERPM, solve for gain
+    speed_to_erpm_gain: 4550.0
+    speed_to_erpm_offset: 0.0
+    
+    # ===================
+    # Steering Calibration
+    # ===================
+    # servo_value = steering_angle_to_servo_gain * corrected_angle + steering_angle_to_servo_offset
+    # where corrected_angle = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
+    # Calibrate by running: python3 test_servo_calibration.py
+    steering_angle_to_servo_gain: -0.7284
+    steering_angle_to_servo_offset: 0.5500
+    
+    # Servo nonlinearity correction (calibrated 2026-03-12, 7 angles)
+    # Set c2=0, c1=1, c0=0 to disable correction (pure linear gain).
+    steering_correction_c2: 0.589566
+    steering_correction_c1: 0.918061
+    steering_correction_c0: 0.001490
+    
+    # ===================
+    # VESC Limits
+    # ===================
+    duty_cycle_min: 0.0
+    duty_cycle_max: 0.0
+    current_min: 0.0
+    current_max: 100.0
+    brake_min: -20000.0
+    brake_max: 200000.0
+    speed_min: -100000.0
+    speed_max: 100000.0
+    position_min: 0.0
+    position_max: 0.0
+    servo_min: 0.190
+    servo_max: 0.910
+    
+    # ===================
+    # IMU Configuration
+    # ===================
+    # Frame ID for IMU messages (should match your TF static transform)
+    imu_frame: "ego_racecar/imu"
+    
+    # IMU covariances (single double, placed on diagonal of 3x3 covariance matrix)
+    # The VESC driver uses this value for [0,0], [1,1], [2,2] entries
+    imu_orientation_covariance: 0.0001
+    imu_angular_velocity_covariance: 0.01
+    imu_linear_acceleration_covariance: 0.1
+
+# ===================
+# Odometry Node Config
+# ===================
+vesc_to_odom_node:
+  ros__parameters:
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
+    steering_angle_to_servo_gain: -0.7284
+    steering_angle_to_servo_offset: 0.5500
+    # Global odom speed scaling (use <1.0 if odom distance/speed is too high).
+    odom_speed_scale: 1.03
+    # Dynamic-model steering scale (use <1.0 if odom over-rotates, >1.0 if under-rotates).
+    steering_model_scale: 0.86
+    speed_deadband: 0.15
+    max_dt_sec: 1.0
+    
+    # Fallback IMU angular velocity low-pass coefficient (EMA, used only when Butterworth is disabled)
+    # Lower = more filtering (smoother but slower)
+    # Higher = less filtering (faster but noisier)
+    imu_angular_velocity_alpha: 0.45  
+
+    # Startup IMU bias calibration (car stationary): averages linear x/y and angular z.
+    imu_startup_calibration_enabled: true
+    imu_startup_calibration_duration_sec: 5.0
+    imu_startup_hold_odom_during_calibration: false
+
+    # 2nd-order Butterworth filtering at IMU rate.
+    # Keeps update rate high while attenuating sensor noise.
+    imu_use_butterworth_filter: true
+    imu_butterworth_gyro_cutoff_hz: 18.0
+    imu_butterworth_lateral_accel_cutoff_hz: 12.0
+    imu_yaw_base_weight: 0.40
+    imu_history_max_samples: 400
+    imu_sync_tolerance_sec: 0.03
+    imu_timeout_sec: 0.10
+    servo_timeout_sec: 0.10
+
+    # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
+    # Enter should be greater than exit (hysteresis).
+    slip_accel_enter: 8.0
+    slip_accel_exit: 2.0
+    slip_min_speed: 1.2
+
+    # Slip indicator source:
+    # - yaw_residual: weighted yaw-rate residual (default model-based mode)
+    # - lateral_accel: |a_y_measured - v_x * r_model|
+    # - lateral_velocity_error: |v_y_imu - v_y_model| (m/s)
+    slip_indicator_source: lateral_velocity_error
+    slip_lateral_velocity_enter: 0.45
+    slip_lateral_velocity_exit: 0.25
+
+    # Filter and dwell-time debounce for slip switching.
+    # This prevents rapid ON/OFF chatter from IMU noise and transient spikes.
+    slip_indicator_alpha: 0.2
+    # Yaw residual drives slip by default; enable accel term only if IMU linear accel is trustworthy.
+    slip_use_lateral_accel: false
+    slip_yaw_rate_weight: 3.0
+    slip_accel_clip: 6.0
+    slip_enter_hold_sec: 0.05
+    slip_exit_hold_sec: 0.12
+
+    # Dynamic bicycle model (linear tire model)
+    use_dynamic_bicycle_model: true
+    vehicle_mass: 3.314
+    vehicle_Iz: 0.035
+    l_f: 0.166
+    l_r: 0.160
+    c_alpha_f: 51.40
+    c_alpha_r: 43.10
+    dynamic_model_min_speed: 1.0
+
+    # Inflate odometry covariance when dynamic-model and IMU signals disagree.
+    slip_xy_covariance_scale: 6.0
+
+    # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
+    gyro_bias_alpha: 0.02
+
+    # IMU lateral-velocity estimator for drift/slip compensation.
+    imu_lateral_accel_alpha: 0.35
+    imu_lateral_velocity_decay: 1.5
+    imu_lateral_velocity_max: 3.0
+
+    # Slip-angle blending limits.
+    beta_max_rad: 0.3
+    kinematic_beta_ratio: 0.3
+
+    # Odometry covariance scalars used by vesc_to_odom
+    # Units: x/y in m^2, yaw in rad^2
+    odom_x_covariance: 0.1
+    odom_y_covariance: 0.1
+    odom_yaw_covariance: 0.075
+
+# Legacy analytical odometry path used when System_launch.py oldOdom:=true
+vesc_to_odom_old_node:
+  ros__parameters:
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
+    use_servo_cmd_to_calc_angular_velocity: true
+    use_imu: false
+    integration_method: analytical
+    wheelbase: 0.324
+    imu_angular_velocity_alpha: 0.45
+    odom_x_covariance: 0.2
+    odom_y_covariance: 0.2
+    odom_yaw_covariance: 0.2
+    publish_tf: true
+
+# ===================
+# Ackermann to VESC Config
+# ===================
+ackermann_to_vesc_node:
+  ros__parameters:
+    # Operation mode:
+    # "ACCEL_TO_CURRENT": acceleration command -> current
+    # "VEL_TO_CURRENT": velocity command -> current (with PID)
+    # "VEL_TO_ERPM": velocity command -> ERPM (default, simplest)
+    # Mode is determined by accel gains: non-zero enables ACCEL_TO_CURRENT.
+    operation_mode: "ACCEL_TO_CURRENT"
+
+    # Acceleration-to-current gains (set non-zero to enable ACCEL_TO_CURRENT)
+    # Derived from tested drivetrain model:
+    #   gain = mass / Kt_eff = 3.496 / 0.583 = 5.997 A/(m/s²)
+    # Source: f1tenth_parameters/vehicle_params.yaml (Kt_eff tested, R²=0.87)
+    # Identified from `f1tenth_parameters/data/motor_torque_*.csv`:
+    #   accel_to_current_gain ≈ m / Kt_eff
+    #   accel_to_brake_gain   ≈ m / Kt_eff_brake
+    accel_to_current_gain: 5.82     # A/(m/s^2) (fit over all 5 runs) Was 5.82
+    accel_to_brake_gain: 7.38        # A/(m/s^2) (fit over all 5 runs) Was 7.38
+    accel_deadzone: 0.02            # m/s^2 (treat tiny accel as 0, still publish current FF)
+    # Coastdown / drag feedforward to avoid "a=0 -> car slows too much" mismatch vs sim.
+    # Set from coastdown fit of dv/dt ≈ -(c0 + c1*|v| + c2*v^2).
+    # Start simple: only coulomb term (c0) often enough on carpet/asphalt.
+    # Identified from `f1tenth_parameters/data/rolling_resistance_*.csv` coastdown:
+    #   a_coast ≈ 1.60 m/s^2 median (10 runs)
+    accel_drag_coulomb: 1.60        # m/s^2
+    accel_drag_viscous: 0.0         # 1/s
+    accel_drag_quadratic: 0.0       # 1/m
+
+    # Output clamps (amps). Set to match VESC config + desired feel.
+    max_drive_current: 100.0
+    max_brake_current: 40.0
+    max_regen_input_current: 0.0    # 0 disables ROS-side regen scaling; VESC firmware still enforces battery regen limits
+
+    # Slow-start parameters (used only in VEL_TO_ERPM mode).
+    # In ACCEL_TO_CURRENT mode this repo's `ackermann_to_vesc` no longer falls back to ERPM.
+    slow_start_threshold: 1.0    # m/s
+    slow_start_increment: 0.4    # m/s per command step
+    stop_speed_deadzone: 0.05    # m/s (treat speed≈0 as STOP; prevents drag-FF creep at bringup)
+
+# ===================
+# Throttle Interpolator (Optional)
+# ===================
+# The throttle_interpolator node smooths motor/servo commands.
+# It is NOT launched by default. To use it, run:
+#   ros2 run f1tenth_stack throttle_interpolator --ros-args --params-file <path-to-vesc.yaml>
+# Then remap ackermann_to_vesc output through the interpolator topics.
+throttle_interpolator:
+  ros__parameters:
+    rpm_input_topic: commands/motor/unsmoothed_speed
+    rpm_output_topic: commands/motor/speed
+    servo_input_topic: commands/servo/unsmoothed_position
+    servo_output_topic: commands/servo/position
+    max_acceleration: 2.5       # m/s^2
+    smoother_rate: 75.0         # Hz (shared for both throttle and servo)
+    max_servo_speed: 3.2        # rad/s

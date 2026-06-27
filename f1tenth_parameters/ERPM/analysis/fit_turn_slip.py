@@ -44,6 +44,16 @@ STAGE = "13_candidate_cross_axis_verification"
 PHASE = "candidate_cross_axis_verification"
 
 
+def _cross_axis_grid(sx: dict) -> list[tuple[float, float]]:
+    conditions = sx.get("conditions")
+    if conditions is not None:
+        return [
+            (float(c["steering_angle_rad"]), float(c["speed_mps"]))
+            for c in conditions
+        ]
+    return [(float(a), float(v)) for a in sx["steering_angle_rad"] for v in sx["speed_commands_mps"]]
+
+
 def _skip(out: Path, reason: str) -> int:
     report = {"status": "skipped", "reason": reason, "accepted_for_candidate": False}
     dump_yaml(out / "turn_slip_report.yaml", report)
@@ -143,7 +153,7 @@ def main() -> int:
     summary.to_parquet(out / "turn_slip_samples.parquet", index=False)
 
     # Coverage over the configured arc grid (both magnitudes count once per cell).
-    grid = [(float(a), float(v)) for a in sx["steering_angle_rad"] for v in sx["speed_commands_mps"]]
+    grid = _cross_axis_grid(sx)
     cov = expected_grid_coverage(summary, fields=["steering_angle_rad", "speed_command_mps"],
                                  expected_grid=grid, expected_repetitions=int(sx.get("repetitions", 1)),
                                  tolerances={"steering_angle_rad": 1e-6, "speed_command_mps": 1e-6},

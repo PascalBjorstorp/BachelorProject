@@ -1,0 +1,35 @@
+/ackermann_to_vesc_node:
+  ros__parameters:
+    accel_deadzone: 0.02
+    accel_drag_coulomb: 1.6
+    accel_drag_quadratic: 0.0
+    accel_drag_viscous: 0.0
+    accel_to_brake_gain: 0.0
+    accel_to_current_gain: 0.0
+    brake_deadzone: 0.1
+    max_brake_current: 40.0
+    max_drive_current: 100.0
+    max_regen_input_current: 0.0
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          durability: volatile
+          history: keep_last
+          reliability: reliable
+    slow_start_increment: 0.4
+    slow_start_threshold: 1.0
+    speed_to_braking_center: 0.0
+    speed_to_braking_gain: 0.0
+    speed_to_braking_max: 20000.0
+    speed_to_braking_min: 0.0
+    speed_to_erpm_gain: 4550.0
+    speed_to_erpm_offset: 0.0
+    steering_angle_to_servo_gain: -0.7284
+    steering_angle_to_servo_offset: 0.55
+    steering_correction_c0: 0.00149
+    steering_correction_c1: 0.918061
+    steering_correction_c2: 0.589566
+    stop_speed_deadzone: 0.05
+    use_sim_time: false
+

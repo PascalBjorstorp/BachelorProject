@@ -1,0 +1,108 @@
+{
+  "method": "effective delta_eq = arctan(L*yaw_IMU/v_odom); peak |d delta/dt| over first 1.5 s",
+  "note": "effective vehicle steering rate (command+servo+linkage+tyre+yaw), not isolated servo shaft",
+  "overall": {
+    "n": 28,
+    "peak_rate_rad_s_median": 2.6030821102985753,
+    "peak_rate_deg_s_median": 149.1456186461162,
+    "peak_rate_deg_s_max": 194.52377708285152,
+    "delay_s_median": 0.077504768,
+    "rise_10_90_s_median": 0.07749900800000001,
+    "settle_5pct_s_median": 3.3874528,
+    "overshoot_frac_median": 0.06335654947135383
+  },
+  "by_speed": {
+    "0.6": {
+      "n": 12,
+      "peak_rate_rad_s_median": 2.6745007966625955,
+      "peak_rate_deg_s_median": 153.23760795314308,
+      "peak_rate_deg_s_max": 194.52377708285152,
+      "delay_s_median": 0.072504704,
+      "rise_10_90_s_median": 0.08749888,
+      "settle_5pct_s_median": 3.4450489600000003,
+      "overshoot_frac_median": 0.09937523139643123
+    },
+    "1.5": {
+      "n": 12,
+      "peak_rate_rad_s_median": 2.543479717952182,
+      "peak_rate_deg_s_median": 145.73065311578506,
+      "peak_rate_deg_s_max": 174.2625941073801,
+      "delay_s_median": 0.08500492800000001,
+      "rise_10_90_s_median": 0.09249881600000001,
+      "settle_5pct_s_median": 3.2424546560000005,
+      "overshoot_frac_median": 0.05295067227570838
+    },
+    "2.1": {
+      "n": 4,
+      "peak_rate_rad_s_median": 0.7593953488848025,
+      "peak_rate_deg_s_median": 43.51014847296388,
+      "peak_rate_deg_s_max": 60.07995429582682,
+      "delay_s_median": 0.06750489600000001,
+      "rise_10_90_s_median": 0.060000768,
+      "settle_5pct_s_median": 3.427545984,
+      "overshoot_frac_median": 0.15893617755812217
+    }
+  },
+  "by_speed_side": {
+    "0.6_high_raw": {
+      "n": 6,
+      "peak_rate_rad_s_median": 2.5130850000071443,
+      "peak_rate_deg_s_median": 143.98916405804383,
+      "peak_rate_deg_s_max": 165.67527495696697,
+      "delay_s_median": 0.07500467200000001,
+      "rise_10_90_s_median": 0.08999884800000002,
+      "settle_5pct_s_median": 3.487548416,
+      "overshoot_frac_median": 0.10438427792434679
+    },
+    "0.6_low_raw": {
+      "n": 6,
+      "peak_rate_rad_s_median": 2.9023310337263823,
+      "peak_rate_deg_s_median": 166.29131898236312,
+      "peak_rate_deg_s_max": 194.52377708285152,
+      "delay_s_median": 0.072504704,
+      "rise_10_90_s_median": 0.079998976,
+      "settle_5pct_s_median": 3.194955264,
+      "overshoot_frac_median": 0.09779520772091532
+    },
+    "1.5_high_raw": {
+      "n": 6,
+      "peak_rate_rad_s_median": 2.410530595943964,
+      "peak_rate_deg_s_median": 138.11322953474428,
+      "peak_rate_deg_s_max": 174.2625941073801,
+      "delay_s_median": 0.089995008,
+      "rise_10_90_s_median": 0.09249881600000001,
+      "settle_5pct_s_median": 3.1374560000000002,
+      "overshoot_frac_median": 0.045117530646111126
+    },
+    "1.5_low_raw": {
+      "n": 6,
+      "peak_rate_rad_s_median": 2.5503367814852314,
+      "peak_rate_deg_s_median": 146.12353391608184,
+      "peak_rate_deg_s_max": 171.48935130895438,
+      "delay_s_median": 0.077504768,
+      "rise_10_90_s_median": 0.079998976,
+      "settle_5pct_s_median": 3.2424546560000005,
+      "overshoot_frac_median": 0.05460177662148491
+    },
+    "2.1_high_raw": {
+      "n": 3,
+      "peak_rate_rad_s_median": 0.7482527826944685,
+      "peak_rate_deg_s_median": 42.87172645731257,
+      "peak_rate_deg_s_max": 44.14857048861518,
+      "delay_s_median": 0.059995392,
+      "rise_10_90_s_median": 0.059999232,
+      "settle_5pct_s_median": 3.427545984,
+      "overshoot_frac_median": 0.17683929175399937
+    },
+    "2.1_low_raw": {
+      "n": 1,
+      "peak_rate_rad_s_median": 1.0485930169098894,
+      "peak_rate_deg_s_median": 60.07995429582682,
+      "peak_rate_deg_s_max": 60.07995429582682,
+      "delay_s_median": 0.07501440000000001,
+      "rise_10_90_s_median": 0.060002304000000006,
+      "settle_5pct_s_median": NaN,
+      "overshoot_frac_median": 0.031308312918120196
+    }
+  }
+}

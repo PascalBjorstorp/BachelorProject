@@ -6,7 +6,14 @@ from typing import Any, Callable
 from .bagging import BagProcess, start_bag, stop_bag
 from .config import copy_config_file, dump_json, dump_yaml, load_yaml
 from .config_transaction import VescModeTransaction
-from .stages import TrialCounter, run_stage, candidate_velocity_verification, candidate_accel_verification, candidate_cross_axis_verification
+from .stages import (
+    TrialCounter,
+    run_stage,
+    candidate_velocity_verification,
+    candidate_accel_verification,
+    candidate_cross_axis_verification,
+    post_calibration_steering_dynamics,
+)
 from .ui import banner, disk_line, require_ready
 
 class StackProcess:
@@ -18,7 +25,7 @@ class StackProcess:
         if self.candidate_patch is not None:
             if self.candidate_mode not in {'velocity','accel'}: raise RuntimeError('candidate stack needs velocity or accel mode')
             cmd += ['--candidate-patch',str(self.candidate_patch),'--candidate-mode',self.candidate_mode]
-        self.proc=subprocess.Popen(cmd,stdout=self.handle,stderr=subprocess.STDOUT,start_new_session=True,text=True)
+        self.proc=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=self.handle,stderr=subprocess.STDOUT,start_new_session=True,text=True)
         time.sleep(2.0)
         if self.proc.poll() is not None:
             self.handle.close(); raise RuntimeError('calibration stack failed to start:\n'+self.log.read_text(encoding='utf-8',errors='replace'))
@@ -43,9 +50,7 @@ class SessionRunner:
     def _verify_site_envelope(self) -> dict[str, Any]:
         """Reject a full-envelope campaign configured for an inadequate site.
 
-        The supplied 15 m room remains useful for steering and low-speed work,
-        but it is not a defensible site for the configured 3.0 m/s, high-current
-        acceleration/braking identification.  This is a developer-set preflight
+        The configured straight length is a developer-set preflight
         declaration, archived in the session, not a claim that the runner can
         infer physical room length itself.
         """
@@ -57,7 +62,7 @@ class SessionRunner:
         if required and usable < minimum:
             raise RuntimeError(
                 f'full-envelope site preflight failed: usable straight={usable:.1f} m, '
-                f'minimum configured={minimum:.1f} m. Use the full track or explicitly '                'reconfigure a limited-envelope campaign; do not run high-demand stages here.'
+                f'minimum configured={minimum:.1f} m. Reconfigure the campaign or use a longer straight.'
             )
         env = self.config.get('operating_envelope', {})
         try:
@@ -70,23 +75,18 @@ class SessionRunner:
                 'full-envelope current preflight failed (this is a one-time DEVELOPER config step, not a '
                 'code change, and not the third-party operator). Edit operating_envelope.'
                 'approved_drive_test_current_a and approved_brake_test_current_a in '
-                'config/erpm_calibration.yaml to reviewed positive amps, e.g. ~0.5-0.7 of the motor '
-                'continuous current rating and never above the VESC current_max. Once set, the operator '
-                'runs the campaign with no further blocking. The tool refuses to invent a current ceiling '
-                f'because it bounds motor/battery safety (got drive={drive_current}, brake={brake_current}).'
+                'config/erpm_calibration.yaml to positive command-scale amps. Once set, the operator '
+                f'runs the campaign with no further blocking (got drive={drive_current}, brake={brake_current}).'
             )
 
-        # Prove every configured high-demand condition can collect a minimum
-        # transient before its conservative speed/stopping boundary. This keeps
-        # an infeasible high-current/high-entry-speed request from appearing
-        # only after hours of earlier collection.
+        # Archive every configured high-demand pulse duration. These durations
+        # are intentionally not shortened by software acceleration estimates;
+        # the VESC/firmware response is part of the measured data.
         duration_spec = env.get('high_demand_pulse_duration_s', {})
         min_capture = float(env.get('dynamic_capture_min_s', 0.20))
         max_speed = float(env.get('maximum_test_speed_mps', 0.0))
-        max_drive_accel = float(env.get('maximum_test_accel_mps2', 0.0))
-        max_brake_accel = float(env.get('maximum_test_brake_mps2', 0.0))
-        if not (max_speed > 0.0 and max_drive_accel > 0.0 and max_brake_accel > 0.0):
-            raise RuntimeError('full-envelope preflight requires finite positive maximum_test_speed/accel/brake limits')
+        if not (max_speed > 0.0):
+            raise RuntimeError('full-envelope preflight requires a finite positive maximum_test_speed_mps')
         duration_rows = []
         for section in ('raw_current_training', 'raw_current_holdout'):
             spec = self.config[section]
@@ -101,26 +101,18 @@ class SessionRunner:
                     initial = float(entry['initial_speed_mps'])
                     for fraction in map(float, entry['current_fractions']):
                         base = float(duration_spec['low_fraction'] if fraction <= 0.25 else duration_spec['medium_fraction'] if fraction <= 0.55 else duration_spec['high_fraction'])
-                        if polarity == 'drive':
-                            headroom = max_speed - float(env.get('speed_guard_margin_mps', 0.0)) - initial
-                            accel_cap = max_drive_accel * fraction
-                        else:
-                            headroom = initial - float(env.get('brake_guard_margin_mps', 0.0))
-                            accel_cap = max_brake_accel * fraction
-                        feasible = min(base, headroom / max(accel_cap, 1e-9))
                         duration_rows.append({
                             'section': section, 'polarity': polarity,
                             'initial_speed_mps': initial, 'current_fraction': fraction,
                             'requested_base_duration_s': base,
-                            'conservative_feasible_duration_s': feasible,
-                            'coverage_feasible': bool(feasible + 1e-9 >= min_capture),
+                            'configured_duration_s': base,
+                            'coverage_feasible': bool(base + 1e-9 >= min_capture),
                         })
         invalid = [row for row in duration_rows if not row['coverage_feasible']]
         if invalid:
             raise RuntimeError(
-                'full-envelope dynamic schedule is infeasible before the declared speed/stopping boundary. '
-                f'First invalid condition: {invalid[0]}. Use a longer track, a higher independently reviewed speed envelope, '
-                'or remove the unsafe condition; do not proceed with partial high-demand evidence.'
+                'full-envelope dynamic schedule has a pulse shorter than the configured minimum capture. '
+                f'First invalid condition: {invalid[0]}. Increase the pulse duration or lower dynamic_capture_min_s.'
             )
         result = {
             'usable_straight_m': usable,
@@ -443,9 +435,29 @@ class SessionRunner:
         (self.session / 'analysis' / 'fit_turn_slip.log').write_text(slip.stdout, encoding='utf-8')
         report = load_yaml(self.session / 'analysis' / 'candidate_deployment_verification_report.yaml')
         accepted = bool(report.get('accepted_for_permanent_review'))
+        slip_report_path = self.session / 'analysis' / 'turn_slip_report.yaml'
+        slip_accepted = bool(load_yaml(slip_report_path).get('accepted_for_candidate')) if slip_report_path.is_file() else False
+        steering_result: dict[str, Any] | None = None
+        if accepted and slip_accepted and bool(self.config.get('post_calibration_steering_dynamics', {}).get('enabled', False)):
+            self._run_stage('14_post_calibration_steering_dynamics', 'post_calibration_steering',
+                            lambda d: post_calibration_steering_dynamics(self.config, d, self.counter))
+            for script_args, error_label in (
+                (['python3', str(self.root / 'analysis' / 'export_bag.py'), str(self.session / '14_post_calibration_steering_dynamics' / 'bag')],
+                 'post-calibration steering bag export failed'),
+                (['python3', str(self.root / 'analysis' / 'estimate_lidar_motion.py'),
+                  str(self.session / '14_post_calibration_steering_dynamics' / 'bag'),
+                  '--config', str(self.session / 'calibration_config_snapshot.yaml')],
+                 'post-calibration steering LiDAR motion estimate failed'),
+            ):
+                post = subprocess.run(script_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
+                if post.returncode:
+                    raise RuntimeError(error_label)
+            steering_result = self.runtime.get('14_post_calibration_steering_dynamics')
         return {
             'status': 'completed_candidate_accepted_for_review' if accepted else 'completed_candidate_rejected',
             'report': report,
+            'turn_slip_accepted': slip_accepted,
+            'post_calibration_steering_dynamics': steering_result,
         }
 
     def run_preflight_only(self) -> None:

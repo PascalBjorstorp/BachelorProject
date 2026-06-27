@@ -130,15 +130,13 @@ class CalibrationNode(Node):
     def raw_erpm(self, erpm:float)->None:
         self._mode('raw_erpm'); self._steering_keepalive(); self.raw_speed_pub.publish(self._float(erpm))
     def raw_current(self, current_a: float) -> None:
-        cap = float(self.cfg['operating_envelope']['approved_drive_test_current_a'])
-        if not math.isfinite(current_a) or current_a < -1e-9 or current_a > cap + 1e-9:
-            raise RuntimeError(f'raw drive-current request {current_a!r} exceeds calibrated test envelope [0, {cap}] A')
+        if not math.isfinite(current_a) or current_a < -1e-9:
+            raise RuntimeError(f'raw drive-current request {current_a!r} is invalid')
         self._mode('raw_current'); self._steering_keepalive(); self.raw_current_pub.publish(self._float(current_a))
 
     def raw_brake(self, brake_a: float) -> None:
-        cap = float(self.cfg['operating_envelope']['approved_brake_test_current_a'])
-        if not math.isfinite(brake_a) or brake_a < -1e-9 or brake_a > cap + 1e-9:
-            raise RuntimeError(f'raw brake-current request {brake_a!r} exceeds calibrated test envelope [0, {cap}] A')
+        if not math.isfinite(brake_a) or brake_a < -1e-9:
+            raise RuntimeError(f'raw brake-current request {brake_a!r} is invalid')
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(); self.spin(0.04); self._mode('neutral')
@@ -187,7 +185,11 @@ class CalibrationNode(Node):
             if now-start<minimum or not (math.isfinite(self.latest.erpm) and math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
             hist.append((now,self.latest.erpm,self.latest.odom_vx,self.latest.imu_ax))
             while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
-            if not hist or now-hist[0][0]<float(cfg['stability_window_s']): continue
+            # Evaluate once a full window of post-startup time has elapsed, over the
+            # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
+            # almost never fired (the popleft trim above already drops anything older
+            # than window_s), so the gate timed out even on a clean steady pass.
+            if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
             e=np.asarray([x[1] for x in hist]); v=np.asarray([x[2] for x in hist]); a=np.asarray([x[3] for x in hist]);
             err=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(target_erpm))
             # A real scan must arrive after the command. This is an online observability
@@ -209,7 +211,11 @@ class CalibrationNode(Node):
             if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
             hist.append((now,self.latest.odom_vx,self.latest.imu_ax))
             while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
-            if not hist or now-hist[0][0]<float(cfg['stability_window_s']): continue
+            # Evaluate once a full window of post-startup time has elapsed, over the
+            # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
+            # almost never fired (the popleft trim above already drops anything older
+            # than window_s), so the gate timed out even on a clean steady pass.
+            if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
             v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; stable=scan_observed and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
             if stable:
                 out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out

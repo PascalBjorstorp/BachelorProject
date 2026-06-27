@@ -82,6 +82,17 @@ python3 steer_calibration.py --resume runs/<session-id>
 
 Completed stages remain intact. An interrupted stage is archived and re-run into a fresh stage directory.
 
+If the operator deliberately accepts an incomplete stage bag and wants to continue
+with later stages instead of re-running it, use:
+
+```bash
+python3 steer_calibration.py --resume runs/<session-id> --accept-partial-stage 04_static_map_training
+```
+
+The runner verifies that the existing partial bag has metadata and non-empty
+required topics, marks only that stage as completed, and resumes at the next
+stage. Offline coverage and quality gates may still reject the partial data.
+
 ---
 
 ## Startup jitter and capture timing

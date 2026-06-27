@@ -1,0 +1,53 @@
+{
+  "all_unexported_topics_remain_in_mcap": true,
+  "bag_dir": "/home/akselmo/Downloads/steering/runs/20260625T124715Z_steering_calibration/02_physical_endstops/bag",
+  "decoded_message_counts_by_topic": {
+    "/commands/servo/position": 497,
+    "/ego_racecar/odom": 51140,
+    "/rosout": 140,
+    "/sensors/imu/raw": 51139,
+    "/sensors/servo_position_command": 497,
+    "/steering_calibration/event": 7,
+    "/steering_calibration/servo_mode": 2,
+    "/steering_calibration/servo_raw": 497,
+    "/steering_calibration/servo_selected": 497,
+    "/steering_calibration/servo_selector_status": 499,
+    "/tf": 51138
+  },
+  "raw_laserscan_arrays_preserved_in_mcap": true,
+  "row_counts": {
+    "ackermann": 0,
+    "drive": 0,
+    "events": 7,
+    "imu": 51139,
+    "motor_command": 0,
+    "odom": 51140,
+    "parameter_event_index": 0,
+    "scan_index": 0,
+    "servo_command": 497,
+    "servo_echo": 497,
+    "servo_from_ackermann": 0,
+    "servo_mode": 2,
+    "servo_raw": 497,
+    "servo_selected": 497,
+    "servo_selector_status": 499,
+    "tf_index": 51138,
+    "topic_index": 207193,
+    "vesc": 0
+  },
+  "topic_types": {
+    "/commands/servo/position": "std_msgs/msg/Float64",
+    "/ego_racecar/odom": "nav_msgs/msg/Odometry",
+    "/parameter_events": "rcl_interfaces/msg/ParameterEvent",
+    "/rosout": "rcl_interfaces/msg/Log",
+    "/sensors/core": "vesc_msgs/msg/VescStateStamped",
+    "/sensors/imu/raw": "sensor_msgs/msg/Imu",
+    "/sensors/servo_position_command": "std_msgs/msg/Float64",
+    "/steering_calibration/event": "std_msgs/msg/String",
+    "/steering_calibration/servo_mode": "std_msgs/msg/String",
+    "/steering_calibration/servo_raw": "std_msgs/msg/Float64",
+    "/steering_calibration/servo_selected": "std_msgs/msg/Float64",
+    "/steering_calibration/servo_selector_status": "std_msgs/msg/String",
+    "/tf": "tf2_msgs/msg/TFMessage"
+  }
+}

@@ -25,9 +25,12 @@ def main() -> int:
     required = {
         'command_audit', 'raw_erpm', 'ackermann_vel', 'raw_current',
         'ackermann_accel', 'candidate_ackermann_vel', 'candidate_ackermann_accel',
+        'post_calibration_steering',
     }
     require(required.issubset(topics['required']), 'missing required topic group')
     require(topics['recording']['record_all_topics'] is False, 'fast campaign must use targeted topic recording')
+    require(topics['recording'].get('compression_mode') == 'file', 'MCAP recording should use file compression')
+    require(topics['recording'].get('compression_format') == 'zstd', 'MCAP recording should use zstd compression')
     require('/tf' in topics['redundancy_topics'] and '/parameter_events' in topics['redundancy_topics'],
             'targeted bagging must still retain tf and parameter events')
     candidate_topics = set(topics['required']['candidate_ackermann_vel'])
@@ -111,7 +114,7 @@ def main() -> int:
             'candidate acceleration shadow debug must be exported into derived analysis tables')
     require('adaptive_odom_shadow.py' in launch and 'candidate_command_map.py' in launch and 'candidate_accel_map.py' in launch,
             'live velocity/acceleration shadow validation graph missing')
-    require('recorded_topics' in bagging and 'record_all_topics' in bagging,
+    require('recorded_topics' in bagging and 'record_all_topics' in bagging and '--compression-mode' in bagging,
             'bagger must support targeted topic recording')
     require('approved_drive_test_current_a' in stage and 'approved_brake_test_current_a' in stage,
             'current grid must use approved full-envelope limits')

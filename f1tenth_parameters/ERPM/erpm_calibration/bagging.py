@@ -105,29 +105,43 @@ def start_bag(
     qos_path = (calibration_root / qos_rel).resolve() if qos_rel else None
     if qos_path and not qos_path.is_file():
         raise FileNotFoundError(f"bag QoS override file missing: {qos_path}")
+    # Default to scoped recording. Recording every visible+hidden topic forces the
+    # lidar stream into every stage and overran the embedded board in the steering
+    # campaign; the all-topics path stays available only behind an explicit flag.
+    record_all = bool(recording.get("record_all_topics", False))
+    if not record_all and not recorded_topics:
+        raise ValueError("scoped recording requested but no topics to record")
     plan = {
         "storage": "mcap",
-        "record_all_topics": bool(recording.get("record_all_topics", True)),
-        "include_hidden_topics": bool(recording.get("include_hidden_topics", True)),
+        "record_all_topics": record_all,
+        "include_hidden_topics": bool(recording.get("include_hidden_topics", False)),
+        "compression_mode": recording.get("compression_mode"),
+        "compression_format": recording.get("compression_format"),
         "qos_profile_overrides": str(qos_path) if qos_path else None,
         "required_topics": required_topics,
-        "recorded_topics": recorded_topics,
+        "recorded_topics": None if record_all else recorded_topics,
     }
     (stage_dir / "recording_plan.yaml").write_text(yaml.safe_dump(plan, sort_keys=False), encoding="utf-8")
     snapshot_ros_graph(stage_dir, "before", required_topics)
     log_path = stage_dir / "rosbag_record.log"
     handle = log_path.open("w", encoding="utf-8")
     command = ["ros2", "bag", "record", "-s", "mcap", "-o", str(bag_dir)]
-    if bool(recording.get("record_all_topics", True)):
+    compression_mode = recording.get("compression_mode")
+    compression_format = recording.get("compression_format")
+    if compression_mode:
+        command += ["--compression-mode", str(compression_mode)]
+    if compression_format:
+        command += ["--compression-format", str(compression_format)]
+    if record_all:
         command.append("-a")
+        if bool(recording.get("include_hidden_topics", False)):
+            command.append("--include-hidden-topics")
     else:
         command += list(recorded_topics)
-    if bool(recording.get("include_hidden_topics", True)):
-        command.append("--include-hidden-topics")
     if qos_path:
         command += ["--qos-profile-overrides-path", str(qos_path)]
-    process = subprocess.Popen(command, stdout=handle, stderr=subprocess.STDOUT,
-                               start_new_session=True, text=True)
+    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=handle,
+                               stderr=subprocess.STDOUT, start_new_session=True, text=True)
     time.sleep(1.2)
     if process.poll() is not None:
         handle.close()

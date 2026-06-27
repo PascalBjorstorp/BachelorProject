@@ -1,0 +1,28 @@
+# rosbag2 QoS overrides. /tf_static is transient-local; without this explicit
+# profile a bag started after the static publisher can miss the transform.
+/tf_static:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+/tf:
+  history: keep_last
+  depth: 200
+  reliability: best_effort
+  durability: volatile
+/scan:
+  history: keep_last
+  depth: 50
+  reliability: best_effort
+  durability: volatile
+/sensors/imu/raw:
+  history: keep_last
+  depth: 400
+  reliability: best_effort
+  durability: volatile
+
+/steering_calibration/servo_selector_status:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local

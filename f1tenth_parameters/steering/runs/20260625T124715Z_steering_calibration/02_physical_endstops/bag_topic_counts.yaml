@@ -1,0 +1,40 @@
+bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/02_physical_endstops/bag
+topic_count: 13
+required_topics:
+- /sensors/imu/raw
+- /sensors/core
+- /ego_racecar/odom
+- /steering_calibration/servo_raw
+- /steering_calibration/servo_mode
+- /steering_calibration/servo_selected
+- /steering_calibration/servo_selector_status
+- /commands/servo/position
+- /sensors/servo_position_command
+- /steering_calibration/event
+missing_or_empty_required_topics: []
+required_topic_counts:
+  /sensors/imu/raw: 51139
+  /sensors/core: 51140
+  /ego_racecar/odom: 51140
+  /steering_calibration/servo_raw: 497
+  /steering_calibration/servo_mode: 2
+  /steering_calibration/servo_selected: 497
+  /steering_calibration/servo_selector_status: 499
+  /commands/servo/position: 497
+  /sensors/servo_position_command: 497
+  /steering_calibration/event: 7
+all_topic_counts:
+  /commands/servo/position: 497
+  /ego_racecar/odom: 51140
+  /parameter_events: 0
+  /rosout: 140
+  /sensors/core: 51140
+  /sensors/imu/raw: 51139
+  /sensors/servo_position_command: 497
+  /steering_calibration/event: 7
+  /steering_calibration/servo_mode: 2
+  /steering_calibration/servo_raw: 497
+  /steering_calibration/servo_selected: 497
+  /steering_calibration/servo_selector_status: 499
+  /tf: 51138
+ok: true

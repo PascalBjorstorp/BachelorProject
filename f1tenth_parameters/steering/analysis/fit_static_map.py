@@ -28,6 +28,15 @@ TRAINING_APPROACHES = ("outward", "inward")
 HOLDOUT_APPROACHES = ("shuffled",)
 
 
+def _mad_std(values: pd.Series | np.ndarray) -> float:
+    array = np.asarray(values, dtype=float)
+    array = array[np.isfinite(array)]
+    if array.size == 0:
+        return float("nan")
+    median = float(np.median(array))
+    return float(1.4826 * np.median(np.abs(array - median)))
+
+
 def capture_intervals(events: pd.DataFrame) -> list[tuple[dict, dict]]:
     accepted = accepted_trial_ids(events)
     starts = events[(events.get("event") == "phase_start") & (events.get("phase") == "static_map_capture")]
@@ -100,10 +109,10 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
         # deriving any curvature; ay offset removes the resting gravity tilt.
         gz_bias = bias.gz_at(0.5 * (a + b)) if bias is not None else 0.0
         ay_bias = bias.ay_bias if bias is not None else 0.0
-        vx, gz = float(lv.vx.mean()), float(im.gz.mean()) - gz_bias
-        vx_std, gz_std = float(lv.vx.std()), float(im.gz.std())
-        ay_mean, ay_std = float(im.ay.mean()) - ay_bias, float(im.ay.std())
-        rmse = float(lv.icp_rmse_m.mean())
+        vx, gz = float(lv.vx.median()), float(im.gz.median()) - gz_bias
+        vx_std, gz_std = _mad_std(lv.vx), _mad_std(im.gz)
+        ay_mean, ay_std = float(im.ay.median()) - ay_bias, _mad_std(im.ay)
+        rmse = float(lv.icp_rmse_m.median())
         accepted = (
             valid_fraction >= float(criteria["min_valid_scan_fraction"]) and
             abs(vx) >= float(criteria["min_lidar_speed_mps"]) and

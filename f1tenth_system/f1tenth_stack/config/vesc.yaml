@@ -15,23 +15,35 @@
     # ===================
     # ERPM = speed_to_erpm_gain * v + speed_to_erpm_offset
     # Calibrate by: drive at known speed, record ERPM, solve for gain
-    speed_to_erpm_gain: 4550.0
+    # 2026-06-25 LiDAR-ICP ground-speed calibration. Best linear fit of measured
+    # ERPM vs true LiDAR ground speed across all speeds (0.6/1.5/2.1 m/s, 80 windows):
+    # ERPM = 4740 * v through origin, R^2 = 0.997 (offset negligible, kept 0). Old
+    # odom over-read true speed ~7%. Pair with odom_speed_scale: 1.0 (1.03 fudge folded in).
+    speed_to_erpm_gain: 4740.0
     speed_to_erpm_offset: 0.0
-    
+
     # ===================
     # Steering Calibration
     # ===================
     # servo_value = steering_angle_to_servo_gain * corrected_angle + steering_angle_to_servo_offset
     # where corrected_angle = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
-    # Calibrate by running: python3 test_servo_calibration.py
-    steering_angle_to_servo_gain: -0.7284
-    steering_angle_to_servo_offset: 0.5500
-    
-    # Servo nonlinearity correction (calibrated 2026-03-12, 7 angles)
+    # 2026-06-25 effective servo->steering map from LiDAR/IMU vehicle motion
+    # (raw-servo bag session, hold-out RMSE 0.32 deg). Effective bicycle-model
+    # steering angle that yields the observed yaw, i.e. what an MPC plant commands.
+    # Replaces the 2026-03-12 geometric fit (under-steered ~2 deg, ~0.6 deg centre bias).
+    # Best symmetric fit through the directly-measured zero-yaw centre (Stage 1),
+    # folding both sides (61 segments): the map is essentially LINEAR — R^2 is 0.99674
+    # (linear) / 0.99675 (quadratic) / 0.99677 (cubic), i.e. higher order adds nothing.
+    # The tiny c2 below is the best quadratic; remaining ~0.8 deg residual is L/R
+    # asymmetry (a symmetric node model cannot remove it), not curvature.
+    steering_angle_to_servo_gain: -0.8667
+    steering_angle_to_servo_offset: 0.5321
+
+    # Servo nonlinearity correction (2026-06-25 best symmetric fit; near-linear).
     # Set c2=0, c1=1, c0=0 to disable correction (pure linear gain).
-    steering_correction_c2: 0.589566
-    steering_correction_c1: 0.918061
-    steering_correction_c0: 0.001490
+    steering_correction_c2: 0.0498
+    steering_correction_c1: 1.0
+    steering_correction_c0: 0.0
     
     # ===================
     # VESC Limits
@@ -46,8 +58,12 @@
     speed_max: 100000.0
     position_min: 0.0
     position_max: 0.0
-    servo_min: 0.190
-    servo_max: 0.910
+    # 2026-06-25 SYMMETRIC steering limit, clean +/-0.45 rad (25.78 deg), just below
+    # the physical capability (end-stops give left +26.9 / right -26.0 deg). Maps to
+    # servo 0.532 +/- 0.399, both inside the Stage-2 safe end-stops 0.116/0.934.
+    # (Angles past servo 0.170/0.882 are linear extrapolation of the map, R^2=0.997.)
+    servo_min: 0.1333
+    servo_max: 0.9309
     
     # ===================
     # IMU Configuration
@@ -68,12 +84,16 @@ vesc_to_odom_node:
   ros__parameters:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
-    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
-    steering_angle_to_servo_gain: -0.7284
-    steering_angle_to_servo_offset: 0.5500
-    # Global odom speed scaling (use <1.0 if odom distance/speed is too high).
-    odom_speed_scale: 1.03
+    # Odom servo->angle map: kept in sync with the command-path calibration above
+    # (2026-06-25 effective LiDAR/IMU map; inverse quadratic uses the same c2/c1/c0).
+    steering_angle_to_servo_gain: -0.8667
+    steering_angle_to_servo_offset: 0.5321
+    # Global odom speed scaling. Reset 1.03 -> 1.0: the true ground-speed correction
+    # is now in speed_to_erpm_gain (4750), so no extra scale is needed.
+    odom_speed_scale: 1.0
     # Dynamic-model steering scale (use <1.0 if odom over-rotates, >1.0 if under-rotates).
+    # NOTE: 0.86 was tuned against the OLD servo->angle map; re-validate against IMU/LiDAR
+    # yaw now that the base map changed (it should move toward 1.0).
     steering_model_scale: 0.86
     speed_deadband: 0.15
     max_dt_sec: 1.0
@@ -138,6 +158,12 @@ vesc_to_odom_node:
 
     # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
     gyro_bias_alpha: 0.02
+
+    # Gyro-z scale-factor correction. 2026-06-25 steering session: LiDAR-ICP yaw
+    # vs bias-removed IMU yaw over 8238 turning scan pairs gave ICP = 1.0155*IMU,
+    # i.e. the gyro reads ~1.6% low. Applied after bias removal. (The ICP yaw is
+    # IMU-seeded, so this is a conservative lower bound on the true scale error.)
+    imu_gyro_scale: 1.0155
 
     # IMU lateral-velocity estimator for drift/slip compensation.
     imu_lateral_accel_alpha: 0.35

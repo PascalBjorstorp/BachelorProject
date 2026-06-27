@@ -1,0 +1,4 @@
+raw_low_safe: 0.11597850222620815
+raw_high_safe: 0.9340000000000004
+centre_servo_raw: 0.5324785022262085
+applied_after_stage: 02_physical_endstops

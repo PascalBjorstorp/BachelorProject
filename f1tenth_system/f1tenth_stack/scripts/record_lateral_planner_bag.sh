@@ -32,6 +32,7 @@ STORAGE_ID="${ROSBAG_STORAGE_ID:-mcap}"
 TOPICS=(
   "/tf_static"
   "/scan"
+  "/scan_full"
   "/splitter_timing"
   "/opponent_marker"
   "/local_raceline"

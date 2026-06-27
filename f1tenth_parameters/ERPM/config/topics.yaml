@@ -1,6 +1,8 @@
 recording:
   record_all_topics: false
   include_hidden_topics: false
+  compression_mode: file
+  compression_format: zstd
   qos_profile_overrides: config/bag_qos_overrides.yaml
 required:
   command_audit:
@@ -151,6 +153,28 @@ required:
   - /erpm_calibration/candidate_accel/speed_used
   - /erpm_calibration/candidate_accel/drive_current_cmd
   - /erpm_calibration/candidate_accel/brake_current_cmd
+  post_calibration_steering:
+  - /sensors/imu/raw
+  - /sensors/core
+  - /ego_racecar/odom
+  - /scan
+  - /tf_static
+  - /drive
+  - /ackermann_cmd
+  - /erpm_calibration/motor_mode
+  - /erpm_calibration/motor_selector_status
+  - /erpm_calibration/motor_from_ackermann/speed
+  - /erpm_calibration/motor_selected_speed
+  - /commands/motor/speed
+  - /commands/servo/position
+  - /sensors/servo_position_command
+  - /erpm_calibration/event
+  - /erpm_calibration/candidate_odom
+  - /erpm_calibration/candidate_odom/wheel_static
+  - /erpm_calibration/candidate_odom/wheel_corrected
+  - /erpm_calibration/candidate_odom/imu_ax_filtered
+  - /erpm_calibration/candidate_odom/wheel_weight
+  - /erpm_calibration/candidate_odom/speed_estimate
 redundancy_topics:
 - /tf
 - /parameter_events

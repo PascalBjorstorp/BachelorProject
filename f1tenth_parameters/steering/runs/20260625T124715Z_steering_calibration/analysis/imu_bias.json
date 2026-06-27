@@ -1,0 +1,33 @@
+{
+  "model": "constant",
+  "gz_bias_intercept_rad_s": -0.0012506938306861466,
+  "gz_bias_slope_rad_s_per_s": 0.0,
+  "gz_bias_at_first_epoch_rad_s": -0.0012506938306861466,
+  "gz_bias_at_last_epoch_rad_s": -0.0012506938306861466,
+  "gz_drift_over_session_rad_s": 0.0,
+  "ay_bias_mps2": -0.11953881124426842,
+  "ax_bias_mps2": -0.031164659048186147,
+  "stationary_samples": 16677,
+  "used_fallback_zero": false,
+  "epochs": [
+    {
+      "stage": "01b_imu_bias_ground",
+      "t_ns": 1.7823922028049674e+18,
+      "gz_median_rad_s": -0.001045157569801597,
+      "gz_std_rad_s": 0.05890274851305409,
+      "samples": 11074,
+      "ay_median_mps2": -0.11229963778795207,
+      "ax_median_mps2": -0.03131815769302193
+    },
+    {
+      "stage": "03_sensor_observability",
+      "t_ns": 1.782394916098683e+18,
+      "gz_median_rad_s": -0.001656924163192928,
+      "gz_std_rad_s": 0.0013644347546352598,
+      "samples": 5603,
+      "ay_median_mps2": -0.12677798470058477,
+      "ax_median_mps2": -0.031011160403350366
+    }
+  ],
+  "note": "gz is subtracted from every yaw rate before steering identification; when >=2 stationary epochs disagree beyond their noise it is modelled as a clamped linear drift in time. ay/ax offsets include the resting gravity projection."
+}

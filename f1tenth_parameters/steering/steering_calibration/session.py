@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from .bagging import BagProcess, start_bag, stop_bag
+from .bagging import BagProcess, start_bag, stop_bag, verify_bag_topics
 from .config import copy_config_file, dump_json, dump_yaml, load_yaml
 from .config_transaction import VescConfigTransaction
 from .stages import (
@@ -32,6 +32,17 @@ from .stages import (
     zero_curvature_centre,
 )
 from .ui import banner, disk_line, require_ready
+
+STAGE_TOPIC_GROUPS = {
+    "00_command_chain_audit": "full_stationary",
+    "01_zero_curvature_centre": "full_motion",
+    "01b_imu_bias_ground": "imu_stationary",
+    "02_physical_endstops": "hardware_only",
+    "03_sensor_observability": "full_motion",
+    "04_static_map_training": "full_motion",
+    "05_static_map_holdout": "full_motion",
+    "06_command_to_curvature_response": "full_motion",
+}
 
 
 class StackProcess:
@@ -83,7 +94,8 @@ class SessionRunner:
     """Owns stage bags, launch modes and configuration/recording evidence."""
 
     def __init__(self, root: Path, config_path: Path, runs_dir: Path | None = None,
-                 resume: Path | None = None, workspace: Path | None = None) -> None:
+                 resume: Path | None = None, workspace: Path | None = None,
+                 accept_partial_stages: list[str] | None = None) -> None:
         self.root = root.resolve()
         self.config_path = config_path.resolve()
         self.config = load_yaml(self.config_path)
@@ -94,6 +106,7 @@ class SessionRunner:
         self.topic_policy = load_yaml(self.root / "config" / "topics.yaml")
         self.stack: StackProcess | None = None
         self.runtime: dict[str, Any] = self._load_runtime()
+        self.accept_partial_stages = list(accept_partial_stages or [])
         self._launch_index = 0
         self.config_transaction = VescConfigTransaction(
             steering_root=self.root,
@@ -106,6 +119,7 @@ class SessionRunner:
                 "colcon_build_command", ["colcon", "build", "--symlink-install", "--packages-ignore state_receiver_udp"]
             )),
         )
+        self._accept_partial_stages()
 
     def _resolve_workspace(self, workspace: Path | None) -> Path:
         if workspace:
@@ -153,6 +167,59 @@ class SessionRunner:
 
     def _save_runtime(self) -> None:
         dump_json(self.session_dir / "runtime_state.json", self.runtime)
+
+    def _accept_partial_stages(self) -> None:
+        if not self.accept_partial_stages:
+            return
+        if not self.resume:
+            raise RuntimeError("--accept-partial-stage requires --resume")
+        manifest = self._manifest()
+        for stage_name in self.accept_partial_stages:
+            if stage_name not in STAGE_TOPIC_GROUPS:
+                raise RuntimeError(f"unknown stage for partial acceptance: {stage_name}")
+            stage_dir = self.session_dir / stage_name
+            bag_dir = stage_dir / "bag"
+            if not (bag_dir / "metadata.yaml").is_file():
+                raise RuntimeError(
+                    f"Cannot accept partial {stage_name}: missing {bag_dir / 'metadata.yaml'}"
+                )
+            topic_group = STAGE_TOPIC_GROUPS[stage_name]
+            verification = verify_bag_topics(
+                bag_dir, list(self.topic_policy["required"][topic_group])
+            )
+            if not verification["ok"]:
+                raise RuntimeError(
+                    f"Cannot accept partial {stage_name}: missing/empty required topics "
+                    f"{verification['missing_or_empty_required_topics']}"
+                )
+            result_path = stage_dir / "runtime_result.json"
+            if result_path.is_file():
+                import json
+                result = json.loads(result_path.read_text(encoding="utf-8"))
+            else:
+                result = {
+                    "status": "accepted_partial",
+                    "stage": stage_name,
+                    "accepted_partial_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+                    "warning": (
+                        "Operator accepted an incomplete stage bag for resume. "
+                        "Offline coverage/quality gates may still reject it."
+                    ),
+                }
+                dump_json(result_path, result)
+            self.runtime[stage_name] = result
+            stage_summary = dict(manifest.setdefault("stages", {}).get(stage_name, {}))
+            stage_summary.update({
+                "status": "completed",
+                "directory": str(stage_dir.relative_to(self.session_dir)),
+                "accepted_partial": True,
+                "accepted_partial_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "bag_verification": verification,
+            })
+            manifest["stages"][stage_name] = stage_summary
+            print(f"Accepted partial stage for resume: {stage_name}")
+        dump_yaml(self.session_dir / "session_manifest.yaml", manifest)
+        self._save_runtime()
 
     def _archive_vesc_source_config(self) -> None:
         rel = self.config.get("workspace", {}).get(

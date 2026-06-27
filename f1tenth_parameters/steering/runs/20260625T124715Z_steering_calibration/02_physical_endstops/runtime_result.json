@@ -1,0 +1,9 @@
+{
+  "centre_servo_raw": 0.5324785022262085,
+  "raw_high_last_free": 0.9400000000000004,
+  "raw_high_safe": 0.9340000000000004,
+  "raw_low_last_free": 0.10997850222620814,
+  "raw_low_safe": 0.11597850222620815,
+  "safety_margin_servo": 0.006,
+  "status": "confirmed"
+}

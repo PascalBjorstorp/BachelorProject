@@ -36,17 +36,22 @@ automatic; the operator just waits for the next `READY` prompt.
 
 - Steering calibration is installed and the car drives straight at zero steering.
 - The developer has set `site.straight_usable_length_m` for the actual test
-  site. The default full-envelope campaign requires at least 30 m usable
-  straight; do not use a 15 m room for the high-demand stages.
+  site. The default high-demand campaign requires at least 20 m usable straight;
+  25-30 m is helpful if 10 m/s settled captures are desired.
 - The developer has set
   `operating_envelope.approved_drive_test_current_a` and
-  `operating_envelope.approved_brake_test_current_a` to reviewed non-zero
-  values. The shipped `0.0` placeholders are an intentional hard stop.
+  `operating_envelope.approved_brake_test_current_a` to positive command-scale
+  values.
 - The site has fixed, geometrically rich LiDAR features and no moving people or
   objects in the measurement zone.
+- Stage 13 uses straight run-up plus short turn segments up to the configured
+  7.5 m/s² expected lateral-acceleration budget; it does not require full
+  circles.
+- Stage 14 runs after candidate verification and uses steering-step captures
+  for later high-speed steering/yaw dynamics calibration.
 - Battery, tyres, gearing, vehicle mass and payload are normal and documented.
-- Emergency stop is reachable. The approved drive/brake test currents in the
-  configuration have been reviewed by the responsible developer.
+- Emergency stop is reachable. The raw-current command scale in the
+  configuration has been reviewed by the responsible developer.
 
 ## At every prompt
 
@@ -59,7 +64,9 @@ automatic; the operator just waits for the next `READY` prompt.
 - `ABORT`: stop safely. Raw evidence is preserved and the source VESC YAML is
   restored automatically.
 
-Do not move LiDAR features while a capture is active.
+Do not move LiDAR features while a capture is active. Do not leave READY/review
+prompts open longer than needed: each stage bag stays open while waiting, and
+the LiDAR stream is still being recorded.
 
 ## After forced stop / power loss
 

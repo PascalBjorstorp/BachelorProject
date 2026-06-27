@@ -1,0 +1,43 @@
+bag_dir: /home/f1tenth/BachelorProject/f1tenth_parameters/steering/runs/20260625T124715Z_steering_calibration/01b_imu_bias_ground/bag
+topic_count: 16
+required_topics:
+- /sensors/imu/raw
+- /sensors/core
+- /ego_racecar/odom
+- /steering_calibration/servo_raw
+- /steering_calibration/servo_mode
+- /steering_calibration/servo_selected
+- /steering_calibration/servo_selector_status
+- /commands/servo/position
+- /sensors/servo_position_command
+- /steering_calibration/event
+missing_or_empty_required_topics: []
+required_topic_counts:
+  /sensors/imu/raw: 11074
+  /sensors/core: 11075
+  /ego_racecar/odom: 11075
+  /steering_calibration/servo_raw: 2801
+  /steering_calibration/servo_mode: 2
+  /steering_calibration/servo_selected: 2801
+  /steering_calibration/servo_selector_status: 2804
+  /commands/servo/position: 2801
+  /sensors/servo_position_command: 2801
+  /steering_calibration/event: 5
+all_topic_counts:
+  /commands/motor/brake: 0
+  /commands/motor/current: 0
+  /commands/servo/position: 2801
+  /diagnostics: 111
+  /ego_racecar/odom: 11075
+  /parameter_events: 0
+  /rosout: 41
+  /sensors/core: 11075
+  /sensors/imu/raw: 11074
+  /sensors/servo_position_command: 2801
+  /steering_calibration/event: 5
+  /steering_calibration/servo_mode: 2
+  /steering_calibration/servo_raw: 2801
+  /steering_calibration/servo_selected: 2801
+  /steering_calibration/servo_selector_status: 2804
+  /tf: 11073
+ok: true

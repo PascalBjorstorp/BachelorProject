@@ -1,0 +1,13 @@
+{
+  "stationary_pairs": 1199,
+  "stationary_valid_pairs": 8,
+  "stationary_valid_fraction": 0.006672226855713094,
+  "stationary_speed_median_mps": 0.0427632534799542,
+  "stationary_speed_p95_mps": 0.12914102473934794,
+  "point_to_line_rmse_median_m": 0.005059391799881871,
+  "point_to_line_rmse_p95_m": 0.00564816151092379,
+  "condition_median": 55.22239799614336,
+  "condition_p95": 57.92659754971924,
+  "yaw_seed_residual_p95_rad": 0.00019708793066439918,
+  "solver_converged_fraction": 1.0
+}

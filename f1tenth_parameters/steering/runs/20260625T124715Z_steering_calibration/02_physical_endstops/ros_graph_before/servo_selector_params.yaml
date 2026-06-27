@@ -1,0 +1,6 @@
+/servo_selector:
+  ros__parameters:
+    raw_max: 1.0
+    raw_min: 0.0
+    use_sim_time: false
+

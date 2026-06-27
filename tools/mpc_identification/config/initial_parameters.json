@@ -1,9 +1,9 @@
 {
-  "steer_delay_s": 0.0,
+  "steer_delay_s": 0.083,
   "accel_delay_s": 0.0,
-  "steer_angle_max": 0.39,
+  "steer_angle_max": 0.45,
   "steer_rate_max": 2.8492,
-  "steer_tau_s": 0.0,
+  "steer_tau_s": 0.034,
   "steer_gain": 1.0085301459687404,
   "steer_gain_high_slip": 0.6541720766809247,
   "accel_tau_pos_s": 0.05,
@@ -43,6 +43,20 @@
   "v_max_mps": 21.6,
   "metadata": {
     "source": "test_sim_drive.c runtime defaults",
-    "note": "SIM_MU and SIM_PACEJKA_C are intentionally absent: the active force model uses front/rear parameters."
+    "note": "SIM_MU and SIM_PACEJKA_C are intentionally absent: the active force model uses front/rear parameters.",
+    "steering_calibration_2026_06_25": {
+      "source": "f1tenth_parameters/steering raw-servo bag session 20260625T124715Z (LiDAR-ICP speed + IMU yaw, effective vehicle-level steering)",
+      "applied": {
+        "steer_delay_s": "0.0 -> 0.083 (FOPDT effective dead time; was unmodeled)",
+        "steer_tau_s": "0.0 -> 0.034 (FOPDT effective time constant; was unmodeled)"
+      },
+      "steer_angle_max_0.39_to_0.45": "clean symmetric limit 0.45 rad (25.78 deg), just below physical end-stops (left +0.469 / right -0.4535 rad)",
+      "validated_unchanged": {
+        "steer_rate_max": "2.8492 confirmed: measured peak effective rate median 2.66, max 3.55 rad/s",
+        "steer_gain": "~1.0 confirmed: effective servo->angle map now lives in vesc.yaml, so commanded delta ~= effective delta"
+      },
+      "fopdt_fit_quality_r2": 0.97,
+      "note": "delay/tau are effective vehicle-level (command+servo+linkage+tyre+yaw) from real motion, not a servo command-echo, so unlike the actuator_fit they are trustworthy to apply."
+    }
   }
 }

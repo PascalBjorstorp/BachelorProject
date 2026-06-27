@@ -55,7 +55,7 @@
 #define MPC_FPGA_GRAVITY_MS2          9.81f
 #define MPC_FPGA_MU                   0.72f
 
-#define MPC_FPGA_MAX_STEER_RAD        0.39f
+#define MPC_FPGA_MAX_STEER_RAD        0.45f
 #define MPC_FPGA_MAX_STEER_RATE_RADPS 2.849f
 #define MPC_FPGA_MAX_VEL_MPS          20.0f
 #define MPC_FPGA_MIN_VEL_MPS          0.5f
@@ -116,11 +116,11 @@
 #define MPC_FPGA_BRIDGE_POLL_PERIOD_US        50
 #define MPC_FPGA_BRIDGE_STATS_START_SPEED_MPS 0.5f
 
-#define MPC_FPGA_SERVO_GAIN                 -0.7284f
-#define MPC_FPGA_SERVO_OFFSET                0.55f
-#define MPC_FPGA_STEER_CORRECTION_C2         0.589566f
-#define MPC_FPGA_STEER_CORRECTION_C1         0.918061f
-#define MPC_FPGA_STEER_CORRECTION_C0         0.001490f
+#define MPC_FPGA_SERVO_GAIN                 -0.8667f
+#define MPC_FPGA_SERVO_OFFSET                0.5321f
+#define MPC_FPGA_STEER_CORRECTION_C2         0.0498f
+#define MPC_FPGA_STEER_CORRECTION_C1         1.0f
+#define MPC_FPGA_STEER_CORRECTION_C0         0.0f
 
 /*===========================================================================
  * Solver Structure and Model Constants

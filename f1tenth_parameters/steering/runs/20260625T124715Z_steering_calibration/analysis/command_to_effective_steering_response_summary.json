@@ -1,0 +1,75 @@
+{
+  "measurement_scope": {
+    "command_path": "raw request -> selector -> servo bus -> VESC-driver command echo",
+    "effective_steering": "raw servo step -> IMU yaw rate / LiDAR velocity -> curvature -> equivalent bicycle steering angle",
+    "not_measured": [
+      "physical servo-shaft angle",
+      "physical servo-shaft velocity",
+      "road-wheel angle",
+      "separate servo, linkage, tyre and vehicle-yaw contributions"
+    ]
+  },
+  "simulation_seed_scope": {
+    "available_from_current_tests": [
+      "steady-state effective steering gain",
+      "steady-state curvature gain",
+      "steady-state yaw-rate gain",
+      "steady-state lateral-acceleration gain",
+      "command-path timing",
+      "effective steering FOPDT lag and time constant"
+    ],
+    "not_identifiable_without_extra_sensor": [
+      "physical servo-shaft angle/rate",
+      "road-wheel angle",
+      "separate tyre slip-angle and cornering-stiffness terms"
+    ]
+  },
+  "stationary_imu_bias": {
+    "model": "constant",
+    "gz_bias_intercept_rad_s": -0.0012506938306861466,
+    "gz_bias_slope_rad_s_per_s": 0.0,
+    "gz_bias_at_first_epoch_rad_s": -0.0012506938306861466,
+    "gz_bias_at_last_epoch_rad_s": -0.0012506938306861466,
+    "gz_drift_over_session_rad_s": 0.0,
+    "ay_bias_mps2": -0.11953881124426842,
+    "ax_bias_mps2": -0.031164659048186147,
+    "stationary_samples": 16677,
+    "used_fallback_zero": false,
+    "epochs": [
+      {
+        "stage": "01b_imu_bias_ground",
+        "t_ns": 1.7823922028049674e+18,
+        "gz_median_rad_s": -0.001045157569801597,
+        "gz_std_rad_s": 0.05890274851305409,
+        "samples": 11074,
+        "ay_median_mps2": -0.11229963778795207,
+        "ax_median_mps2": -0.03131815769302193
+      },
+      {
+        "stage": "03_sensor_observability",
+        "t_ns": 1.782394916098683e+18,
+        "gz_median_rad_s": -0.001656924163192928,
+        "gz_std_rad_s": 0.0013644347546352598,
+        "samples": 5603,
+        "ay_median_mps2": -0.12677798470058477,
+        "ax_median_mps2": -0.031011160403350366
+      }
+    ],
+    "note": "gz is subtracted from every yaw rate before steering identification; when >=2 stationary epochs disagree beyond their noise it is modelled as a clamped linear drift in time. ay/ax offsets include the resting gravity projection."
+  },
+  "segments_total": 56,
+  "segments_with_valid_effective_response": 11,
+  "outbound_step_segments": 28,
+  "return_segments": 28,
+  "median_effective_delay_10pct_s": 0.119316736,
+  "median_effective_rise_10_90_s": 0.09517772800000002,
+  "median_effective_settling_5pct_s": 2.383742976,
+  "median_effective_peak_rate_rad_s": 10.26481041457049,
+  "median_effective_overshoot_fraction": 1.7020956159351721,
+  "median_fopdt_delay_s": 0.08194933962853093,
+  "median_fopdt_tau_s": 0.036667274598935255,
+  "median_raw_command_latency_50pct_s": 0.00042278400000000005,
+  "median_selector_command_latency_50pct_s": 0.0008770560000000001,
+  "median_servo_bus_command_latency_50pct_s": 0.0009155840000000001,
+  "median_driver_command_echo_command_latency_50pct_s": 0.0013265920000000001
+}
