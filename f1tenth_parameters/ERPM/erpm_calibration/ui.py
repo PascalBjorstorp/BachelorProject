@@ -51,7 +51,7 @@ def review_trial(
 
     A rejected/redo trial remains in the MCAP bag, but it is marked by a
     structured event and offline analysis will exclude it. If automatic startup
-    stability failed, acceptance is intentionally not offered.
+    stability or runtime checks fail, the attempt is a mandatory redo.
     """
     print("\n" + "-" * WIDTH)
     print(f"TRIAL REVIEW — {label}")
@@ -68,12 +68,12 @@ def review_trial(
         print("  SKIP   = exclude this condition and continue")
         allowed = {"ACCEPT": "accepted", "A": "accepted", "REDO": "redo", "R": "redo", "SKIP": "skipped", "S": "skipped"}
     else:
-        print("\nAutomatic startup stability did not pass. This attempt cannot be accepted.")
+        print("\nAutomatic checks did not pass. This attempt must be redone.")
         print("  REDO = repeat this condition after repositioning")
-        print("  SKIP = exclude this condition and continue")
-        allowed = {"REDO": "redo", "R": "redo", "SKIP": "skipped", "S": "skipped"}
+        allowed = {"REDO": "redo", "R": "redo"}
+    prompt = "Decision [ACCEPT/REDO/SKIP/ABORT]" if automatic_ok else "Decision [REDO/ABORT]"
     while True:
-        answer = input("Decision [ACCEPT/REDO/SKIP/ABORT]: ").strip().upper()
+        answer = input(f"{prompt}: ").strip().upper()
         if answer in {"ABORT", "QUIT", "Q"}:
             raise KeyboardInterrupt("operator aborted during trial review")
         if answer in allowed:

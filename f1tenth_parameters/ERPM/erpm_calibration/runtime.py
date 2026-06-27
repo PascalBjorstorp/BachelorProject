@@ -113,26 +113,26 @@ class CalibrationNode(Node):
         now=time.monotonic(); dt=0.0 if self._sa_last_t is None else now-self._sa_last_t; self._sa_last_t=now
         trim=self.straight_assist.step(heading=self.latest.odom_yaw,speed=self.latest.odom_vx,dt=dt)
         self._rec(straight_assist_trim_rad=trim); return trim
-    def _drive_message(self, speed_mps:float, acceleration_mps2:float, steering_angle_rad:float|None=None)->None:
+    def _drive_message(self, speed_mps:float, acceleration_mps2:float, steering_angle_rad:float|None=None, *, straight_assist_allowed:bool=True)->None:
         base=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad)
         # Closed-loop straight-assist: when the commanded steering is straight,
         # add a bounded trim that nulls measured yaw/lateral drift so the car
         # actually holds a line (overcoming steering slack/centre offset). For an
         # intentional non-zero angle (e.g. cornering arcs), pass it through and
         # keep the assist neutral so it cannot fight the commanded turn.
-        if self.straight_assist.enabled and abs(base)<=1e-3:
+        if straight_assist_allowed and self.straight_assist.enabled and abs(base)<=1e-3:
             steer=base+self._straight_trim()
         else:
             self.reset_straight_assist(); steer=base
         msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(steer); self.drive_pub.publish(msg)
     def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None)->None:
         self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad)
-    def _steering_keepalive(self)->None:
+    def _steering_keepalive(self, *, straight_assist_allowed:bool=True)->None:
         # AckermannToVesc must receive a normal zero-speed / zero-angle command
         # so it continues to publish the installed steering map. Its motor output
         # is remapped to selector input and ignored whenever a raw motor source is
         # active, so this cannot contend with the calibration command.
-        self._drive_message(0.0,0.0)
+        self._drive_message(0.0,0.0,straight_assist_allowed=straight_assist_allowed)
     def raw_erpm(self, erpm:float)->None:
         self._mode('raw_erpm'); self._steering_keepalive(); self.raw_speed_pub.publish(self._float(erpm))
     def raw_current(self, current_a: float) -> None:
@@ -145,7 +145,12 @@ class CalibrationNode(Node):
             raise RuntimeError(f'raw brake-current request {brake_a!r} is invalid')
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
-        self._mode('neutral'); self._steering_keepalive(); self.spin(0.04); self._mode('neutral')
+        self._mode('neutral'); self._steering_keepalive(straight_assist_allowed=False); self.spin(0.04); self._mode('neutral')
+    def fail_stop(self)->None:
+        try:
+            self.neutral()
+        except Exception as exc:
+            self.get_logger().error(f'failed to publish neutral stop after runtime error: {exc}')
     def command(self, kind:str, target:float, *, speed_hint:float=0.0, steering_angle_rad:float|None=None)->None:
         if kind=='raw_erpm': self.raw_erpm(target)
         elif kind=='raw_current': self.raw_current(target)
@@ -173,8 +178,12 @@ class CalibrationNode(Node):
         self.event.emit('phase_start',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**meta)
         if window_fields: self.begin_window(*window_fields)
         end=time.monotonic()+duration_s
-        while time.monotonic()<end:
-            self.command(kind,target,speed_hint=speed_hint,steering_angle_rad=active_steering); self.spin(period); self._safety(motion=kind!='neutral')
+        try:
+            while time.monotonic()<end:
+                self.command(kind,target,speed_hint=speed_hint,steering_angle_rad=active_steering); self.spin(period); self._safety(motion=kind!='neutral')
+        except BaseException:
+            self.fail_stop()
+            raise
         result=self.end_window() if window_fields else {}
         self.event.emit('phase_end',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**result,**meta)
         return result
@@ -183,27 +192,31 @@ class CalibrationNode(Node):
         start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
         initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='raw_erpm',target_erpm=float(target_erpm),minimum_startup_s=minimum)
-        while time.monotonic()<deadline:
-            self.raw_erpm(target_erpm); self.spin(dt); self._safety(motion=abs(target_erpm)>1)
-            now=time.monotonic()
-            if now-start>=minimum and not exclusion:
-                self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
-            if now-start<minimum or not (math.isfinite(self.latest.erpm) and math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
-            hist.append((now,self.latest.erpm,self.latest.odom_vx,self.latest.imu_ax))
-            while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
-            # Evaluate once a full window of post-startup time has elapsed, over the
-            # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
-            # almost never fired (the popleft trim above already drops anything older
-            # than window_s), so the gate timed out even on a clean steady pass.
-            if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
-            e=np.asarray([x[1] for x in hist]); v=np.asarray([x[2] for x in hist]); a=np.asarray([x[3] for x in hist]);
-            err=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(target_erpm))
-            # A real scan must arrive after the command. This is an online observability
-            # guard only; final velocity is still calculated from the recorded raw scans.
-            scan_observed = self.latest.scan_count > initial_scan_count
-            stable=(scan_observed and abs(float(np.median(e))-target_erpm)<=err and float(np.std(e))<=float(cfg['max_erpm_std']) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
-            if stable:
-                out={'stable':True,'elapsed_s':now-start,'erpm_median':float(np.median(e)),'erpm_std':float(np.std(e)),'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+        try:
+            while time.monotonic()<deadline:
+                self.raw_erpm(target_erpm); self.spin(dt); self._safety(motion=abs(target_erpm)>1)
+                now=time.monotonic()
+                if now-start>=minimum and not exclusion:
+                    self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
+                if now-start<minimum or not (math.isfinite(self.latest.erpm) and math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
+                hist.append((now,self.latest.erpm,self.latest.odom_vx,self.latest.imu_ax))
+                while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
+                # Evaluate once a full window of post-startup time has elapsed, over the
+                # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
+                # almost never fired (the popleft trim above already drops anything older
+                # than window_s), so the gate timed out even on a clean steady pass.
+                if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
+                e=np.asarray([x[1] for x in hist]); v=np.asarray([x[2] for x in hist]); a=np.asarray([x[3] for x in hist]);
+                err=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(target_erpm))
+                # A real scan must arrive after the command. This is an online observability
+                # guard only; final velocity is still calculated from the recorded raw scans.
+                scan_observed = self.latest.scan_count > initial_scan_count
+                stable=(scan_observed and abs(float(np.median(e))-target_erpm)<=err and float(np.std(e))<=float(cfg['max_erpm_std']) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
+                if stable:
+                    out={'stable':True,'elapsed_s':now-start,'erpm_median':float(np.median(e)),'erpm_std':float(np.std(e)),'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+        except BaseException:
+            self.fail_stop()
+            raise
         out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.neutral(); return out
     def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str,steering_angle_rad:float|None=None)->dict[str,Any]:
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
@@ -211,20 +224,24 @@ class CalibrationNode(Node):
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
         initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
-        while time.monotonic()<deadline:
-            self.ackermann(speed_mps,0.0,steering_angle_rad); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
-            if now-start>=minimum and not exclusion: self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
-            if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
-            hist.append((now,self.latest.odom_vx,self.latest.imu_ax))
-            while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
-            # Evaluate once a full window of post-startup time has elapsed, over the
-            # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
-            # almost never fired (the popleft trim above already drops anything older
-            # than window_s), so the gate timed out even on a clean steady pass.
-            if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
-            v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; stable=scan_observed and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
-            if stable:
-                out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+        try:
+            while time.monotonic()<deadline:
+                self.ackermann(speed_mps,0.0,steering_angle_rad); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
+                if now-start>=minimum and not exclusion: self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
+                if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
+                hist.append((now,self.latest.odom_vx,self.latest.imu_ax))
+                while hist and now-hist[0][0]>float(cfg['stability_window_s']): hist.popleft()
+                # Evaluate once a full window of post-startup time has elapsed, over the
+                # most recent <=window_s samples. The old `now-hist[0][0]<window_s` check
+                # almost never fired (the popleft trim above already drops anything older
+                # than window_s), so the gate timed out even on a clean steady pass.
+                if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
+                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; stable=scan_observed and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
+                if stable:
+                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+        except BaseException:
+            self.fail_stop()
+            raise
         out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.neutral(); return out
 
 def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:

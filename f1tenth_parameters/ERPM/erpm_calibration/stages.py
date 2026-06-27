@@ -67,25 +67,27 @@ def _decision(
     node: CalibrationNode, *, stage: str, condition_id: str, trial_id: str,
     attempt: int, auto_ok: bool, summary: dict[str, Any],
 ) -> str:
+    effective_auto_ok = auto_ok and summary.get('straight_runtime_gate') is not False
     decision = review_trial(
         label=f'{stage}: {condition_id}, attempt {attempt}',
-        automatic_ok=auto_ok,
+        automatic_ok=effective_auto_ok,
         automatic_summary=summary,
     )
     node.event.emit(
         'trial_decision', stage=stage, condition_id=condition_id,
         trial_id=trial_id, attempt=attempt, decision=decision,
-        accepted=decision == 'accepted', automatic_ok=auto_ok,
+        accepted=decision == 'accepted', automatic_ok=effective_auto_ok,
     )
     return decision
 
 
 def _straight_ok(node: CalibrationNode, cfg: dict[str, Any]) -> bool:
-    """Advisory straight-line check, reported to the operator as
-    ``straight_runtime_gate``. It is intentionally NOT folded into the
-    acceptance gate: the straight-assist keeps the car straight, and a trial is
-    still acceptable even while the assist is correcting. Offline analysis can
-    still use this flag; it must never force a redo on its own."""
+    """Runtime straight-line gate.
+
+    A failed straight gate forces REDO through ``_decision``. The car may keep
+    correcting with the assist, but a trial with excessive yaw/lateral motion is
+    not valid longitudinal calibration evidence.
+    """
     p = cfg['preflight']
     return (
         math.isfinite(node.latest.imu_gz)

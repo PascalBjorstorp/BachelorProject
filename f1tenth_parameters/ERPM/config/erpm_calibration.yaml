@@ -76,25 +76,24 @@ preflight:
   max_straight_yaw_rate_rad_s: 0.2
   max_straight_lateral_accel_mps2: 1.2
 straight_assist:
-  # Small proportional heading-hold that keeps the car straight during the
-  # straight-running stages. It locks onto the ABSOLUTE odometry heading at the
-  # start of each run and gently steers back toward it:
-  #     trim = -steer_sign * kp_heading * (odom_yaw - heading_at_start)
-  # It feeds back on odometry yaw (a smooth, bias-free heading), NOT the
-  # integrated gyro rate, so it does not drift or weave. A deadband leaves tiny
-  # errors alone so it only makes a real correction when the car has actually
-  # drifted. It is auto-disabled during the intentional cornering arcs.
+  # Incremental heading-hold for straight-running stages. It locks onto the
+  # absolute odometry heading at motion start, computes a small proportional
+  # correction, then SLEW-LIMITS the servo trim so the wheels are only nudged a
+  # tiny amount per command tick. This prevents late one-shot corrections and
+  # over-correction. Auto-disabled during intentional non-zero steering arcs.
   #
   # Tune on the car:
-  #   - drifts slowly off to one side          -> raise kp_heading a little
-  #   - over-corrects / weaves                  -> lower kp_heading
-  #   - immediately steers HARD to one side     -> set steer_sign to -1.0
-  #     (the car's steering convention is inverted; this flips the direction)
+  #   - still drifts slowly off to one side -> raise kp_heading a little
+  #   - over-corrects / weaves             -> lower kp_heading or max_trim_rad
+  #   - corrects too late                  -> raise max_trim_rate_rad_s slightly
+  #   - immediately steers wrong way       -> set steer_sign to -1.0
   enabled: true
-  kp_heading_rad_per_rad: 0.2
-  deadband_rad: 0.005          # ~0.5 deg: ignore drift smaller than this
-  max_trim_rad: 0.07            # hard cap on the correction (~4 deg)
-  min_speed_mps: 0.5
+  kp_heading_rad_per_rad: 0.16
+  deadband_rad: 0.0025          # ~0.14 deg: small enough for constant nudges
+  max_trim_rad: 0.025           # hard cap on correction (~1.4 deg)
+  max_trim_rate_rad_s: 0.08     # at 100 Hz: <=0.0008 rad per tick
+  max_trim_step_rad: 0.0015     # absolute per-command jump cap
+  min_speed_mps: 0.15           # keep assist active for 0.5 m/s ERPM probes
   steer_sign: 1.0
 motion_startup:
   minimum_startup_s: 0.2
