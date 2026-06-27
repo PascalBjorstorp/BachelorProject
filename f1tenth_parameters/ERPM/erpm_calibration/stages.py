@@ -262,7 +262,7 @@ def _run_raw_erpm_plateau(
                 nominal_speed_mps=nominal_speed, raw_erpm_target=raw_erpm,
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
-        node.neutral()
+        node.active_stop()
         speed_gate = _capture_speed_ok(summary, nominal_speed)
         auto = bool(startup.get('stable')) and summary is not None and speed_gate
         decision = _decision(
@@ -323,7 +323,7 @@ def _run_ackermann_plateau(
                 capture=True, window_fields=WINDOW, speed_command_mps=speed,
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
-        node.neutral()
+        node.active_stop()
         speed_gate = _capture_speed_ok(summary, speed)
         observability_probe = stage == '01_longitudinal_observability'
         auto = bool(startup.get('stable')) and summary is not None and (speed_gate or observability_probe)
@@ -570,7 +570,7 @@ def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
                             baseline_speed_mps=float(baseline_speed), target_speed_mps=float(target_speed),
                         )
                     straight = _straight_ok(node, cfg) if summary else False
-                    node.neutral()
+                    node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage='06_raw_erpm_response', condition_id=cid,
@@ -631,7 +631,7 @@ def coastdown(cfg: dict[str, Any], stage_dir: Path, gain: float,
                             initial_speed_mps=float(initial_speed), initial_erpm=initial_erpm,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
-                    node.neutral()
+                    node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage='07_coastdown', condition_id=cid,
@@ -749,7 +749,7 @@ def _current_pulses(cfg: dict[str, Any], stage_dir: Path, gain: float,
                                     pulse_duration_s=pulse_s,
                                 )
                         straight = _straight_ok(node, cfg) if summary else False
-                        node.neutral()
+                        node.active_stop()
                         auto = bool(startup.get('stable')) and summary is not None and (not high_demand or recovery is not None)
                         decision = _decision(
                             node, stage=stage, condition_id=cid, trial_id=trial,
@@ -818,7 +818,7 @@ def _run_accel_grid(
                             initial_speed_mps=initial_speed, pulse_duration_s=duration,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
-                    node.neutral()
+                    node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage=stage, condition_id=cid, trial_id=trial,
@@ -1011,7 +1011,7 @@ def candidate_cross_axis_verification(cfg: dict[str, Any], stage_dir: Path,
                             speed_command_mps=speed,
                             expected_lateral_accel_mps2=expected_lat,
                         )
-                    node.neutral()
+                    node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(node, stage='13_candidate_cross_axis_verification', condition_id=cid, trial_id=trial, attempt=attempt, auto_ok=auto, summary={'startup': startup, 'capture': summary or {}})
                     records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary, 'speed_command_mps': speed, 'steering_angle_rad': angle, 'expected_lateral_accel_mps2': expected_lat})
@@ -1089,7 +1089,7 @@ def post_calibration_steering_dynamics(cfg: dict[str, Any], stage_dir: Path,
                             steering_step_target_rad=angle,
                             expected_lateral_accel_mps2=expected_lat,
                         )
-                    node.neutral()
+                    node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
                         node, stage='14_post_calibration_steering_dynamics',

@@ -234,7 +234,7 @@ ackermann_to_vesc_node:
 
     # Slow-start parameters (used only in VEL_TO_ERPM mode).
     # In ACCEL_TO_CURRENT mode this repo's `ackermann_to_vesc` no longer falls back to ERPM.
-    slow_start_threshold: 1.0    # m/s
+    slow_start_threshold: 0.0    # m/s
     slow_start_increment: 0.4    # m/s per command step
     stop_speed_deadzone: 0.05    # m/s (treat speed≈0 as STOP; prevents drag-FF creep at bringup)
 
