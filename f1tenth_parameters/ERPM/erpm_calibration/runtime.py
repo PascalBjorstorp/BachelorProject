@@ -23,7 +23,7 @@ from .straight_assist import from_config as _straight_assist_from_config
 @dataclass
 class Latest:
     imu_ax: float=math.nan; imu_ay: float=math.nan; imu_gz: float=math.nan
-    odom_vx: float=math.nan; odom_vy: float=math.nan
+    odom_vx: float=math.nan; odom_vy: float=math.nan; odom_yaw: float=math.nan
     candidate_odom_vx: float=math.nan; candidate_odom_vy: float=math.nan
     erpm: float=math.nan; motor_current_a: float=math.nan; input_current_a: float=math.nan
     battery_v: float=math.nan; motor_temp_c: float=math.nan; fet_temp_c: float=math.nan
@@ -61,8 +61,10 @@ class CalibrationNode(Node):
         self.latest.imu_ax=float(msg.linear_acceleration.x); self.latest.imu_ay=float(msg.linear_acceleration.y); self.latest.imu_gz=float(msg.angular_velocity.z); self.latest.seen.add('imu')
         self._rec(imu_ax=self.latest.imu_ax,imu_ay=self.latest.imu_ay,imu_gz=self.latest.imu_gz)
     def _odom(self,msg:Odometry)->None:
-        self.latest.odom_vx=float(msg.twist.twist.linear.x); self.latest.odom_vy=float(msg.twist.twist.linear.y); self.latest.seen.add('odom')
-        self._rec(odom_vx=self.latest.odom_vx,odom_vy=self.latest.odom_vy)
+        self.latest.odom_vx=float(msg.twist.twist.linear.x); self.latest.odom_vy=float(msg.twist.twist.linear.y)
+        q=msg.pose.pose.orientation; self.latest.odom_yaw=math.atan2(2.0*(q.w*q.z+q.x*q.y),1.0-2.0*(q.y*q.y+q.z*q.z))
+        self.latest.seen.add('odom')
+        self._rec(odom_vx=self.latest.odom_vx,odom_vy=self.latest.odom_vy,odom_yaw=self.latest.odom_yaw)
 
     def _candidate_odom(self,msg:Odometry)->None:
         self.latest.candidate_odom_vx=float(msg.twist.twist.linear.x); self.latest.candidate_odom_vy=float(msg.twist.twist.linear.y); self.latest.seen.add('candidate_odom')
@@ -109,7 +111,7 @@ class CalibrationNode(Node):
         self.straight_assist.reset(); self._sa_last_t=None
     def _straight_trim(self)->float:
         now=time.monotonic(); dt=0.0 if self._sa_last_t is None else now-self._sa_last_t; self._sa_last_t=now
-        trim=self.straight_assist.step(yaw_rate=self.latest.imu_gz,lateral_velocity=self.latest.odom_vy,speed=self.latest.odom_vx,dt=dt)
+        trim=self.straight_assist.step(heading=self.latest.odom_yaw,speed=self.latest.odom_vx,dt=dt)
         self._rec(straight_assist_trim_rad=trim); return trim
     def _drive_message(self, speed_mps:float, acceleration_mps2:float, steering_angle_rad:float|None=None)->None:
         base=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad)

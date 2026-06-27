@@ -76,26 +76,26 @@ preflight:
   max_straight_yaw_rate_rad_s: 0.2
   max_straight_lateral_accel_mps2: 1.2
 straight_assist:
-  # Closed-loop heading-hold that trims the steering during straight-running
-  # stages so the car actually goes straight instead of drifting and failing.
-  # The integral (ki) term absorbs steering slack / centre offset. Bounded so it
-  # can never command a real turn, and automatically disabled when an intentional
-  # non-zero steering angle is commanded (the cornering arcs).
+  # Small proportional heading-hold that keeps the car straight during the
+  # straight-running stages. It locks onto the ABSOLUTE odometry heading at the
+  # start of each run and gently steers back toward it:
+  #     trim = -steer_sign * kp_heading * (odom_yaw - heading_at_start)
+  # It feeds back on odometry yaw (a smooth, bias-free heading), NOT the
+  # integrated gyro rate, so it does not drift or weave. A deadband leaves tiny
+  # errors alone so it only makes a real correction when the car has actually
+  # drifted. It is auto-disabled during the intentional cornering arcs.
   #
-  # This is a deliberately small *proportional* heading-hold: trim =
-  # -kp_heading * (heading drift since the run started). No integral (which used
-  # to wind up and over-correct past straight) and no raw-yaw-rate term (which
-  # fed gyro noise into the steering and made it weave). Tune on the car:
-  #   - drifts slowly off to one side  -> raise kp_heading a little
-  #   - weaves / over-corrects          -> lower kp_heading (and/or max_rate_rad_s)
-  # kd_yaw is an optional damping term; leave it 0 unless you need to settle a
-  # slow weave at the highest speeds.
+  # Tune on the car:
+  #   - drifts slowly off to one side          -> raise kp_heading a little
+  #   - over-corrects / weaves                  -> lower kp_heading
+  #   - immediately steers HARD to one side     -> set steer_sign to -1.0
+  #     (the car's steering convention is inverted; this flips the direction)
   enabled: true
   kp_heading_rad_per_rad: 0.35
-  kd_yaw_rad_per_rad_s: 0.0
-  max_trim_rad: 0.07
-  max_rate_rad_s: 0.4
+  deadband_rad: 0.005          # ~0.5 deg: ignore drift smaller than this
+  max_trim_rad: 0.04            # hard cap on the correction (~4 deg)
   min_speed_mps: 0.3
+  steer_sign: 1.0
 motion_startup:
   minimum_startup_s: 0.2
   stability_window_s: 0.3

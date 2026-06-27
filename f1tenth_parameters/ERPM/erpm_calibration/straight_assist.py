@@ -3,27 +3,32 @@
 The straight-running stages must actually go straight, not merely abort when
 they drift. Open-loop "command 0 steering" cannot do that: mechanical slack and
 a small centre offset make the car curve slowly over a longer run. This is a
-deliberately small heading-hold: a gentle proportional steering nudge that
-opposes the heading the car has accumulated since the run started.
+deliberately small heading-hold: a gentle proportional steering nudge that holds
+the car on the heading it had when the run started.
 
-Control law (proportional, bounded, rate-limited), evaluated each command tick:
+Feedback signal — read this, it is the important design choice:
 
-    heading += yaw_rate * dt                 # heading drift since the run start
-    trim = -kp_heading * heading             # small proportional correction
-    trim = clamp(trim, -max_trim, +max_trim) # never a real turn
-    trim = rate_limit(trim, max_rate*dt)
+    The reference is **absolute odometry heading** (``odom`` yaw), anchored once
+    at the start of each straight run. It is NOT the integral of the raw gyro
+    rate. Integrating ``imu_gz`` accumulates gyro bias (the car slowly steers off
+    even when going straight) and feeds gyro noise into the steering (it weaves).
+    Odometry yaw is already a smooth, bias-free integrated heading, so a plain
+    proportional term on the heading error behaves and does not weave. (This is
+    only used to keep the car straight; the longitudinal velocity calibration
+    still uses LiDAR scan-matching, never odometry.)
 
-It is intentionally *just* a P term on the heading drift. There is no integral
-(which previously wound up against the trim bound and over-corrected, swinging
-the car past straight) and no proportional term on the raw yaw rate (which fed
-gyro noise straight into the steering and made it weave). The proportional
-heading term alone settles to a small steady counter-steer that cancels the
-slack/centre offset, leaving only a small residual drift — which is the accepted
-behaviour. An optional ``kd_yaw`` damping term is available but defaults to off.
+Control law, evaluated each command tick while moving:
 
-It is pure feedback on measured motion, so it only ever *removes* drift, and it
-is disabled whenever an intentional non-zero steering angle is commanded (e.g.
-the cornering arcs).
+    error = wrap(odom_yaw - yaw_ref)          # heading drift since the run start
+    error = deadband(error, deadband_rad)     # ignore tiny errors -> no jitter
+    trim  = -steer_sign * kp_heading * error  # small proportional correction
+    trim  = clamp(trim, -max_trim, +max_trim) # never a real turn
+
+It is intentionally *just* a P term, with a deadband so small errors are left
+alone. It is disabled whenever an intentional non-zero steering angle is
+commanded (e.g. the cornering arcs). ``steer_sign`` flips the correction
+direction in one place if the car's steering convention is inverted (symptom:
+the assist immediately drives the car hard to one side instead of correcting).
 """
 from __future__ import annotations
 
@@ -31,44 +36,47 @@ import math
 from dataclasses import dataclass
 
 
+def _wrap(a: float) -> float:
+    """Wrap an angle to (-pi, pi]."""
+    return (a + math.pi) % (2.0 * math.pi) - math.pi
+
+
 @dataclass
 class StraightAssist:
     enabled: bool = True
-    kp_heading: float = 0.35      # rad steering per rad of accumulated heading drift (the P term)
-    kd_yaw: float = 0.0           # optional damping on yaw rate; leave 0 for a pure-P correction
+    kp_heading: float = 0.35      # rad steering per rad of heading error (the P term)
+    deadband_rad: float = 0.0087  # ignore heading errors below ~0.5 deg (no jitter)
     max_trim_rad: float = 0.07    # hard bound: assist can never command a real turn
-    max_rate_rad_s: float = 0.4   # slew limit on the trim
-    min_speed_mps: float = 0.3    # below this, hold trim at zero (no drift integration at rest)
-    heading: float = 0.0
-    last_trim: float = 0.0
+    min_speed_mps: float = 0.3    # below this, hold trim at zero and re-anchor the heading
+    steer_sign: float = 1.0       # flip to -1.0 if the assist steers the car the wrong way
+    yaw_ref: float | None = None  # absolute heading captured at the start of the run
 
     def reset(self) -> None:
-        self.heading = 0.0
-        self.last_trim = 0.0
+        self.yaw_ref = None
 
-    def step(self, *, yaw_rate: float, lateral_velocity: float, speed: float, dt: float) -> float:
+    def step(self, *, heading: float, speed: float, dt: float) -> float:
         """Return the corrective steering trim (rad) to hold a straight line.
 
-        ``lateral_velocity`` is accepted for call-site compatibility but the
-        proportional heading-hold does not use it.
+        ``heading`` is the absolute odometry yaw (rad). ``dt`` is accepted for
+        call-site compatibility but the proportional hold does not need it.
         """
-        if not self.enabled:
+        if not self.enabled or not math.isfinite(heading):
             return 0.0
-        dt = max(0.0, min(0.1, dt)) if math.isfinite(dt) else 0.0
-        moving = math.isfinite(speed) and abs(speed) > self.min_speed_mps
-        if not (moving and math.isfinite(yaw_rate)):
-            # Start each run from neutral; do not integrate heading while stopped.
-            self.heading = 0.0
-            self.last_trim = 0.0
+        if not (math.isfinite(speed) and abs(speed) > self.min_speed_mps):
+            # Not moving: re-anchor the straight direction when motion next starts.
+            self.yaw_ref = None
             return 0.0
-        self.heading += yaw_rate * dt
-        trim = -(self.kp_heading * self.heading + self.kd_yaw * yaw_rate)
-        trim = max(-self.max_trim_rad, min(self.max_trim_rad, trim))
-        if dt > 0.0:
-            step = self.max_rate_rad_s * dt
-            trim = max(self.last_trim - step, min(self.last_trim + step, trim))
-        self.last_trim = trim
-        return trim
+        if self.yaw_ref is None:
+            # First moving sample of this run: this heading is "straight ahead".
+            self.yaw_ref = heading
+            return 0.0
+        error = _wrap(heading - self.yaw_ref)
+        if abs(error) <= self.deadband_rad:
+            return 0.0
+        # Continuous past the deadband so there is no jump at the threshold.
+        error -= math.copysign(self.deadband_rad, error)
+        trim = -self.steer_sign * self.kp_heading * error
+        return max(-self.max_trim_rad, min(self.max_trim_rad, trim))
 
 
 def from_config(cfg: dict) -> StraightAssist:
@@ -76,8 +84,8 @@ def from_config(cfg: dict) -> StraightAssist:
     return StraightAssist(
         enabled=bool(sa.get("enabled", True)),
         kp_heading=float(sa.get("kp_heading_rad_per_rad", 0.35)),
-        kd_yaw=float(sa.get("kd_yaw_rad_per_rad_s", 0.0)),
+        deadband_rad=float(sa.get("deadband_rad", 0.0087)),
         max_trim_rad=float(sa.get("max_trim_rad", 0.07)),
-        max_rate_rad_s=float(sa.get("max_rate_rad_s", 0.4)),
         min_speed_mps=float(sa.get("min_speed_mps", 0.3)),
+        steer_sign=float(sa.get("steer_sign", 1.0)),
     )
