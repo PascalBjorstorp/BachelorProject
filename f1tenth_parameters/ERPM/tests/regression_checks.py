@@ -89,6 +89,8 @@ def main() -> int:
     launch = (ROOT / 'launch' / 'calibration_stack.py').read_text()
     stage = (ROOT / 'erpm_calibration' / 'stages.py').read_text()
     bagging = (ROOT / 'erpm_calibration' / 'bagging.py').read_text()
+    runtime = (ROOT / 'erpm_calibration' / 'runtime.py').read_text()
+    motor_selector = (ROOT / 'erpm_calibration' / 'motor_selector.py').read_text()
 
     require('self._verify_site_envelope()' in session, 'full-envelope site preflight missing')
     require('run_preflight_only' in session, 'preflight-only dry run helper missing')
@@ -118,6 +120,12 @@ def main() -> int:
             'bagger must support targeted topic recording')
     require('approved_drive_test_current_a' in stage and 'approved_brake_test_current_a' in stage,
             'current grid must use approved full-envelope limits')
+    require("selector_mode='ackermann_speed'" in runtime and "selector_mode='ackermann_accel'" in runtime,
+            'Ackermann speed and accel selector modes must stay separate')
+    require("self.mode in {'ackermann', 'ackermann_speed'}" in motor_selector,
+            'Ackermann speed mode must accept speed output')
+    require("self.mode in {'ackermann', 'ackermann_accel'}" in motor_selector,
+            'Ackermann accel mode must accept current/brake output')
     cli = (ROOT / 'erpm_calibration' / 'cli.py').read_text()
     require('--preflight-only' in cli, 'CLI must expose a no-drive preflight mode')
     run_analysis = (ROOT / 'analysis' / 'run_analysis.py').read_text()

@@ -102,7 +102,7 @@ class CalibrationNode(Node):
             a=np.asarray(vals,dtype=float); out[f'{key}_mean']=float(np.nanmean(a)) if a.size else math.nan; out[f'{key}_std']=float(np.nanstd(a)) if a.size else math.nan; out[f'{key}_count']=int(a.size)
         return out
     def _mode(self, mode:str)->None:
-        if mode not in {'ackermann','raw_erpm','raw_current','raw_brake','neutral'}: raise ValueError(f'bad motor mode: {mode}')
+        if mode not in {'ackermann','ackermann_speed','ackermann_accel','raw_erpm','raw_current','raw_brake','neutral'}: raise ValueError(f'bad motor mode: {mode}')
         msg=String(); msg.data=mode; self.mode_pub.publish(msg); self.event.emit('motor_selector_mode',mode=mode)
     @staticmethod
     def _float(v:float)->Float64:
@@ -125,8 +125,8 @@ class CalibrationNode(Node):
         else:
             self.reset_straight_assist(); steer=base
         msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(steer); self.drive_pub.publish(msg)
-    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None, *, straight_assist_allowed:bool=True)->None:
-        self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad,straight_assist_allowed=straight_assist_allowed)
+    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None, *, straight_assist_allowed:bool=True, selector_mode:str='ackermann_speed')->None:
+        self._mode(selector_mode); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad,straight_assist_allowed=straight_assist_allowed)
     def _steering_keepalive(self, *, straight_assist_allowed:bool=True)->None:
         # AckermannToVesc must receive a normal zero-speed / zero-angle command
         # so it continues to publish the installed steering map. Its motor output
@@ -172,8 +172,8 @@ class CalibrationNode(Node):
         if kind=='raw_erpm': self.raw_erpm(target)
         elif kind=='raw_current': self.raw_current(target)
         elif kind=='raw_brake': self.raw_brake(target)
-        elif kind=='ackermann_speed': self.ackermann(target,0.0,steering_angle_rad)
-        elif kind=='ackermann_accel': self.ackermann(speed_hint,target,steering_angle_rad)
+        elif kind=='ackermann_speed': self.ackermann(target,0.0,steering_angle_rad,selector_mode='ackermann_speed')
+        elif kind=='ackermann_accel': self.ackermann(speed_hint,target,steering_angle_rad,selector_mode='ackermann_accel')
         elif kind=='neutral': self.neutral()
         else: raise ValueError(kind)
     def _safety(self, motion:bool)->None:

@@ -16,7 +16,15 @@ from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Float64, String
 
-MODES = {"ackermann", "raw_erpm", "raw_current", "raw_brake", "neutral"}
+MODES = {
+    "ackermann",
+    "ackermann_speed",
+    "ackermann_accel",
+    "raw_erpm",
+    "raw_current",
+    "raw_brake",
+    "neutral",
+}
 
 class MotorSelector(Node):
     def __init__(self) -> None:
@@ -101,11 +109,14 @@ class MotorSelector(Node):
     def _raw_brake(self, msg: Float64) -> None:
         if self.mode == 'raw_brake': self._publish(brake=msg.data, source='raw_brake')
     def _ack_speed(self, msg: Float64) -> None:
-        if self.mode == 'ackermann': self._publish(speed=msg.data, source='ackermann_speed')
+        if self.mode in {'ackermann', 'ackermann_speed'}:
+            self._publish(speed=msg.data, source='ackermann_speed')
     def _ack_current(self, msg: Float64) -> None:
-        if self.mode == 'ackermann': self._publish(current=msg.data, source='ackermann_current')
+        if self.mode in {'ackermann', 'ackermann_accel'}:
+            self._publish(current=msg.data, source='ackermann_current')
     def _ack_brake(self, msg: Float64) -> None:
-        if self.mode == 'ackermann': self._publish(brake=msg.data, source='ackermann_brake')
+        if self.mode in {'ackermann', 'ackermann_accel'}:
+            self._publish(brake=msg.data, source='ackermann_brake')
 
 def main() -> int:
     rclpy.init(); node = MotorSelector()
