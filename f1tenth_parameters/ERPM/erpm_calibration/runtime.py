@@ -278,14 +278,16 @@ class CalibrationNode(Node):
                 # almost never fired (the popleft trim above already drops anything older
                 # than window_s), so the gate timed out even on a clean steady pass.
                 if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
-                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; stable=scan_observed and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
+                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); scan_observed=self.latest.scan_count>initial_scan_count; speed_error=abs(float(np.median(v))-float(speed_mps)); stable=scan_observed and speed_error<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
                 if stable:
-                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist)}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.median(v)),'odom_vx_std':float(np.std(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'startup_speed_error_mps':speed_error}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
         except BaseException:
             self.fail_stop()
             raise
         v=np.asarray([x[1] for x in hist],dtype=float); a=np.asarray([x[2] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count
         out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan}
+        if v.size:
+            out['startup_speed_error_mps']=abs(float(np.nanmedian(v))-float(speed_mps))
         self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
 
 def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:

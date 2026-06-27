@@ -126,6 +126,10 @@ def main() -> int:
             'Ackermann speed mode must accept speed output')
     require("self.mode in {'ackermann', 'ackermann_accel'}" in motor_selector,
             'Ackermann accel mode must accept current/brake output')
+    require('zero current/brake during speed mode can cancel the speed controller' in motor_selector,
+            'selector must document that active speed mode may not publish real zero current/brake commands')
+    require('capture_speed_gate' in stage and '_capture_speed_ok' in stage,
+            'Ackermann speed captures must fail automatically if requested speed was not reached')
     cli = (ROOT / 'erpm_calibration' / 'cli.py').read_text()
     require('--preflight-only' in cli, 'CLI must expose a no-drive preflight mode')
     run_analysis = (ROOT / 'analysis' / 'run_analysis.py').read_text()

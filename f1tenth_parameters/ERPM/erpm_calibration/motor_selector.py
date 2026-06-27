@@ -67,22 +67,23 @@ class MotorSelector(Node):
 
     def _publish(self, *, speed: float | None = None, current: float | None = None,
                  brake: float | None = None, source: str) -> None:
-        # Explicitly zero competing command modalities before emitting the active
-        # one. The active command is published last so VESC mode selection is
-        # deterministic in the recorded sequence.
+        # Publish only the active real VESC command topic. The VESC driver treats
+        # speed/current/brake topics as commands, not passive state, so sending
+        # zero current/brake during speed mode can cancel the speed controller.
+        # The selected_* mirrors still record inactive modalities as zero.
         if speed is not None:
-            self.pub_current.publish(self._msg(0.0)); self.sel_current.publish(self._msg(0.0))
-            self.pub_brake.publish(self._msg(0.0)); self.sel_brake.publish(self._msg(0.0))
+            self.sel_current.publish(self._msg(0.0))
+            self.sel_brake.publish(self._msg(0.0))
             self.pub_speed.publish(self._msg(speed)); self.sel_speed.publish(self._msg(speed))
             self.last_values.update(speed=float(speed), current=0.0, brake=0.0)
         elif current is not None:
-            self.pub_speed.publish(self._msg(0.0)); self.sel_speed.publish(self._msg(0.0))
-            self.pub_brake.publish(self._msg(0.0)); self.sel_brake.publish(self._msg(0.0))
+            self.sel_speed.publish(self._msg(0.0))
+            self.sel_brake.publish(self._msg(0.0))
             self.pub_current.publish(self._msg(current)); self.sel_current.publish(self._msg(current))
             self.last_values.update(speed=0.0, current=float(current), brake=0.0)
         elif brake is not None:
-            self.pub_speed.publish(self._msg(0.0)); self.sel_speed.publish(self._msg(0.0))
-            self.pub_current.publish(self._msg(0.0)); self.sel_current.publish(self._msg(0.0))
+            self.sel_speed.publish(self._msg(0.0))
+            self.sel_current.publish(self._msg(0.0))
             self.pub_brake.publish(self._msg(brake)); self.sel_brake.publish(self._msg(brake))
             self.last_values.update(speed=0.0, current=0.0, brake=float(brake))
         else:

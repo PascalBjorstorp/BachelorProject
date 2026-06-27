@@ -95,6 +95,20 @@ def _decision(
     return decision
 
 
+def _capture_speed_ok(summary: dict[str, Any] | None, target_mps: float) -> bool:
+    if summary is None:
+        return False
+    measured = summary.get('odom_vx_mean')
+    try:
+        measured_f = float(measured)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(measured_f):
+        return False
+    tolerance = max(0.25, 0.15 * abs(float(target_mps)))
+    return abs(measured_f - float(target_mps)) <= tolerance
+
+
 def _straight_ok(node: CalibrationNode, cfg: dict[str, Any]) -> bool:
     """Runtime straight-line gate.
 
@@ -216,11 +230,12 @@ def _run_raw_erpm_plateau(
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.neutral()
-        auto = bool(startup.get('stable')) and summary is not None
+        speed_gate = _capture_speed_ok(summary, nominal_speed)
+        auto = bool(startup.get('stable')) and summary is not None and speed_gate
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
-            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture': summary or {}},
+            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture_speed_gate': speed_gate, 'capture': summary or {}},
         )
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
@@ -264,11 +279,12 @@ def _run_ackermann_plateau(
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.neutral()
-        auto = bool(startup.get('stable')) and summary is not None
+        speed_gate = _capture_speed_ok(summary, speed)
+        auto = bool(startup.get('stable')) and summary is not None and speed_gate
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
-            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture': summary or {}},
+            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture_speed_gate': speed_gate, 'capture': summary or {}},
         )
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
