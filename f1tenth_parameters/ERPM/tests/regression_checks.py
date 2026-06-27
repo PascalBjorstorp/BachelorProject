@@ -130,6 +130,19 @@ def main() -> int:
             'selector must document that active speed mode may not publish real zero current/brake commands')
     require('capture_speed_gate' in stage and '_capture_speed_ok' in stage,
             'Ackermann speed captures must fail automatically if requested speed was not reached')
+    ack_startup = runtime.split('def establish_ackermann_speed', 1)[1].split('def start_node', 1)[0]
+    require("float(np.nanstd(v))<=float(cfg['max_odom_speed_std_mps'])" not in ack_startup,
+            'Ackermann startup must not reject a good launch only because odom speed std is high')
+    require('erpm_std_limit' not in ack_startup and 'erpm_std<=float' not in ack_startup,
+            'Ackermann startup must not reject a good launch only because ERPM std is high')
+    require("startup_gate_source" in ack_startup,
+            'Ackermann startup diagnostics must report whether odom or ERPM opened the gate')
+    require('command_scan_ok' in ack_startup and "'command_scan'" in ack_startup,
+            'Ackermann startup must be able to capture observability evidence when speed sensors disagree')
+    require("observability_probe = stage == '01_longitudinal_observability'" in stage,
+            'Only Stage 1 should allow operator review when speed sensors disagree with a live command')
+    require('speed_gate or observability_probe' in stage,
+            'Stage 1 observability must not get stuck when VESC/odom speed observability is the failure')
     cli = (ROOT / 'erpm_calibration' / 'cli.py').read_text()
     require('--preflight-only' in cli, 'CLI must expose a no-drive preflight mode')
     run_analysis = (ROOT / 'analysis' / 'run_analysis.py').read_text()

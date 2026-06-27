@@ -290,11 +290,18 @@ def _run_ackermann_plateau(
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.neutral()
         speed_gate = _capture_speed_ok(summary, speed)
-        auto = bool(startup.get('stable')) and summary is not None and speed_gate
+        observability_probe = stage == '01_longitudinal_observability'
+        auto = bool(startup.get('stable')) and summary is not None and (speed_gate or observability_probe)
         decision = _decision(
             node, stage=stage, condition_id=condition_id, trial_id=trial,
             attempt=attempt, auto_ok=auto,
-            summary={'startup': startup, 'straight_runtime_gate': straight, 'capture_speed_gate': speed_gate, 'capture': summary or {}},
+            summary={
+                'startup': startup,
+                'straight_runtime_gate': straight,
+                'capture_speed_gate': speed_gate,
+                'observability_allows_speed_sensor_mismatch': observability_probe and not speed_gate,
+                'capture': summary or {},
+            },
         )
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,

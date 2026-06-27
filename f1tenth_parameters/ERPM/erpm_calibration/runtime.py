@@ -28,6 +28,9 @@ class Latest:
     erpm: float=math.nan; motor_current_a: float=math.nan; input_current_a: float=math.nan
     battery_v: float=math.nan; motor_temp_c: float=math.nan; fet_temp_c: float=math.nan
     selected_speed_erpm: float=math.nan; selected_current_a: float=math.nan; selected_brake_a: float=math.nan
+    imu_count: int=0; odom_count: int=0; candidate_odom_count: int=0
+    vesc_count: int=0; selected_speed_count: int=0
+    selected_current_count: int=0; selected_brake_count: int=0
     scan_count: int=0; seen:set[str]=field(default_factory=set)
 
 class CalibrationNode(Node):
@@ -59,27 +62,31 @@ class CalibrationNode(Node):
             if k in self._samples: self._samples[k].append(float(v))
     def _imu(self,msg:Imu)->None:
         self.latest.imu_ax=float(msg.linear_acceleration.x); self.latest.imu_ay=float(msg.linear_acceleration.y); self.latest.imu_gz=float(msg.angular_velocity.z); self.latest.seen.add('imu')
+        self.latest.imu_count += 1
         self._rec(imu_ax=self.latest.imu_ax,imu_ay=self.latest.imu_ay,imu_gz=self.latest.imu_gz)
     def _odom(self,msg:Odometry)->None:
         self.latest.odom_vx=float(msg.twist.twist.linear.x); self.latest.odom_vy=float(msg.twist.twist.linear.y)
         q=msg.pose.pose.orientation; self.latest.odom_yaw=math.atan2(2.0*(q.w*q.z+q.x*q.y),1.0-2.0*(q.y*q.y+q.z*q.z))
         self.latest.seen.add('odom')
+        self.latest.odom_count += 1
         self._rec(odom_vx=self.latest.odom_vx,odom_vy=self.latest.odom_vy,odom_yaw=self.latest.odom_yaw)
 
     def _candidate_odom(self,msg:Odometry)->None:
         self.latest.candidate_odom_vx=float(msg.twist.twist.linear.x); self.latest.candidate_odom_vy=float(msg.twist.twist.linear.y); self.latest.seen.add('candidate_odom')
+        self.latest.candidate_odom_count += 1
         self._rec(candidate_odom_vx=self.latest.candidate_odom_vx,candidate_odom_vy=self.latest.candidate_odom_vy)
     def _scan(self,msg:LaserScan)->None:
         self.latest.scan_count+=1; self.latest.seen.add('scan')
     def _vesc(self,msg:Any)->None:
         st=msg.state; self.latest.erpm=float(getattr(st,'speed',math.nan)); self.latest.motor_current_a=float(getattr(st,'current_motor',math.nan)); self.latest.input_current_a=float(getattr(st,'current_input',math.nan)); self.latest.battery_v=float(getattr(st,'voltage_input',math.nan)); self.latest.motor_temp_c=float(getattr(st,'temp_motor',math.nan)); self.latest.fet_temp_c=float(getattr(st,'temp_fet',math.nan)); self.latest.seen.add('vesc')
+        self.latest.vesc_count += 1
         self._rec(erpm=self.latest.erpm,motor_current_a=self.latest.motor_current_a,input_current_a=self.latest.input_current_a,battery_v=self.latest.battery_v,motor_temp_c=self.latest.motor_temp_c,fet_temp_c=self.latest.fet_temp_c)
     def _selected_speed(self,msg:Float64)->None:
-        self.latest.selected_speed_erpm=float(msg.data); self.latest.seen.add('selected_speed'); self._rec(selected_speed_erpm=float(msg.data))
+        self.latest.selected_speed_erpm=float(msg.data); self.latest.seen.add('selected_speed'); self.latest.selected_speed_count += 1; self._rec(selected_speed_erpm=float(msg.data))
     def _selected_current(self,msg:Float64)->None:
-        self.latest.selected_current_a=float(msg.data); self.latest.seen.add('selected_current'); self._rec(selected_current_a=float(msg.data))
+        self.latest.selected_current_a=float(msg.data); self.latest.seen.add('selected_current'); self.latest.selected_current_count += 1; self._rec(selected_current_a=float(msg.data))
     def _selected_brake(self,msg:Float64)->None:
-        self.latest.selected_brake_a=float(msg.data); self.latest.seen.add('selected_brake'); self._rec(selected_brake_a=float(msg.data))
+        self.latest.selected_brake_a=float(msg.data); self.latest.seen.add('selected_brake'); self.latest.selected_brake_count += 1; self._rec(selected_brake_a=float(msg.data))
 
     def spin(self, duration_s:float)->None:
         end=time.monotonic()+max(0.0,duration_s)
@@ -207,7 +214,12 @@ class CalibrationNode(Node):
     def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str, startup_speed_mps:float|None=None)->dict[str,Any]:
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz
         start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
-        initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
+        initial_scan_count = self.latest.scan_count
+        initial_imu_count = self.latest.imu_count
+        initial_odom_count = self.latest.odom_count
+        initial_vesc_count = self.latest.vesc_count
+        initial_selected_speed_count = self.latest.selected_speed_count
+        self.reset_straight_assist()
         use_ack_startup = (
             str(cfg.get('raw_erpm_startup_mode', 'raw_erpm')).lower() == 'ackermann_speed'
             and startup_speed_mps is not None
@@ -241,7 +253,11 @@ class CalibrationNode(Node):
                 # guard only; final velocity is still calculated from the recorded raw scans.
                 scan_observed = self.latest.scan_count > initial_scan_count
                 if use_ack_startup:
-                    stable=(scan_observed and abs(float(np.median(v))-startup_speed)<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
+                    stable = (
+                        scan_observed
+                        and abs(float(np.median(v)) - startup_speed) <= float(cfg.get('max_startup_speed_error_mps', 0.20))
+                        and abs(float(np.median(a))) <= float(cfg['max_abs_imu_ax_mps2'])
+                    )
                 else:
                     stable=(scan_observed and abs(float(np.median(e))-target_erpm)<=err and float(np.std(e))<=float(cfg['max_erpm_std']) and float(np.std(v))<=float(cfg['max_odom_speed_std_mps']) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2']))
                 if stable:
@@ -257,6 +273,13 @@ class CalibrationNode(Node):
         e=np.asarray([x[1] for x in hist],dtype=float); v=np.asarray([x[2] for x in hist],dtype=float); a=np.asarray([x[3] for x in hist],dtype=float)
         scan_observed=self.latest.scan_count>initial_scan_count
         out={'stable':False,'elapsed_s':time.monotonic()-start,'startup_mode':startup_mode,'startup_speed_mps':startup_speed,'samples':len(hist),'scan_observed_after_command':scan_observed,'erpm_median':float(np.nanmedian(e)) if e.size else math.nan,'erpm_std':float(np.nanstd(e)) if e.size else math.nan,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan}
+        out.update({
+            'scan_msgs_after_command': self.latest.scan_count - initial_scan_count,
+            'imu_msgs_after_command': self.latest.imu_count - initial_imu_count,
+            'odom_msgs_after_command': self.latest.odom_count - initial_odom_count,
+            'vesc_msgs_after_command': self.latest.vesc_count - initial_vesc_count,
+            'selected_speed_msgs_after_command': self.latest.selected_speed_count - initial_selected_speed_count,
+        })
         if use_ack_startup and v.size:
             out['startup_speed_error_mps']=abs(float(np.nanmedian(v))-startup_speed)
         self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
@@ -264,7 +287,12 @@ class CalibrationNode(Node):
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
         cfg=self.cfg['motion_startup']; hz=float(self.cfg['session']['command_publish_hz']); dt=1.0/hz; start=time.monotonic(); minimum=float(cfg['minimum_startup_s']); deadline=start+float(cfg['stability_timeout_s']); hist=deque(); exclusion=False
-        initial_scan_count = self.latest.scan_count; self.reset_straight_assist()
+        initial_scan_count = self.latest.scan_count
+        initial_imu_count = self.latest.imu_count
+        initial_odom_count = self.latest.odom_count
+        initial_vesc_count = self.latest.vesc_count
+        initial_selected_speed_count = self.latest.selected_speed_count
+        self.reset_straight_assist()
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
         try:
             while time.monotonic()<deadline:
@@ -278,14 +306,29 @@ class CalibrationNode(Node):
                 # almost never fired (the popleft trim above already drops anything older
                 # than window_s), so the gate timed out even on a clean steady pass.
                 if now-start-minimum<float(cfg['stability_window_s']) or len(hist)<3: continue
-                v=np.asarray([x[1] for x in hist]); a=np.asarray([x[2] for x in hist]); e=np.asarray([x[3] for x in hist],dtype=float); s=np.asarray([x[4] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count; speed_error=abs(float(np.nanmedian(v))-float(speed_mps)); selected_med=float(np.nanmedian(s)) if s.size else math.nan; erpm_med=float(np.nanmedian(e)) if e.size else math.nan; erpm_std=float(np.nanstd(e)) if e.size else math.nan; erpm_error=abs(erpm_med-selected_med) if math.isfinite(erpm_med) and math.isfinite(selected_med) else math.inf; erpm_tol=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(selected_med)) if math.isfinite(selected_med) else math.inf; erpm_std_limit=max(float(cfg['max_erpm_std']),0.25*abs(selected_med)) if math.isfinite(selected_med) else float(cfg['max_erpm_std']); odom_ok=math.isfinite(speed_error) and speed_error<=float(cfg.get('max_startup_speed_error_mps',0.20)) and float(np.nanstd(v))<=float(cfg['max_odom_speed_std_mps']); erpm_ok=math.isfinite(selected_med) and abs(selected_med)>1.0 and math.isfinite(erpm_med) and erpm_error<=erpm_tol and erpm_std<=erpm_std_limit; stable=scan_observed and (odom_ok or erpm_ok) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
+                v=np.asarray([x[1] for x in hist])
+                a=np.asarray([x[2] for x in hist])
+                e=np.asarray([x[3] for x in hist],dtype=float)
+                s=np.asarray([x[4] for x in hist],dtype=float)
+                scan_observed=self.latest.scan_count>initial_scan_count
+                speed_error=abs(float(np.nanmedian(v))-float(speed_mps))
+                selected_med=float(np.nanmedian(s)) if s.size else math.nan
+                erpm_med=float(np.nanmedian(e)) if e.size else math.nan
+                erpm_std=float(np.nanstd(e)) if e.size else math.nan
+                erpm_error=abs(erpm_med-selected_med) if math.isfinite(erpm_med) and math.isfinite(selected_med) else math.inf
+                erpm_tol=max(float(cfg['raw_erpm_absolute_error']),float(cfg['raw_erpm_relative_error_fraction'])*abs(selected_med)) if math.isfinite(selected_med) else math.inf
+                odom_ok=math.isfinite(speed_error) and speed_error<=float(cfg.get('max_startup_speed_error_mps',0.20))
+                erpm_ok=math.isfinite(selected_med) and abs(selected_med)>1.0 and math.isfinite(erpm_med) and erpm_error<=erpm_tol
+                command_scan_ok=math.isfinite(selected_med) and abs(selected_med)>1.0
+                stable=scan_observed and (odom_ok or erpm_ok or command_scan_ok) and abs(float(np.median(a)))<=float(cfg['max_abs_imu_ax_mps2'])
                 if stable:
-                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.nanmedian(v)),'odom_vx_std':float(np.nanstd(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'startup_speed_error_mps':speed_error,'erpm_median':erpm_med,'erpm_std':erpm_std,'selected_speed_erpm_median':selected_med,'erpm_error':erpm_error,'startup_gate_source':'erpm' if erpm_ok and not odom_ok else 'odom'}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
+                    source = 'erpm' if erpm_ok and not odom_ok else 'odom' if odom_ok else 'command_scan'
+                    out={'stable':True,'elapsed_s':now-start,'odom_vx_median':float(np.nanmedian(v)),'odom_vx_std':float(np.nanstd(v)),'imu_ax_median':float(np.median(a)),'scan_observed_after_command':scan_observed,'samples':len(hist),'startup_speed_error_mps':speed_error,'erpm_median':erpm_med,'erpm_std':erpm_std,'selected_speed_erpm_median':selected_med,'erpm_error':erpm_error,'startup_gate_source':source,'scan_msgs_after_command':self.latest.scan_count-initial_scan_count,'imu_msgs_after_command':self.latest.imu_count-initial_imu_count,'odom_msgs_after_command':self.latest.odom_count-initial_odom_count,'vesc_msgs_after_command':self.latest.vesc_count-initial_vesc_count,'selected_speed_msgs_after_command':self.latest.selected_speed_count-initial_selected_speed_count}; self.event.emit('motion_stable',segment_id=segment_id,trial_id=trial_id,**out); return out
         except BaseException:
             self.fail_stop()
             raise
         v=np.asarray([x[1] for x in hist],dtype=float); a=np.asarray([x[2] for x in hist],dtype=float); e=np.asarray([x[3] for x in hist],dtype=float); s=np.asarray([x[4] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan,'erpm_median':float(np.nanmedian(e)) if e.size else math.nan,'erpm_std':float(np.nanstd(e)) if e.size else math.nan,'selected_speed_erpm_median':float(np.nanmedian(s)) if s.size else math.nan}
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan,'erpm_median':float(np.nanmedian(e)) if e.size else math.nan,'erpm_std':float(np.nanstd(e)) if e.size else math.nan,'selected_speed_erpm_median':float(np.nanmedian(s)) if s.size else math.nan,'scan_msgs_after_command':self.latest.scan_count-initial_scan_count,'imu_msgs_after_command':self.latest.imu_count-initial_imu_count,'odom_msgs_after_command':self.latest.odom_count-initial_odom_count,'vesc_msgs_after_command':self.latest.vesc_count-initial_vesc_count,'selected_speed_msgs_after_command':self.latest.selected_speed_count-initial_selected_speed_count}
         if v.size:
             out['startup_speed_error_mps']=abs(float(np.nanmedian(v))-float(speed_mps))
         self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
