@@ -125,8 +125,8 @@ class CalibrationNode(Node):
         else:
             self.reset_straight_assist(); steer=base
         msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(steer); self.drive_pub.publish(msg)
-    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None)->None:
-        self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad)
+    def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None, *, straight_assist_allowed:bool=True)->None:
+        self._mode('ackermann'); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad,straight_assist_allowed=straight_assist_allowed)
     def _steering_keepalive(self, *, straight_assist_allowed:bool=True)->None:
         # AckermannToVesc must receive a normal zero-speed / zero-angle command
         # so it continues to publish the installed steering map. Its motor output
@@ -219,7 +219,7 @@ class CalibrationNode(Node):
         try:
             while time.monotonic()<deadline:
                 if use_ack_startup:
-                    self.ackermann(startup_speed,0.0)
+                    self.ackermann(startup_speed,0.0,straight_assist_allowed=False)
                 else:
                     self.raw_erpm(target_erpm)
                 self.spin(dt); self._safety(motion=(abs(startup_speed)>1e-3 if use_ack_startup else abs(target_erpm)>1))
@@ -254,7 +254,12 @@ class CalibrationNode(Node):
         except BaseException:
             self.fail_stop()
             raise
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
+        e=np.asarray([x[1] for x in hist],dtype=float); v=np.asarray([x[2] for x in hist],dtype=float); a=np.asarray([x[3] for x in hist],dtype=float)
+        scan_observed=self.latest.scan_count>initial_scan_count
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'startup_mode':startup_mode,'startup_speed_mps':startup_speed,'samples':len(hist),'scan_observed_after_command':scan_observed,'erpm_median':float(np.nanmedian(e)) if e.size else math.nan,'erpm_std':float(np.nanstd(e)) if e.size else math.nan,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan}
+        if use_ack_startup and v.size:
+            out['startup_speed_error_mps']=abs(float(np.nanmedian(v))-startup_speed)
+        self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
     def establish_ackermann_speed(self, *, speed_mps:float,segment_id:str,trial_id:str,steering_angle_rad:float|None=None)->dict[str,Any]:
         # Uses odom/IMU only for an operational startup gate. Offline ground-speed
         # calibration uses scan-matched LiDAR velocity, never this odometry.
@@ -263,7 +268,7 @@ class CalibrationNode(Node):
         self.event.emit('motion_startup_begin',segment_id=segment_id,trial_id=trial_id,mode='ackermann_speed',target_speed_mps=float(speed_mps),minimum_startup_s=minimum)
         try:
             while time.monotonic()<deadline:
-                self.ackermann(speed_mps,0.0,steering_angle_rad); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
+                self.ackermann(speed_mps,0.0,steering_angle_rad,straight_assist_allowed=False); self.spin(dt); self._safety(motion=abs(speed_mps)>1e-3); now=time.monotonic()
                 if now-start>=minimum and not exclusion: self.event.emit('motion_startup_excluded_end',segment_id=segment_id,trial_id=trial_id); exclusion=True
                 if now-start<minimum or not (math.isfinite(self.latest.odom_vx) and math.isfinite(self.latest.imu_ax)): continue
                 hist.append((now,self.latest.odom_vx,self.latest.imu_ax))
@@ -279,7 +284,9 @@ class CalibrationNode(Node):
         except BaseException:
             self.fail_stop()
             raise
-        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist)}; self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
+        v=np.asarray([x[1] for x in hist],dtype=float); a=np.asarray([x[2] for x in hist],dtype=float); scan_observed=self.latest.scan_count>initial_scan_count
+        out={'stable':False,'elapsed_s':time.monotonic()-start,'samples':len(hist),'scan_observed_after_command':scan_observed,'odom_vx_median':float(np.nanmedian(v)) if v.size else math.nan,'odom_vx_std':float(np.nanstd(v)) if v.size else math.nan,'imu_ax_median':float(np.nanmedian(a)) if a.size else math.nan}
+        self.event.emit('motion_stability_timeout',segment_id=segment_id,trial_id=trial_id,**out); self.fail_stop(); return out
 
 def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:
     rclpy.init(args=None); node=CalibrationNode(name,cfg)

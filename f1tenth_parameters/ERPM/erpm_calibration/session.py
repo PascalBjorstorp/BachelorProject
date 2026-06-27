@@ -555,7 +555,7 @@ class SessionRunner:
                 require_ready('Type READY to begin Stage 0, or ABORT')
                 for name, group in [
                     ('00_command_chain_audit', 'command_audit'),
-                    ('01_longitudinal_observability', 'raw_erpm'),
+                    ('01_longitudinal_observability', 'ackermann_vel'),
                     ('02_low_speed_launch', 'raw_erpm'),
                     ('03_raw_erpm_map_training', 'raw_erpm'),
                     ('04_raw_erpm_map_holdout', 'raw_erpm'),

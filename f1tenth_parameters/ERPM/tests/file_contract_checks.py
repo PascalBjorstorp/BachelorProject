@@ -18,8 +18,24 @@ assert int(cfg['raw_current_holdout']['repetitions']) == 2
 assert bool(cfg['site']['require_full_envelope_track'])
 assert float(cfg['site']['straight_usable_length_m']) >= float(cfg['site']['minimum_full_envelope_length_m'])
 assert float(cfg['site']['straight_usable_length_m']) == 20.0
-assert float(cfg['operating_envelope']['minimum_test_speed_mps']) == 0.3
+min_test_speed = float(cfg['operating_envelope']['minimum_test_speed_mps'])
+assert min_test_speed == 0.5
 assert float(cfg['operating_envelope']['maximum_test_speed_mps']) >= 9.0
+for section, key in (
+    ('observability', 'straight_probe_speeds_mps'),
+    ('low_speed_launch', 'nominal_speeds_mps'),
+    ('raw_erpm_map_training', 'nominal_speeds_mps'),
+    ('raw_erpm_map_holdout', 'nominal_speeds_mps'),
+    ('vel_to_erpm_pipeline_audit', 'speed_commands_mps'),
+    ('coastdown', 'initial_speeds_mps'),
+    ('accel_to_current_interface', 'initial_speeds_mps'),
+    ('candidate_verification', 'velocity_holdout_commands_mps'),
+    ('candidate_verification', 'acceleration_initial_speeds_mps'),
+):
+    assert min(float(v) for v in cfg[section][key]) >= min_test_speed, (section, key)
+for pair in cfg['raw_erpm_response']['steps_mps']:
+    assert min(float(v) for v in pair) >= min_test_speed, pair
+assert float(cfg['low_speed_launch']['minimum_lidar_speed_mps']) >= min_test_speed
 assert max(float(f) for c in cfg['raw_current_training']['drive_conditions'] for f in c['current_fractions']) >= 0.75
 assert max(float(f) for c in cfg['raw_current_training']['brake_conditions'] for f in c['current_fractions']) >= 0.75
 assert float(cfg['operating_envelope']['approved_drive_test_current_a']) >= 0.0
@@ -41,7 +57,7 @@ def _base_duration(f):
 for section in ('raw_current_training', 'raw_current_holdout'):
     for polarity in ('drive', 'brake'):
         for condition in cfg[section][f'{polarity}_conditions']:
-            assert float(condition['initial_speed_mps']) >= 0.3
+            assert float(condition['initial_speed_mps']) >= min_test_speed
             for fraction in condition['current_fractions']:
                 assert _base_duration(float(fraction)) >= float(env['dynamic_capture_min_s'])
 cross = cfg['cross_axis_validation']
@@ -59,7 +75,7 @@ for condition in cross['conditions']:
     yaw = ay / speed * turn_duration
     forward = radius * math.sin(yaw)
     lateral = radius * (1.0 - math.cos(yaw))
-    assert speed >= 0.3
+    assert speed >= min_test_speed
     assert speed <= float(env['maximum_test_speed_mps'])
     assert ay <= lat_limit + 0.03, (condition, ay)
     assert abs(ay - float(condition['expected_lateral_accel_mps2'])) <= 0.08, (condition, ay)
@@ -81,7 +97,7 @@ for condition in steering['conditions']:
     yaw = ay / speed * turn_duration
     forward = radius * math.sin(yaw)
     lateral = radius * (1.0 - math.cos(yaw))
-    assert speed >= 0.3
+    assert speed >= min_test_speed
     assert speed <= float(env['maximum_test_speed_mps'])
     assert ay <= lat_limit + 0.03, (condition, ay)
     assert abs(ay - float(condition['expected_lateral_accel_mps2'])) <= 0.08, (condition, ay)

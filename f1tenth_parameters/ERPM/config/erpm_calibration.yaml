@@ -35,7 +35,7 @@ operating_envelope:
   maximum_test_speed_mps: 9.0
   maximum_test_accel_mps2: 999.0
   maximum_test_brake_mps2: 999.0
-  minimum_test_speed_mps: 0.3
+  minimum_test_speed_mps: 0.5
   # ----------------------------------------------------------------------------
   # Command-scale values for high-demand stages. These are intentionally above
   # the expected VESC clip so the bags show the real firmware/motor response.
@@ -46,7 +46,7 @@ operating_envelope:
   high_speed_capture_s: 0.6
   # Below this speed a commanded a=0 yields zero current (lets the car stop);
   # above it, a=0 must hold speed via drag-compensating current.
-  hold_speed_min_mps: 0.3
+  hold_speed_min_mps: 0.5
   high_demand_pulse_duration_s:
     low_fraction: 0.6
     medium_fraction: 0.45
@@ -116,7 +116,7 @@ motion_startup:
 observability:
   stationary_duration_s: 15.0
   straight_probe_speeds_mps:
-  - 0.3
+  - 0.5
   - 2.5
   - 5.5
   - 8.0
@@ -124,16 +124,16 @@ observability:
   straight_probe_capture_s: 1.0
 low_speed_launch:
   nominal_speeds_mps:
-  - 0.3
-  - 0.4
-  - 0.55
+  - 0.5
+  - 0.6
   - 0.75
+  - 1.0
   repetitions: 3
   capture_s: 0.6
-  minimum_lidar_speed_mps: 0.3
+  minimum_lidar_speed_mps: 0.5
 raw_erpm_map_training:
   nominal_speeds_mps:
-  - 0.3
+  - 0.5
   - 0.7
   - 1.2
   - 1.8
@@ -147,7 +147,6 @@ raw_erpm_map_training:
   capture_s: 0.6
 raw_erpm_map_holdout:
   nominal_speeds_mps:
-  - 0.45
   - 0.95
   - 1.5
   - 2.15

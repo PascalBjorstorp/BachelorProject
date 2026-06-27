@@ -359,11 +359,10 @@ def longitudinal_observability(cfg: dict[str, Any], stage_dir: Path,
         for speed in cfg['observability']['straight_probe_speeds_mps']:
             for rep in range(1, int(cfg['observability']['straight_probe_repetitions']) + 1):
                 cid = f'observability_speed_{float(speed):.3f}_rep_{rep:02d}'
-                probes += _run_raw_erpm_plateau(
+                probes += _run_ackermann_plateau(
                     node, cfg=cfg, counter=counter,
                     stage='01_longitudinal_observability', condition_id=cid,
-                    raw_erpm=_raw_erpm(gain, offset, float(speed)),
-                    nominal_speed=float(speed),
+                    speed=float(speed),
                     capture_s=float(cfg['observability']['straight_probe_capture_s']),
                     phase='straight_observability',
                 )
