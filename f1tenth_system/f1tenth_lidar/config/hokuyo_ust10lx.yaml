@@ -72,22 +72,12 @@ urg_node:
     skip: 1
 
     # Cluster
-    cluster: 4
+    cluster: 1
 
     # Range filtering (meters)
     range_min: 0.1
     range_max: 10.0
 
     # Quality
-    publish_intensity: false
+    publish_intensity: true
     publish_multiecho: false
-
-    # Diagnostics
-    error_limit: 4
-    diagnostics_tolerance: 0.05
-    diagnostics_window_time: 5.0
-    time_offset: 0.0
-
-    # Advanced
-    allow_unsafe_settings: false
-    calibrate_time: false
