@@ -134,6 +134,9 @@ def main() -> int:
             'Startup and recorded trial capture must remain separate phases')
     require('pre_capture_settle_distance_m' in (ROOT / 'config' / 'erpm_calibration.yaml').read_text(),
             'Pre-capture settling must be configurable from erpm_calibration.yaml')
+    require('active_stop_brake_current_a' in (ROOT / 'config' / 'erpm_calibration.yaml').read_text(),
+            'Post-trial active_stop must be stronger than failed-attempt brake defaults')
+    require('_active_stop_plan' in runtime, 'active_stop must scale brake effort with measured speed')
     ack_startup = runtime.split('def establish_ackermann_speed', 1)[1].split('def start_node', 1)[0]
     require("float(np.nanstd(v))<=float(cfg['max_odom_speed_std_mps'])" not in ack_startup,
             'Ackermann startup must not reject a good launch only because odom speed std is high')

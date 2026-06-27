@@ -88,10 +88,10 @@ straight_assist:
   #   - corrects too late                  -> raise max_trim_rate_rad_s slightly
   #   - immediately steers wrong way       -> set steer_sign to -1.0
   enabled: true
-  kp_heading_rad_per_rad: 1.0
-  deadband_rad: 0.0025          # ~0.14 deg: small enough for constant nudges
-  max_trim_rad: 0.01           # hard cap on correction (~1.0 deg)
-  max_trim_rate_rad_s: 0.025     # at 100 Hz: <=0.0005 rad per tick
+  kp_heading_rad_per_rad: 0.2
+  deadband_rad: 0.002          # ~0.14 deg: small enough for constant nudges
+  max_trim_rad: 0.04           # hard cap on correction (~0.57 deg); raise only if still drifting at cap
+  max_trim_rate_rad_s: 0.07     # reach the cap sooner without increasing max angle
   max_trim_step_rad: 0.0005     # absolute per-command jump cap
   min_speed_mps: 0.15           # keep assist active for low-speed ERPM probes
   steer_sign: 1.0
@@ -104,10 +104,21 @@ motion_startup:
   minimum_startup_s: 0.75
   stability_window_s: 0.6
   stability_timeout_s: 2.2
-  pre_capture_settle_distance_m: 0.4
+  pre_capture_settle_distance_m: 1.5
   pre_capture_settle_min_s: 0.15
-  pre_capture_settle_max_s: 0.85
+  pre_capture_settle_max_s: 1.2
+  pre_capture_settle_high_speed_threshold_mps: 4.0
+  pre_capture_settle_high_speed_min_s: 0.6
   max_startup_speed_error_mps: 0.20
+  # Post-trial stop (active_stop). failed_attempt_* stays soft for auto-check redos.
+  active_stop_brake_current_a: 80.0
+  active_stop_brake_s: 0.45
+  active_stop_speed_scaled: true
+  active_stop_brake_current_per_mps: 25.0
+  active_stop_brake_s_per_mps: 0.06
+  active_stop_brake_current_cap_a: 250.0
+  active_stop_min_brake_s: 0.45
+  active_stop_max_brake_s: 1.0
   failed_attempt_brake_current_a: 12.0
   failed_attempt_brake_s: 0.35
   failed_attempt_settle_s: 0.25

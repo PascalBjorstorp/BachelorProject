@@ -69,8 +69,12 @@ def _pre_capture_settle_s(cfg: dict[str, Any], speed_mps: float) -> float:
     minimum = max(0.0, float(startup.get('pre_capture_settle_min_s', 0.0)))
     maximum = max(minimum, float(startup.get('pre_capture_settle_max_s', minimum)))
     speed = abs(float(speed_mps))
+    high_threshold = float(startup.get('pre_capture_settle_high_speed_threshold_mps', 4.0))
+    high_minimum = float(startup.get('pre_capture_settle_high_speed_min_s', 0.0))
+    if speed >= high_threshold and high_minimum > 0.0:
+        minimum = max(minimum, high_minimum)
     if distance <= 0.0:
-        return minimum
+        return min(maximum, minimum)
     by_distance = distance / max(speed, 0.05)
     return min(maximum, max(minimum, by_distance))
 

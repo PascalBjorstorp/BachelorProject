@@ -153,34 +153,50 @@ class CalibrationNode(Node):
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(straight_assist_allowed=False); self.spin(0.04); self._mode('neutral')
-    def _brake_burst(self, brake_a:float, brake_s:float, event_prefix:str)->None:
+    def _brake_burst(self, brake_a:float, brake_s:float, event_prefix:str, **meta:Any)->None:
         """Apply a timed brake-current burst, then go neutral."""
         hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
         self.reset_straight_assist()
         if brake_a>0.0 and brake_s>0.0:
-            self.event.emit(f'{event_prefix}_begin',brake_current_a=brake_a,duration_s=brake_s)
+            self.event.emit(f'{event_prefix}_begin',brake_current_a=brake_a,duration_s=brake_s,**meta)
             self._mode('raw_brake')
             end=time.monotonic()+brake_s
             while time.monotonic()<end:
                 self._steering_keepalive(straight_assist_allowed=False)
                 self.raw_brake_pub.publish(self._float(brake_a))
                 self.spin(period)
-            self.event.emit(f'{event_prefix}_end')
+            self.event.emit(f'{event_prefix}_end',**meta)
         self.neutral()
+    def _active_stop_plan(self)->tuple[float,float,dict[str,Any]]:
+        """Scale post-trial brake effort with measured forward speed."""
+        cfg=self.cfg.get('motion_startup',{})
+        env=self.cfg.get('operating_envelope',{})
+        approved=max(0.0,float(env.get('approved_brake_test_current_a',250.0)))
+        base_a=max(0.0,float(cfg.get('active_stop_brake_current_a',cfg.get('failed_attempt_brake_current_a',12.0))))
+        base_s=max(0.0,float(cfg.get('active_stop_brake_s',cfg.get('failed_attempt_brake_s',0.35))))
+        speed=abs(self.latest.odom_vx) if math.isfinite(self.latest.odom_vx) else 0.0
+        meta={'active_stop_odom_vx_mps':speed,'active_stop_base_brake_current_a':base_a,'active_stop_base_brake_s':base_s}
+        if not bool(cfg.get('active_stop_speed_scaled',True)):
+            return base_a,base_s,meta
+        a_per_mps=max(0.0,float(cfg.get('active_stop_brake_current_per_mps',20.0)))
+        s_per_mps=max(0.0,float(cfg.get('active_stop_brake_s_per_mps',0.04)))
+        cap_a=max(base_a,float(cfg.get('active_stop_brake_current_cap_a',approved or base_a)))
+        min_s=max(0.0,float(cfg.get('active_stop_min_brake_s',base_s)))
+        max_s=max(min_s,float(cfg.get('active_stop_max_brake_s',1.0)))
+        brake_a=min(cap_a,base_a+a_per_mps*speed)
+        brake_s=min(max_s,max(min_s,base_s+s_per_mps*speed))
+        meta.update({'active_stop_brake_current_a':brake_a,'active_stop_brake_s':brake_s,'active_stop_speed_scaled':True})
+        return brake_a,brake_s,meta
     def active_stop(self)->None:
         """Active-brake stop used after every trial capture.
 
         The VESC does not brake when it receives a zero command — it coasts.
-        This method applies a short burst of brake current so the car actually
-        decelerates, saving track space between repositions.
+        This method applies a speed-scaled burst of brake current so the car
+        actually decelerates, saving track space between repositions.
         """
         try:
-            cfg=self.cfg.get('motion_startup',{})
-            brake_a=max(0.0,float(cfg.get('active_stop_brake_current_a',
-                                          cfg.get('failed_attempt_brake_current_a',12.0))))
-            brake_s=max(0.0,float(cfg.get('active_stop_brake_s',
-                                          cfg.get('failed_attempt_brake_s',0.35))))
-            self._brake_burst(brake_a,brake_s,'active_stop')
+            brake_a,brake_s,meta=self._active_stop_plan()
+            self._brake_burst(brake_a,brake_s,'active_stop',**meta)
         except Exception as exc:
             self.get_logger().error(f'active_stop error: {exc}')
     def fail_stop(self)->None:
