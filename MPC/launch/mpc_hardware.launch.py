@@ -61,7 +61,7 @@ def generate_launch_description():
     servo_topic_arg = DeclareLaunchArgument(
         'servo_topic',
         default_value='/sensors/servo_position_command',
-        description='VESC servo position feedback topic'
+        description='VESC servo command-echo topic'
     )
 
     pose_topic_arg = DeclareLaunchArgument(

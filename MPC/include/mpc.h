@@ -102,15 +102,17 @@ void mpc_set_configuration(const MpcConfiguration_t *configuration);
 void mpc_reset(void);
 
 /**
- * @brief Feed back the hardware-measured previous control for actuator lag compensation.
- * @details When servo rate limits cause the realized steering to differ from
- *          the MPC command, call this before mpc_compute_optimal_control() to
- *          synchronize the MPC's delta_actual state with physical reality.
- *          If not called, the MPC assumes its own previous command was applied.
- * @param actual Pointer to the control actually applied to the vehicle; no-op if NULL.
+ * @brief Supply the steering target and acceleration from the previous 5 ms interval.
+ * @details Call once immediately before mpc_compute_optimal_control(). Steering
+ *          is the issued target (or its command echo), not a physical servo
+ *          position measurement. The MPC advances its effective-steering pole
+ *          exactly once in the subsequent solve. The first sample initializes
+ *          commanded and effective steering equally to avoid a false startup
+ *          transient.
+ * @param command Pointer to the previous command; no-op if NULL.
  * @return None.
  */
-void mpc_set_actual_previous_control(const ControlInput_t *actual);
+void mpc_set_previous_command(const ControlInput_t *command);
 
 /*===========================================================================
  * Diagnostics

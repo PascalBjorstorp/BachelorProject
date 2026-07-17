@@ -38,7 +38,7 @@ from matplotlib.collections import LineCollection
 
 COST_TERMS = [
     "J_lat", "J_heading", "J_vel", "J_lat_vel", "J_yaw_rate",
-    "J_delta_actual", "J_drate_prev", "J_accel_prev",
+    "J_effective_steering", "J_drate_prev", "J_accel_prev",
     "J_steer_in", "J_accel_in",
 ]
 

@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -128,14 +130,22 @@ static int parse_row(char *line, ReplayRow *r)
     if (!next_long(&ctx, &v)) return 0;
     if (!next_ll(&ctx, &vll)) return 0;
     r->stamp_ns = (int64_t)vll;
-    if (!next_long(&ctx, &v)) return 0; r->x_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->y_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->theta_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->velocity_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->vy_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->omega_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->steering_angle_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->horizon_length_msg = (uint32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->x_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->y_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->theta_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->velocity_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->vy_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->omega_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->steering_angle_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->horizon_length_msg = (uint32_t)v;
 
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_ey_fp[i] = (int32_t)v; }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_epsi_fp[i] = (int32_t)v; }
@@ -163,8 +173,8 @@ static void dump_plan_csv(
     const char *path,
     const ReplayRow *row,
     const MpcSolverResult_t *result,
-    const float x_plan[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
-    const float u_plan[PREDICTION_HORIZON][RICCATI_MAX_NU])
+    float x_plan[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
+    float u_plan[PREDICTION_HORIZON][RICCATI_MAX_NU])
 {
     FILE *out = fopen(path, "w");
     VehicleState_t initial_state;
@@ -185,7 +195,7 @@ static void dump_plan_csv(
     initial_state.yaw_rate = fp_to_float(row->omega_fp);
 
     for (int k = 0; k < HORIZON; k++) {
-        controls[k].steer_ang = x_plan[k][IDX_DELTA_ACTUAL];
+        controls[k].steer_ang = x_plan[k][IDX_DELTA_EFFECTIVE];
         controls[k].long_acc = u_plan[k][1];
     }
     vehicle_model_predict_trajectory(&initial_state, controls, cfg.time_step, HORIZON, predicted);
@@ -199,7 +209,7 @@ static void dump_plan_csv(
     fprintf(out, "\n");
     fprintf(out,
             "step,is_terminal,ref_x,ref_y,ref_psi,ref_vx,ref_vy,ref_omega,ref_kappa,left_bound,right_bound,"
-            "plan_ey,plan_epsi,plan_vx,plan_vy,plan_omega,plan_delta_actual,plan_prev_drate,plan_prev_accel,"
+            "plan_ey,plan_epsi,plan_vx,plan_vy,plan_omega,plan_delta_cmd,plan_delta_eff,plan_prev_drate,plan_prev_accel,"
             "u_drate,u_accel,pred_x,pred_y,pred_psi,pred_vx,pred_vy,pred_omega\n");
 
     for (int k = 0; k <= HORIZON; k++) {
@@ -210,7 +220,7 @@ static void dump_plan_csv(
 
         fprintf(out,
                 "%d,%d,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,"
-                "%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,"
+                "%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,"
                 "%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
                 k,
                 is_terminal,
@@ -228,7 +238,8 @@ static void dump_plan_csv(
                 (double)x_plan[k][2],
                 (double)x_plan[k][3],
                 (double)x_plan[k][4],
-                (double)x_plan[k][IDX_DELTA_ACTUAL],
+                (double)x_plan[k][IDX_DELTA_COMMAND],
+                (double)x_plan[k][IDX_DELTA_EFFECTIVE],
                 (double)x_plan[k][IDX_DRATE_PREV],
                 (double)x_plan[k][IDX_ACCEL_PREV],
                 (double)u_drate,
@@ -282,7 +293,7 @@ int main(int argc, char **argv)
         FrenetState_t st;
         MpcSolverResult_t result;
         MpcSolverStatus_t status;
-        ControlInput_t actual_prev;
+        ControlInput_t previous_command;
         int32_t prev_accel_in_fp = prev_accel_fp;
         int32_t applied_accel_fp = 0;
 
@@ -314,9 +325,9 @@ int main(int argc, char **argv)
             ref[i].right_wall_bound = fp_to_float(r.ref_right_bound_fp[i]);
         }
 
-        actual_prev.steer_ang = fp_to_float(r.steering_angle_fp);
-        actual_prev.long_acc = fp_to_float(prev_accel_in_fp);
-        mpc_set_actual_previous_control(&actual_prev);
+        previous_command.steer_ang = fp_to_float(r.steering_angle_fp);
+        previous_command.long_acc = fp_to_float(prev_accel_in_fp);
+        mpc_set_previous_command(&previous_command);
 
         status = mpc_compute_optimal_control(&st, ref, &result);
 

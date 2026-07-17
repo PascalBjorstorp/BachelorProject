@@ -288,9 +288,9 @@ def make_tracking_plot(plan_with, plan_without, out_path, meta_with):
     axes[2].grid(alpha=0.3)
     axes[2].legend(loc="best", fontsize=9)
 
-    # commanded steering (plan_delta_actual at next stage = applied output)
-    steer_w = np.array([float(plan_with[k + 1]["plan_delta_actual"]) for k in range(H)])
-    steer_n = np.array([float(plan_without[k + 1]["plan_delta_actual"]) for k in range(H)])
+    # Commanded steering at the next stage is the target applied to the car.
+    steer_w = np.array([float(plan_with[k + 1]["plan_delta_cmd"]) for k in range(H)])
+    steer_n = np.array([float(plan_without[k + 1]["plan_delta_cmd"]) for k in range(H)])
     axes[3].step(stage_ctrl, steer_w, where="post", color=WITH_COLOR, lw=2.4)
     axes[3].step(stage_ctrl, steer_n, where="post", color=WITHOUT_COLOR, lw=2.4)
     axes[3].set_ylabel("steering [rad]")

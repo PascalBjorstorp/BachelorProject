@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 /* cost_landscape_at_pose.c
  *
  * At a chosen snapshot from a state CSV, sweep the velocity-tracking weight
@@ -114,15 +116,24 @@ static int parse_row(char *line, ReplayRow *r) {
     r->idx = (uint64_t)strtoull(tok, NULL, 10);
     if (!next_long(&ctx, &v)) return 0;
     if (!next_long(&ctx, &v)) return 0;
-    if (!next_ll(&ctx, &vll)) return 0; r->stamp_ns = (int64_t)vll;
-    if (!next_long(&ctx, &v)) return 0; r->x_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->y_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->theta_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->velocity_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->vy_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->omega_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->steering_angle_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->horizon_length_msg = (uint32_t)v;
+    if (!next_ll(&ctx, &vll)) return 0;
+    r->stamp_ns = (int64_t)vll;
+    if (!next_long(&ctx, &v)) return 0;
+    r->x_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->y_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->theta_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->velocity_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->vy_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->omega_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->steering_angle_fp = (int32_t)v;
+    if (!next_long(&ctx, &v)) return 0;
+    r->horizon_length_msg = (uint32_t)v;
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_ey_fp[i] = (int32_t)v; }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_epsi_fp[i] = (int32_t)v; }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_x_fp[i] = (int32_t)v; }
@@ -146,7 +157,7 @@ static int parse_row(char *line, ReplayRow *r) {
 
 typedef struct {
     float Q_lat, Q_heading, Q_vel, Q_lat_vel, Q_yaw_rate;
-    float Q_delta_actual, Q_drate_prev, Q_accel_prev;
+    float Q_effective_steering, Q_drate_prev, Q_accel_prev;
     float R_steer, R_accel;
 } CostWeights_t;
 
@@ -157,7 +168,8 @@ static CostWeights_t build_cost_weights(const MpcConfiguration_t *c) {
     w.Q_vel          = RICCATI_COST_FACTOR * c->weight_velocity;
     w.Q_lat_vel      = RICCATI_COST_FACTOR * c->weight_lateral_velocity;
     w.Q_yaw_rate     = RICCATI_COST_FACTOR * c->weight_yaw_rate;
-    w.Q_delta_actual = RICCATI_COST_FACTOR * c->weight_delta_actual;
+    w.Q_effective_steering =
+        RICCATI_COST_FACTOR * c->weight_effective_steering;
     w.Q_drate_prev   = RICCATI_COST_FACTOR * c->weight_steering_rate;
     w.Q_accel_prev   = RICCATI_COST_FACTOR * c->weight_acceleration_rate;
     w.R_steer        = RICCATI_COST_FACTOR * (c->weight_steering_effort + c->weight_steering_rate);
@@ -167,13 +179,13 @@ static CostWeights_t build_cost_weights(const MpcConfiguration_t *c) {
 
 typedef struct {
     float J_lat, J_heading, J_vel, J_lat_vel, J_yaw_rate;
-    float J_delta_actual, J_drate_prev, J_accel_prev;
+    float J_effective_steering, J_drate_prev, J_accel_prev;
     float J_steer_in, J_accel_in, J_total;
 } CostBreakdown_t;
 
 static CostBreakdown_t compute_cost_breakdown(
-    const float x[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
-    const float u[PREDICTION_HORIZON][RICCATI_MAX_NU],
+    float x[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
+    float u[PREDICTION_HORIZON][RICCATI_MAX_NU],
     const TrajectoryReferencePoint_t *ref,
     const CostWeights_t *w)
 {
@@ -188,7 +200,9 @@ static CostBreakdown_t compute_cost_breakdown(
         c.J_vel          += 0.5f * w->Q_vel          * sq(x[k][2]                - ref[kr].reference_velocity);
         c.J_lat_vel      += 0.5f * w->Q_lat_vel      * sq(x[k][3]                - ref[kr].reference_lateral_velocity);
         c.J_yaw_rate     += 0.5f * w->Q_yaw_rate     * sq(x[k][4]                - ref[kr].reference_yaw_rate);
-        c.J_delta_actual += 0.5f * w->Q_delta_actual * sq(x[k][IDX_DELTA_ACTUAL] - delta_ff);
+        c.J_effective_steering +=
+            0.5f * w->Q_effective_steering *
+            sq(x[k][IDX_DELTA_EFFECTIVE] - delta_ff);
         c.J_drate_prev   += 0.5f * w->Q_drate_prev   * sq(x[k][IDX_DRATE_PREV]);
         c.J_accel_prev   += 0.5f * w->Q_accel_prev   * sq(x[k][IDX_ACCEL_PREV]);
     }
@@ -197,7 +211,7 @@ static CostBreakdown_t compute_cost_breakdown(
         c.J_accel_in += 0.5f * w->R_accel * sq(u[k][1]);
     }
     c.J_total = c.J_lat + c.J_heading + c.J_vel + c.J_lat_vel + c.J_yaw_rate
-              + c.J_delta_actual + c.J_drate_prev + c.J_accel_prev
+              + c.J_effective_steering + c.J_drate_prev + c.J_accel_prev
               + c.J_steer_in + c.J_accel_in;
     return c;
 }
@@ -253,7 +267,7 @@ int main(int argc, char **argv) {
     fprintf(out,
         "idx,w_vel_used,v_now,v_h5,v_h10,v_h_end,out_steer,out_accel,"
         "status,iters,"
-        "J_lat,J_heading,J_vel,J_lat_vel,J_yaw_rate,J_delta_actual,"
+        "J_lat,J_heading,J_vel,J_lat_vel,J_yaw_rate,J_effective_steering,"
         "J_drate_prev,J_accel_prev,J_steer_in,J_accel_in,J_total\n");
 
     /* Initialize once to learn default weights, then snapshot them as "original". */
@@ -288,9 +302,9 @@ int main(int argc, char **argv) {
         ref[i].right_wall_bound           = fp_to_float(r.ref_right_bound_fp[i]);
     }
 
-    ControlInput_t actual_prev;
-    actual_prev.steer_ang = fp_to_float(r.steering_angle_fp);
-    actual_prev.long_acc = 0.0f;
+    ControlInput_t previous_command;
+    previous_command.steer_ang = fp_to_float(r.steering_angle_fp);
+    previous_command.long_acc = 0.0f;
 
     const float log_min = logf(w_min);
     const float log_max = logf(w_max);
@@ -303,7 +317,7 @@ int main(int argc, char **argv) {
         cfg.weight_velocity = w_vel;
         mpc_set_configuration(&cfg);
         mpc_reset();  /* cold start for fairness */
-        mpc_set_actual_previous_control(&actual_prev);
+        mpc_set_previous_command(&previous_command);
 
         MpcSolverResult_t result;
         (void)mpc_compute_optimal_control(&st, ref, &result);
@@ -329,7 +343,8 @@ int main(int argc, char **argv) {
             result.optimal_control.steer_ang, result.optimal_control.long_acc,
             (int)result.solver_status, (unsigned int)result.iterations_used,
             (double)c.J_lat, (double)c.J_heading, (double)c.J_vel,
-            (double)c.J_lat_vel, (double)c.J_yaw_rate, (double)c.J_delta_actual,
+            (double)c.J_lat_vel, (double)c.J_yaw_rate,
+            (double)c.J_effective_steering,
             (double)c.J_drate_prev, (double)c.J_accel_prev,
             (double)c.J_steer_in, (double)c.J_accel_in, (double)c.J_total);
     }

@@ -1131,8 +1131,6 @@ int main(void)
     const double sim_pacejka_c = get_env_double("SIM_PACEJKA_C", 1.6041121492252324);
     const double sim_pacejka_c_front = get_env_double("SIM_PACEJKA_C_FRONT", 1.8031639754063644);
     const double sim_pacejka_c_rear = get_env_double("SIM_PACEJKA_C_REAR", 1.7681655069132207);
-    const double sim_slip_blend_start = get_env_double("SIM_SLIP_BLEND_START", 0.1643527788471148);
-    const double sim_slip_blend_end = get_env_double("SIM_SLIP_BLEND_END", 0.5319307735091576);
     const double sim_slip_blend_start_front = get_env_double("SIM_SLIP_BLEND_START_FRONT", 0.1643527788471148);
     const double sim_slip_blend_end_front = get_env_double("SIM_SLIP_BLEND_END_FRONT", 0.5319307735091576);
     const double sim_slip_blend_start_rear = get_env_double("SIM_SLIP_BLEND_START_REAR", 0.2502122916247753);
@@ -1250,9 +1248,10 @@ int main(void)
     cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))      ? atof(env) : cfg.weight_acceleration_effort);
     cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))       ? atof(env) : cfg.weight_steering_rate);
     cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE")) ? atof(env) : cfg.weight_acceleration_rate);
-    cfg.weight_delta_actual           = (float)(
-        (env = getenv("MPC_W_DELTA_ACTUAL")) ? atof(env) :
-        ((env = getenv("W_DELTA_ACT")) ? atof(env) : cfg.weight_delta_actual));
+    cfg.weight_effective_steering = (float)(
+        (env = getenv("MPC_W_EFFECTIVE_STEERING")) ? atof(env) :
+        ((env = getenv("W_EFFECTIVE_STEER")) ? atof(env) :
+         cfg.weight_effective_steering));
     {
         const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
         const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
@@ -1340,25 +1339,10 @@ int main(void)
         fprintf(mpc_iter_trace_file,
                 "sim_time_s,step,solver_call,iter,primal_residual,dual_residual,"
                 "state_primal_residual,state_dual_residual,ctrl_primal_residual,ctrl_dual_residual,"
-                "rho,rho_u,u0_steer,u0_accel,z0_steer,z0_accel,y0_steer,y0_accel,scale_rho,scale_rho_u,"
-                "pass_r_lin_steer,pass_r_lin_accel,pass_bp_steer,pass_bp_accel,pass_kk_steer,pass_kk_accel,pass_s00,pass_s11,"
-                "pass_p_shift_vx,pass_p_shift_vy,pass_p_shift_omega,pass_p_shift_accel_prev,"
-                "pass_p_shift_ey,pass_p_shift_epsi,"
-                "pass_p_vx,pass_p_vy,pass_p_omega,pass_p_accel_prev,"
-                "pass_p_ey,pass_p_epsi,"
-                "pass_pd_vx,pass_pd_vy,pass_pd_omega,pass_pd_accel_prev,"
-                "pass_pd_ey,pass_pd_epsi,"
-                "pass_p_atp_vx,pass_p_atp_vy,pass_p_atp_omega,pass_p_atp_accel_prev,"
-                "pass_p_gtk_vx,pass_p_gtk_vy,pass_p_gtk_omega,pass_p_gtk_accel_prev,"
-                "pass_bp_accel_vx,pass_bp_accel_vy,pass_bp_accel_omega,pass_bp_accel_prev,"
-                "pass_si10,pass_si11,pass_rhs_accel,"
-                "pass_k0_r_lin_accel,pass_k0_bp_accel,pass_k0_kk_accel,pass_k0_s11,pass_k0_si11,pass_k0_rhs_accel,"
-                "pass_k0_p_shift_vx,pass_k0_p_shift_vy,pass_k0_p_shift_omega,pass_k0_p_shift_accel_prev,"
-                "pass_k0_p_vx,pass_k0_p_vy,pass_k0_p_omega,pass_k0_p_accel_prev,"
-                "pass_k0_pd_vx,pass_k0_pd_vy,pass_k0_pd_omega,pass_k0_pd_accel_prev,"
-                "pass_k0_bp_accel_vx,pass_k0_bp_accel_vy,pass_k0_bp_accel_omega,pass_k0_bp_accel_prev\n");
+                "rho,rho_u,u0_steer,u0_accel,z0_steer,z0_accel,y0_steer,y0_accel,scale_rho,scale_rho_u\n");
         fflush(mpc_iter_trace_file);
     }
+    riccati_debug_set_trace_enabled(mpc_iter_trace_file != NULL);
 
     /* Tracking metrics */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -1514,17 +1498,16 @@ int main(void)
         double v_ref_print = raceline[closest_global].vx;
         double kappa_ref_print = raceline[closest_global].kappa;
 
-        /* Feed the realized ST servo position to MPC (from previous propagation).
-         * actual_steer is st_delta from end of previous step's propagation. */
-        {
-            ControlInput_t actual_ctrl;
-            /* Use previously realized steering (st_delta), not desired */
-            actual_ctrl.steer_ang = (float)(actual_steer);
-            actual_ctrl.long_acc = (float)(cmd_accel);
-            mpc_set_actual_previous_control(&actual_ctrl);
-        }
-
         if (step % MPC_CALL_INTERVAL == 0) {
+            /* Advance the controller's 5 ms effective-steering estimator once
+             * per MPC call using the previously issued steering target. */
+            {
+                ControlInput_t previous_command;
+                previous_command.steer_ang = (float)cmd_steer;
+                previous_command.long_acc = (float)cmd_accel;
+                mpc_set_previous_command(&previous_command);
+            }
+
             /* Build reference */
             TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
             if (local_raceline_sim) {
@@ -1602,77 +1585,7 @@ int main(void)
                                 (double)sample.y0_steer,
                                 (double)sample.y0_accel,
                                 sample.scale_rho, sample.scale_rho_u);
-                        fprintf(mpc_iter_trace_file,
-                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
-                                (double)sample.pass_r_lin_steer,
-                                (double)sample.pass_r_lin_accel,
-                                (double)sample.pass_bp_steer,
-                                (double)sample.pass_bp_accel,
-                                (double)sample.pass_kk_steer,
-                                (double)sample.pass_kk_accel,
-                                (double)sample.pass_s00,
-                                (double)sample.pass_s11,
-                                (double)sample.pass_p_shift_vx,
-                                (double)sample.pass_p_shift_vy,
-                                (double)sample.pass_p_shift_omega,
-                                (double)sample.pass_p_shift_accel_prev,
-                                (double)sample.pass_p_shift_ey,
-                                (double)sample.pass_p_shift_epsi);
-                        fprintf(mpc_iter_trace_file,
-                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
-                                (double)sample.pass_p_vx,
-                                (double)sample.pass_p_vy,
-                                (double)sample.pass_p_omega,
-                                (double)sample.pass_p_accel_prev,
-                                (double)sample.pass_p_ey,
-                                (double)sample.pass_p_epsi,
-                                (double)sample.pass_pd_vx,
-                                (double)sample.pass_pd_vy,
-                                (double)sample.pass_pd_omega,
-                                (double)sample.pass_pd_accel_prev,
-                                (double)sample.pass_pd_ey,
-                                (double)sample.pass_pd_epsi,
-                                (double)sample.pass_p_atp_vx,
-                                (double)sample.pass_p_atp_vy);
-                        fprintf(mpc_iter_trace_file,
-                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
-                                (double)sample.pass_p_atp_omega,
-                                (double)sample.pass_p_atp_accel_prev,
-                                (double)sample.pass_p_gtk_vx,
-                                (double)sample.pass_p_gtk_vy,
-                                (double)sample.pass_p_gtk_omega,
-                                (double)sample.pass_p_gtk_accel_prev,
-                                (double)sample.pass_bp_accel_vx,
-                                (double)sample.pass_bp_accel_vy,
-                                (double)sample.pass_bp_accel_omega,
-                                (double)sample.pass_bp_accel_prev,
-                                (double)sample.pass_si10,
-                                (double)sample.pass_si11,
-                                (double)sample.pass_rhs_accel,
-                                (double)sample.pass_k0_r_lin_accel);
-                        fprintf(mpc_iter_trace_file,
-                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
-                                (double)sample.pass_k0_bp_accel,
-                                (double)sample.pass_k0_kk_accel,
-                                (double)sample.pass_k0_s11,
-                                (double)sample.pass_k0_si11,
-                                (double)sample.pass_k0_rhs_accel,
-                                (double)sample.pass_k0_p_shift_vx,
-                                (double)sample.pass_k0_p_shift_vy,
-                                (double)sample.pass_k0_p_shift_omega,
-                                (double)sample.pass_k0_p_shift_accel_prev,
-                                (double)sample.pass_k0_p_vx,
-                                (double)sample.pass_k0_p_vy,
-                                (double)sample.pass_k0_p_omega,
-                                (double)sample.pass_k0_p_accel_prev,
-                                (double)sample.pass_k0_pd_vx,
-                                (double)sample.pass_k0_pd_vy,
-                                (double)sample.pass_k0_pd_omega,
-                                (double)sample.pass_k0_pd_accel_prev,
-                                (double)sample.pass_k0_bp_accel_vx,
-                                (double)sample.pass_k0_bp_accel_vy,
-                                (double)sample.pass_k0_bp_accel_omega,
-                                (double)sample.pass_k0_bp_accel_prev);
+                        fputc('\n', mpc_iter_trace_file);
                     }
                 }
             }
@@ -1797,7 +1710,7 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            const double mu = sim_mu, mass = sim_mass, Iz = sim_Iz;
+            const double mass = sim_mass, Iz = sim_Iz;
             const double lf = sim_lf, lr = sim_lr, h_cg = sim_h_cg;
             const double g_acc = 9.81;
             const double sv_max = sim_steer_rate_max;
@@ -1909,7 +1822,6 @@ int main(void)
                     double Fzr_ = mass * (g_acc * lf + (ACCL) * h_cg) / lwb; \
                     /* Provisional slip angles for slip-dependent steering compliance. */ \
                     double alpha_f_raw_ = sim_steer_gain * (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
-                    double alpha_r_raw_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
                     double slip_front_raw_ = fabs(alpha_f_raw_); \
                     double steer_blend_; \
                     if (slip_front_raw_ <= sim_slip_blend_start_front) steer_blend_ = 0.0; \

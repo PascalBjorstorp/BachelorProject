@@ -71,13 +71,6 @@ static volatile int global_collision_detected = 0;
 static int global_last_solver_failed = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
-/* Servo dynamics tracking for 8-state MPC.
- * The MPC needs to know the actual servo position (δ_actual) to correctly
- * compute steering commands via the integrator: δ_cmd = δ_actual + dt * δ̇.
- * Since the f1tenth gym doesn't publish the actual servo angle, we simulate
- * it locally using the configured steering-rate limit. */
-static double global_actual_steering_angle = 0.0;
-
 static rcl_publisher_t global_control_publisher;
 static rcl_publisher_t global_reference_path_publisher;
 static rcl_publisher_t global_trajectory_path_publisher;
@@ -558,6 +551,10 @@ void odometry_subscription_callback(const void *message_in)
         build_reference_from_trajectory(closest);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
+        /* The simulator exposes the command, not physical steering feedback.
+         * Supply the previous target; the MPC estimates effective steering. */
+        mpc_set_previous_command(&global_control_command);
+
         MpcSolverResult_t mpc_result;
         MpcSolverStatus_t mpc_status = mpc_compute_optimal_control(
             &global_frenet_state,
@@ -569,22 +566,6 @@ void odometry_subscription_callback(const void *message_in)
         {
             global_control_command = mpc_result.optimal_control;
             global_last_solver_failed = 0;
-
-            /* Simulate servo lag and feed actual steering back to MPC. */
-            {
-                double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
-                double steer_diff = (double)global_control_command.steer_ang -
-                                    global_actual_steering_angle;
-
-                if (steer_diff > max_delta) steer_diff = max_delta;
-                if (steer_diff < -max_delta) steer_diff = -max_delta;
-                global_actual_steering_angle += steer_diff;
-
-                ControlInput_t actual_control;
-                actual_control.steer_ang = (float)global_actual_steering_angle;
-                actual_control.long_acc = global_control_command.long_acc;
-                mpc_set_actual_previous_control(&actual_control);
-            }
         }
         else
         {
@@ -677,8 +658,8 @@ int main(int argc, char *argv[])
 
     printf("============================================================\n");
     printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Simulator\n");
-    printf("  8-state augmented Frenet model\n");
-    printf("  [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
+    printf("  9-state augmented Frenet model\n");
+    printf("  [e_y, e_psi, vx, vy, omega, delta_cmd, delta_eff, drate_prev, accel_prev]\n");
     printf("  Controls: [delta_rate, a_x]\n");
     printf("  Solver: Riccati backward/forward pass inside ADMM loop\n");
     printf("============================================================\n");

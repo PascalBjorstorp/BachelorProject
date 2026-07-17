@@ -27,6 +27,33 @@ target_include_directories(mpc_core PUBLIC
 target_link_libraries(mpc_core PUBLIC m)
 
 # ===========================================================================
+# Standalone Core Tests
+# ===========================================================================
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(test_riccati_solver test/test_riccati_solver.c)
+    target_link_libraries(test_riccati_solver PRIVATE mpc_core m)
+    if(NOT MSVC)
+        target_compile_options(test_riccati_solver PRIVATE -fno-fast-math)
+    endif()
+    add_test(NAME riccati_solver_regressions COMMAND test_riccati_solver)
+
+    add_executable(test_frenet_linearization test/test_frenet_linearization.c)
+    target_link_libraries(test_frenet_linearization PRIVATE mpc_core m)
+    if(NOT MSVC)
+        target_compile_options(test_frenet_linearization PRIVATE -fno-fast-math)
+    endif()
+    add_test(NAME frenet_linearization COMMAND test_frenet_linearization)
+
+    add_executable(test_steering_dynamics test/test_steering_dynamics.c)
+    target_link_libraries(test_steering_dynamics PRIVATE mpc_core m)
+    if(NOT MSVC)
+        target_compile_options(test_steering_dynamics PRIVATE -fno-fast-math)
+    endif()
+    add_test(NAME steering_dynamics COMMAND test_steering_dynamics)
+endif()
+
+# ===========================================================================
 # ROS2 Dependencies
 # ===========================================================================
 find_package(ament_cmake QUIET)

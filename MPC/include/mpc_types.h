@@ -21,15 +21,16 @@
 /* Global dimensions */
 #define NX_GLOBAL 6                                      /* Global/body model state size used by nonlinear prediction and linearization. */
 #define NX_FRENET 5                                      /* Frenet state size used by linearized MPC dynamics. */
-#define NX_AUG 8                                         /* Augmented state size including steering state and prior controls. */
-#define IDX_EY 0                                         /* Position of lateral error (ey) in the augmented vector (matches FPGA). */
-#define IDX_DELTA_ACTUAL 5                               /* Position of physical steering state in the augmented vector. */
-#define IDX_DRATE_PREV 6                                 /* Position of previous steering-rate state in the augmented vector. */
-#define IDX_ACCEL_PREV 7                                 /* Position of previous acceleration state in the augmented vector. */
+#define NX_AUG 9                                         /* Augmented state size including commanded/effective steering and prior controls. */
+#define IDX_EY 0                                         /* Position of lateral error (ey) in the augmented vector. */
+#define IDX_DELTA_COMMAND 5                              /* Position of commanded front-wheel steering angle. */
+#define IDX_DELTA_EFFECTIVE 6                            /* Position of steering angle acting on the vehicle model. */
+#define IDX_DRATE_PREV 7                                 /* Position of previous steering-rate state in the augmented vector. */
+#define IDX_ACCEL_PREV 8                                 /* Position of previous acceleration state in the augmented vector. */
 #define IDX_SPARSE_B_FIRST_ROW 2                         /* First augmented-state row with non-zero dense B coupling in Riccati sparse products. */
-#define NX_DENSE 6                                       /* Dense A-block width before sparse previous-control tail states. */
+#define NX_DENSE 7                                       /* Dense A-block width before sparse previous-control tail states. */
 #define NU 2                                             /* Control vector width for steering-rate and longitudinal acceleration. */
-#define RICCATI_MAX_NX  8                                /* Maximum Riccati state dimension (augmented Frenet model). */
+#define RICCATI_MAX_NX  9                                /* Maximum Riccati state dimension (augmented Frenet model). */
 #define RICCATI_MAX_NU  2                                /* Maximum Riccati control dimension (steering-rate and acceleration). */
 
 /* Math and timing */
@@ -38,6 +39,7 @@
 #define CONTROL_DT_SECONDS (1.0f / CONTROL_RATE_HZ)      /* Controller sample period derived from control-rate definition. */
 #define PREDICTION_DT_SECONDS 0.03f                     /* Nominal prediction-step duration used for model rollout defaults. */
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
+#define STEERING_EFFECTIVE_TIME_CONSTANT_SECONDS 0.025f  /* Recorded-data-selected zero-dead-time effective-steering pole. */
 
 /* Default MPC objective weights */
 #define WEIGHT_LAT_ERROR 1500.0f                         /* Penalizes lateral tracking deviation from the reference path. */
@@ -49,7 +51,7 @@
 #define WEIGHT_ACCEL_EFFORT 0.5f                       /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
 #define WEIGHT_STEER_RATE 5.0f                         /* Penalizes steering-rate change to reduce steering jerk. */
 #define WEIGHT_ACCEL_RATE 5.0f                         /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 1.0f                      /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_EFFECTIVE_STEERING 1.0f                /* Penalizes effective-steering bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 50                              /* Default solver iteration budget per control update. */
@@ -69,14 +71,10 @@
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */
 #define V_SWITCH 7.319f                                  /* Transition speed for constant-power acceleration limiting. */
 #define MIN_SLIP_VELOCITY 0.5f                           /* Lower velocity clamp used in slip-angle calculations. */
-/* Warm-start / cold-start policy. Kept numerically identical to the FPGA
- * implementation (FPGA_Implementations/MPC_FPGA_Kria) so CPU and FPGA make the
- * same cold-start decisions on identical input. Do not diverge these without
- * updating mpc_fpga_types.h to match. */
-#define MPC_WS_CURVATURE_THRESH 0.25f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
-#define MPC_WS_BOUND_THRESH 0.05f                        /* Slack on ey box before a stale warm start is treated as bound-incompatible (matches FPGA). */
-#define MPC_MODEL_SIGNATURE 1                            /* Bumped when the augmented model changes; a mismatch forces a cold start (matches FPGA). */
-#define WARMSTART_CURVATURE_RESET_THRESHOLD MPC_WS_CURVATURE_THRESH /* Back-compat alias; prefer MPC_WS_CURVATURE_THRESH. */
+/* CPU warm-start / cold-start policy. */
+#define MPC_WS_CURVATURE_THRESH 0.25f                    /* Curvature jump that forces a cold start. */
+#define MPC_WS_BOUND_THRESH 0.05f                        /* Slack on ey box before a stale warm start is treated as bound-incompatible. */
+#define MPC_MODEL_SIGNATURE 2                            /* Bumped when the CPU augmented model changes. */
 
 /* Default MPC configuration values */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 4000                /* Maximum trajectory samples accepted by MPC reference buffers. */
@@ -281,7 +279,7 @@ typedef struct
  * @param weight_acceleration_effort Weight on acceleration effort command magnitude.
  * @param weight_steering_rate Weight on steering-rate change.
  * @param weight_acceleration_rate Weight on acceleration-rate change.
- * @param weight_delta_actual Weight on steering-state centering term.
+ * @param weight_effective_steering Weight on effective-steering centering term.
  * @param cross_call_rate_scale Scale factor for first-step cross-call penalties.
  * @param wall_margin Effective lateral wall margin [meters] used in e_y constraints.
  * @param max_solver_iterations Maximum QP/ADMM iterations per solve.
@@ -299,7 +297,7 @@ typedef struct
     float weight_acceleration_effort;    /* Weight for acceleration effort. */
     float weight_steering_rate;          /* Weight for steering jerk/rate change. */
     float weight_acceleration_rate;      /* Weight for acceleration rate change. */
-    float weight_delta_actual;           /* Weight for steering centering state. */
+    float weight_effective_steering;     /* Weight for effective-steering centering. */
     float cross_call_rate_scale;         /* First-step cross-call rate penalty scale factor. */
     float wall_margin;                   /* Effective wall margin for lateral corridor bounds [m]. */
 

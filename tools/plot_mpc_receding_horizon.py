@@ -475,7 +475,9 @@ def make_tracking_plot(
 
     predicted_stage = np.arange(HORIZON)
     predicted_state_stage = np.arange(HORIZON + 1)
-    predicted_steer = np.array([float(plan_rows[k + 1]["plan_delta_actual"]) for k in range(HORIZON)])
+    predicted_steer = np.array(
+        [float(plan_rows[k + 1]["plan_delta_cmd"]) for k in range(HORIZON)]
+    )
     predicted_accel = np.array([float(plan_rows[k]["u_accel"]) for k in range(HORIZON)])
     predicted_vx = np.array([float(r["plan_vx"]) for r in plan_rows])
     reference_vx = np.array([float(r["ref_vx"]) for r in plan_rows[:-1]])

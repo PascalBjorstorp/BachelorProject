@@ -81,7 +81,8 @@ Each `.c` / `.cpp` source has its build line (typical `gcc -O3 -I../../../FPGA_I
 cd tools/mpc_replay/helper
 
 # CPU MPC replay
-gcc -O3 -I../../../MPC/include replay_cpu_mpc.c \
+gcc -O3 -I../../../MPC/include \
+    -I../../../FPGA_Implementations/MPC_FPGA_Kria/include replay_cpu_mpc.c \
     ../../../MPC/src/mpc.c ../../../MPC/src/riccati_solver.c \
     ../../../MPC/src/vehicle_model.c ../../../MPC/src/util_math.c \
     -o replay_cpu_mpc -lm

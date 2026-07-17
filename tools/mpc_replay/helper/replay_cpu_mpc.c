@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,7 +101,7 @@ static int next_long(char **ctx, long *out) {
     char *end = NULL;
     if (!tok) return 0;
     *out = strtol(tok, &end, 10);
-    return end && (*end == '\0' || *end == '\n' || *end == '\r');
+    return end != tok && (*end == '\0' || *end == '\n' || *end == '\r');
 }
 
 static int next_ll(char **ctx, long long *out) {
@@ -107,7 +109,14 @@ static int next_ll(char **ctx, long long *out) {
     char *end = NULL;
     if (!tok) return 0;
     *out = strtoll(tok, &end, 10);
-    return end && (*end == '\0' || *end == '\n' || *end == '\r');
+    return end != tok && (*end == '\0' || *end == '\n' || *end == '\r');
+}
+
+static int next_i32(char **ctx, int32_t *out) {
+    long value = 0;
+    if (!next_long(ctx, &value)) return 0;
+    *out = (int32_t)value;
+    return 1;
 }
 
 static int parse_row(char *line, ReplayRow *r) {
@@ -117,32 +126,58 @@ static int parse_row(char *line, ReplayRow *r) {
     long long vll = 0;
 
     if (!tok) return 0;
-    r->idx = (uint64_t)strtoull(tok, NULL, 10);
+    char *end = NULL;
+    const unsigned long long idx = strtoull(tok, &end, 10);
+    if (end == tok || *end != '\0') return 0;
+    r->idx = (uint64_t)idx;
 
     if (!next_long(&ctx, &v)) return 0; /* stamp_sec */
     if (!next_long(&ctx, &v)) return 0; /* stamp_nsec */
     if (!next_ll(&ctx, &vll)) return 0;
     r->stamp_ns = (int64_t)vll;
-    if (!next_long(&ctx, &v)) return 0; r->x_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->y_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->theta_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->velocity_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->vy_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->omega_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->steering_angle_fp = (int32_t)v;
-    if (!next_long(&ctx, &v)) return 0; r->horizon_length_msg = (uint32_t)v;
+    if (!next_i32(&ctx, &r->x_fp)) return 0;
+    if (!next_i32(&ctx, &r->y_fp)) return 0;
+    if (!next_i32(&ctx, &r->theta_fp)) return 0;
+    if (!next_i32(&ctx, &r->velocity_fp)) return 0;
+    if (!next_i32(&ctx, &r->vy_fp)) return 0;
+    if (!next_i32(&ctx, &r->omega_fp)) return 0;
+    if (!next_i32(&ctx, &r->steering_angle_fp)) return 0;
+    if (!next_long(&ctx, &v)) return 0;
+    r->horizon_length_msg = (uint32_t)v;
 
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_ey_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_epsi_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_x_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_y_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_psi_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_vx_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_vy_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_omega_ref_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_kappa_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_left_bound_fp[i] = (int32_t)v; }
-    for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_right_bound_fp[i] = (int32_t)v; }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_ey_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_epsi_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_x_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_y_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_psi_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_vx_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_vy_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_omega_ref_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_kappa_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_left_bound_fp[i])) return 0;
+    }
+    for (int i = 0; i < HORIZON; i++) {
+        if (!next_i32(&ctx, &r->ref_right_bound_fp[i])) return 0;
+    }
 
     r->has_input_frenet = 0;
     if (next_long(&ctx, &v)) {
@@ -157,6 +192,8 @@ static int parse_row(char *line, ReplayRow *r) {
 int main(int argc, char **argv) {
     uint64_t trace_idx = 0;
     const char *trace_out_path = NULL;
+    int trace_idx_set = 0;
+    int trace_written = 0;
 
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <mpc_state_csv> <out_csv> [--trace-idx N --trace-out path]\n", argv[0]);
@@ -165,12 +202,17 @@ int main(int argc, char **argv) {
     for (int ai = 3; ai < argc; ai++) {
         if (strcmp(argv[ai], "--trace-idx") == 0 && (ai + 1) < argc) {
             trace_idx = (uint64_t)strtoull(argv[++ai], NULL, 10);
+            trace_idx_set = 1;
         } else if (strcmp(argv[ai], "--trace-out") == 0 && (ai + 1) < argc) {
             trace_out_path = argv[++ai];
         } else {
             fprintf(stderr, "Unknown arg: %s\n", argv[ai]);
             return 2;
         }
+    }
+    if (trace_idx_set != (trace_out_path != NULL)) {
+        fprintf(stderr, "--trace-idx and --trace-out must be used together\n");
+        return 2;
     }
 
     FILE *in = fopen(argv[1], "r");
@@ -193,15 +235,18 @@ int main(int argc, char **argv) {
         return 5;
     }
 
-    fprintf(out, "idx,stamp_ns,status,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,max_rho_used,max_rho_u_used\n");
+    fprintf(out, "idx,stamp_ns,status,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp\n");
 
     mpc_initialize();
     mpc_reset();
+    riccati_debug_set_trace_enabled(trace_out_path != NULL);
 
     int32_t prev_accel_fp = 0;
     int32_t last_accel_cmd_fp = 0;
+    unsigned long line_number = 1;
 
     while (fgets(line, sizeof(line), in)) {
+        line_number++;
         ReplayRow r;
         int32_t ey_fp = 0;
         int32_t epsi_fp = 0;
@@ -209,17 +254,16 @@ int main(int argc, char **argv) {
         FrenetState_t st;
         MpcSolverResult_t result;
         MpcSolverStatus_t status;
-        ControlInput_t actual_prev;
+        ControlInput_t previous_command;
         int32_t out_steer_fp = 0;
         int32_t out_accel_fp = 0;
         int32_t prev_accel_in_fp = prev_accel_fp;
         int32_t applied_accel_fp = 0;
-        float max_rho_used = 0.0f;
-        float max_rho_u_used = 0.0f;
-
         if (!parse_row(line, &r)) {
-            fprintf(stderr, "Skipping malformed row\n");
-            continue;
+            fprintf(stderr, "Malformed input row at line %lu\n", line_number);
+            fclose(in);
+            fclose(out);
+            return 6;
         }
 
         if (r.has_input_frenet) {
@@ -245,21 +289,12 @@ int main(int argc, char **argv) {
             ref[i].right_wall_bound = fp_to_float(r.ref_right_bound_fp[i]);
         }
 
-        actual_prev.steer_ang = fp_to_float(r.steering_angle_fp);
-        actual_prev.long_acc = fp_to_float(prev_accel_in_fp);
-        mpc_set_actual_previous_control(&actual_prev);
+        previous_command.steer_ang = fp_to_float(r.steering_angle_fp);
+        previous_command.long_acc = fp_to_float(prev_accel_in_fp);
+        mpc_set_previous_command(&previous_command);
 
         status = mpc_compute_optimal_control(&st, ref, &result);
         (void)status;
-
-        const int trace_n = riccati_debug_get_trace_count();
-        for (int ti = 0; ti < trace_n; ti++) {
-            RiccatiDebugIterSample_t sample;
-            if (riccati_debug_get_trace_sample(ti, &sample) == 0) {
-                if (sample.rho > max_rho_used) max_rho_used = sample.rho;
-                if (sample.rho_u > max_rho_u_used) max_rho_u_used = sample.rho_u;
-            }
-        }
 
         out_steer_fp = float_to_fp(result.optimal_control.steer_ang);
         out_accel_fp = float_to_fp(result.optimal_control.long_acc);
@@ -272,7 +307,8 @@ int main(int argc, char **argv) {
         }
         prev_accel_fp = applied_accel_fp;
 
-        if (trace_idx > 0 && trace_out_path != NULL && r.idx == trace_idx) {
+        if (trace_idx_set && r.idx == trace_idx) {
+            const int trace_n = riccati_debug_get_trace_count();
             FILE *t = fopen(trace_out_path, "w");
             if (t != NULL) {
                 fprintf(t,
@@ -303,13 +339,17 @@ int main(int argc, char **argv) {
                     }
                 }
                 fclose(t);
+                trace_written = 1;
             } else {
                 fprintf(stderr, "Failed to open trace output: %s\n", trace_out_path);
+                fclose(in);
+                fclose(out);
+                return 7;
             }
         }
 
         fprintf(out,
-                "%llu,%lld,%d,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9g,%.9g\n",
+                "%llu,%lld,%d,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
                 (unsigned long long)r.idx,
                 (long long)r.stamp_ns,
                 (int)result.solver_status,
@@ -322,12 +362,15 @@ int main(int argc, char **argv) {
                 r.vy_fp,
                 r.omega_fp,
                 r.steering_angle_fp,
-                prev_accel_in_fp,
-                (double)max_rho_used,
-                (double)max_rho_u_used);
+                prev_accel_in_fp);
     }
 
     fclose(in);
     fclose(out);
+    if (trace_idx_set && !trace_written) {
+        fprintf(stderr, "Trace index %llu was not present in the input\n",
+                (unsigned long long)trace_idx);
+        return 8;
+    }
     return 0;
 }

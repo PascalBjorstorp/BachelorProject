@@ -12,7 +12,7 @@
  *
  * Architecture (EKF-driven):
  *   - Odometry callback: stores latest velocity state (fast, non-blocking)
- *   - Servo feedback callback: stores actual steering angle from VESC
+ *   - Servo command callback: stores the VESC steering-command echo
  *   - EKF pose callback: caches latest pose and signals MPC thread
  *   - MPC control thread: runs once per newest EKF pose, updates latest command
  *   - Drive publisher thread: republishes latest MPC command at fixed rate
@@ -20,7 +20,7 @@
  *
  * Topics:
  *   Subscribe: /ego_racecar/odom       (nav_msgs/Odometry)     — VESC odometry [QoS(10)]
- *   Subscribe: /sensors/servo_position_command (std_msgs/Float64) — servo fb [QoS(10)]
+ *   Subscribe: /sensors/servo_position_command (std_msgs/Float64) — command echo [QoS(10)]
  *   Subscribe: /ekf_pose               (geometry_msgs/PoseWithCovarianceStamped) — EKF pose [QoS(10)]
  *   Subscribe: /local_raceline         (nav_msgs/Path)         — lateral planner reference [QoS(10)]
  *   Publish:   /drive                  (ackermann_msgs/AckermannDriveStamped) — mux [QoS(10)]
@@ -150,17 +150,15 @@ static double apply_standstill_brake_override(double vx, double accel_cmd, int a
  */
 
 /*===========================================================================
- * Servo Dynamics Tracking
+ * Steering Command Tracking
  *===========================================================================
- * The MPC needs to know the actual servo position (delta_actual) to correctly
- * compute steering commands via the integrator: delta_cmd = delta_actual + dt * delta_dot.
- *
- * On the real car, the VESC publishes /sensors/servo_position_command which
- * gives the commanded servo value (0-1). We convert it back to steering angle.
- * If servo feedback is not available, fall back to rate-limited tracking.
+ * The VESC topic reports the commanded servo value, not a measured wheel or
+ * servo-shaft angle. The CPU MPC converts that echo back to a commanded front
+ * wheel angle and estimates the effective angle with its internal 25 ms pole.
+ * Without the echo, the last command issued by this node is used directly.
  */
-static double global_actual_steering_angle = 0.0;
-static int g_use_steering_feedback = 0;
+static double global_commanded_steering_angle = 0.0;
+static int g_have_steering_command_echo = 0;
 
 /*===========================================================================
  * Global State Variables (pre-allocated, no dynamic allocation in hot path)
@@ -591,36 +589,34 @@ static void build_reference_from_local_raceline(void)
     /* Get MPC parameters for time step */
     const MpcConfiguration_t cfg = mpc_get_configuration();
     const double dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
-    
-    /* Use v_ref at current position (step 0) to compute lookahead arc-length.
-     * This ensures the horizon is always computed from a valid reference speed,
-     * not from actual velocity which may momentarily be zero. */
-    double v_ref_base = (double)global_trajectory[0].velocity_meters_per_second;
+
+    /* Use v_ref at the current position so lookahead remains defined when
+     * actual velocity momentarily reaches zero. */
+    double v_ref_base =
+        (double)global_trajectory[0].velocity_meters_per_second;
     if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
-    
+
     /* For each horizon step, compute the arc-length position and fill reference trajectory.
      * Interpolate reference fields along arc length so the CPU node can be
      * tested against the smoother horizon construction used elsewhere. */
+    int segment_index = 0;
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        double target_s = v_ref_base * dt * (double)step;
-        int idx = global_trajectory_count - 1;
-        for (int i = 0; i < global_trajectory_count - 1; i++)
+        const double target_s = v_ref_base * dt * (double)step;
+        /* target_s is monotonic, so retain the previous segment instead of
+         * rescanning the local path from index zero for every horizon sample. */
+        while (segment_index + 1 < global_trajectory_count &&
+               global_trajectory[segment_index + 1].s_meters <= target_s)
         {
-            if (global_trajectory[i].s_meters <= target_s &&
-                global_trajectory[i + 1].s_meters > target_s)
-            {
-                idx = i;
-                break;
-            }
+            segment_index++;
         }
 
-        const TrajectoryWaypoint_t *a = &global_trajectory[idx];
+        const TrajectoryWaypoint_t *a = &global_trajectory[segment_index];
         const TrajectoryWaypoint_t *b = a;
         double t = 0.0;
-        if (idx + 1 < global_trajectory_count)
+        if (segment_index + 1 < global_trajectory_count)
         {
-            b = &global_trajectory[idx + 1];
+            b = &global_trajectory[segment_index + 1];
             const double ds = b->s_meters - a->s_meters;
             if (ds > 1e-9)
             {
@@ -811,14 +807,13 @@ static void project_to_path_segment(
     }
 }
 
-/* 8-state augmented model verification note:
+/* 9-state augmented model verification note:
  * The FrenetState_t provides x0[0..4] = {e_y, e_psi, vx, vy, omega}.
  * The remaining augmented states are managed by the solver internally:
- *   x0[5] = delta_actual    — set via mpc_set_actual_previous_control()
- *   x0[6] = delta_rate_prev — stored by the solver after each solve
- *   x0[7] = accel_prev      — stored by the solver after each solve
- * The hardware node feeds delta_actual from servo feedback (or rate-limited
- * tracking) after each solve, which the solver uses on the NEXT call.
+ *   x0[5] = delta_command   — supplied before each solve
+ *   x0[6] = delta_effective — advanced by the 5 ms estimator
+ *   x0[7] = delta_rate_prev — previous steering-rate memory
+ *   x0[8] = accel_prev      — previous acceleration memory
  */
 
 /*===========================================================================
@@ -1042,16 +1037,16 @@ void odometry_subscription_callback(const void *message_in)
 }
 
 /*===========================================================================
- * ROS2 Callback: Servo Feedback Subscription
+ * ROS2 Callback: Servo Command-Echo Subscription
  *===========================================================================*/
 
 /**
- * @brief Process servo feedback and estimate actual steering angle.
+ * @brief Convert the VESC servo-command echo back to steering angle.
  * @param message_in Pointer to std_msgs/Float64 message.
  * @return None.
  */
 
-void servo_feedback_callback(const void *message_in)
+void servo_command_callback(const void *message_in)
 {
     if (message_in == NULL) return;
 
@@ -1088,29 +1083,29 @@ void servo_feedback_callback(const void *message_in)
             {
                 double t = (-STEERING_CORRECTION_C1 + sqrt(disc))
                          / (2.0 * STEERING_CORRECTION_C2);
-                global_actual_steering_angle = copysign(t, corrected);
+                global_commanded_steering_angle = copysign(t, corrected);
             }
             else
             {
                 /* Fallback: linear inverse (discriminant < 0 should not happen) */
-                global_actual_steering_angle = corrected;
+                global_commanded_steering_angle = corrected;
             }
         }
         else
         {
             /* No polynomial correction (c2=0) — pure linear */
-            global_actual_steering_angle = corrected;
+            global_commanded_steering_angle = corrected;
         }
     }
 
-    g_use_steering_feedback = 1;
-    const double actual_steer = global_actual_steering_angle;
+    g_have_steering_command_echo = 1;
+    const double commanded_steer = global_commanded_steering_angle;
     pthread_mutex_unlock(&g_state_mutex);
 
     if (g_verbose)
     {
-        printf("[MPC] Servo feedback: servo_val=%.3f -> delta=%.4f rad\n",
-               servo_val, actual_steer);
+        printf("[MPC] Servo command echo: servo_val=%.3f -> delta=%.4f rad\n",
+               servo_val, commanded_steer);
     }
 }
 
@@ -1193,9 +1188,9 @@ static void run_mpc_for_pose(
     double latest_omega_snapshot = 0.0;
     struct timespec last_odom_time_snapshot = {0, 0};
     long long last_odom_ros_time_snapshot = 0;
-    double actual_steer_snapshot = 0.0;
+    double commanded_steer_snapshot = 0.0;
     double last_servo_raw_snapshot = 0.0;
-    int use_steering_feedback_snapshot = 0;
+    int have_steering_command_echo_snapshot = 0;
 
     pthread_mutex_lock(&g_state_mutex);
     odom_received_snapshot = global_odometry_received_flag;
@@ -1204,9 +1199,9 @@ static void run_mpc_for_pose(
     latest_omega_snapshot = g_latest_omega;
     last_odom_time_snapshot = g_last_odom_time;
     last_odom_ros_time_snapshot = g_last_odom_ros_time_ns;
-    actual_steer_snapshot = global_actual_steering_angle;
+    commanded_steer_snapshot = global_commanded_steering_angle;
     last_servo_raw_snapshot = g_last_servo_raw;
-    use_steering_feedback_snapshot = g_use_steering_feedback;
+    have_steering_command_echo_snapshot = g_have_steering_command_echo;
     pthread_mutex_unlock(&g_state_mutex);
 
     /* Don't run MPC until odometry (velocity) has been received */
@@ -1316,10 +1311,21 @@ static void run_mpc_for_pose(
     MpcSolverResult_t mpc_result;
     MpcSolverStatus_t mpc_status;
     struct timespec t0, t1;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+
+    /* Supply the command that acted during the preceding 5 ms interval. The
+     * MPC advances its effective-steering estimator once inside this solve. */
+    {
+        ControlInput_t previous_command;
+        previous_command.steer_ang = (float)commanded_steer_snapshot;
+        previous_command.long_acc = global_control_command.long_acc;
+        mpc_set_previous_command(&previous_command);
+    }
+
     publish_float64_metric(&g_timing_solver_enter_seq_publisher,
                            (double)pose_seq,
                            "solver_enter_seq");
+    /* Keep ROS publication/mutex time out of the core solver measurement. */
+    clock_gettime(CLOCK_MONOTONIC, &t0);
     mpc_status = mpc_compute_optimal_control(
         &global_frenet_state,
         global_reference_trajectory,
@@ -1427,33 +1433,19 @@ static void run_mpc_for_pose(
                 (float)apply_standstill_brake_override(vx, a_cmd, 1);
         }
 
-        /* Update servo tracking.
-         * If steering feedback is available from VESC, it's already set by
-         * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
+        /* Keep the command echo if available. Otherwise use the target this
+         * node is about to publish; effective steering is estimated in MPC. */
         pthread_mutex_lock(&g_state_mutex);
-        actual_steer_snapshot = global_actual_steering_angle;
-        use_steering_feedback_snapshot = g_use_steering_feedback;
-        if (!use_steering_feedback_snapshot)
+        commanded_steer_snapshot = global_commanded_steering_angle;
+        have_steering_command_echo_snapshot =
+            g_have_steering_command_echo;
+        if (!have_steering_command_echo_snapshot)
         {
-            double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
-            double steer_diff = steer - actual_steer_snapshot;
-            if (steer_diff > max_delta) steer_diff = max_delta;
-            if (steer_diff < -max_delta) steer_diff = -max_delta;
-            actual_steer_snapshot += steer_diff;
-            global_actual_steering_angle = actual_steer_snapshot;
+            commanded_steer_snapshot = steer;
+            global_commanded_steering_angle = steer;
         }
         last_servo_raw_snapshot = g_last_servo_raw;
         pthread_mutex_unlock(&g_state_mutex);
-
-        /* Feed actual servo position back to MPC */
-        {
-            ControlInput_t actual_ctrl;
-            actual_ctrl.steer_ang =
-                actual_steer_snapshot;
-            actual_ctrl.long_acc =
-                global_control_command.long_acc;
-            mpc_set_actual_previous_control(&actual_ctrl);
-        }
 
         if (g_verbose && g_solver_log_file == NULL)
         {
@@ -1586,8 +1578,9 @@ static void run_mpc_for_pose(
                     vref0, kappa0, ref_yaw_rate0, left_wall0, right_wall0,
                     local_wp0_x, local_wp0_y, local_wp0_heading, local_wp0_s,
                     cmd_steer, cmd_accel, publish_speed_cmd, publish_accel_cmd,
-                    actual_steer_snapshot, last_servo_raw_snapshot,
-                    use_steering_feedback_snapshot, last_odom_ros_time_snapshot);
+                    commanded_steer_snapshot, last_servo_raw_snapshot,
+                    have_steering_command_echo_snapshot,
+                    last_odom_ros_time_snapshot);
 
             if ((g_solver_log_counter % 200UL) == 0UL)
             {
@@ -1683,8 +1676,8 @@ int main(int argc, char *argv[])
     printf("============================================================\n");
     printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Hardware\n");
     printf("  Target: Jetson Xavier NX (EKF-driven)\n");
-    printf("  8-state augmented Frenet model\n");
-    printf("  [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
+    printf("  9-state augmented Frenet model\n");
+    printf("  [e_y, e_psi, vx, vy, omega, delta_cmd, delta_eff, drate_prev, accel_prev]\n");
     printf("  Controls: [delta_rate, a_x]\n");
     printf("  Solver: Riccati backward/forward pass inside ADMM loop\n");
     printf("============================================================\n");
@@ -1778,7 +1771,7 @@ int main(int argc, char *argv[])
                     "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
                     "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
                     "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
-                    "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
+                    "commanded_steer,servo_raw,have_steering_command_echo,odom_ros_time_ns\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
 
@@ -1831,7 +1824,10 @@ int main(int argc, char *argv[])
                         fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
                         fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
                         fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
-                        fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
+                        fprintf(g_solver_meta_file, "weight_effective_steering=%.9g\n",
+                                (double)cfg.weight_effective_steering);
+                        fprintf(g_solver_meta_file, "steering_effective_tau_s=%.9g\n",
+                                (double)STEERING_EFFECTIVE_TIME_CONSTANT_SECONDS);
                         fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
                         fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
                         fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
@@ -2141,9 +2137,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Add servo feedback subscription */
+    /* Add servo command-echo subscription. */
     rc = rclc_executor_add_subscription(&executor, &servo_sub,
-        &global_servo_message_buffer, &servo_feedback_callback, ON_NEW_DATA);
+        &global_servo_message_buffer, &servo_command_callback, ON_NEW_DATA);
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: add servo sub: %s\n", rcl_get_error_string().str);

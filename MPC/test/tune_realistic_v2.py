@@ -9,12 +9,10 @@ Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
     python3 test/tune_realistic_v2.py -j 0                   # Use all workers
     python3 test/tune_realistic_v2.py --seed-csv /path/to/results.csv
-    python3 test/tune_realistic_v2.py --hardware-log /path/to/mpc_solver.csv \
-        --hardware-meta /path/to/mpc_solver.csv.meta.txt     # Replay exact hardware scenario
 
 The sweep runs 6 phases:
     Phase 1: One-at-a-time parameter sensitivity
-    Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_DELTA_ACTUAL)
+    Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_EFFECTIVE_STEERING)
     Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
@@ -43,14 +41,8 @@ import hashlib
 import shutil
 import tempfile
 import multiprocessing
-from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
-
-try:
-    from calibrate_plant_to_hardware import load_hardware_run, load_raceline
-except ModuleNotFoundError:
-    from MPC.test.calibrate_plant_to_hardware import load_hardware_run, load_raceline
 
 # ==============================================================================
 # PATHS
@@ -72,7 +64,7 @@ DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 WALL_MARGIN = 0.14
-DEFAULT_BASE_SEED_CSV = "/home/akselmo/Downloads/tuning_hardware_base_20260425_161330.csv"
+DEFAULT_BASE_SEED_CSV = os.environ.get("MPC_TUNING_SEED_CSV", "")
 
 # Base override seed
 BASE_OVERRIDES = {
@@ -88,7 +80,7 @@ BASE_OVERRIDES = {
     "R_ACCEL": 0.01,
     "W_JERK": 0.04,
     "W_ACCEL_RATE": 0.10,
-    "MPC_W_DELTA_ACTUAL": 0.02254,
+    "MPC_W_EFFECTIVE_STEERING": 0.02254,
     "HORIZON": 20,
     "PRED_DT": 0.03,
     "RHO": 7.0,
@@ -96,9 +88,6 @@ BASE_OVERRIDES = {
     "TOL": 0.01,
     "MAX_ITER": 50,
 }
-
-HARDWARE_REPLAY_RUN = None
-HARDWARE_REPLAY_WINDOW_SEC = 3.0
 
 # ==============================================================================
 # SWEEP VALUE RANGES - PHASE 2 (Primary Grid)
@@ -112,7 +101,7 @@ PHASE2_VALUES_BASE = {
     "Q_LAT_VEL": [0.5, 0.75, 1.0, 1.25, 1.5],
     "Q_YAW": [1.0, 1.25, 1.50, 1.75, 2.0],
     "R_STEER": [1.0, 1.25, 1.50, 1.75, 2.0],
-    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.025, 0.03],
+    "MPC_W_EFFECTIVE_STEERING": [0.015, 0.02, 0.025, 0.03],
 }
 
 # ==============================================================================
@@ -129,7 +118,7 @@ FULL_SWEEP_VALUES_BASE = {
     "R_ACCEL":      [0.006, 0.008, 0.010, 0.012, 0.015],
     "W_JERK":       [0.020, 0.030, 0.040, 0.050, 0.065],
     "W_ACCEL_RATE": [0.060, 0.080, 0.100, 0.120, 0.150],
-    "MPC_W_DELTA_ACTUAL": [0.018, 0.020, 0.023, 0.026, 0.030],
+    "MPC_W_EFFECTIVE_STEERING": [0.018, 0.020, 0.023, 0.026, 0.030],
     "HORIZON":      HORIZON_SWEEP_VALUES,
     "PRED_DT":      [0.03],
     "RHO":          [8.0],
@@ -150,7 +139,7 @@ PHASE4_VALUES_BASE = {
     "W_JERK":       [0.01, 0.02, 0.040, 0.06, 0.80],
     "R_ACCEL":      [0.005, 0.0075, 0.010, 0.02, 0.05],
     "W_ACCEL_RATE": [0.01, 0.05, 0.08, 0.120, 0.140],
-    "MPC_W_DELTA_ACTUAL": [0.018, 0.020, 0.023, 0.026, 0.030],
+    "MPC_W_EFFECTIVE_STEERING": [0.018, 0.020, 0.023, 0.026, 0.030],
 }
 
 # Keep these fixed for all sweeps and validations.
@@ -175,7 +164,7 @@ RANDOM_PROFILES = {
             "R_ACCEL": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
             "W_JERK": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
             "W_ACCEL_RATE": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
-            "MPC_W_DELTA_ACTUAL": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            "MPC_W_EFFECTIVE_STEERING": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
             SOLVER_PAIR_PARAM: [0.75, 0.80, 0.84, 0.88, 0.92, 0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05, 1.08, 1.12, 1.16, 1.22, 1.28],
         },
         "discrete": {
@@ -196,7 +185,7 @@ RANDOM_PROFILES = {
             "R_ACCEL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
             "W_JERK": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
             "W_ACCEL_RATE": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
-            "MPC_W_DELTA_ACTUAL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "MPC_W_EFFECTIVE_STEERING": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
             SOLVER_PAIR_PARAM: [0.88, 0.92, 0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05, 1.07, 1.10],
         },
         "discrete": {
@@ -273,7 +262,7 @@ PHASE7_RANDOM_COUNT = 2000
 PHASE8_RANDOM_COUNT = 2000
 STRICT_PROMOTION = True
 SOLVER_PARAM_KEYS = ("TOL",)
-DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
+DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_EFFECTIVE_STEERING", "HORIZON", "PRED_DT"]
 DIVERSITY_MIN_DISTANCE = 1.0
 
 # Keep summary print order aligned with swept define order in mpc_types.h.
@@ -1423,9 +1412,6 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
     servo feedback, control-rate limiting), do it in the hardware stack, not
     in this weight sweep.
     """
-    if HARDWARE_REPLAY_RUN is not None:
-        return build_hardware_replay_scenarios(HARDWARE_REPLAY_RUN)
-
     base_path = SCENARIO_RACELINE_PATHS.get("base", RACELINE_PATH)
 
     scenarios = [
@@ -1474,29 +1460,6 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
             })
 
     return scenarios
-
-
-def build_hardware_replay_scenarios(run: dict) -> list:
-    """Evaluate against one real hardware segment with exact local-raceline replay."""
-    sim_duration = min(run["elapsed_s"][-1], HARDWARE_REPLAY_WINDOW_SEC) if HARDWARE_REPLAY_WINDOW_SEC > 0.0 else run["elapsed_s"][-1]
-    return [
-        {
-            "name": "hardware_replay",
-            "weight": 1.0,
-            "seed_offset": 0,
-            "raceline_path": RACELINE_PATH,
-            "env": {
-                "SIM_DURATION": f"{sim_duration:.6f}",
-                "REPLAY_LOCAL_RACELINE_LOG": str(run["local_raceline_log_path"]),
-                "REPLAY_LOCAL_RACELINE_MODE": "progress" if run.get("local_raceline_index_path") else "time",
-                "REPLAY_LOCAL_RACELINE_INDEX": str(run["local_raceline_index_path"]) if run.get("local_raceline_index_path") else "",
-                "REPLAY_LOCAL_RACELINE_START_NS": str(run["start_local_raceline_ns"]),
-                **run["start_env"],
-            },
-        },
-    ]
-
-
 
 def get_primary_grid_values(objective: str) -> dict:
     """Return the Phase 2 sweep for the active objective."""
@@ -2000,9 +1963,9 @@ def gen_primary_grid(objective: str) -> list:
     qlv_vals = values["Q_LAT_VEL"]
     qy_vals = values["Q_YAW"]
     rs_vals = values["R_STEER"]
-    wda_vals = values["MPC_W_DELTA_ACTUAL"]
-    for ql, qh, qv, qlv, qy, rs, wda in itertools.product(
-            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wda_vals):
+    wes_vals = values["MPC_W_EFFECTIVE_STEERING"]
+    for ql, qh, qv, qlv, qy, rs, wes in itertools.product(
+            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wes_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_HDG"] = qh
@@ -2010,12 +1973,12 @@ def gen_primary_grid(objective: str) -> list:
         w["Q_LAT_VEL"] = qlv
         w["Q_YAW"] = qy
         w["R_STEER"] = rs
-        w["MPC_W_DELTA_ACTUAL"] = wda
+        w["MPC_W_EFFECTIVE_STEERING"] = wes
         w["HORIZON"] = FIXED_HORIZON
         w["PRED_DT"] = FIXED_PRED_DT
         if is_valid_config(w):
             combos.append((
-                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WDA={wda}+HZ={FIXED_HORIZON}+DT={FIXED_PRED_DT:.3f}+CFG",
+                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WES={wes}+HZ={FIXED_HORIZON}+DT={FIXED_PRED_DT:.3f}+CFG",
                 w,
             ))
     
@@ -2034,20 +1997,20 @@ def gen_primary_grid_local() -> list:
     ql_vals = around("Q_LAT", (0.90, 1.00, 1.10), 100.0)
     qv_vals = around("Q_VEL", (0.92, 1.00, 1.08), 10.0)
     rs_vals = around("R_STEER", (0.92, 1.00, 1.08), 0.1)
-    wda_vals = around("MPC_W_DELTA_ACTUAL", (0.67, 1.00, 1.33), 0.005)
+    wes_vals = around("MPC_W_EFFECTIVE_STEERING", (0.67, 1.00, 1.33), 0.005)
 
-    for ql, qv, rs, wda in itertools.product(
-            ql_vals, qv_vals, rs_vals, wda_vals):
+    for ql, qv, rs, wes in itertools.product(
+            ql_vals, qv_vals, rs_vals, wes_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_VEL"] = qv
         w["R_STEER"] = rs
-        w["MPC_W_DELTA_ACTUAL"] = wda
+        w["MPC_W_EFFECTIVE_STEERING"] = wes
         w["HORIZON"] = FIXED_HORIZON
         w["PRED_DT"] = FIXED_PRED_DT
         if is_valid_config(w):
             combos.append((
-                f"LOCAL+L={ql:.3f}+V={qv:.3f}+RS={rs:.3f}+WDA={wda:.4f}",
+                f"LOCAL+L={ql:.3f}+V={qv:.3f}+RS={rs:.3f}+WES={wes:.4f}",
                 w,
             ))
 
@@ -2065,10 +2028,10 @@ def gen_secondary_grid(objective: str) -> list:
     wj_vals = values["W_JERK"]
     ra_vals = values["R_ACCEL"]
     war_vals = values["W_ACCEL_RATE"]
-    wda_vals = values["MPC_W_DELTA_ACTUAL"]
+    wes_vals = values["MPC_W_EFFECTIVE_STEERING"]
     
-    for qlv, qy, rs, wj, ra, war, wda in itertools.product(
-            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals, wda_vals):
+    for qlv, qy, rs, wj, ra, war, wes in itertools.product(
+            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals, wes_vals):
         w = dict(BASE)
         w["Q_LAT_VEL"] = qlv
         w["Q_YAW"] = qy
@@ -2076,8 +2039,8 @@ def gen_secondary_grid(objective: str) -> list:
         w["W_JERK"] = wj
         w["R_ACCEL"] = ra
         w["W_ACCEL_RATE"] = war
-        w["MPC_W_DELTA_ACTUAL"] = wda
-        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}+WDA={wda}", w))
+        w["MPC_W_EFFECTIVE_STEERING"] = wes
+        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}+WES={wes}", w))
 
     return combos
 
@@ -2868,8 +2831,17 @@ def main():
     global GLOBAL_START_SHIFT_X_M, GLOBAL_START_SHIFT_Y_M
     global WALL_MARGIN
     global RACE_SCENARIO_DURATION
-    global HARDWARE_REPLAY_RUN
-    global HARDWARE_REPLAY_WINDOW_SEC
+
+    if any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+        print(__doc__.strip())
+        print(
+            "\nCommon options:\n"
+            "  -j, --jobs N              Worker processes (0 = all CPUs)\n"
+            "  --raceline PATH           Override the raceline CSV\n"
+            "  --seed-csv PATH           Seed weights from a prior result\n"
+            "  --resume-csv PATH         Resume from a prior result CSV"
+        )
+        return
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
@@ -2885,9 +2857,6 @@ def main():
     local_sweep = False
     local_duration = 8.0
     progress_file_override = None
-    hardware_log_override = None
-    hardware_meta_override = None
-    hardware_window_sec = HARDWARE_REPLAY_WINDOW_SEC
     
     for i, arg in enumerate(sys.argv):
         if arg.startswith("--resume-csv "):
@@ -2935,7 +2904,7 @@ def main():
                 except ValueError:
                     print(f"WARNING: invalid --start-shift '{sys.argv[i + 1]}', using defaults")
             else:
-                print(f"WARNING: --start-shift expects x,y (e.g. '0.0,0.0'), using defaults")
+                print("WARNING: --start-shift expects x,y (e.g. '0.0,0.0'), using defaults")
         if arg == "--with-obstacles":
             include_obstacles = True
         if arg == "--no-obstacles":
@@ -2949,15 +2918,6 @@ def main():
                 print(f"WARNING: invalid --local-duration '{sys.argv[i + 1]}', using {local_duration}")
         if arg == "--progress-file" and i + 1 < len(sys.argv):
             progress_file_override = sys.argv[i + 1].strip()
-        if arg == "--hardware-log" and i + 1 < len(sys.argv):
-            hardware_log_override = sys.argv[i + 1].strip()
-        if arg == "--hardware-meta" and i + 1 < len(sys.argv):
-            hardware_meta_override = sys.argv[i + 1].strip()
-        if arg == "--hardware-window-sec" and i + 1 < len(sys.argv):
-            try:
-                hardware_window_sec = float(sys.argv[i + 1])
-            except ValueError:
-                print(f"WARNING: invalid --hardware-window-sec '{sys.argv[i + 1]}', using {HARDWARE_REPLAY_WINDOW_SEC}")
         if arg == "--wall-margin" and i + 1 < len(sys.argv):
             try:
                 requested = max(0.0, float(sys.argv[i + 1]))
@@ -3002,28 +2962,7 @@ def main():
     RACELINE_START_LEFT_BOUND = meta["start_left_bound"]
     RACELINE_START_RIGHT_BOUND = meta["start_right_bound"]
 
-    if hardware_log_override:
-        HARDWARE_REPLAY_WINDOW_SEC = hardware_window_sec
-        hardware_log_path = os.path.abspath(hardware_log_override)
-        if not os.path.exists(hardware_log_path):
-            print(f"ERROR: Hardware log not found: {hardware_log_path}")
-            sys.exit(1)
-        if hardware_meta_override:
-            hardware_meta_path = os.path.abspath(hardware_meta_override)
-        else:
-            hardware_meta_path = hardware_log_path + ".meta.txt"
-        if not os.path.exists(hardware_meta_path):
-            print(f"ERROR: Hardware meta not found: {hardware_meta_path}")
-            sys.exit(1)
-        HARDWARE_REPLAY_RUN = load_hardware_run(
-            Path(hardware_log_path),
-            Path(hardware_meta_path),
-            load_raceline(Path(RACELINE_PATH)),
-            window_seconds=HARDWARE_REPLAY_WINDOW_SEC if HARDWARE_REPLAY_WINDOW_SEC > 0.0 else None,
-        )
-        include_obstacles = False
-        SCENARIO_RACELINE_PATHS = {"base": RACELINE_PATH}
-    elif include_obstacles:
+    if include_obstacles:
         SCENARIO_RACELINE_PATHS = build_scenario_raceline_paths(RACELINE_PATH)
     else:
         base_no_obstacle_path = build_no_obstacle_base_path(RACELINE_PATH)
@@ -3082,7 +3021,7 @@ def main():
             f"src={seed_meta['source']})"
         )
     else:
-        print(f"  Base seed:   fallback hardcoded seed")
+        print("  Base seed:   fallback hardcoded seed")
     if local_sweep:
         print(f"  Local race duration: {RACE_SCENARIO_DURATION:.1f}s")
     print(f"  Solver mode: fixed H={FIXED_HORIZON}, DT={FIXED_PRED_DT:.3f}; RHO/RHO_U tuned only in Phases 6-8")
@@ -3209,7 +3148,7 @@ def main():
     else:
         combos = gen_primary_grid_local() if local_sweep else gen_primary_grid(objective)
         print(f"\n  Phase 2 will test {len(combos):,} configurations")
-        p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_DELTA_ACTUAL)",
+        p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_EFFECTIVE_STEERING)",
                          combos, binary, results, t0,
                          num_workers, csv_writer, objective, progress_tracker)
         total_p += p
@@ -3430,13 +3369,13 @@ def main():
             ))
         
         best = top[0]
-        print(f"\nBEST CONFIGURATION:")
+        print("\nBEST CONFIGURATION:")
         print(f"  Score: {best.get('score', 0.0):.2f}")
         print(f"  Lap estimate: {best.get('lap_time_est', 0.0):.3f} s")
         print(f"  Avg progress: {best.get('avg_progress_mps', 0.0):.2f} m/s")
         print(f"  Avg velocity: {best.get('avg_vx', 0.0):.2f} m/s")
         print(f"  Avg lat err: {best['avg_lat_err']:.4f} m")
-        print(f"  ---")
+        print("  ---")
         for k in iter_ordered_base_keys():
             print(f"  {k:15s} = {best.get(k, BASE[k])}")
     
