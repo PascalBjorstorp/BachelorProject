@@ -1,0 +1,265 @@
+session:
+  runs_dir: runs
+  min_free_disk_gb: 4.0
+  battery_min_v: 10.5
+  hard_speed_limit_mps: 3.0
+  command_publish_hz: 100.0
+  event_topic: /steering_calibration/event
+  hard_erpm_limit: 13500.0
+  safety_erpm_per_mps: 4500.0
+workspace:
+  vesc_config_relpath: f1tenth_system/f1tenth_stack/config/vesc.yaml
+  colcon_build_command:
+  - colcon
+  - build
+  - --symlink-install
+hardware:
+  lidar_ip_address: 192.168.10.10
+  laser_to_base_x_m: 0.265
+  laser_to_base_y_m: 0.0
+  laser_to_base_yaw_rad: 0.0
+  wheelbase_m: 0.324
+  laser_to_base_z_m: 0.05
+  base_frame_id: ego_racecar/base_link
+  laser_frame_id: ego_racecar/laser
+  imu_frame_id: ego_racecar/imu
+  imu_to_base_x_m: 0.16
+  imu_to_base_y_m: 0.0
+  imu_to_base_z_m: 0.0703
+  imu_to_base_yaw_rad: 0.0
+  self_scan_filter:
+    enabled: true
+    x_min_m: -0.35
+    x_max_m: 0.45
+    y_min_m: -0.22
+    y_max_m: 0.22
+  base_link_to_rear_axle_x_m: 0.0
+  base_link_to_rear_axle_y_m: 0.0
+  geometry_source: /home/akselmo/Documents/GitHub/BachelorProject/f1tenth_system/f1tenth_stack/config/vesc.yaml
+initial:
+  raw_servo_seed: 0.5113
+  raw_servo_seed_source: deployed_vesc_offset
+  raw_servo_seed_provenance: deployed vesc.yaml steering_angle_to_servo_offset
+preflight:
+  raw_servo_audit_delta: 0.02
+  raw_servo_echo_tolerance: 0.004
+  raw_servo_bus_tolerance: 0.004
+  raw_servo_selected_tolerance: 0.004
+  min_echo_span_servo: 0.01
+  required_accel_to_current_gain: 0.0
+  required_accel_to_brake_gain: 0.0
+  required_servo_min: 0.0
+  required_servo_max: 1.0
+motion_startup:
+  minimum_startup_s: 0.75
+  stability_window_s: 0.6
+  stability_timeout_s: 4.0
+  max_speed_error_mps: 0.18
+  max_speed_std_mps: 0.09
+  max_abs_longitudinal_accel_mps2: 0.45
+centre_trim:
+  speed_mps: 0.7
+  capture_s: 3.0
+  initial_half_width_servo: 0.03
+  expansion_step_servo: 0.02
+  max_bracket_expansions: 4
+  candidate_repetitions: 3
+  max_refinement_iterations: 10
+  search_tolerance_servo: 0.001
+  max_abs_yaw_rate_for_candidate_rad_s: 0.012
+  confirmation_repetitions: 4
+  max_abs_yaw_rate_for_confirmation_rad_s: 0.025
+  acquisition_mode: fixed_lidar_grid
+  onboard_probe_offsets_servo:
+  - -0.03
+  - 0.0
+  - 0.03
+  onboard_probe_capture_s: 1.6
+  max_onboard_probe_extrapolation_servo: 0.0
+  max_onboard_guided_shift_servo: 0.03
+  fine_grid_offsets_servo:
+  - -0.02
+  - -0.01
+  - -0.005
+  - 0.0
+  - 0.005
+  - 0.01
+  - 0.02
+  fit_trim_s: 0.4
+  min_training_span_servo: 0.04
+  max_fit_extrapolation_servo: 0.0
+  expected_yaw_rate_slope_sign: -1
+  min_fit_r2: 0.8
+  max_fit_rmse_rad_s: 0.02
+  min_onboard_fit_r2: 0.5
+  max_onboard_fit_rmse_rad_s: 0.05
+  max_onboard_sensor_spread_servo: 0.02
+  max_lidar_onboard_disagreement_servo: 0.03
+  require_onboard_consensus_when_available: true
+  max_sensor_centre_disagreement_servo: 0.012
+  require_trusted_imu_crosscheck: false
+  max_abs_lidar_lateral_velocity_mps: 0.15
+  min_lidar_forward_speed_mps: 0.2
+  validation_capture_s: 3.0
+  validation_repetitions: 4
+  validation_trim_s: 0.25
+  validation_conditions:
+  - lane_direction: outbound
+    speed_mps: 0.5
+    repetitions: 3
+  - lane_direction: inbound
+    speed_mps: 0.8
+    repetitions: 3
+  max_abs_validation_icp_yaw_rate_rad_s: 0.015
+  max_abs_validation_lateral_velocity_mps: 0.05
+  max_abs_validation_heading_change_rad: 0.035
+  max_validation_sensor_yaw_disagreement_rad_s: 0.04
+  require_validation_imu_crosscheck: false
+  min_validation_lidar_valid_fraction: 0.7
+endstops:
+  coarse_step_servo: 0.01
+  fine_step_servo: 0.002
+  ultra_fine_step_servo: 0.0005
+  safety_margin_servo: 0.006
+  raw_servo_domain_min: 0.0
+  raw_servo_domain_max: 1.0
+  require_observed_wheel_angles: true
+  min_abs_observed_wheel_angle_deg: 5.0
+imu_bias:
+  stationary_s: 30.0
+observability:
+  stationary_s: 12.0
+  straight_speeds_mps:
+  - 0.5
+  - 0.8
+  - 1.2
+  straight_repetitions: 2
+  straight_capture_s: 2.4
+  gentle_turn_fraction_of_safe_span: 0.1
+  turn_repetitions: 2
+  turn_speed_mps: 0.5
+  turn_capture_s: 1.5
+static_map:
+  speed_mps: 0.7
+  steering_settle_s: 0.25
+  steering_settle_timeout_s: 0.8
+  steering_settle_final_window_s: 0.12
+  capture_s: 2.4
+  training_fractions:
+  - 0.1
+  - 0.25
+  - 0.45
+  - 0.65
+  - 0.85
+  - 1.0
+  training_sweep_repetitions: 3
+  validation_fractions:
+  - 0.15
+  - 0.35
+  - 0.55
+  - 0.75
+  - 0.95
+  validation_repetitions: 3
+  raw_servo_echo_tolerance: 0.004
+response:
+  conditions:
+  - speed_mps: 0.6
+    target_fractions:
+    - 0.3
+    - 0.7
+    repetitions: 3
+  - speed_mps: 1.0
+    target_fractions:
+    - 0.3
+    - 0.6
+    repetitions: 3
+  centre_hold_s: 1.0
+  step_hold_s: 3.0
+  return_hold_s: 1.0
+  command_onset_hold_s: 0.02
+  effective_onset_hold_s: 0.05
+  settling_band_fraction: 0.05
+  settling_hold_s: 0.2
+  validation_conditions:
+  - speed_mps: 0.8
+    target_fractions:
+    - 0.45
+    repetitions: 3
+  - speed_mps: 1.0
+    target_fractions:
+    - 0.25
+    - 0.45
+    repetitions: 3
+analysis:
+  imu_bias:
+    apply_stationary_correction: false
+  icp:
+    max_iterations: 120
+    translation_update_tolerance_m: 1.0e-06
+    rotation_update_tolerance_rad: 1.0e-06
+    relative_cost_tolerance: 1.0e-07
+    max_correspondence_m: 0.3
+    downsample: 1
+    motion_deskew: true
+    constant_velocity_seed: true
+    max_scan_period_s: 0.2
+    normal_neighbors: 9
+    trim_fraction: 0.85
+    min_correspondences: 140
+    min_inlier_ratio: 0.45
+    max_pair_rmse_m: 0.03
+    huber_delta_scale: 2.5
+    range_weight_reference_m: 4.0
+    minimum_range_weight: 0.2
+    max_pair_translation_std_m: 0.025
+    max_pair_yaw_std_rad: 0.015
+    max_hessian_condition_number: 10000.0
+    max_imu_yaw_residual_rad: 0.02
+    displacement_baseline:
+      mode: displacement_targeted
+      target_displacement_m: 0.12
+      min_baseline_s: 0.04
+      max_baseline_s: 0.32
+      predicted_speed_floor_mps: 0.3
+    window_aggregation:
+      enabled: true
+      window_s: 0.5
+      stride_s: 0.1
+      minimum_window_s: 0.35
+      min_valid_pairs: 5
+      min_valid_fraction: 0.65
+  map:
+    trim_s: 0.2
+    min_lidar_speed_mps: 0.2
+    max_lidar_speed_std_mps: 0.08
+    max_yaw_std_rad_s: 0.08
+    max_icp_rmse_m: 0.03
+    min_valid_scan_fraction: 0.7
+    min_training_points: 20
+    min_holdout_points: 10
+    max_holdout_rmse_rad: 0.05
+    max_abs_holdout_bias_rad: 0.025
+    max_hysteresis_median_abs_rad: 0.05
+    max_repeatability_median_std_rad: 0.035
+    max_lidar_yaw_std_rad_s: 0.08
+    expected_servo_gain_sign: -1
+    minimum_linear_patch_holdout_improvement_fraction: 0.15
+  response:
+    min_lidar_speed_mps: 0.2
+    max_lidar_interpolation_gap_s: 0.15
+    min_effective_valid_sample_fraction: 0.7
+    min_effective_delta_amplitude_rad: 0.008
+    min_valid_segments: 24
+    min_validation_segments: 12
+    final_window_s: 0.6
+    min_step_hold_s: 2.5
+    max_validation_settling_s: 3.0
+    max_validation_fopdt_rmse_normalized: 0.35
+    max_validation_training_time_constant_ratio: 3.0
+  icp_observability:
+    min_moving_valid_windows: 12
+    min_moving_window_valid_fraction: 0.7
+    min_moving_window_speed_mps: 0.2
+    max_moving_point_to_line_rmse_p95_m: 0.03
+    max_stationary_speed_p95_mps: 0.05
+    max_point_to_line_rmse_p95_m: 0.03

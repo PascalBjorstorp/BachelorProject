@@ -67,8 +67,9 @@ required:
     - /commands/motor/speed
     - /steering_calibration/event
 
-# Topics that are not required in every stage, but will still be captured by
-# --all. Their absence is reported in the post-run capture audit.
+# Topics that are not required in every stage, but the unified runner records
+# beside each stage's required list. Their absence is diagnostic rather than a
+# reason to lose an otherwise complete scoped capture.
 redundancy_topics:
   - /commands/motor/current
   - /commands/motor/brake

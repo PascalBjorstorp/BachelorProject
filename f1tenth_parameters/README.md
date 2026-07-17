@@ -1,5 +1,21 @@
 # F1/10th Vehicle Parameter Identification
 
+## Current calibration entry point
+
+Use the staged, room-limited campaign in
+[`vehicle_calibration/`](vehicle_calibration/README.md). It combines steering
+and ERPM identification, validates each dataset before updating parameters,
+rebuilds after each accepted stage, and keeps final promotion explicit.
+
+```bash
+python3 f1tenth_parameters/vehicle_calibration/run_suite.py new
+python3 f1tenth_parameters/vehicle_calibration/run_suite.py run \
+  --session f1tenth_parameters/vehicle_calibration/runs/<session> --next
+```
+
+The older instructions below describe the legacy parameter tests and are not
+the recommended vehicle-calibration workflow.
+
 Identify physical vehicle model parameters for MPC / path planning.
 
 ## Structure

@@ -125,10 +125,18 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   odom_speed_scale_ = declare_parameter("odom_speed_scale", odom_speed_scale_);
   speed_deadband_ = declare_parameter("speed_deadband", speed_deadband_);
   max_dt_sec_ = declare_parameter("max_dt_sec", max_dt_sec_);
+  odom_turn_slip_coeff_per_mps2_ =
+    declare_parameter("odom_turn_slip_coeff_per_mps2", odom_turn_slip_coeff_per_mps2_);
+  odom_turn_slip_clip_fraction_ =
+    declare_parameter("odom_turn_slip_clip_fraction", odom_turn_slip_clip_fraction_);
+  odom_turn_slip_accepted_ =
+    declare_parameter("odom_turn_slip_accepted", odom_turn_slip_accepted_);
 
   // Steering model parameters
-  steering_to_servo_gain_ = declare_parameter("steering_angle_to_servo_gain", steering_to_servo_gain_);
-  steering_to_servo_offset_ = declare_parameter("steering_angle_to_servo_offset", steering_to_servo_offset_);
+  steering_to_servo_gain_ = declare_parameter(
+    "steering_angle_to_servo_gain", steering_to_servo_gain_);
+  steering_to_servo_offset_ = declare_parameter(
+    "steering_angle_to_servo_offset", steering_to_servo_offset_);
   steering_correction_c2_ = declare_parameter("steering_correction_c2", steering_correction_c2_);
   steering_correction_c1_ = declare_parameter("steering_correction_c1", steering_correction_c1_);
   steering_correction_c0_ = declare_parameter("steering_correction_c0", steering_correction_c0_);
@@ -197,10 +205,13 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_yaw_base_weight", imu_yaw_base_weight_);
   gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
   imu_gyro_scale_ = declare_parameter("imu_gyro_scale", imu_gyro_scale_);
+  imu_to_base_yaw_rad_ =
+    declare_parameter("imu_to_base_yaw_rad", imu_to_base_yaw_rad_);
   imu_startup_calibration_enabled_ =
     declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
   imu_startup_calibration_duration_sec_ =
-    declare_parameter("imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
+    declare_parameter(
+    "imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
   imu_startup_hold_odom_during_calibration_ =
     declare_parameter(
     "imu_startup_hold_odom_during_calibration",
@@ -299,7 +310,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     std::numeric_limits<double>::infinity();
   const bool imu_fresh = imu_age_sec <= imu_timeout_sec_;
 
-  const bool servo_message_seen = servo_receive_time_initialized_ && static_cast<bool>(last_servo_cmd_);
+  const bool servo_message_seen =
+    servo_receive_time_initialized_ && static_cast<bool>(last_servo_cmd_);
   const double servo_age_sec =
     servo_message_seen ? (current_time - last_servo_receive_time_).seconds() :
     std::numeric_limits<double>::infinity();
@@ -315,7 +327,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (servo_message_seen && !servo_fresh) {
     RCLCPP_WARN_THROTTLE(
       get_logger(), *get_clock(), 2000,
-      "Servo command is stale (age %.4f s > timeout %.4f s). Ignoring steering model for this update.",
+      "Servo command is stale (age %.4f s > timeout %.4f s). "
+      "Ignoring steering model for this update.",
       servo_age_sec, servo_timeout_sec_);
   }
 
@@ -364,8 +377,10 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   double model_yaw_rate = yaw_rate_state_;
   double model_lateral_velocity = model_lateral_velocity_state_;
   if (has_servo) {
-    const double safe_vx = std::copysign(std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
-    const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
+    const double safe_vx = std::copysign(
+      std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
+    const double alpha_f =
+      steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
     const double alpha_r = -(model_lateral_velocity - l_r_ * yaw_rate_state_) / safe_vx;
 
     // Simplified Pacejka: Fy = D * sin(C * atan(B * alpha)).
@@ -430,6 +445,22 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // Scale-factor correction applied after bias removal: bias is in raw gyro units,
   // the scale corrects the slope. 2026-06-25 LiDAR-ICP vs IMU yaw -> ~1.6% low.
   const double imu_yaw_rate = (imu_yaw_rate_raw - gyro_bias_) * imu_gyro_scale_;
+  // The frozen turn correction is causal and exactly zero on a straight.  It
+  // removes only statistically validated driven-wheel over-read in corners;
+  // the independent lateral C stage checks this runtime value against LiDAR.
+  if (
+    odom_turn_slip_accepted_ && odom_turn_slip_coeff_per_mps2_ > 0.0 &&
+    odom_turn_slip_clip_fraction_ > 0.0)
+  {
+    const double lateral_accel_regressor = std::fabs(current_speed) * std::fabs(imu_yaw_rate);
+    const double correction_fraction = std::clamp(
+      odom_turn_slip_coeff_per_mps2_ * lateral_accel_regressor,
+      0.0, odom_turn_slip_clip_fraction_);
+    fused_speed = current_speed * (1.0 - correction_fraction);
+    if (std::fabs(fused_speed) < speed_deadband_) {
+      fused_speed = 0.0;
+    }
+  }
   const double imu_yaw_weight = imu_fresh ?
     std::clamp(
     imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * low_speed_imu_boost,
@@ -601,11 +632,6 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (rclcpp::ok()) {
     tf_pub_->sendTransform(tf);
     odom_pub_->publish(std::move(odom));
-  }else {
-    RCLCPP_WARN(
-      get_logger(),
-      "TF NOT PRINTED!!! due to");
-      
   }
 }
 
@@ -619,6 +645,17 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
     (imu->header.stamp.sec != 0) || (imu->header.stamp.nanosec != 0);
   const rclcpp::Time sample_stamp = has_valid_stamp ? rclcpp::Time(imu->header.stamp) : now();
   const double sample_time_sec = sample_stamp.seconds();
+  // The VESC IMU publishes acceleration in its own sensor axes.  A static TF
+  // alone does not rotate message values consumed directly by this node, so
+  // apply the measured planar mounting transform before startup bias removal
+  // and filtering.  This is intentionally yaw-only: the campaign is planar
+  // and treats non-level mounting as a separate metrology/installation fault.
+  const double imu_cos = std::cos(imu_to_base_yaw_rad_);
+  const double imu_sin = std::sin(imu_to_base_yaw_rad_);
+  const double accel_x_base =
+    imu_cos * imu->linear_acceleration.x - imu_sin * imu->linear_acceleration.y;
+  const double accel_y_base =
+    imu_sin * imu->linear_acceleration.x + imu_cos * imu->linear_acceleration.y;
 
   if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
     if (!imu_startup_calibration_started_) {
@@ -634,8 +671,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
         imu_startup_calibration_duration_sec_);
     }
 
-    imu_startup_linear_accel_x_sum_ += imu->linear_acceleration.x;
-    imu_startup_linear_accel_y_sum_ += imu->linear_acceleration.y;
+    imu_startup_linear_accel_x_sum_ += accel_x_base;
+    imu_startup_linear_accel_y_sum_ += accel_y_base;
     imu_startup_angular_velocity_z_sum_ += imu->angular_velocity.z;
     ++imu_startup_calibration_sample_count_;
 
@@ -644,7 +681,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
       imu_startup_calibration_sample_count_ > 0U)
     {
       const double inv_samples =
-        1.0 / static_cast<double>(std::max<std::size_t>(imu_startup_calibration_sample_count_, 1U));
+        1.0 / static_cast<double>(
+        std::max<std::size_t>(imu_startup_calibration_sample_count_, 1U));
       imu_startup_linear_accel_x_bias_ = imu_startup_linear_accel_x_sum_ * inv_samples;
       imu_startup_linear_accel_y_bias_ = imu_startup_linear_accel_y_sum_ * inv_samples;
       imu_startup_angular_velocity_z_bias_ = imu_startup_angular_velocity_z_sum_ * inv_samples;
@@ -652,7 +690,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 
       RCLCPP_INFO(
         get_logger(),
-        "IMU startup calibration done (%zu samples): accel_bias_x=%.6f, accel_bias_y=%.6f, gyro_bias_z=%.6f",
+        "IMU startup calibration done (%zu samples): accel_bias_x=%.6f, "
+        "accel_bias_y=%.6f, gyro_bias_z=%.6f",
         imu_startup_calibration_sample_count_,
         imu_startup_linear_accel_x_bias_,
         imu_startup_linear_accel_y_bias_,
@@ -688,8 +727,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
   }
 
   const double raw_angular_velocity = imu->angular_velocity.z - current_gyro_z_bias;
-  const double raw_linear_accel_x = imu->linear_acceleration.x - current_linear_accel_x_bias;
-  const double raw_linear_accel_y = imu->linear_acceleration.y - current_linear_accel_y_bias;
+  const double raw_linear_accel_x = accel_x_base - current_linear_accel_x_bias;
+  const double raw_linear_accel_y = accel_y_base - current_linear_accel_y_bias;
   debiased_angular_velocity_z_raw_ = raw_angular_velocity;
   debiased_linear_accel_x_raw_ = raw_linear_accel_x;
   debiased_linear_accel_y_raw_ = raw_linear_accel_y;

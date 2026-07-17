@@ -67,6 +67,9 @@ private:
   double odom_speed_scale_{1.0};
   double speed_deadband_{0.15};
   double max_dt_sec_{1.0};
+  double odom_turn_slip_coeff_per_mps2_{0.0};
+  double odom_turn_slip_clip_fraction_{0.25};
+  bool odom_turn_slip_accepted_{false};
 
   // Steering model parameters
   double steering_to_servo_gain_{0.0};
@@ -118,6 +121,9 @@ private:
   // IMU filtering
   double imu_angular_velocity_alpha_{0.45};  // fallback EMA if Butterworth is disabled
   double imu_gyro_scale_{1.0};  // gyro-z scale-factor correction (1.0 = none)
+  // Planar rotation from the VESC IMU message axes into base_link.  Gyro-z is
+  // invariant under this yaw-only transform; horizontal acceleration is not.
+  double imu_to_base_yaw_rad_{0.0};
   bool imu_use_butterworth_filter_{true};
   double imu_butterworth_gyro_cutoff_hz_{18.0};
   double imu_butterworth_lateral_accel_cutoff_hz_{12.0};

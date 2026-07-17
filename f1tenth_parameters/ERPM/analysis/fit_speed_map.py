@@ -47,6 +47,16 @@ def _summary(session: Path, stage: str, phase: str, cfg: dict) -> pd.DataFrame:
     result = straight_filter(summarize_windows(windows, tables, cfg), cfg)
     if not result.empty:
         result = result[np.abs(result.imu_ax_mps2) <= float(cfg['analysis']['max_static_abs_longitudinal_accel_mps2'])].copy()
+        # A command/ERPM trace is not useful evidence of a speed map when the
+        # vehicle did not actually move.  In particular, the archived campaign
+        # marked large ERPM probes stable while odometry stayed near zero.  Use
+        # LiDAR ground speed as the minimum-motion gate for every moving fit;
+        # keep the stationary observability epoch available for its noise-floor
+        # diagnostic.
+        if phase != 'stationary_observability':
+            result = result[
+                np.abs(result.vx_lidar_mps) >= float(cfg['analysis']['min_lidar_speed_mps'])
+            ].copy()
     return result
 
 
@@ -294,6 +304,8 @@ def main() -> int:
     nominal.to_parquet(out / 'erpm_map_nominal_condition_summary.parquet', index=False)
     train.to_parquet(out / 'erpm_map_training_trials.parquet', index=False)
     hold.to_parquet(out / 'erpm_map_holdout_trials.parquet', index=False)
+    training_candidate_path = out / 'erpm_speed_map_training_report.yaml'
+    training_candidate = load_yaml(training_candidate_path) if training_candidate_path.exists() else {}
 
     report = {
         'static_map_constraint': 'ERPM(ground_speed=0) = 0 exactly; no global speed_to_erpm offset is fitted or permitted.',
@@ -323,6 +335,7 @@ def main() -> int:
         'candidate_speed_to_erpm_gain': float(selected_command_model['gain_erpm_per_mps']),
         'candidate_speed_to_erpm_offset': 0.0,
         'candidate_speed_to_erpm_quadratic': float(selected_command_model.get('quadratic_erpm_per_mps2', 0.0)),
+        'candidate_speed_to_erpm_gain_bootstrap': training_candidate.get('candidate_speed_to_erpm_gain_bootstrap', {}),
         'candidate_odom_speed_scale': candidate_odom_scale,
         'candidate_odom_scale_reference_speed_to_erpm_gain': command_gain_for_odom,
         'candidate_odom_linear_scaled_holdout': odom_linear_scaled_metrics,

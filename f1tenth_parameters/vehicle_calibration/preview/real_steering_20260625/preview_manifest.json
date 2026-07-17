@@ -1,0 +1,48 @@
+{
+  "source_session": "/home/akselmo/Downloads/steering/runs/20260625T124715Z_steering_calibration",
+  "output": "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/preview/real_steering_20260625",
+  "scope": "real archived steering data; no synthetic fixtures",
+  "plots": [
+    {
+      "stage": "steering_command_audit",
+      "status": "generated",
+      "plot": "plots/stages/steering_command_audit.png"
+    },
+    {
+      "stage": "steering_observability",
+      "status": "generated",
+      "plot": "plots/stages/steering_observability.png"
+    },
+    {
+      "stage": "steering_centre",
+      "status": "generated",
+      "plot": "plots/stages/steering_centre.png"
+    },
+    {
+      "stage": "steering_endstops",
+      "status": "generated",
+      "plot": "plots/stages/steering_endstops.png"
+    },
+    {
+      "stage": "steering_static_training",
+      "status": "generated",
+      "plot": "plots/stages/steering_static_training.png"
+    },
+    {
+      "stage": "steering_static_holdout",
+      "status": "generated",
+      "plot": "plots/stages/steering_static_holdout.png"
+    },
+    {
+      "stage": "steering_response",
+      "status": "generated",
+      "plot": "plots/stages/steering_response.png"
+    }
+  ],
+  "unavailable_from_archived_campaign": [
+    "physical_metrology",
+    "steering_centre_validation",
+    "steering_response_validation",
+    "all longitudinal, selected-odometry and lateral-stiffness stages"
+  ]
+}

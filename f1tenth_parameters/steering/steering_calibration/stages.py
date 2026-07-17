@@ -19,10 +19,11 @@ import numpy as np
 import rclpy
 
 from .config import dump_json
+from .centre_guidance import choose_provisional_centre, fine_grid_targets, fit_onboard_zero
 from .runtime import CalibrationNode
 from .ui import banner, checklist, note, pause_for_reposition, require_ready, review_trial, warn
 
-WINDOW_FIELDS = ("imu_gz", "imu_ax", "imu_ay", "servo_echo", "servo_selected", "servo_bus", "odom_vx")
+WINDOW_FIELDS = ("imu_gz", "imu_ax", "imu_ay", "servo_echo", "servo_selected", "servo_bus", "odom_vx", "odom_wz")
 
 
 def _single_key() -> str:
@@ -66,7 +67,8 @@ def _start_node(name: str, config: dict[str, Any], required: set[str]) -> Calibr
         node.spin(0.10)
     except Exception:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
         raise
     return node
 
@@ -78,7 +80,8 @@ def _finish_node(node: CalibrationNode, centre_raw: float | None) -> None:
         time.sleep(0.15)
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 def _trial_id(condition_id: str, attempt: int) -> str:
@@ -363,6 +366,163 @@ def _find_sign_bracket(samples: list[dict[str, Any]]) -> tuple[dict[str, Any], d
     return None
 
 
+def _centre_fixed_lidar_grid(config: dict[str, Any], stage_dir: Path) -> dict[str, Any]:
+    """Collect an on-board-seeded grid without letting a shortcut certify centre.
+
+    This is the canonical unified-campaign acquisition path.  It deliberately
+    performs only A (data collection): B is the LiDAR-primary offline fit and C
+    is the separate physical straightness validation after the resulting patch
+    has been rebuilt.  IMU and odometry are deliberately retained as useful
+    coarse estimates, but neither can end the search at an approximate offset.
+    """
+    banner("STAGE 1 OF 6 — ZERO-CURVATURE CENTRE DATA COLLECTION",
+           "On-board-seeded raw-servo grid; LiDAR fine fit and physical validation follow.")
+    checklist([
+        "Clear the 12 m straight lane and keep fixed LiDAR features visible.",
+        "No heading-hold/PID is active: raw servo is intentionally fixed for this test.",
+        "IMU and odometry provide a coarse estimate; LiDAR and new validation decide the final centre.",
+        "Reposition before every pass; ACCEPT only clean, usable captures.",
+    ])
+    require_ready()
+    node = _start_node("steering_zero_curvature_centre", config,
+                       {"imu", "vesc", "odom", "servo_echo", "servo_selected", "servo_bus", "scan"})
+    p = config["centre_trim"]
+    seed = float(config["initial"]["raw_servo_seed"])
+    low_guard = float(config["endstops"]["raw_servo_domain_min"])
+    high_guard = float(config["endstops"]["raw_servo_domain_max"])
+    probe_offsets = [float(value) for value in p.get("onboard_probe_offsets_servo", [-0.03, 0.0, 0.03])]
+    offsets = [float(value) for value in p.get("fine_grid_offsets_servo", p.get("training_offsets_servo", []))]
+    repetitions = int(p["candidate_repetitions"])
+    if len(set(round(value, 8) for value in offsets)) < 4:
+        raise RuntimeError("guided centre fine grid needs at least four distinct offsets")
+    if len(set(round(value, 8) for value in probe_offsets)) < 3:
+        raise RuntimeError("on-board centre probe needs at least three distinct offsets")
+    if repetitions < 1:
+        raise RuntimeError("centre candidate_repetitions must be positive")
+    records: list[dict[str, Any]] = []
+    targets: list[float] = []
+    probe_records: list[dict[str, Any]] = []
+    try:
+        # The short symmetric probe is intentionally directional: the fitted
+        # IMU/odom yaw slope tells us whether a larger or smaller raw command is
+        # needed before collecting the LiDAR fine grid.  It is never a final
+        # calibration result.
+        for index, offset in enumerate(probe_offsets, start=1):
+            raw = seed + offset
+            if not low_guard <= raw <= high_guard:
+                raise RuntimeError(
+                    f"on-board probe point {raw:.5f} is outside raw-servo domain "
+                    f"[{low_guard:.5f}, {high_guard:.5f}]"
+                )
+            condition = f"centre_onboard_probe_{index:02d}"
+            captured = _motion_loop(
+                node,
+                stage="zero_curvature_centre",
+                condition_id=condition,
+                operator_message=(
+                    f"ON-BOARD DIRECTION PROBE {index}/{len(probe_offsets)}\n"
+                    f"Raw servo target: {raw:.5f} (deployed seed {seed:.5f} + {offset:+.5f}).\n"
+                    "This short pass tells the suite which direction to move the later LiDAR grid. "
+                    "It cannot approve a centre by itself."
+                ),
+                speed_mps=float(p["speed_mps"]), raw_servo=raw, centre_raw=seed,
+                phase="centre_trim_capture", capture_s=float(p.get("onboard_probe_capture_s", p["capture_s"])),
+                metadata={
+                    "raw_servo_target": raw,
+                    "capture_role": "onboard_direction_probe",
+                    "probe_offset_servo": offset,
+                    "probe_index": index,
+                    "acquisition_mode": "onboard_guided_lidar_grid",
+                },
+            )
+            records.extend(captured)
+            probe_records.extend(captured)
+
+        def values_from_probe(field: str) -> tuple[list[float], list[float]]:
+            raw_values: list[float] = []
+            yaw_values: list[float] = []
+            for record in probe_records:
+                capture = record.get("capture") or {}
+                if record.get("decision") != "accepted" or not isinstance(capture, dict):
+                    continue
+                raw_value = capture.get("servo_echo_mean", record.get("raw_servo_target"))
+                yaw_value = capture.get(field)
+                try:
+                    raw_numeric, yaw_numeric = float(raw_value), float(yaw_value)
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(raw_numeric) and math.isfinite(yaw_numeric):
+                    raw_values.append(raw_numeric)
+                    yaw_values.append(yaw_numeric)
+            return raw_values, yaw_values
+
+        imu_raw, imu_yaw = values_from_probe("imu_gz_mean")
+        odom_raw, odom_yaw = values_from_probe("odom_wz_mean")
+        imu_probe = fit_onboard_zero(imu_raw, imu_yaw, p)
+        odom_probe = fit_onboard_zero(odom_raw, odom_yaw, p)
+        guidance = choose_provisional_centre(seed, imu_probe, odom_probe, p)
+        fine_seed = float(guidance["centre_servo_raw"])
+        if guidance.get("warning"):
+            warn(str(guidance["warning"]))
+        note(
+            f"On-board directional estimate: {fine_seed:.5f} from {guidance['source']} "
+            f"({guidance['shift_from_seed_servo']:+.5f} from deployed seed). "
+            "Collecting the LiDAR fine grid around it now."
+        )
+
+        fine_targets = fine_grid_targets(seed, fine_seed, offsets, low_guard, high_guard)
+        targets.extend(fine_targets)
+        for index, raw in enumerate(fine_targets, start=1):
+            for rep in range(1, repetitions + 1):
+                condition = f"centre_lidar_grid_{index:02d}_rep_{rep:02d}"
+                records.extend(_motion_loop(
+                    node,
+                    stage="zero_curvature_centre",
+                    condition_id=condition,
+                    operator_message=(
+                        f"LIDAR FINE-GRID POINT {index}/{len(fine_targets)}, repetition {rep}/{repetitions}\n"
+                        f"Raw servo target: {raw:.5f} (guided centre {fine_seed:.5f}, offset {raw - fine_seed:+.5f}).\n"
+                        "This pass gathers LiDAR, IMU, and odometry data. Do not accept a centre from one sensor alone."
+                    ),
+                    speed_mps=float(p["speed_mps"]),
+                    raw_servo=raw, centre_raw=fine_seed,
+                    phase="centre_trim_capture",
+                    capture_s=float(p["capture_s"]),
+                    metadata={
+                        "raw_servo_target": raw,
+                        "capture_role": "lidar_fine_grid",
+                        "grid_centre_servo": fine_seed,
+                        "grid_offset_servo": raw - fine_seed,
+                        "grid_index": index,
+                        "repetition": rep,
+                        "acquisition_mode": "onboard_guided_lidar_grid",
+                    },
+                ))
+        accepted = sum(1 for record in records if record.get("decision") == "accepted")
+        result = {
+            "status": "captured",
+            "acquisition_mode": "onboard_guided_lidar_grid",
+            "seed_servo_raw": seed,
+            "onboard_probe": {"imu": imu_probe, "odom": odom_probe, "guidance": guidance},
+            "provisional_grid_centre_servo_raw": fine_seed,
+            "raw_servo_targets": targets,
+            "candidate_repetitions": repetitions,
+            "probe_requested_trials": len(probe_offsets),
+            "fine_grid_requested_trials": len(fine_targets) * repetitions,
+            "requested_trials": len(probe_offsets) + len(fine_targets) * repetitions,
+            "accepted_trials": accepted,
+            "records": records,
+            "note": (
+                "The on-board probe only directed the LiDAR grid. The next offline stage still fits LiDAR ICP "
+                "yaw versus raw servo, then independent physical validation decides whether the value is usable."
+            ),
+        }
+        dump_json(stage_dir / "runtime_result.json", result)
+        return result
+    finally:
+        _finish_node(node, fine_seed if 'fine_seed' in locals() else seed)
+
+
 def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, Any]:
     """Adaptive raw-servo search for the yaw-rate zero crossing.
 
@@ -370,6 +530,9 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
     safeguarded secant/bisection steps. Each candidate has repeated accepted
     runs. All values are raw servo values; no old steering-angle map is used.
     """
+    if str(config["centre_trim"].get("acquisition_mode", "adaptive_imu")).lower() == "fixed_lidar_grid":
+        return _centre_fixed_lidar_grid(config, stage_dir)
+
     banner("STAGE 1 OF 6 — ZERO-CURVATURE CENTRE TRIM", "Adaptive repeated low-speed straight passes.")
     checklist([
         "Clear straight test lane of at least 6 m.",
@@ -386,7 +549,12 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
     measured: list[dict[str, Any]] = []
 
     def measure(raw: float, label: str, repetitions: int) -> dict[str, Any]:
-        raw = float(np.clip(raw, low_guard, high_guard))
+        raw = float(raw)
+        if not np.isfinite(raw) or raw < low_guard or raw > high_guard:
+            raise RuntimeError(
+                f"centre-search candidate {raw!r} is outside the raw-servo domain "
+                f"[{low_guard:.5f}, {high_guard:.5f}]; refusing silent clipping"
+            )
         candidate_records: list[dict[str, Any]] = []
         for rep in range(1, repetitions + 1):
             condition = f"centre_{label}_rep_{rep:02d}"
@@ -491,7 +659,35 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
             if abs(slope) < 1e-8:
                 raise RuntimeError("centre local yaw-vs-servo slope is too small")
             centre_raw = float(-intercept / slope)
-        centre_raw = float(np.clip(centre_raw, low_guard, high_guard))
+            local_predicted = slope * x + intercept
+            local_residual = y - local_predicted
+            ss_total = float(np.sum((y - np.mean(y)) ** 2))
+            ss_residual = float(np.sum(local_residual ** 2))
+            local_r2 = 1.0 if ss_total <= 1e-15 and ss_residual <= 1e-15 else (1.0 - ss_residual / ss_total if ss_total > 0.0 else float("-inf"))
+            local_rmse = float(np.sqrt(np.mean(local_residual ** 2)))
+            bracket_low = min(float(left["raw_servo"]), float(right["raw_servo"]))
+            bracket_high = max(float(left["raw_servo"]), float(right["raw_servo"]))
+            max_extrapolation = float(p.get("max_fit_extrapolation_servo", 0.0))
+            extrapolation = max(bracket_low - centre_raw, centre_raw - bracket_high, 0.0)
+            if extrapolation > max_extrapolation:
+                raise RuntimeError(
+                    f"fitted centre {centre_raw:.6f} extrapolates {extrapolation:.6f} "
+                    f"outside final observed bracket; refusing approximate offset"
+                )
+            if abs(float(np.max(x) - np.min(x))) < float(p.get("min_training_span_servo", 0.0)):
+                raise RuntimeError("centre local fit does not span the configured servo interval")
+            expected_sign = int(p.get("expected_yaw_rate_slope_sign", -1))
+            if expected_sign and np.sign(slope) != np.sign(expected_sign):
+                raise RuntimeError(f"centre yaw-vs-servo slope sign {slope:.6f} is unexpected")
+            if local_r2 < float(p.get("min_fit_r2", 0.0)):
+                raise RuntimeError(f"centre local fit R² {local_r2:.4f} is below the configured gate")
+            if local_rmse > float(p.get("max_fit_rmse_rad_s", float("inf"))):
+                raise RuntimeError(f"centre local fit RMSE {local_rmse:.6f} exceeds the configured gate")
+        if not np.isfinite(centre_raw) or centre_raw < low_guard or centre_raw > high_guard:
+            raise RuntimeError(
+                f"centre candidate {centre_raw!r} is outside the raw-servo domain; "
+                "refusing to clip an invalid calibration"
+            )
 
         confirmations: list[dict[str, Any]] = []
         for rep in range(1, int(p["confirmation_repetitions"]) + 1):
@@ -533,6 +729,87 @@ def zero_curvature_centre(config: dict[str, Any], stage_dir: Path) -> dict[str, 
         _finish_node(node, seed)
 
 
+def zero_curvature_validation(config: dict[str, Any], stage_dir: Path,
+                              centre: dict[str, Any]) -> dict[str, Any]:
+    """Run an independent physical straightness check at the fitted centre.
+
+    The centre-search runtime gate is intentionally only a startup/data-quality
+    gate.  It cannot tell whether the car visibly drifts in the room, and the
+    old campaign accepted a numerically neat fit despite that failure.  This
+    stage therefore repeats the centre command after the candidate has been
+    applied, records LiDAR motion, and puts the operator's view of the car on
+    the same acceptance path as the offline checks.
+    """
+    banner("STAGE 1a — ZERO-CURVATURE PHYSICAL VALIDATION",
+           "Independent straight passes after applying the fitted centre.")
+    checklist([
+        "Use the 12 m straight lane with fixed LiDAR features.",
+        "Watch the vehicle itself, not only the screen or odometry.",
+        "ACCEPT only if the car physically tracks straight; REDO if it visibly drifts left or right.",
+        "Keep the emergency stop ready and reposition the car between passes.",
+    ])
+    require_ready()
+    node = _start_node("steering_zero_curvature_validation", config,
+                       {"imu", "vesc", "odom", "servo_echo", "servo_selected", "servo_bus", "scan"})
+    p = config["centre_trim"]
+    c = float(centre["centre_servo_raw"])
+    capture_s = float(p.get("validation_capture_s", p["capture_s"]))
+    conditions = list(p.get("validation_conditions", []))
+    if not conditions:
+        conditions = [{
+            "lane_direction": "outbound",
+            "speed_mps": float(p.get("validation_speed_mps", p["speed_mps"])),
+            "repetitions": int(p.get("validation_repetitions", 4)),
+        }]
+    requested = sum(int(condition.get("repetitions", 1)) for condition in conditions)
+    if requested < 1:
+        raise RuntimeError("centre validation requires at least one configured pass")
+    records: list[dict[str, Any]] = []
+    try:
+        pass_index = 0
+        for condition_index, condition in enumerate(conditions, start=1):
+            speed = float(condition["speed_mps"])
+            direction = str(condition.get("lane_direction", f"condition_{condition_index}"))
+            repetitions = int(condition.get("repetitions", 1))
+            for rep in range(1, repetitions + 1):
+                pass_index += 1
+                condition_id = f"centre_validation_{direction}_{speed:.2f}_rep_{rep:02d}"
+                records.extend(_motion_loop(
+                    node, stage="zero_curvature_validation",
+                    condition_id=condition_id,
+                    operator_message=(
+                        f"VALIDATION PASS {pass_index}/{requested}: {direction.upper()}, {speed:.2f} m/s\n"
+                        f"Raw servo target: {c:.5f}. Turn the vehicle to face the {direction} lane direction.\n"
+                        "WATCH THE CAR: ACCEPT only when it physically tracks straight. "
+                        "REDO any visible left/right drift, even if the automatic summary says OK."
+                    ),
+                    speed_mps=speed, raw_servo=c, centre_raw=c,
+                    phase="centre_validation_capture", capture_s=capture_s,
+                    metadata={
+                        "raw_servo_target": c,
+                        "repetition": rep,
+                        "validation_condition_index": condition_index,
+                        "validation_lane_direction": direction,
+                        "validation_speed_mps": speed,
+                    },
+                ))
+        accepted = sum(1 for record in records if record.get("decision") == "accepted")
+        result = {
+            "status": "captured",
+            "centre_servo_raw": c,
+            "capture_s": capture_s,
+            "validation_conditions": conditions,
+            "requested_repetitions": requested,
+            "accepted_repetitions": accepted,
+            "records": records,
+            "note": "Offline validation must confirm LiDAR straightness and operator physical observation.",
+        }
+        dump_json(stage_dir / "runtime_result.json", result)
+        return result
+    finally:
+        _finish_node(node, c)
+
+
 def _confirm_endstop(value: float, side: str) -> bool:
     while True:
         answer = input(
@@ -548,8 +825,32 @@ def _confirm_endstop(value: float, side: str) -> bool:
         print("Type CONFIRM, REDO, or ABORT.")
 
 
+def _record_observed_wheel_angle(side: str, required: bool) -> float | None:
+    """Record the human-measured road-wheel angle at a confirmed free limit."""
+    while True:
+        answer = input(
+            f"Measure the signed road-wheel angle at {side} (degrees; left/right must use one convention). "
+            "Enter a number, REDO to repeat this end-stop side, or ABORT: "
+        ).strip().upper()
+        if answer in {"ABORT", "QUIT", "Q"}:
+            raise KeyboardInterrupt("operator aborted human steering-angle survey")
+        if answer in {"REDO", "R"}:
+            return None
+        if answer in {"SKIP", "S"} and not required:
+            return float("nan")
+        try:
+            value = float(answer)
+        except ValueError:
+            print("Enter a signed finite angle in degrees, REDO, or ABORT.")
+            continue
+        if math.isfinite(value):
+            return value
+        print("The observed wheel angle must be finite.")
+
+
 def physical_endstops(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any]) -> dict[str, Any]:
-    banner("STAGE 2 OF 6 — PHYSICAL END-STOP SURVEY", "One explicit operator-confirmed last-free value per side.")
+    banner("STAGE 2 OF 6 — HUMAN STEERING-LIMIT / ANGLE SURVEY",
+           "Operator-confirmed raw limits plus measured physical wheel angles.")
     checklist([
         "Car is on a stand; driven wheels cannot move.",
         "Inspect linkage and servo continuously.",
@@ -561,6 +862,8 @@ def physical_endstops(config: dict[str, Any], stage_dir: Path, centre: dict[str,
     p = config["endstops"]
     low_guard, high_guard = float(p["raw_servo_domain_min"]), float(p["raw_servo_domain_max"])
     result_raw: dict[str, float] = {}
+    observed_angles_deg: dict[str, float] = {}
+    require_angles = bool(p.get("require_observed_wheel_angles", False))
     try:
         banner("END-STOP CONTROLS")
         note("a/d: coarse -/+   z/c: fine -/+   x/v: ultra-fine -/+\n"
@@ -582,7 +885,15 @@ def physical_endstops(config: dict[str, Any], stage_dir: Path, centre: dict[str,
                         print()
                         node.event.emit("endstop_last_free_candidate", side=side, raw_servo=current)
                         if _confirm_endstop(current, side):
+                            angle_deg = _record_observed_wheel_angle(side, require_angles)
+                            if angle_deg is None:
+                                current = c
+                                continue
                             result_raw[side] = current
+                            if math.isfinite(angle_deg):
+                                observed_angles_deg[side] = angle_deg
+                                node.event.emit("endstop_observed_wheel_angle", side=side, raw_servo=current,
+                                                observed_wheel_angle_deg=angle_deg)
                             node.event.emit("endstop_last_free_confirmed", side=side, raw_servo=current)
                             break
                         current = c
@@ -603,10 +914,27 @@ def physical_endstops(config: dict[str, Any], stage_dir: Path, centre: dict[str,
         safe_high = float(result_raw["high_raw"] - float(p["safety_margin_servo"]))
         if not safe_low < c < safe_high:
             raise RuntimeError("operator-confirmed end-stops do not enclose centre after safety margin")
+        low_angle = observed_angles_deg.get("low_raw", float("nan"))
+        high_angle = observed_angles_deg.get("high_raw", float("nan"))
+        min_abs_angle = float(p.get("min_abs_observed_wheel_angle_deg", 0.0))
+        if require_angles and (not math.isfinite(low_angle) or not math.isfinite(high_angle)):
+            raise RuntimeError("human steering-limit survey requires observed wheel angles on both sides")
+        if math.isfinite(low_angle) and math.isfinite(high_angle):
+            if low_angle * high_angle >= 0.0:
+                raise RuntimeError("human-measured end-stop angles must lie on opposite sides of straight ahead")
+            if min(abs(low_angle), abs(high_angle)) < min_abs_angle:
+                raise RuntimeError(
+                    f"human-measured end-stop angle is below {min_abs_angle:.2f} deg; inspect measurement convention"
+                )
         result = {"status": "confirmed", "centre_servo_raw": c,
                   "raw_low_last_free": result_raw["low_raw"], "raw_high_last_free": result_raw["high_raw"],
                   "raw_low_safe": safe_low, "raw_high_safe": safe_high,
-                  "safety_margin_servo": float(p["safety_margin_servo"])}
+                  "safety_margin_servo": float(p["safety_margin_servo"]),
+                  "observed_low_wheel_angle_deg": low_angle if math.isfinite(low_angle) else None,
+                  "observed_high_wheel_angle_deg": high_angle if math.isfinite(high_angle) else None,
+                  "observed_low_wheel_angle_rad": math.radians(low_angle) if math.isfinite(low_angle) else None,
+                  "observed_high_wheel_angle_rad": math.radians(high_angle) if math.isfinite(high_angle) else None,
+                  "human_angle_measurement_required": require_angles}
         dump_json(stage_dir / "runtime_result.json", result)
         print("\nPhysical limits confirmed:")
         print(f"  low raw safe:  {safe_low:.5f}\n  centre raw:    {c:.5f}\n  high raw safe: {safe_high:.5f}")
@@ -625,8 +953,155 @@ def _raw_targets(limits: dict[str, Any], fractions: list[float]) -> list[tuple[s
     return out
 
 
-def sensor_observability(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], limits: dict[str, Any]) -> dict[str, Any]:
-    banner("STAGE 3 OF 6 — SENSOR OBSERVABILITY", "Raw sensor characterisation; no parameters are fitted at runtime.")
+def _steering_capture_plan(
+    config: dict[str, Any], limits: dict[str, Any], *, side: str,
+    fraction: float, speed_mps: float, minimum_capture_s: float,
+    centre_before_s: float = 0.0, return_after_s: float = 0.0,
+    raw_servo: float | None = None, radius_override_m: float | None = None,
+) -> dict[str, Any]:
+    """Use a full circle when the measured end-stop geometry permits it.
+
+    The human wheel-angle survey is only a room-planning estimate here; LiDAR
+    remains the calibration reference.  If a shallow setting cannot complete a
+    circle inside the target envelope, a numerical bounded-arc plan uses as
+    much of the diagonal as possible without pretending the circle fits.
+    """
+    policy = config.get("room_capture_policy", {})
+    observed_key = (
+        "observed_high_wheel_angle_rad" if side == "high_raw"
+        else "observed_low_wheel_angle_rad"
+    )
+    try:
+        endpoint_angle = abs(float(limits.get(observed_key)))
+        wheelbase = float(config["hardware"]["wheelbase_m"])
+    except (KeyError, TypeError, ValueError):
+        endpoint_angle = math.nan
+        wheelbase = math.nan
+    angle = endpoint_angle * abs(float(fraction))
+    planning_source = "human end-stop wheel angle scaled by raw safe-span fraction"
+    applied = config.get("applied_steering_map", {})
+    if raw_servo is not None and isinstance(applied, dict):
+        try:
+            gain = float(applied["steering_angle_to_servo_gain"])
+            offset = float(applied["steering_angle_to_servo_offset"])
+            mapped_angle = abs((float(raw_servo) - offset) / gain)
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            mapped_angle = math.nan
+        if math.isfinite(mapped_angle) and mapped_angle > 0.0:
+            angle = mapped_angle
+            planning_source = "applied independently validated steering map"
+    if (
+        not isinstance(policy, dict) or not policy
+        or not math.isfinite(angle) or not 0.0 < angle < 0.5 * math.pi
+        or not math.isfinite(wheelbase) or wheelbase <= 0.0
+    ):
+        return {
+            "capture_mode": "bounded_arc",
+            "capture_s": float(minimum_capture_s),
+            "planned_revolutions": 0.0,
+            "planning_wheel_angle_rad": angle,
+            "nominal_radius_m": math.nan,
+            "planning_source": planning_source,
+        }
+
+    speed = abs(float(speed_mps))
+    try:
+        override_radius = float(radius_override_m)
+    except (TypeError, ValueError):
+        override_radius = math.nan
+    if math.isfinite(override_radius) and override_radius > 0.0:
+        radius = override_radius
+        angle = math.atan(wheelbase / radius)
+        planning_source = "conservative onboard IMU/odometry turn-radius estimate after startup"
+    else:
+        radius = wheelbase / math.tan(angle)
+    braking = float(policy["conservative_braking_mps2"])
+    brake_distance = speed * speed / (2.0 * braking)
+    body_radius = float(policy["vehicle_circumscribed_radius_m"])
+    target_side = float(policy["target_circle_side_m"])
+    startup_s = float(policy.get("steering_startup_planning_s", 0.0))
+    tangent_distance = speed * (
+        float(centre_before_s) + float(return_after_s)
+        + (startup_s if centre_before_s > 0.0 else 0.0)
+    ) + brake_distance
+    max_circle_radius = 0.5 * (target_side - 2.0 * body_radius - tangent_distance)
+    revolutions = float(policy.get("full_circle_revolutions", 1.0))
+    if radius <= max_circle_radius + 1.0e-9:
+        capture_s = max(
+            float(minimum_capture_s),
+            revolutions * 2.0 * math.pi * radius / speed,
+        )
+        return {
+            "capture_mode": "full_circle",
+            "capture_s": capture_s,
+            "planned_revolutions": revolutions,
+            "planning_wheel_angle_rad": angle,
+            "nominal_radius_m": radius,
+            "maximum_fitting_radius_m": max_circle_radius,
+            "planning_source": planning_source,
+        }
+
+    target_length = float(policy["clear_room_length_m"]) * float(policy["target_room_utilization"])
+    target_width = float(policy["clear_room_width_m"]) * float(policy["target_room_utilization"])
+    vehicle_length = float(policy["vehicle_length_m"])
+    vehicle_width = float(policy["vehicle_width_m"])
+    heading = math.radians(float(policy["straight_lane_heading_deg"]))
+    cos_heading = abs(math.cos(heading))
+    sin_heading = abs(math.sin(heading))
+    maximum_s = float(policy.get("maximum_useful_capture_s", minimum_capture_s))
+
+    def fits(duration_s: float) -> bool:
+        straight_s = startup_s + float(centre_before_s) + float(return_after_s)
+        if centre_before_s <= 0.0:
+            turn_duration_s = startup_s + duration_s
+        else:
+            turn_duration_s = duration_s
+        envelope_length = (
+            speed * (straight_s + duration_s) + brake_distance + vehicle_length
+        )
+        arc_angle = min(math.pi, speed * turn_duration_s / radius)
+        lateral = radius * (1.0 - math.cos(arc_angle))
+        envelope_width = vehicle_width + lateral
+        projected_length = envelope_length * cos_heading + envelope_width * sin_heading
+        projected_width = envelope_length * sin_heading + envelope_width * cos_heading
+        return projected_length <= target_length and projected_width <= target_width
+
+    minimum_s = float(minimum_capture_s)
+    if not fits(minimum_s):
+        bounded_s = minimum_s
+    elif fits(maximum_s):
+        bounded_s = maximum_s
+    else:
+        low = minimum_s
+        high = maximum_s
+        for _ in range(48):
+            midpoint = 0.5 * (low + high)
+            if fits(midpoint):
+                low = midpoint
+            else:
+                high = midpoint
+        bounded_s = low
+    return {
+        "capture_mode": "bounded_arc",
+        "capture_s": bounded_s,
+        "planned_revolutions": 0.0,
+        "planning_wheel_angle_rad": angle,
+        "nominal_radius_m": radius,
+        "maximum_fitting_radius_m": max_circle_radius,
+        "planning_source": planning_source,
+    }
+
+
+def sensor_observability(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any],
+                         limits: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Establish LiDAR/IMU motion observability before any LiDAR-derived fit.
+
+    The first invocation deliberately runs before the steering centre is known.
+    It therefore uses the deployed raw-servo seed for stationary/straight
+    passes and omits the optional gentle-turn diagnostic until mechanical limits
+    exist.  This prevents a bad scan scene from consuming a centre-fit run.
+    """
+    banner("LIDAR/IMU OBSERVABILITY PREFLIGHT", "Raw sensor characterisation; no parameters are fitted at runtime.")
     checklist(["Clear test lane and fixed LiDAR surroundings.", "No moving people or objects in scan field.",
                "Vehicle can be repositioned between passes."])
     require_ready()
@@ -663,16 +1138,18 @@ def sensor_observability(config: dict[str, Any], stage_dir: Path, centre: dict[s
                     speed_mps=float(speed), raw_servo=c, centre_raw=c,
                     phase="observability_straight_capture", capture_s=float(p["straight_capture_s"]),
                     metadata={"speed_index": idx, "speed_mps": float(speed), "repetition": rep}))
-        gentle_fraction = float(p["gentle_turn_fraction_of_safe_span"])
-        for side, fraction, raw in _raw_targets(limits, [gentle_fraction]):
-            for rep in range(1, int(p["turn_repetitions"]) + 1):
-                records.extend(_motion_loop(node, stage="sensor_observability",
-                    condition_id=f"observability_turn_{side}_rep_{rep:02d}",
-                    operator_message=f"GENTLE {side.upper()} OBSERVABILITY TURN, repetition {rep}/{p['turn_repetitions']}",
-                    speed_mps=float(p["turn_speed_mps"]), raw_servo=raw, centre_raw=c,
-                    phase="observability_turn_capture", capture_s=float(p["turn_capture_s"]),
-                    metadata={"side": side, "fraction": fraction, "raw_servo_target": raw, "repetition": rep}))
-        result = {"status": "captured", "records": records}
+        if limits is not None:
+            gentle_fraction = float(p["gentle_turn_fraction_of_safe_span"])
+            for side, fraction, raw in _raw_targets(limits, [gentle_fraction]):
+                for rep in range(1, int(p["turn_repetitions"]) + 1):
+                    records.extend(_motion_loop(node, stage="sensor_observability",
+                        condition_id=f"observability_turn_{side}_rep_{rep:02d}",
+                        operator_message=f"GENTLE {side.upper()} OBSERVABILITY TURN, repetition {rep}/{p['turn_repetitions']}",
+                        speed_mps=float(p["turn_speed_mps"]), raw_servo=raw, centre_raw=c,
+                        phase="observability_turn_capture", capture_s=float(p["turn_capture_s"]),
+                        metadata={"side": side, "fraction": fraction, "raw_servo_target": raw, "repetition": rep}))
+        result = {"status": "captured", "records": records,
+                  "preflight_only": limits is None}
         dump_json(stage_dir / "runtime_result.json", result)
         return result
     finally:
@@ -705,7 +1182,7 @@ def _static_sequence(limits: dict[str, Any], params: dict[str, Any], validation:
 
 def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], limits: dict[str, Any], *, validation: bool) -> dict[str, Any]:
     title = "STAGE 5 OF 6 — STATIC-MAP HOLD-OUT VALIDATION" if validation else "STAGE 4 OF 6 — STATIC STEERING MAP"
-    subtitle = "Independent shuffled hold-out captures." if validation else "Four repeated outward/inward sweeps per side."
+    subtitle = "Independent shuffled hold-out captures." if validation else "Repeated outward/inward sweeps per side."
     banner(title, subtitle)
     checklist(["Clear area around vehicle.", "Flat, dry surface and fixed LiDAR surroundings.",
                "Vehicle can be repositioned after every arc.", "Physical emergency stop is available."])
@@ -719,17 +1196,28 @@ def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], 
         sequence = _static_sequence(limits, p, validation)
         for index, (side, fraction, raw, approach, sweep) in enumerate(sequence, start=1):
             condition = f"{'validation' if validation else 'training'}_{side}_{fraction:.2f}_{approach}_sweep_{sweep:02d}"
+            capture_plan = _steering_capture_plan(
+                config, limits, side=side, fraction=fraction,
+                speed_mps=float(p["speed_mps"]),
+                minimum_capture_s=float(p["capture_s"]),
+                raw_servo=raw,
+            )
+            capture_s = float(capture_plan["capture_s"])
             attempt = 1
             while True:
                 trial_id = _trial_id(condition, attempt)
                 pause_for_reposition(
                     f"{'VALIDATION' if validation else 'STATIC MAP'} POINT {index}/{len(sequence)}\n"
                     f"Raw servo {raw:.5f}; {side}; {approach}; sweep {sweep}.\n"
+                    f"Plan: {capture_plan['capture_mode'].replace('_', ' ')}, {capture_s:.1f} s recorded.\n"
                     "When READY is pressed, steering will move while stationary, then the vehicle will stabilise and capture."
                 )
                 node.event.emit("trial_start", stage="static_map", condition_id=condition, trial_id=trial_id,
                                 attempt=attempt, speed_mps=float(p["speed_mps"]), side=side, fraction=fraction,
-                                raw_servo_target=raw, approach=approach, sweep=sweep, validation=validation)
+                                raw_servo_target=raw, approach=approach, sweep=sweep, validation=validation,
+                                capture_mode=str(capture_plan["capture_mode"]),
+                                planned_capture_s=capture_s,
+                                planned_revolutions=float(capture_plan["planned_revolutions"]))
                 node.event.emit("static_map_target", condition_id=condition, trial_id=trial_id, side=side,
                                 fraction=fraction, raw_servo_target=raw, approach=approach, sweep=sweep,
                                 validation=validation)
@@ -775,24 +1263,79 @@ def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], 
                         break
                     attempt += 1
                     continue
-                startup, summary = _capture_after_startup(
-                    node, speed_mps=float(p["speed_mps"]), raw_servo=raw, centre_raw=c,
-                    phase="static_map_capture", segment_id=condition, trial_id=trial_id,
-                    capture_s=float(p["capture_s"]), metadata={"side": side, "fraction": fraction,
-                    "raw_servo_target": raw, "approach": approach, "sweep": sweep,
-                    "validation": validation, "settle_echo_error": echo_error},
+                startup = node.establish_speed(
+                    speed_mps=float(p["speed_mps"]), raw_servo=raw,
+                    centre_raw_servo=c, segment_id=condition, trial_id=trial_id,
                 )
+                active_plan = dict(capture_plan)
+                summary: dict[str, Any] | None = None
+                if bool(startup["stable"]):
+                    yaw_candidates = [
+                        abs(float(value)) for value in (node.latest.imu_gz, node.latest.odom_wz)
+                        if math.isfinite(float(value)) and abs(float(value)) >= 0.02
+                    ]
+                    if yaw_candidates:
+                        # The smaller observed yaw rate gives the larger, safer
+                        # radius estimate. It is used only for room scheduling;
+                        # LiDAR still supplies the fitted steering angle.
+                        onboard_radius = abs(float(p["speed_mps"])) / min(yaw_candidates)
+                        active_plan = _steering_capture_plan(
+                            config, limits, side=side, fraction=fraction,
+                            speed_mps=float(p["speed_mps"]),
+                            minimum_capture_s=float(p["capture_s"]),
+                            raw_servo=raw, radius_override_m=onboard_radius,
+                        )
+                        if (
+                            active_plan["capture_mode"] != capture_plan["capture_mode"]
+                            or abs(float(active_plan["capture_s"]) - capture_s) > 0.05
+                        ):
+                            note(
+                                "Onboard turn estimate refined this pass to "
+                                f"{active_plan['capture_mode'].replace('_', ' ')} for "
+                                f"{float(active_plan['capture_s']):.1f} s."
+                            )
+                    active_capture_s = float(active_plan["capture_s"])
+                    yaw_target = (
+                        2.0 * math.pi * float(active_plan["planned_revolutions"])
+                        if active_plan["capture_mode"] == "full_circle" else None
+                    )
+                    node.event.emit(
+                        "static_map_capture_plan", condition_id=condition,
+                        trial_id=trial_id, **active_plan,
+                    )
+                    summary = node.hold(
+                        speed_mps=float(p["speed_mps"]), raw_servo=raw,
+                        duration_s=active_capture_s, phase="static_map_capture",
+                        segment_id=condition, capture=True, centre_raw_servo=c,
+                        begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
+                        side=side, fraction=fraction, raw_servo_target=raw,
+                        approach=approach, sweep=sweep, validation=validation,
+                        settle_echo_error=echo_error,
+                        capture_mode=str(active_plan["capture_mode"]),
+                        planned_capture_s=active_capture_s,
+                        planned_revolutions=float(active_plan["planned_revolutions"]),
+                        planning_source=str(active_plan["planning_source"]),
+                        nominal_radius_m=float(active_plan["nominal_radius_m"]),
+                        target_abs_yaw_change_rad=yaw_target,
+                        minimum_duration_s=(0.50 * active_capture_s if yaw_target is not None else 0.0),
+                        maximum_duration_s=(1.50 * active_capture_s if yaw_target is not None else None),
+                    )
                 node.neutral_drive(c)
-                automatic_ok = bool(startup["stable"]) and summary is not None
+                circle_complete = (
+                    active_plan["capture_mode"] != "full_circle"
+                    or bool((summary or {}).get("yaw_target_reached", False))
+                )
+                automatic_ok = bool(startup["stable"]) and summary is not None and circle_complete
                 decision = _disposition(node, stage="static_map", condition_id=condition, trial_id=trial_id,
                                         attempt=attempt, automatic_ok=automatic_ok,
                                         automatic_summary={"startup": startup, "capture": summary or {},
-                                                           "settle_echo_error": echo_error})
+                                                           "settle_echo_error": echo_error,
+                                                           "circle_complete": circle_complete})
                 records.append({"condition_id": condition, "trial_id": trial_id, "attempt": attempt,
                                 "side": side, "fraction": fraction, "raw_servo_target": raw,
                                 "approach": approach, "sweep": sweep, "validation": validation,
                                 "startup": startup, "capture": summary, "decision": decision,
-                                "settle_echo_error": echo_error})
+                                "settle_echo_error": echo_error, **active_plan})
                 if decision != "redo":
                     break
                 attempt += 1
@@ -803,11 +1346,13 @@ def static_map(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], 
         _finish_node(node, c)
 
 
-def _response_sequence(config: dict[str, Any], limits: dict[str, Any]) -> list[tuple[float, str, float, float, int, int]]:
+def _response_sequence(config: dict[str, Any], limits: dict[str, Any], *,
+                       validation: bool = False) -> list[tuple[float, str, float, float, int, int]]:
     """Expand configured response conditions into speed/side/fraction targets."""
     sequence: list[tuple[float, str, float, float, int, int]] = []
-    if "conditions" in config:
-        for condition in config["conditions"]:
+    condition_key = "validation_conditions" if validation else "conditions"
+    if condition_key in config:
+        for condition in config[condition_key]:
             speed = float(condition["speed_mps"])
             repetitions = int(condition.get("repetitions", config.get("repetitions", 1)))
             for side, fraction, raw in _raw_targets(limits, list(condition["target_fractions"])):
@@ -822,31 +1367,49 @@ def _response_sequence(config: dict[str, Any], limits: dict[str, Any]) -> list[t
     return sequence
 
 
-def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any], limits: dict[str, Any]) -> dict[str, Any]:
-    banner("STAGE 6 OF 6 — COMMAND-TO-CURVATURE RESPONSE", "Targeted raw-servo steps at selected speeds.")
+def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centre: dict[str, Any],
+                                  limits: dict[str, Any], *, validation: bool = False) -> dict[str, Any]:
+    banner("STEERING RESPONSE HOLD-OUT VALIDATION" if validation else "COMMAND-TO-CURVATURE RESPONSE TRAINING",
+           "Distinct raw-servo steps at selected speeds; the hold-out is never used to fit the response candidate." if validation
+           else "Targeted raw-servo steps at selected speeds.")
     checklist(["Clear test area and static LiDAR surroundings.", "Vehicle can be repositioned between trials.",
                "Physical emergency stop is available."])
     require_ready()
-    node = _start_node("steering_command_to_curvature_response", config, {"imu", "vesc", "odom", "servo_echo", "servo_selected", "servo_bus", "scan"})
+    node = _start_node("steering_command_to_curvature_response_validation" if validation else "steering_command_to_curvature_response", config, {"imu", "vesc", "odom", "servo_echo", "servo_selected", "servo_bus", "scan"})
     p = config["response"]
     c = float(centre["centre_servo_raw"])
     records: list[dict[str, Any]] = []
     index = 0
     try:
-        sequence = _response_sequence(p, limits)
+        sequence = _response_sequence(p, limits, validation=validation)
         for speed, side, fraction, raw_target, rep, repetitions in sequence:
-            condition = f"response_{speed:.2f}_{side}_{fraction:.2f}_rep_{rep:02d}"
+            condition = f"{'response_validation' if validation else 'response'}_{speed:.2f}_{side}_{fraction:.2f}_rep_{rep:02d}"
+            capture_plan = _steering_capture_plan(
+                config, limits, side=side, fraction=fraction,
+                speed_mps=speed, minimum_capture_s=float(p["step_hold_s"]),
+                centre_before_s=float(p["centre_hold_s"]),
+                return_after_s=float(p["return_hold_s"]),
+                raw_servo=raw_target,
+            )
+            step_hold_s = float(capture_plan["capture_s"])
             attempt = 1
             while True:
                 trial_id = _trial_id(condition, attempt)
                 pause_for_reposition(
                     f"RESPONSE TRIAL {index + 1}/{len(sequence)}\nSpeed {speed:.2f} m/s; {side}; "
                     f"{fraction:.2f} safe-span; repetition {rep}/{repetitions}.\n"
-                    "The car stabilises at centre, steps raw steering, returns to centre, then stops."
+                    f"The steering step records a {capture_plan['capture_mode'].replace('_', ' ')} "
+                    f"for {step_hold_s:.1f} s at planned radius "
+                    f"{float(capture_plan['nominal_radius_m']):.2f} m, returns to centre, then stops."
                 )
-                node.event.emit("trial_start", stage="command_to_curvature_response", condition_id=condition,
+                node.event.emit("trial_start", stage="command_to_curvature_response_validation" if validation else "command_to_curvature_response", condition_id=condition,
                                 trial_id=trial_id, attempt=attempt, speed_mps=speed, side=side,
-                                fraction=fraction, raw_servo_target=raw_target, repetition=rep)
+                                fraction=fraction, raw_servo_target=raw_target, repetition=rep,
+                                capture_mode=str(capture_plan["capture_mode"]),
+                                planned_step_hold_s=step_hold_s,
+                                planned_revolutions=float(capture_plan["planned_revolutions"]),
+                                nominal_radius_m=float(capture_plan["nominal_radius_m"]),
+                                planning_source=str(capture_plan["planning_source"]))
                 startup = node.establish_speed(speed_mps=speed, raw_servo=c, centre_raw_servo=c,
                                                segment_id=condition, trial_id=trial_id)
                 if bool(startup["stable"]):
@@ -858,9 +1421,24 @@ def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centr
                                     trial_index=index, speed_mps=speed, side=side, fraction=fraction,
                                     raw_target=raw_target, repetition=rep)
                     step_summary = node.hold(speed_mps=speed, raw_servo=raw_target,
-                        duration_s=float(p["step_hold_s"]), phase="response_step", segment_id=condition,
+                        duration_s=step_hold_s, phase="response_step", segment_id=condition,
                         capture=True, centre_raw_servo=c, begin_window_fields=WINDOW_FIELDS, trial_id=trial_id,
-                        side=side, fraction=fraction, repetition=rep)
+                        side=side, fraction=fraction, repetition=rep,
+                        capture_mode=str(capture_plan["capture_mode"]),
+                        planned_capture_s=step_hold_s,
+                        planned_revolutions=float(capture_plan["planned_revolutions"]),
+                        nominal_radius_m=float(capture_plan["nominal_radius_m"]),
+                        planning_source=str(capture_plan["planning_source"]),
+                        target_abs_yaw_change_rad=(
+                            2.0 * math.pi * float(capture_plan["planned_revolutions"])
+                            if capture_plan["capture_mode"] == "full_circle" else None
+                        ),
+                        minimum_duration_s=(
+                            0.50 * step_hold_s if capture_plan["capture_mode"] == "full_circle" else 0.0
+                        ),
+                        maximum_duration_s=(
+                            1.50 * step_hold_s if capture_plan["capture_mode"] == "full_circle" else None
+                        ))
                     node.event.emit("response_return_command", trial_id=trial_id, condition_id=condition,
                                     trial_index=index, raw_target=c)
                     return_summary = node.hold(speed_mps=speed, raw_servo=c,
@@ -870,21 +1448,27 @@ def command_to_curvature_response(config: dict[str, Any], stage_dir: Path, centr
                 else:
                     centre_summary = step_summary = return_summary = None
                 node.neutral_drive(c)
-                automatic_ok = bool(startup["stable"])
-                decision = _disposition(node, stage="command_to_curvature_response",
+                circle_complete = (
+                    capture_plan["capture_mode"] != "full_circle"
+                    or bool((step_summary or {}).get("yaw_target_reached", False))
+                )
+                automatic_ok = bool(startup["stable"]) and circle_complete
+                decision = _disposition(node, stage="command_to_curvature_response_validation" if validation else "command_to_curvature_response",
                     condition_id=condition, trial_id=trial_id, attempt=attempt, automatic_ok=automatic_ok,
                     automatic_summary={"startup": startup, "centre": centre_summary or {},
-                                       "step": step_summary or {}, "return": return_summary or {}})
+                                       "step": step_summary or {}, "return": return_summary or {},
+                                       "circle_complete": circle_complete})
                 records.append({"trial_index": index, "condition_id": condition, "trial_id": trial_id,
                                 "attempt": attempt, "speed_mps": speed, "side": side,
                                 "fraction": fraction, "raw_target": raw_target, "startup": startup,
                                 "centre_summary": centre_summary, "step_summary": step_summary,
-                                "return_summary": return_summary, "decision": decision})
+                                "return_summary": return_summary, "decision": decision,
+                                **capture_plan})
                 if decision != "redo":
                     break
                 attempt += 1
             index += 1
-        result = {"status": "captured", "records": records}
+        result = {"status": "captured", "validation": validation, "records": records}
         dump_json(stage_dir / "runtime_result.json", result)
         return result
     finally:

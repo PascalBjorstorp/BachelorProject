@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import rclpy, yaml
 from ackermann_msgs.msg import AckermannDriveStamped
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Float64
 
@@ -31,6 +32,9 @@ def main()->int:
     p=argparse.ArgumentParser(); p.add_argument('--candidate-patch',type=Path,required=True); a=p.parse_args()
     rclpy.init(); n=CandidateCommandMap(a.candidate_patch.resolve())
     try:rclpy.spin(n)
-    finally:n.destroy_node();rclpy.shutdown()
+    except (KeyboardInterrupt,ExternalShutdownException):pass
+    finally:
+        n.destroy_node()
+        if rclpy.ok():rclpy.shutdown()
     return 0
 if __name__=='__main__':raise SystemExit(main())

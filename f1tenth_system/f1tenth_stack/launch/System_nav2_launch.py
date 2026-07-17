@@ -78,7 +78,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'lidar_cluster',
             default_value='4',
-            description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
+            description='Racing /scan clustering; 4 keeps AMCL on 270 beams'),
 
         DeclareLaunchArgument(
             'lateral_planner_avoidance_enabled',
@@ -138,7 +138,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'nav2_max_beams',
             default_value='270',
-            description='Number of scan beams used by Nav2 AMCL'),
+            description='Number of beams used by Nav2 AMCL from the reduced racing scan'),
 
         DeclareLaunchArgument(
             'nav2_update_min_d',

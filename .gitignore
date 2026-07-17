@@ -305,6 +305,9 @@ output
 ReportMaterial/
 *.mcap
 
+# Unified calibration sessions contain raw MCAP/Parquet data and generated reports.
+f1tenth_parameters/vehicle_calibration/runs/
+
 # =============================================
 # tools/ — keep source scripts, ignore inputs/outputs and compiled artefacts
 # =============================================

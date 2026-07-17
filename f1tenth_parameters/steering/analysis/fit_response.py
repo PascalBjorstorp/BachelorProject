@@ -29,7 +29,8 @@ import yaml
 from scipy.optimize import least_squares
 from scipy.signal import savgol_filter
 
-from imu_bias import estimate_imu_bias
+from imu_bias import correction_enabled, estimate_imu_bias
+from lidar_windows import read_motion
 from trials import accepted_trial_ids
 
 
@@ -169,6 +170,7 @@ def _series_metrics(
     onset_hold_s: float,
     settle_band_fraction: float,
     settle_hold_s: float,
+    final_window_s: float,
 ) -> dict[str, float | bool | None]:
     """Compute robust response metrics from a series with time zero at command."""
     finite = np.isfinite(t) & np.isfinite(y)
@@ -181,7 +183,7 @@ def _series_metrics(
         baseline_mask = (t >= 0.0) & (t <= min(0.20, 0.10 * float(t.max())))
     if not np.any(post):
         return {"effective_response_valid": False, "reason": "no_post_command_samples"}
-    final_start = max(0.0, float(t.max()) - 0.75)
+    final_start = max(0.0, float(t.max()) - final_window_s)
     final_mask = t >= final_start
     initial = float(np.median(y[baseline_mask]))
     final = float(np.median(y[final_mask]))
@@ -288,9 +290,11 @@ def _effective_series(
     vx = np.interp(t_ns.astype(float), lt.astype(float), lv.vx.to_numpy(dtype=float), left=np.nan, right=np.nan)
     nearest_gap_s = _nearest_gap_ns(lt.astype(float), t_ns.astype(float)) * 1e-9
     # Stationary IMU offsets are removed before any curvature/lateral-accel use;
-    # the gyro-z offset is evaluated per sample so a drifting bias is tracked.
+    # The stationary estimate is only applied when the frozen profile explicitly
+    # permits it. Unified sessions retain it as a diagnostic because each
+    # bringup launch establishes a fresh IMU epoch.
     gz_bias = bias.gz_at(t_ns) if bias is not None else 0.0
-    ay_bias = bias.ay_bias if bias is not None else 0.0
+    ay_bias = bias.ay_bias if bias is not None and bias.correction_applied else 0.0
     gz = im.gz.to_numpy(dtype=float) - gz_bias
     valid = (
         np.isfinite(vx) & np.isfinite(gz) &
@@ -363,6 +367,10 @@ def _analyse_segment(
         "raw_servo_target": float(raw_target),
         "raw_servo_step": float(raw_target - baseline_raw),
     }
+    min_step_hold_s = float(analysis_cfg.get("min_step_hold_s", 0.0))
+    if segment == "outbound_step" and (end_ns - start_ns) * 1.0e-9 < min_step_hold_s:
+        row.update({"effective_response_valid": False, "reason": "step_capture_shorter_than_required_hold"})
+        return row, pd.DataFrame()
     for channel, frame in channel_frames.items():
         result = _channel_transition(frame, start_ns, end_ns, raw_target,
                                      onset_hold_s=float(response_cfg["command_onset_hold_s"]))
@@ -389,6 +397,7 @@ def _analyse_segment(
         onset_hold_s=float(response_cfg["effective_onset_hold_s"]),
         settle_band_fraction=float(response_cfg["settling_band_fraction"]),
         settle_hold_s=float(response_cfg["settling_hold_s"]),
+        final_window_s=float(analysis_cfg.get("final_window_s", 0.75)),
     )
     if valid_fraction < float(analysis_cfg["min_effective_valid_sample_fraction"]):
         metrics["effective_response_valid"] = False
@@ -456,17 +465,19 @@ def _group_summary(table: pd.DataFrame) -> pd.DataFrame:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("session", type=Path)
+    parser.add_argument("--stage-directory", default="06_command_to_curvature_response")
+    parser.add_argument("--output-prefix", default="")
     args = parser.parse_args()
     session = args.session.resolve()
     cfg = yaml.safe_load((session / "calibration_config_snapshot.yaml").read_text(encoding="utf-8"))
-    stage = session / "06_command_to_curvature_response" / "derived"
+    stage = session / args.stage_directory / "derived"
     events = _read(stage / "events.parquet")
     imu = _read(stage / "imu.parquet")
-    lidar = _read(stage / "lidar_velocity.parquet")
+    lidar = read_motion(stage)
     if events.empty:
         raise SystemExit("response stage contains no exported events")
     channel_frames = {name: _read(stage / f"{file_name}.parquet") for name, file_name in CHANNELS.items()}
-    bias = estimate_imu_bias(session)
+    bias = estimate_imu_bias(session, apply_correction=correction_enabled(cfg))
     accepted = accepted_trial_ids(events)
     steps = events[(events.event == "response_step_command") & (events.trial_id.astype(str).isin(accepted))].copy()
     rows: list[dict[str, Any]] = []
@@ -510,15 +521,18 @@ def main() -> int:
     table = pd.DataFrame(rows)
     output = session / "analysis"
     output.mkdir(exist_ok=True)
+    prefix = str(args.output_prefix)
+    if prefix and not prefix.endswith("_"):
+        prefix += "_"
     # The legacy filename is retained, but the column names now make the
     # distinction between command path and effective vehicle response explicit.
-    table.to_parquet(output / "command_to_curvature_response_metrics.parquet", index=False)
-    table.to_parquet(output / "command_to_effective_steering_response_metrics.parquet", index=False)
+    table.to_parquet(output / f"{prefix}command_to_curvature_response_metrics.parquet", index=False)
+    table.to_parquet(output / f"{prefix}command_to_effective_steering_response_metrics.parquet", index=False)
     if series:
-        pd.concat(series, ignore_index=True).to_parquet(output / "effective_steering_response_timeseries.parquet", index=False)
+        pd.concat(series, ignore_index=True).to_parquet(output / f"{prefix}effective_steering_response_timeseries.parquet", index=False)
     group = _group_summary(table)
     if not group.empty:
-        group.to_parquet(output / "effective_steering_response_group_summary.parquet", index=False)
+        group.to_parquet(output / f"{prefix}effective_steering_response_group_summary.parquet", index=False)
     valid = table[table.effective_response_valid.astype(bool)] if len(table) and "effective_response_valid" in table else pd.DataFrame()
     summary: dict[str, Any] = {
         "measurement_scope": {
@@ -554,6 +568,7 @@ def main() -> int:
         fields = [
             "effective_delay_10pct_s", "effective_rise_10_90_s", "effective_settling_5pct_s",
             "effective_peak_rate_rad_s", "effective_overshoot_fraction", "fopdt_delay_s", "fopdt_tau_s",
+            "fopdt_gain", "fopdt_rmse_normalized", "effective_static_gain_rad_per_servo",
         ]
         for field in fields:
             if field in valid:
@@ -564,9 +579,10 @@ def main() -> int:
         if field in table:
             values = pd.to_numeric(table[field], errors="coerce").dropna()
             summary[f"median_{field}"] = float(values.median()) if len(values) else None
-    (output / "command_to_effective_steering_response_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    # Backward-compatible summary name for existing workflow references.
-    (output / "command_to_curvature_response_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (output / f"{prefix}command_to_effective_steering_response_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    # Backward-compatible summary names are retained for the training stage.
+    if not prefix:
+        (output / "command_to_curvature_response_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
     return 0
 

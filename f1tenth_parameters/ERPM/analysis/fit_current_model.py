@@ -9,15 +9,12 @@ surface and rejects automatic deployment of the scalar-only candidate.
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import math
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.signal import savgol_filter
-
 from common import (
     accepted_capture_windows,
     analysis_dir,
@@ -25,6 +22,7 @@ from common import (
     eval_origin_quadratic,
     expected_grid_coverage,
     load_yaml,
+    motion_windows,
     stage_tables,
 )
 
@@ -37,43 +35,83 @@ def _drag(v: np.ndarray, report: dict) -> np.ndarray:
     )
 
 
-def _mean_accel(lidar: pd.DataFrame, start: int, end: int) -> tuple[float, float, int]:
+def _mean_accel(lidar: pd.DataFrame, start: int, end: int, cfg: dict) -> tuple[float, float, int]:
+    """Estimate pulse acceleration from robust LiDAR *window* motion samples.
+
+    The old derivative required eight overlapping scan-pair rows and therefore
+    failed at the low-speed end of a 40 Hz sensor.  The new estimator fits one
+    slope to independently quality-gated multi-registration windows after
+    removing command-edge transients.  It is deliberately one measurement per
+    pulse, not dozens of falsely independent scan-pair accelerations.
+    """
     frame = lidar[(lidar.bag_ns >= start) & (lidar.bag_ns <= end)].copy()
     if frame.empty or 'valid' not in frame:
         return math.nan, math.nan, 0
     frame = frame[frame.valid.astype(bool)].sort_values('bag_ns')
-    if len(frame) < 8:
+    policy = cfg['analysis'].get('current_pulse', {})
+    minimum = int(policy.get('min_window_samples', 4))
+    if len(frame) < minimum:
         return math.nan, math.nan, len(frame)
-    lo = int(len(frame) * 0.20)
-    hi = max(lo + 3, int(len(frame) * 0.80))
+    lo = int(len(frame) * float(policy.get('trim_fraction', 0.15)))
+    hi = len(frame) - lo
     frame = frame.iloc[lo:hi]
-    if len(frame) < 5:
+    if len(frame) < minimum:
         return math.nan, math.nan, len(frame)
     t = frame.bag_ns.to_numpy(dtype=float) * 1e-9
     v = frame.vx.to_numpy(dtype=float)
-    dt = float(np.median(np.diff(t)))
-    window = max(5, int(round(0.18 / max(dt, 1e-3))))
-    if window % 2 == 0:
-        window += 1
-    if window >= len(v):
-        window = len(v) - 1 if len(v) % 2 == 0 else len(v)
-    smooth = savgol_filter(v, window, 2, mode='interp') if window >= 5 else v
-    accel = np.gradient(smooth, t)
-    return float(np.nanmedian(accel)), float(np.nanmedian(v)), len(v)
+    if float(t[-1] - t[0]) < float(policy.get('min_effective_pulse_s', 0.40)):
+        return math.nan, math.nan, len(frame)
+    slope, _ = np.polyfit(t - np.mean(t), v, 1)
+    return float(slope), float(np.nanmedian(v)), len(frame)
+
+
+def _phase_window(events: pd.DataFrame, trial_id: str, phase: str) -> tuple[int, int] | None:
+    starts = events[(events.event.astype(str) == 'phase_start') &
+                    (events.phase.astype(str) == phase) &
+                    (events.trial_id.astype(str) == trial_id)]
+    if starts.empty:
+        return None
+    start = starts.sort_values('bag_ns').iloc[-1]
+    ends = events[(events.event.astype(str) == 'phase_end') &
+                  (events.phase.astype(str) == phase) &
+                  (events.trial_id.astype(str) == trial_id) &
+                  (events.bag_ns > start.bag_ns)]
+    if ends.empty:
+        return None
+    return int(start.bag_ns), int(ends.sort_values('bag_ns').iloc[0].bag_ns)
+
+
+def _median_speed(lidar: pd.DataFrame, window: tuple[int, int] | None) -> float:
+    if window is None:
+        return math.nan
+    frame = lidar[(lidar.bag_ns >= window[0]) & (lidar.bag_ns <= window[1])].copy()
+    if frame.empty or 'valid' not in frame:
+        return math.nan
+    frame = frame[frame.valid.astype(bool)]
+    return float(np.nanmedian(frame.vx.to_numpy(dtype=float))) if len(frame) else math.nan
 
 
 def _pulse_summary(session: Path, stage: str, phases: list[str], cfg: dict,
                    drag_report: dict, static_report: dict) -> pd.DataFrame:
     tables = stage_tables(session, stage)
     windows = accepted_capture_windows(tables['events'], phases)
+    lidar = motion_windows(tables)
     direct = static_report['measured_erpm_odometry_map']['direct_erpm_to_ground_speed_candidate']
     speed_floor = float(cfg['analysis']['slip']['speed_floor_mps'])
     rows: list[dict[str, object]] = []
     for _, window in windows.iterrows():
-        accel, speed, n = _mean_accel(tables['lidar_velocity'], int(window.start_ns), int(window.end_ns))
+        accel, speed, n = _mean_accel(lidar, int(window.start_ns), int(window.end_ns), cfg)
         vesc = tables['vesc'][(tables['vesc'].bag_ns >= window.start_ns) & (tables['vesc'].bag_ns <= window.end_ns)]
         imu = tables['imu'][(tables['imu'].bag_ns >= window.start_ns) & (tables['imu'].bag_ns <= window.end_ns)]
-        if not math.isfinite(accel) or not math.isfinite(speed) or n < 5:
+        selected_current = tables['motor_selected_current'][(tables['motor_selected_current'].bag_ns >= window.start_ns) & (tables['motor_selected_current'].bag_ns <= window.end_ns)]
+        selected_brake = tables['motor_selected_brake'][(tables['motor_selected_brake'].bag_ns >= window.start_ns) & (tables['motor_selected_brake'].bag_ns <= window.end_ns)]
+        baseline = _phase_window(tables['events'], str(window.trial_id), 'current_pulse_baseline')
+        recovery = _phase_window(tables['events'], str(window.trial_id), f'raw_{str(window.get("polarity", ""))}_current_recovery')
+        baseline_speed = _median_speed(lidar, baseline)
+        recovery_speed = _median_speed(lidar, recovery)
+        if (not math.isfinite(accel) or not math.isfinite(speed) or n < int(cfg['analysis'].get('current_pulse', {}).get('min_window_samples', 4))
+                or not math.isfinite(baseline_speed) or not math.isfinite(recovery_speed)
+                or abs(speed) < float(cfg['analysis'].get('min_lidar_speed_mps', 0.3))):
             continue
         yaw = float(np.nanmedian(imu.gz)) if len(imu) else math.nan
         if math.isfinite(yaw) and abs(yaw) > float(cfg['analysis']['max_straight_yaw_rate_rad_s']):
@@ -91,12 +129,28 @@ def _pulse_summary(session: Path, stage: str, phases: list[str], cfg: dict,
         command = float(window.get('current_command_a', math.nan))
         fraction = float(window.get('current_fraction', math.nan))
         initial_speed = float(window.get('initial_speed_mps', math.nan))
+        selected_drive = float(np.nanmedian(selected_current.value.to_numpy(float))) if len(selected_current) else math.nan
+        selected_braking = float(np.nanmedian(selected_brake.value.to_numpy(float))) if len(selected_brake) else math.nan
+        selected_actuation = selected_drive if polarity == 'drive' else selected_braking if polarity == 'brake' else math.nan
+        selection_tolerance = float(cfg.get('preflight', {}).get('raw_motor_tolerance_current_a', 0.25))
+        if (
+            not math.isfinite(selected_actuation)
+            or not math.isfinite(command)
+            or abs(selected_actuation - command) > selection_tolerance
+        ):
+            # Do not turn a selector-routing fault into a false drivetrain
+            # calibration. Missing usable rows will explicitly fail coverage.
+            continue
         net_accel = accel + float(_drag(np.asarray([speed]), drag_report)[0]) if polarity == 'drive' else -accel - float(_drag(np.asarray([speed]), drag_report)[0])
         rows.append({
             'trial_id': str(window.trial_id),
             'condition_id': str(window.condition_id),
             'polarity': polarity,
             'current_command_a': command,
+            'selected_drive_current_a': selected_drive,
+            'selected_brake_current_a': selected_braking,
+            'selected_actuation_a': selected_actuation,
+            'selected_actuation_minus_command_a': selected_actuation - command,
             'current_fraction': fraction,
             'initial_speed_mps': initial_speed,
             'motor_current_a': motor_current,
@@ -109,6 +163,10 @@ def _pulse_summary(session: Path, stage: str, phases: list[str], cfg: dict,
             'drag_mps2': float(_drag(np.asarray([speed]), drag_report)[0]),
             'net_accel_mps2': net_accel,
             'sample_count': n,
+            'baseline_vx_lidar_mps': baseline_speed,
+            'recovery_vx_lidar_mps': recovery_speed,
+            'pulse_delta_v_mps': recovery_speed - baseline_speed,
+            'measurement_method': 'robust_window_velocity_slope_over_trimmed_current_pulse',
         })
     return pd.DataFrame(rows)
 
@@ -143,10 +201,11 @@ def _linear_fit(frame: pd.DataFrame, polarity: str, cfg: dict) -> dict:
     part = frame[frame.polarity.astype(str) == polarity].copy()
     if part.empty:
         raise ValueError(f'no {polarity} current trials')
-    if polarity == 'drive':
-        current = np.maximum(part.motor_current_a.to_numpy(dtype=float), 0.0)
-    else:
-        current = part.current_command_a.to_numpy(dtype=float)
+    # ACCEL_TO_CURRENT publishes into the selector, so the deployable gain must
+    # be fitted against the *selected command* rather than VESC motor-current
+    # feedback. The latter is retained as a drivetrain diagnostic but can be
+    # scaled/limited by the controller and would make the runtime gain wrong.
+    current = part.selected_actuation_a.to_numpy(dtype=float)
     y = part.net_accel_mps2.to_numpy(dtype=float)
     slip_limit = float(cfg['analysis']['slip']['high_slip_ratio_threshold'])
     low = (part.current_fraction.to_numpy(dtype=float) <= 0.33) & (np.abs(part.longitudinal_slip_ratio.to_numpy(dtype=float)) <= slip_limit)
@@ -173,7 +232,7 @@ def _surface_fit(frame: pd.DataFrame, polarity: str) -> dict:
     part = frame[frame.polarity.astype(str) == polarity].copy()
     if part.empty:
         raise ValueError(f'no {polarity} current trials')
-    current = np.maximum(part.motor_current_a.to_numpy(dtype=float), 0.0) if polarity == 'drive' else part.current_command_a.to_numpy(dtype=float)
+    current = part.selected_actuation_a.to_numpy(dtype=float)
     speed = np.maximum(part.vx_lidar_mps.to_numpy(dtype=float), 0.0)
     y = part.net_accel_mps2.to_numpy(dtype=float)
     mask = np.isfinite(current) & np.isfinite(speed) & np.isfinite(y)
@@ -203,7 +262,7 @@ def _surface_fit(frame: pd.DataFrame, polarity: str) -> dict:
 
 
 def _surface_predict(frame: pd.DataFrame, polarity: str, fit: dict) -> np.ndarray:
-    current = np.maximum(frame.motor_current_a.to_numpy(dtype=float), 0.0) if polarity == 'drive' else frame.current_command_a.to_numpy(dtype=float)
+    current = frame.selected_actuation_a.to_numpy(dtype=float)
     speed = np.maximum(frame.vx_lidar_mps.to_numpy(dtype=float), 0.0)
     return (
         float(fit['c1_accel_per_amp']) * current
@@ -245,6 +304,11 @@ def main() -> int:
     import yaml
     drag = yaml.safe_load((out / 'coastdown_drag_report.yaml').read_text(encoding='utf-8'))
     static = yaml.safe_load((out / 'erpm_speed_map_report.yaml').read_text(encoding='utf-8'))
+    training_candidate_path = out / 'current_acceleration_training_report.yaml'
+    training_candidate = (
+        yaml.safe_load(training_candidate_path.read_text(encoding='utf-8')) or {}
+        if training_candidate_path.exists() else {}
+    )
 
     train = _pulse_summary(session, '08_raw_current_training', ['raw_drive_current_pulse', 'raw_brake_current_pulse'], cfg, drag, static)
     hold = _pulse_summary(session, '09_raw_current_holdout', ['raw_drive_current_pulse', 'raw_brake_current_pulse'], cfg, drag, static)
@@ -275,7 +339,7 @@ def main() -> int:
             linear_metrics = {'rmse_mps2': math.inf, 'bias_mps2': math.nan, 'n': 0}
             surface_metrics = {'rmse_mps2': math.inf, 'bias_mps2': math.nan, 'n': 0}
         else:
-            current = np.maximum(h.motor_current_a.to_numpy(dtype=float), 0.0) if polarity == 'drive' else h.current_command_a.to_numpy(dtype=float)
+            current = h.selected_actuation_a.to_numpy(dtype=float)
             linear_metrics = _metrics(h.net_accel_mps2.to_numpy(dtype=float), float(linear[polarity]['accel_per_amp']) * current)
             surface_metrics = _metrics(h.net_accel_mps2.to_numpy(dtype=float), _surface_predict(h, polarity, surface[polarity]))
         holdout[polarity] = {'linear_scalar': linear_metrics, 'surface': surface_metrics}
@@ -317,17 +381,33 @@ def main() -> int:
         'coverage': coverage_reports,
         'candidate_accel_to_current_gain': float(linear['drive']['gain_a_per_mps2']),
         'candidate_accel_to_brake_gain': float(linear['brake']['gain_a_per_mps2']),
+        'candidate_gain_bootstrap': training_candidate.get('candidate_gain_bootstrap', {}),
         'candidate_accel_deadzone_mps2': candidate_deadzone,
         'scalar_accel_to_current_adequate_over_envelope': scalar_adequate,
         'requires_nonlinear_longitudinal_model': not scalar_adequate,
         'accepted_for_candidate': bool(surface_ok and scalar_adequate),
         'gates': dict(gates),
         'notes': [
-            'The scalar gain is deliberately fitted from low-slip, low-current data. It is not claimed to describe high-demand tyre slip.',
+            'The scalar gain is fitted from low-slip selected-current command data, matching the ACCEL_TO_CURRENT runtime input. VESC motor current is retained as a diagnostic, not substituted into the deployable command gain.',
             'If requires_nonlinear_longitudinal_model=true, automatic deployment is rejected. The high-demand traction surface remains the evidence needed for a subsequent MPC/actuation-model upgrade.',
         ],
     }
     dump_yaml(out / 'current_acceleration_report.yaml', report)
+    if not scalar_adequate:
+        dump_yaml(out / 'nonlinear_longitudinal_actuation_model_request.yaml', {
+            'required': True,
+            'reason': 'independent current hold-out materially prefers the speed/current surface or shows excessive high-demand slip',
+            'polarity_requires_nonlinear_model': nonlinear_required,
+            'evidence': {
+                'scalar_and_surface_holdout': holdout,
+                'slip': slip,
+                'fitted_surface': surface,
+            },
+            'next_action': (
+                'Implement a bounded speed-dependent current/acceleration model in the racing actuation path, '
+                'then redo current_training and current_holdout before continuing.'
+            ),
+        })
     print(json.dumps(report, indent=2, default=str))
     return 0
 

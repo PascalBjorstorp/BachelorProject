@@ -50,7 +50,7 @@ ament_target_dependencies(hokuyo_scip_driver_node
   sensor_msgs
 )
 
-# ── Scan downsampler (full-res /scan_full -> reduced /scan for the pipeline) ──
+# ── Full-resolution recording relay (/scan_full -> reduced racing /scan) ──
 add_executable(scan_downsampler_node
   src/scan_downsampler_node.cpp
 )

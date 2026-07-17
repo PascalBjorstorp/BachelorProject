@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>F1TENTH Calibration Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div><strong>Calibration</strong><small>F1TENTH studio</small></div>
+      </div>
+
+      <nav class="nav" aria-label="Primary navigation">
+        <button class="nav-item active" data-view="prepare"><span>01</span> Prepare</button>
+        <button class="nav-item" data-view="journey"><span>02</span> Test journey</button>
+        <button class="nav-item" data-view="results"><span>03</span> Results</button>
+      </nav>
+
+      <div class="sidebar-session">
+        <div class="eyebrow">Active session</div>
+        <div id="session-name" class="session-name">No session</div>
+        <div id="session-progress-label" class="session-progress-label">Create or select one to begin</div>
+        <div class="mini-progress"><span id="session-progress-bar"></span></div>
+      </div>
+
+      <div class="sidebar-foot">
+        <span class="local-dot"></span>
+        Private local connection<br>
+        <small>Not exposed to the room network</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow" id="view-eyebrow">Before the first movement</div>
+          <h1 id="view-title">Prepare the car and workspace</h1>
+        </div>
+        <div class="top-actions">
+          <span id="job-pill" class="status-pill idle"><i></i><span>No job running</span></span>
+          <button id="refresh-button" class="icon-button" title="Refresh" aria-label="Refresh">↻</button>
+        </div>
+      </header>
+
+      <div id="notice" class="notice hidden" role="status"></div>
+
+      <section id="view-prepare" class="view active">
+        <div id="no-session-card" class="hero-card">
+          <div>
+            <div class="eyebrow light">Guided calibration</div>
+            <h2>One stage at a time.</h2>
+            <p>Create or resume a session. The next safe stage, setup and result appear here.</p>
+          </div>
+          <div class="hero-actions">
+            <button id="new-session" class="button primary">Create new session</button>
+            <label class="select-label">or resume
+              <select id="session-select"><option value="">Select a session…</option></select>
+            </label>
+          </div>
+        </div>
+
+        <div id="prepare-content" class="hidden">
+          <div class="session-toolbar">
+            <div><span>Current campaign</span><strong id="active-session-toolbar">—</strong></div>
+            <button id="new-session-active" class="button secondary">New session</button>
+            <select id="session-select-active" aria-label="Switch calibration session"><option value="">Switch session…</option></select>
+          </div>
+          <p id="profile-warning" class="profile-warning hidden"></p>
+          <div class="overview-grid">
+            <article class="panel readiness-panel">
+              <div class="panel-heading">
+                <div><div class="eyebrow">System readiness</div><h2>Before anything runs</h2></div>
+                <span id="readiness-score" class="score">—</span>
+              </div>
+              <div id="readiness-list" class="check-list"></div>
+              <button id="recover-button" class="button danger subtle hidden">Recover interrupted VESC configuration</button>
+            </article>
+
+            <article class="panel campaign-panel">
+              <div class="eyebrow">Campaign envelope</div>
+              <h2>What you are committing to</h2>
+              <div class="metric-row">
+                <div><strong id="metric-stages">28</strong><span>gated stages</span></div>
+                <div><strong id="metric-passes">—</strong><span>accepted passes</span></div>
+                <div><strong id="metric-time">10–14 h</strong><span>without rework</span></div>
+              </div>
+              <p class="muted">Each run stops after one stage. Validation always uses fresh data.</p>
+              <div id="room-badge" class="room-badge"><span>14 × 14 m</span> 1 m wall clearance · diagonal lane</div>
+            </article>
+          </div>
+
+          <article class="panel metrology-panel">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">Physical preparation</div>
+                <h2>Tell the suite what bags cannot measure</h2>
+                <p>Confirm the prefilled values and enter the missing axle readings.</p>
+              </div>
+              <span id="metrology-status" class="status-pill warning"><i></i><span>Needs input</span></span>
+            </div>
+
+            <form id="metrology-form">
+              <div id="context-fields" class="form-grid context-grid"></div>
+              <div class="form-section-title"><span>Required to continue</span><small>Measured values in SI units</small></div>
+              <div id="required-fields" class="form-grid"></div>
+
+              <div class="axle-helper">
+                <div><strong>Scale reads kilograms?</strong><span>Convert each axle’s displayed mass to force before saving.</span></div>
+                <label>Front kg<input id="front-kg" type="number" min="0" step="any" inputmode="decimal"></label>
+                <label>Rear kg<input id="rear-kg" type="number" min="0" step="any" inputmode="decimal"></label>
+                <button id="convert-axles" type="button" class="button secondary">Convert to N</button>
+              </div>
+              <div id="closure-card" class="closure-card"></div>
+
+              <details>
+                <summary>Recommended dimensions and CAD priors</summary>
+                <div id="recommended-fields" class="form-grid details-grid"></div>
+              </details>
+              <details>
+                <summary>Optional bifilar yaw-inertia measurement</summary>
+                <p class="muted">Complete all fields to replace the Inventor CAD inertia prior with a campaign measurement.</p>
+                <div id="bifilar-fields" class="form-grid details-grid"></div>
+              </details>
+              <details>
+                <summary>Imported sensor geometry (read only)</summary>
+                <div id="geometry-fields" class="geometry-grid"></div>
+              </details>
+
+              <div class="form-footer">
+                <div id="metrology-errors" class="form-errors"></div>
+                <button class="button primary" type="submit">Save and validate measurements</button>
+              </div>
+            </form>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-journey" class="view">
+        <div id="journey-empty" class="empty-state"><h2>No active session</h2><p>Create or select a session in Prepare.</p></div>
+        <div id="journey-content" class="journey-layout hidden">
+          <aside class="stage-rail">
+            <div class="stage-rail-head"><span>Campaign stages</span><small id="rail-progress">0 / 28</small></div>
+            <div id="stage-list" class="stage-list"></div>
+          </aside>
+          <div class="stage-workspace">
+            <article id="stage-detail" class="panel stage-detail"></article>
+            <article id="terminal-panel" class="terminal-panel hidden">
+              <div class="terminal-head">
+                <div><span class="terminal-dot red"></span><span class="terminal-dot amber"></span><span class="terminal-dot green"></span></div>
+                <strong id="terminal-title">Runner</strong>
+                <button id="stop-job" class="terminal-stop">Emergency stop / interrupt</button>
+              </div>
+              <pre id="terminal-log" tabindex="0" aria-live="polite"></pre>
+              <div class="terminal-controls">
+                <div class="quick-responses">
+                  <button class="prompt-response hidden" data-response="READY">READY</button>
+                  <button class="prompt-response hidden" data-response="ACCEPT">ACCEPT</button>
+                  <button class="prompt-response hidden" data-response="REDO">REDO</button>
+                  <button class="prompt-response hidden" data-response="SKIP">SKIP</button>
+                  <button class="prompt-response hidden" data-response="CONFIRM">CONFIRM</button>
+                  <button class="prompt-response hidden" data-response="ABORT">ABORT</button>
+                </div>
+                <div id="endstop-keys" class="quick-responses endstop-keys hidden">
+                  <button data-key="a">a · coarse −</button>
+                  <button data-key="d">d · coarse +</button>
+                  <button data-key="z">z · fine −</button>
+                  <button data-key="c">c · fine +</button>
+                  <button data-key="x">x · ultra −</button>
+                  <button data-key="v">v · ultra +</button>
+                  <button data-key="l">l · record</button>
+                  <button data-key="r">r · centre</button>
+                  <button data-key="q">q · abort</button>
+                </div>
+                <form id="terminal-input-form">
+                  <input id="terminal-input" autocomplete="off" placeholder="Type a response for the current prompt…">
+                  <button class="button primary" type="submit">Send</button>
+                </form>
+                <p id="endstop-help" class="hidden">End-stop keys are sent immediately without Enter.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-results" class="view">
+        <div id="results-empty" class="empty-state"><h2>No results yet</h2><p>Plots and fitted values appear here after each stage.</p></div>
+        <div id="results-content" class="hidden">
+          <div class="results-head">
+            <div><div class="eyebrow">Evidence, not just a green tick</div><h2>Collected data and analysis</h2></div>
+            <div class="results-actions">
+              <button id="build-report" class="button secondary">Regenerate report</button>
+              <a id="open-pdf" class="button primary hidden" target="_blank" rel="noopener">Open PDF</a>
+              <button id="promote-candidate" class="button danger hidden">Promote final candidate</button>
+            </div>
+          </div>
+          <div id="artifact-links" class="artifact-links"></div>
+          <div id="results-grid" class="results-grid"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="confirm-dialog">
+    <form method="dialog" id="confirm-form">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <div class="eyebrow">Final check</div>
+      <h2 id="confirm-title">Ready to run?</h2>
+      <p id="confirm-summary"></p>
+      <div id="confirm-checks" class="dialog-checks"></div>
+      <div class="dialog-actions">
+        <button class="button secondary" value="cancel">Not yet</button>
+        <button id="confirm-run" class="button primary" value="default">Start this stage</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="text-confirm-dialog">
+    <form method="dialog" id="text-confirm-form">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <div class="eyebrow">Destructive workflow action</div>
+      <h2 id="text-confirm-title">Confirm action</h2>
+      <p id="text-confirm-summary"></p>
+      <label>Type <strong id="text-confirm-word"></strong>
+        <input id="text-confirm-input" autocomplete="off">
+      </label>
+      <div class="dialog-actions">
+        <button class="button secondary" value="cancel">Cancel</button>
+        <button id="text-confirm-submit" class="button danger" value="default">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

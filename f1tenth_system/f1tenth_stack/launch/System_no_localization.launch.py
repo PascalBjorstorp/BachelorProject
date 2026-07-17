@@ -63,7 +63,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'lidar_cluster',
             default_value='4',
-            description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
+            description='Racing /scan clustering; 4 publishes 270 beams'),
 
         DeclareLaunchArgument(
             'lateral_planner_avoidance_enabled',

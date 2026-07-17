@@ -134,26 +134,46 @@ class CalibrationNode(Node):
         msg=AckermannDriveStamped(); msg.header.stamp=self.get_clock().now().to_msg(); msg.drive.speed=float(speed_mps); msg.drive.acceleration=float(acceleration_mps2); msg.drive.steering_angle=float(steer); self.drive_pub.publish(msg)
     def ackermann(self, speed_mps:float, acceleration_mps2:float=0.0, steering_angle_rad:float|None=None, *, straight_assist_allowed:bool=True, selector_mode:str='ackermann_speed')->None:
         self._mode(selector_mode); self._drive_message(speed_mps,acceleration_mps2,steering_angle_rad,straight_assist_allowed=straight_assist_allowed)
-    def _steering_keepalive(self, *, straight_assist_allowed:bool=True)->None:
+    def _steering_keepalive(self, *, steering_angle_rad:float|None=None,
+                            straight_assist_allowed:bool=True)->None:
         # AckermannToVesc must receive a normal zero-speed / zero-angle command
         # so it continues to publish the installed steering map. Its motor output
         # is remapped to selector input and ignored whenever a raw motor source is
         # active, so this cannot contend with the calibration command.
-        self._drive_message(0.0,0.0,straight_assist_allowed=straight_assist_allowed)
+        self._drive_message(0.0,0.0,steering_angle_rad,
+                            straight_assist_allowed=straight_assist_allowed)
     def raw_erpm(self, erpm:float)->None:
+        if not math.isfinite(erpm):
+            raise RuntimeError(f'raw ERPM request {erpm!r} is not finite')
+        hard_erpm=float(self.cfg.get('session',{}).get('hard_erpm_limit',math.inf))
+        if abs(float(erpm)) > hard_erpm:
+            raise RuntimeError(
+                f'raw ERPM request {erpm:.1f} exceeds independent hard safety limit {hard_erpm:.1f}'
+            )
         self._mode('raw_erpm'); self._steering_keepalive(); self.raw_speed_pub.publish(self._float(erpm))
     def raw_current(self, current_a: float) -> None:
         if not math.isfinite(current_a) or current_a < -1e-9:
             raise RuntimeError(f'raw drive-current request {current_a!r} is invalid')
+        approved=float(self.cfg.get('operating_envelope',{}).get('approved_drive_test_current_a',math.inf))
+        if current_a > approved + 1e-9:
+            raise RuntimeError(
+                f'raw drive-current request {current_a:.3f} A exceeds approved test limit {approved:.3f} A'
+            )
         self._mode('raw_current'); self._steering_keepalive(); self.raw_current_pub.publish(self._float(current_a))
 
     def raw_brake(self, brake_a: float) -> None:
         if not math.isfinite(brake_a) or brake_a < -1e-9:
             raise RuntimeError(f'raw brake-current request {brake_a!r} is invalid')
+        approved=float(self.cfg.get('operating_envelope',{}).get('approved_brake_test_current_a',math.inf))
+        if brake_a > approved + 1e-9:
+            raise RuntimeError(
+                f'raw brake-current request {brake_a:.3f} A exceeds approved test limit {approved:.3f} A'
+            )
         self._mode('raw_brake'); self._steering_keepalive(); self.raw_brake_pub.publish(self._float(brake_a))
     def neutral(self)->None:
         self._mode('neutral'); self._steering_keepalive(straight_assist_allowed=False); self.spin(0.04); self._mode('neutral')
-    def _brake_burst(self, brake_a:float, brake_s:float, event_prefix:str, **meta:Any)->None:
+    def _brake_burst(self, brake_a:float, brake_s:float, event_prefix:str,
+                     steering_angle_rad:float|None=None, **meta:Any)->None:
         """Apply a timed brake-current burst, then go neutral."""
         hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
         self.reset_straight_assist()
@@ -162,11 +182,28 @@ class CalibrationNode(Node):
             self._mode('raw_brake')
             end=time.monotonic()+brake_s
             while time.monotonic()<end:
-                self._steering_keepalive(straight_assist_allowed=False)
+                self._steering_keepalive(
+                    steering_angle_rad=steering_angle_rad,
+                    straight_assist_allowed=False,
+                )
                 self.raw_brake_pub.publish(self._float(brake_a))
                 self.spin(period)
             self.event.emit(f'{event_prefix}_end',**meta)
         self.neutral()
+    def _redundant_speed_for_safety(self)->float:
+        """Return a conservative online speed proxy for safety only.
+
+        Ground-speed fitting never treats odometry or ERPM as truth; LiDAR
+        windows remain the offline reference.  During a raw-current pulse,
+        however, waiting for an odometry-derived overspeed is unsafe because
+        that very map is under calibration.  Use the larger of odometry and a
+        deliberately conservative VESC-ERPM conversion to size the stop burst.
+        """
+        values=[]
+        if math.isfinite(self.latest.odom_vx): values.append(abs(self.latest.odom_vx))
+        scale=float(self.cfg.get('session',{}).get('safety_erpm_per_mps',0.0))
+        if scale>0.0 and math.isfinite(self.latest.erpm): values.append(abs(self.latest.erpm)/scale)
+        return max(values) if values else 0.0
     def _active_stop_plan(self)->tuple[float,float,dict[str,Any]]:
         """Scale post-trial brake effort with measured forward speed."""
         cfg=self.cfg.get('motion_startup',{})
@@ -174,8 +211,8 @@ class CalibrationNode(Node):
         approved=max(0.0,float(env.get('approved_brake_test_current_a',250.0)))
         base_a=max(0.0,float(cfg.get('active_stop_brake_current_a',cfg.get('failed_attempt_brake_current_a',12.0))))
         base_s=max(0.0,float(cfg.get('active_stop_brake_s',cfg.get('failed_attempt_brake_s',0.35))))
-        speed=abs(self.latest.odom_vx) if math.isfinite(self.latest.odom_vx) else 0.0
-        meta={'active_stop_odom_vx_mps':speed,'active_stop_base_brake_current_a':base_a,'active_stop_base_brake_s':base_s}
+        speed=self._redundant_speed_for_safety()
+        meta={'active_stop_safety_speed_mps':speed,'active_stop_odom_vx_mps':self.latest.odom_vx,'active_stop_erpm':self.latest.erpm,'active_stop_base_brake_current_a':base_a,'active_stop_base_brake_s':base_s}
         if not bool(cfg.get('active_stop_speed_scaled',True)):
             return base_a,base_s,meta
         a_per_mps=max(0.0,float(cfg.get('active_stop_brake_current_per_mps',20.0)))
@@ -187,7 +224,7 @@ class CalibrationNode(Node):
         brake_s=min(max_s,max(min_s,base_s+s_per_mps*speed))
         meta.update({'active_stop_brake_current_a':brake_a,'active_stop_brake_s':brake_s,'active_stop_speed_scaled':True})
         return brake_a,brake_s,meta
-    def active_stop(self)->None:
+    def active_stop(self, steering_angle_rad:float|None=None)->None:
         """Active-brake stop used after every trial capture.
 
         The VESC does not brake when it receives a zero command — it coasts.
@@ -196,7 +233,14 @@ class CalibrationNode(Node):
         """
         try:
             brake_a,brake_s,meta=self._active_stop_plan()
-            self._brake_burst(brake_a,brake_s,'active_stop',**meta)
+            self._brake_burst(
+                brake_a, brake_s, 'active_stop',
+                steering_angle_rad=steering_angle_rad,
+                active_stop_steering_angle_rad=(
+                    0.0 if steering_angle_rad is None else float(steering_angle_rad)
+                ),
+                **meta,
+            )
         except Exception as exc:
             self.get_logger().error(f'active_stop error: {exc}')
     def fail_stop(self)->None:
@@ -224,7 +268,10 @@ class CalibrationNode(Node):
         if math.isfinite(self.latest.motor_temp_c) and self.latest.motor_temp_c>float(s['max_motor_temp_c']): raise RuntimeError(f'motor thermal threshold exceeded: {self.latest.motor_temp_c:.1f} C')
         if math.isfinite(self.latest.fet_temp_c) and self.latest.fet_temp_c>float(s['max_fet_temp_c']): raise RuntimeError(f'FET thermal threshold exceeded: {self.latest.fet_temp_c:.1f} C')
         if motion and math.isfinite(self.latest.odom_vx) and abs(self.latest.odom_vx)>float(s['hard_speed_limit_mps']): raise RuntimeError(f'odom exceeded hard speed limit: {self.latest.odom_vx:.3f} m/s')
-    def hold(self, *, kind:str,target:float,duration_s:float,phase:str,segment_id:str,trial_id:str|None,capture:bool=True,speed_hint:float=0.0,steering_angle_rad:float|None=None,window_fields:tuple[str,...]=(), **meta:Any)->dict[str,float]:
+        hard_erpm=float(s.get('hard_erpm_limit',math.inf))
+        if motion and math.isfinite(self.latest.erpm) and abs(self.latest.erpm)>hard_erpm:
+            raise RuntimeError(f'VESC ERPM exceeded independent hard safety limit: {self.latest.erpm:.1f} ERPM > {hard_erpm:.1f}')
+    def hold(self, *, kind:str,target:float,duration_s:float,phase:str,segment_id:str,trial_id:str|None,capture:bool=True,speed_hint:float=0.0,steering_angle_rad:float|None=None,window_fields:tuple[str,...]=(),target_abs_yaw_change_rad:float|None=None,minimum_duration_s:float=0.0,maximum_duration_s:float|None=None, **meta:Any)->dict[str,float]:
         """Hold one nominal command and emit a self-describing capture window.
 
         The steering angle is recorded on both phase boundaries.  This matters for
@@ -234,16 +281,25 @@ class CalibrationNode(Node):
         """
         hz=float(self.cfg['session']['command_publish_hz']); period=1.0/hz
         active_steering=float(self.cfg['session']['steering_angle_rad'] if steering_angle_rad is None else steering_angle_rad)
-        self.event.emit('phase_start',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**meta)
+        target_yaw=float(target_abs_yaw_change_rad) if target_abs_yaw_change_rad is not None else math.nan
+        yaw_target_enabled=math.isfinite(target_yaw) and target_yaw>0.0
+        maximum_s=float(maximum_duration_s if maximum_duration_s is not None else (1.5*duration_s if yaw_target_enabled else duration_s))
+        maximum_s=max(float(duration_s),maximum_s) if yaw_target_enabled else float(duration_s)
+        minimum_s=max(0.0,min(float(minimum_duration_s),maximum_s))
+        self.event.emit('phase_start',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,target_abs_yaw_change_rad=target_yaw if yaw_target_enabled else None,minimum_duration_s=minimum_s,maximum_duration_s=maximum_s,**meta)
         if window_fields: self.begin_window(*window_fields)
-        end=time.monotonic()+duration_s
+        start=time.monotonic(); previous=start; end=start+maximum_s; integrated_abs_yaw=0.0
         try:
             while time.monotonic()<end:
                 self.command(kind,target,speed_hint=speed_hint,steering_angle_rad=active_steering); self.spin(period); self._safety(motion=kind!='neutral')
+                now=time.monotonic(); dt_s=max(0.0,now-previous); previous=now
+                if math.isfinite(self.latest.imu_gz): integrated_abs_yaw+=abs(float(self.latest.imu_gz))*dt_s
+                if yaw_target_enabled and now-start>=minimum_s and integrated_abs_yaw>=target_yaw: break
         except BaseException:
             self.fail_stop()
             raise
         result=self.end_window() if window_fields else {}
+        result.update({'hold_elapsed_s':float(time.monotonic()-start),'integrated_abs_imu_yaw_rad':float(integrated_abs_yaw),'target_abs_yaw_change_rad':target_yaw if yaw_target_enabled else math.nan,'yaw_target_reached':bool(yaw_target_enabled and integrated_abs_yaw>=target_yaw)})
         self.event.emit('phase_end',phase=phase,segment_id=segment_id,trial_id=trial_id,capture=capture,command_kind=kind,command_target=float(target),speed_hint_mps=float(speed_hint),steering_angle_rad=active_steering,**result,**meta)
         return result
     def establish_raw_erpm(self, *, target_erpm:float, segment_id:str,trial_id:str, startup_speed_mps:float|None=None)->dict[str,Any]:
@@ -379,8 +435,13 @@ def start_node(name:str,cfg:dict[str,Any],required:set[str])->CalibrationNode:
     # Prime the selector with the neutral mode while waiting so its selected_*
     # echo streams (which are part of `required`) can actually appear.
     try: node.wait_for(required, primer=lambda: node._mode('neutral')); node.neutral(); node.spin(0.15); return node
-    except Exception: node.destroy_node(); rclpy.shutdown(); raise
+    except Exception:
+        node.destroy_node()
+        if rclpy.ok(): rclpy.shutdown()
+        raise
 
 def finish_node(node:CalibrationNode)->None:
     try: node.neutral(); time.sleep(0.15)
-    finally: node.destroy_node(); rclpy.shutdown()
+    finally:
+        node.destroy_node()
+        if rclpy.ok(): rclpy.shutdown()

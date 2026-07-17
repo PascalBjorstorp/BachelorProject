@@ -24,7 +24,7 @@
 # sections reference the same physical sensor, so connection, frame, angle,
 # range, and clustering settings are kept in sync.
 #
-# Cluster = 4 → every 4th step → 1080/4 = 270 beams at 1° resolution
+# Cluster = 4 → racing /scan uses 270 beams; calibration overrides to 1
 # Skip    = 0 (SCIP) / 1 (urg_node) → publish every scan at full 40 Hz
 
 # ─── Custom SCIP 2.0 driver (recommended, full 40 Hz) ───────────────────────
@@ -44,7 +44,8 @@ hokuyo_scip_driver:
 
     # Clustering: merge N adjacent steps into one beam
     # 1 = 1080 beams at 0.25°   (full resolution)
-    # 4 = 270  beams at 1.00°   (recommended for AMCL)
+    # 4 = 270  beams at 1.00°   (normal racing/AMCL path)
+    # Calibration launch files explicitly override this to 1.
     cluster: 4
 
     # SCIP scan interval: 0 = every scan (full 40 Hz), 1 = every other, …

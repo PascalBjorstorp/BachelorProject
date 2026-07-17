@@ -1,0 +1,279 @@
+session_id: real_steering_20260625
+status: created
+created_utc: '2026-07-16T23:32:08.069543+00:00'
+workspace: /home/akselmo/Documents/GitHub/BachelorProject
+suite_config: /home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/config/suite.yaml
+stages: {}
+stage_order:
+- steering_command_audit
+- physical_metrology
+- steering_observability
+- steering_centre
+- steering_centre_validation
+- steering_endstops
+- steering_static_training
+- steering_static_holdout
+- steering_response
+- steering_response_validation
+- motor_command_audit
+- longitudinal_observability
+- low_speed_launch
+- erpm_map_training
+- erpm_map_holdout
+- vel_to_erpm_audit
+- erpm_response
+- erpm_response_validation
+- coastdown
+- coastdown_validation
+- current_training
+- current_holdout
+- accel_interface
+- accel_interface_validation
+- odometry_candidate_velocity_validation
+- odometry_candidate_accel_validation
+- lateral_stiffness_training
+- lateral_stiffness_validation
+room_preflight:
+  usable_straight_m: 12.0
+  usable_width_m: 12.0
+  max_test_speed_mps: 3.0
+  max_room_steering_angle_rad: 0.5
+  conservative_one_pass_distance_m: 11.794
+  worst_case: selected odometry velocity hold-out
+  stage_cases:
+  - name: steering centre training
+    speed_mps: 0.7
+    moving_s: 4.55
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.048999999999999995
+    estimated_distance_m: 5.284
+  - name: steering centre validation
+    speed_mps: 0.8
+    moving_s: 4.55
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.06400000000000002
+    estimated_distance_m: 5.7540000000000004
+  - name: steering observability straight
+    speed_mps: 1.2
+    moving_s: 3.9499999999999997
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.144
+    estimated_distance_m: 6.933999999999999
+  - name: steering observability turn
+    speed_mps: 0.5
+    moving_s: 3.05
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.025
+    estimated_distance_m: 3.5999999999999996
+    turn_radius_m: 6.47459909978566
+    turn_arc_angle_rad: 0.23553581874289092
+    turn_lateral_excursion_m: 0.1787673062889462
+    required_width_m: 3.498767306288946
+  - name: steering static map
+    speed_mps: 0.7
+    moving_s: 3.9499999999999997
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.048999999999999995
+    estimated_distance_m: 4.864
+    turn_radius_m: 0.5930780218348345
+    turn_arc_angle_rad: 3.141592653589793
+    turn_lateral_excursion_m: 1.186156043669669
+    required_width_m: 4.5061560436696695
+  - name: steering response training
+    speed_mps: 1.0
+    moving_s: 6.550000000000001
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.1
+    estimated_distance_m: 8.7
+    turn_radius_m: 0.8876019395431458
+    turn_arc_angle_rad: 3.141592653589793
+    turn_lateral_excursion_m: 1.7752038790862916
+    required_width_m: 5.0952038790862915
+  - name: steering response validation
+    speed_mps: 1.0
+    moving_s: 6.550000000000001
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.1
+    estimated_distance_m: 8.7
+    turn_radius_m: 1.4156175900704995
+    turn_arc_angle_rad: 2.1192163908125754
+    turn_lateral_excursion_m: 2.1536351590423792
+    required_width_m: 5.473635159042379
+  - name: ERPM moving-sensor observability
+    speed_mps: 2.2
+    moving_s: 3.0999999999999996
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.4840000000000001
+    estimated_distance_m: 9.354
+  - name: ERPM plateau
+    speed_mps: 2.6
+    moving_s: 3.0999999999999996
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.676
+    estimated_distance_m: 10.786
+  - name: ERPM response and hold-out
+    speed_mps: 1.8
+    moving_s: 4.1
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.324
+    estimated_distance_m: 9.754
+  - name: ERPM coast-down and hold-out
+    speed_mps: 2.2
+    moving_s: 3.7
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.4840000000000001
+    estimated_distance_m: 10.674000000000001
+  - name: ERPM raw-current drive pulse
+    initial_speed_mps: 2.0
+    assumed_drive_accel_mps2: 1.2
+    pulse_s: 0.8
+    peak_speed_mps: 2.96
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.8761599999999999
+    estimated_distance_m: 11.686160000000001
+  - name: ERPM acceleration interface and hold-out
+    initial_speed_mps: 1.6
+    assumed_drive_accel_mps2: 0.8
+    pulse_s: 0.75
+    peak_speed_mps: 2.2
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.4840000000000001
+    estimated_distance_m: 9.279
+  - name: selected odometry velocity hold-out
+    speed_mps: 2.8
+    moving_s: 3.2
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.7839999999999999
+    estimated_distance_m: 11.794
+  - name: selected odometry acceleration hold-out
+    initial_speed_mps: 1.5
+    assumed_drive_accel_mps2: 0.6
+    pulse_s: 1.3
+    peak_speed_mps: 2.2800000000000002
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.5198400000000001
+    estimated_distance_m: 11.15884
+  - name: quasi-steady lateral arcs
+    speed_mps: 1.6
+    moving_s: 4.05
+    verified_braking_mps2: 5.0
+    braking_distance_m: 0.25600000000000006
+    estimated_distance_m: 8.786000000000001
+    turn_radius_m: 2.0076904367130983
+    turn_arc_angle_rad: 3.141592653589793
+    turn_lateral_excursion_m: 4.015380873426197
+    required_width_m: 7.335380873426197
+  fixed_lidar_features_required: true
+  status: pass
+campaign_budget:
+  measurement_unit: accepted driving pass; never individual LiDAR scan registrations
+  nominal_driving_trials_min: 465
+  nominal_driving_trials_max: 468
+  stationary_capture_blocks: 2
+  manual_stages:
+  - physical_metrology
+  - steering_endstops
+  per_stage:
+  - stage: steering_observability
+    nominal_driving_trials_min: 6
+    nominal_driving_trials_max: 6
+    note: plus one stationary LiDAR diagnostic
+  - stage: steering_centre
+    nominal_driving_trials_min: 24
+    nominal_driving_trials_max: 27
+    note: three guided on-board probes plus repeated LiDAR fine grid
+  - stage: steering_centre_validation
+    nominal_driving_trials_min: 6
+    nominal_driving_trials_max: 6
+    note: ''
+  - stage: steering_static_training
+    nominal_driving_trials_min: 72
+    nominal_driving_trials_max: 72
+    note: outward and inward sweeps on both sides
+  - stage: steering_static_holdout
+    nominal_driving_trials_min: 30
+    nominal_driving_trials_max: 30
+    note: shuffled independent conditions
+  - stage: steering_response
+    nominal_driving_trials_min: 24
+    nominal_driving_trials_max: 24
+    note: ''
+  - stage: steering_response_validation
+    nominal_driving_trials_min: 18
+    nominal_driving_trials_max: 18
+    note: ''
+  - stage: longitudinal_observability
+    nominal_driving_trials_min: 9
+    nominal_driving_trials_max: 9
+    note: plus one stationary IMU/LiDAR diagnostic
+  - stage: low_speed_launch
+    nominal_driving_trials_min: 9
+    nominal_driving_trials_max: 9
+    note: ''
+  - stage: erpm_map_training
+    nominal_driving_trials_min: 18
+    nominal_driving_trials_max: 18
+    note: ''
+  - stage: erpm_map_holdout
+    nominal_driving_trials_min: 15
+    nominal_driving_trials_max: 15
+    note: ''
+  - stage: vel_to_erpm_audit
+    nominal_driving_trials_min: 12
+    nominal_driving_trials_max: 12
+    note: ''
+  - stage: erpm_response
+    nominal_driving_trials_min: 9
+    nominal_driving_trials_max: 9
+    note: ''
+  - stage: erpm_response_validation
+    nominal_driving_trials_min: 6
+    nominal_driving_trials_max: 6
+    note: ''
+  - stage: coastdown
+    nominal_driving_trials_min: 12
+    nominal_driving_trials_max: 12
+    note: ''
+  - stage: coastdown_validation
+    nominal_driving_trials_min: 9
+    nominal_driving_trials_max: 9
+    note: ''
+  - stage: current_training
+    nominal_driving_trials_min: 45
+    nominal_driving_trials_max: 45
+    note: ''
+  - stage: current_holdout
+    nominal_driving_trials_min: 30
+    nominal_driving_trials_max: 30
+    note: ''
+  - stage: accel_interface
+    nominal_driving_trials_min: 27
+    nominal_driving_trials_max: 27
+    note: ''
+  - stage: accel_interface_validation
+    nominal_driving_trials_min: 12
+    nominal_driving_trials_max: 12
+    note: ''
+  - stage: odometry_candidate_velocity_validation
+    nominal_driving_trials_min: 8
+    nominal_driving_trials_max: 8
+    note: fresh C speed cells for selected shadow odometry
+  - stage: odometry_candidate_accel_validation
+    nominal_driving_trials_min: 12
+    nominal_driving_trials_max: 12
+    note: fresh C transient cells for selected shadow odometry
+  - stage: lateral_stiffness_training
+    nominal_driving_trials_min: 36
+    nominal_driving_trials_max: 36
+    note: ''
+  - stage: lateral_stiffness_validation
+    nominal_driving_trials_min: 16
+    nominal_driving_trials_max: 16
+    note: ''
+  operator_time_estimate_hours_without_rework:
+  - 8.0
+  - 12.0
+  operator_time_assumptions: "45\u201360 s average setup/repositioning per accepted\
+    \ driving pass, plus 2.5\u20134 h for direct metrology, builds, plot review and\
+    \ safety checks; spoiled captures and REDO are extra"
+recalibration_events: []

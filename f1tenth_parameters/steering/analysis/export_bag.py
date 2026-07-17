@@ -94,8 +94,10 @@ def main() -> int:
                 "motor_current": getattr(state, "current_motor", math.nan),
                 "input_current": getattr(state, "current_input", math.nan),
                 "battery_voltage": getattr(state, "voltage_input", math.nan),
+                "duty_cycle": getattr(state, "duty_cycle", math.nan),
                 "temp_fet": getattr(state, "temp_fet", math.nan),
                 "temp_motor": getattr(state, "temp_motor", math.nan),
+                "fault_code": getattr(state, "fault_code", math.nan),
             })
         elif topic in {"/drive", "/ackermann_cmd"}:
             key = "drive" if topic == "/drive" else "ackermann"

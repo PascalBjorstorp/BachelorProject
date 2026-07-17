@@ -19,13 +19,13 @@
 # THE SOFTWARE.
 
 """
-F1TENTH Gym ROS2 Bridge Launch File
+Launch the F1TENTH Gym ROS2 bridge.
 
 Usage:
   # Ground truth mode (default) - map -> base_link, no AMCL needed
   ros2 launch f1tenth_gym_ros gym_bridge_launch.py
   ros2 launch f1tenth_gym_ros gym_bridge_launch.py ground_truth:=true
-  
+
   # AMCL mode - odom -> base_link, requires AMCL for map -> odom
   ros2 launch f1tenth_gym_ros gym_bridge_launch.py ground_truth:=false
 """
@@ -46,7 +46,8 @@ def _source_root_dir() -> str:
 
 
 def _resolve_config_path() -> str:
-    share_config = os.path.join(get_package_share_directory('f1tenth_gym_ros'), 'config', 'sim.yaml')
+    share_config = os.path.join(
+        get_package_share_directory('f1tenth_gym_ros'), 'config', 'sim.yaml')
     if os.path.exists(share_config):
         return share_config
     return os.path.join(_source_root_dir(), 'config', 'sim.yaml')
@@ -76,15 +77,15 @@ def _resolve_rviz_config_path() -> str:
 
 
 def launch_setup(context, *args, **kwargs):
-    """Setup function called at launch time with resolved arguments."""
+    """Set up nodes at launch time using the resolved arguments."""
     # Get resolved ground_truth argument
     ground_truth_str = LaunchConfiguration('ground_truth').perform(context)
     ground_truth = ground_truth_str.lower() in ('true', '1', 'yes')
     use_rviz_str = LaunchConfiguration('use_rviz').perform(context)
     use_rviz = use_rviz_str.lower() in ('true', '1', 'yes')
-    
+
     nodes = []
-    
+
     config = _resolve_config_path()
     with open(config, 'r') as config_file:
         config_dict = yaml.safe_load(config_file)
@@ -107,7 +108,7 @@ def launch_setup(context, *args, **kwargs):
 
     has_opp = config_dict['bridge']['ros__parameters']['num_agent'] > 1
     use_sim_time = config_dict['bridge']['ros__parameters']['use_sim_time']
-    
+
     # Determine TF frames based on ground_truth setting
     if ground_truth:
         tf_frame_id = 'map'
@@ -116,7 +117,9 @@ def launch_setup(context, *args, **kwargs):
     else:
         tf_frame_id = 'ego_racecar/odom'
         odom_frame_id = 'ego_racecar/odom'
-        print('[gym_bridge] Running in AMCL mode: ego_racecar/odom -> base_link (requires AMCL for map -> ego_racecar/odom)')
+        print(
+            '[gym_bridge] Running in AMCL mode: ego_racecar/odom -> '
+            'base_link (requires AMCL for map -> ego_racecar/odom)')
 
     bridge_node = Node(
         package='f1tenth_gym_ros',
@@ -134,7 +137,7 @@ def launch_setup(context, *args, **kwargs):
         }],
     )
     nodes.append(bridge_node)
-    
+
     if use_rviz:
         rviz_config = _resolve_rviz_config_path()
         rviz_node = Node(
@@ -151,7 +154,9 @@ def launch_setup(context, *args, **kwargs):
     map_base = os.path.basename(config_dict['bridge']['ros__parameters']['map_path'])
     map_dir = _resolve_maps_dir()
     map_yaml_path = os.path.join(map_dir, map_base + '.yaml')
-    map_image_path = os.path.join(map_dir, map_base + config_dict['bridge']['ros__parameters']['map_img_ext'])
+    map_image_path = os.path.join(
+        map_dir,
+        map_base + config_dict['bridge']['ros__parameters']['map_img_ext'])
 
     with open(map_yaml_path, 'r') as file:
         map_yaml = yaml.safe_load(file)
@@ -241,7 +246,9 @@ def launch_setup(context, *args, **kwargs):
             parameters=[{
                 'robot_description': Command([
                     'xacro ',
-                    os.path.join(get_package_share_directory('f1tenth_gym_ros'), 'launch', 'opp_racecar.xacro')
+                    os.path.join(
+                        get_package_share_directory('f1tenth_gym_ros'),
+                        'launch', 'opp_racecar.xacro')
                 ]),
                 'use_sim_time': use_sim_time,
             }],

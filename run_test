@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""Open the Jetson calibration GUI through one private SSH tunnel."""
+from __future__ import annotations
+
+import argparse
+import ipaddress
+import os
+import shlex
+import shutil
+import socket
+import subprocess
+import sys
+import time
+import urllib.request
+import webbrowser
+
+
+DEFAULT_USER = "f1tenth"
+DEFAULT_PASSWORD = "admin321"
+
+
+def _ip_address(value: str) -> str:
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid Jetson IP address: {value}") from exc
+
+
+def _local_port_available(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def _remote_command(remote_workspace: str | None, remote_port: int) -> str:
+    candidates = [
+        remote_workspace,
+        "/home/f1tenth/BachelorProject",
+        "/home/f1tenth/Documents/GitHub/BachelorProject",
+    ]
+    unique = [item for index, item in enumerate(candidates) if item and item not in candidates[:index]]
+    candidate_words = " ".join(shlex.quote(item) for item in unique)
+    script = f"""
+set -e
+workspace=''
+for candidate in {candidate_words}; do
+  if [ -f "$candidate/f1tenth_parameters/vehicle_calibration/run_suite.py" ]; then
+    workspace="$candidate"
+    break
+  fi
+done
+if [ -z "$workspace" ]; then
+  echo 'Calibration workspace not found on Jetson.' >&2
+  echo 'Use --remote-workspace /absolute/path/to/BachelorProject.' >&2
+  exit 3
+fi
+for ros_setup in /opt/ros/humble/setup.bash /opt/ros/jazzy/setup.bash /opt/ros/foxy/setup.bash; do
+  if [ -f "$ros_setup" ]; then
+    source "$ros_setup"
+    break
+  fi
+done
+if [ -f "$workspace/install/setup.bash" ]; then
+  source "$workspace/install/setup.bash"
+fi
+echo "Jetson workspace: $workspace"
+exec python3 "$workspace/f1tenth_parameters/vehicle_calibration/run_suite.py" gui \
+  --workspace "$workspace" --host 127.0.0.1 --port {remote_port:d} --no-browser
+""".strip()
+    return "bash -lc " + shlex.quote(script)
+
+
+def _wait_for_gui(url: str, process: subprocess.Popen[bytes], timeout_s: float) -> None:
+    deadline = time.monotonic() + timeout_s
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        return_code = process.poll()
+        if return_code is not None:
+            raise RuntimeError(f"SSH/GUI process exited with status {return_code}")
+        try:
+            with urllib.request.urlopen(url + "/api/health", timeout=1.0) as response:
+                if response.status == 200:
+                    return
+        except Exception as exc:  # tunnel or remote HTTP server is still starting
+            last_error = exc
+        time.sleep(0.25)
+    raise TimeoutError(f"GUI did not become ready within {timeout_s:g} s ({last_error})")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="SSH into the Jetson, start the calibration GUI, and open it locally.",
+    )
+    parser.add_argument("jetson_ip", type=_ip_address)
+    parser.add_argument("--user", default=DEFAULT_USER)
+    parser.add_argument("--local-port", type=int, default=8765)
+    parser.add_argument("--remote-port", type=int, default=8765)
+    parser.add_argument("--remote-workspace", help="Absolute BachelorProject path on the Jetson")
+    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--dry-run", action="store_true", help="Print the password-free connection plan")
+    parser.add_argument("--startup-timeout", type=float, default=30.0)
+    args = parser.parse_args()
+
+    for name, value in (("local port", args.local_port), ("remote port", args.remote_port)):
+        if not 1 <= value <= 65535:
+            parser.error(f"{name} must be between 1 and 65535")
+    if not _local_port_available(args.local_port) and not args.dry_run:
+        parser.error(f"local port {args.local_port} is already in use; choose --local-port PORT")
+    if shutil.which("sshpass") is None:
+        parser.error("sshpass is required on the main PC (sudo apt install sshpass)")
+
+    remote = _remote_command(args.remote_workspace, args.remote_port)
+    destination = f"{args.user}@{args.jetson_ip}"
+    command = [
+        "sshpass", "-e", "ssh",
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ExitOnForwardFailure=yes",
+        "-o", "ServerAliveInterval=15",
+        "-o", "ServerAliveCountMax=3",
+        "-L", f"127.0.0.1:{args.local_port}:127.0.0.1:{args.remote_port}",
+        destination,
+        remote,
+    ]
+    url = f"http://127.0.0.1:{args.local_port}"
+    if args.dry_run:
+        print(f"Jetson: {destination}")
+        print(f"Local GUI: {url}")
+        print("Command: " + shlex.join(command))
+        print("Password source: F1TENTH_SSH_PASSWORD, otherwise the configured car default")
+        return 0
+
+    environment = os.environ.copy()
+    environment["SSHPASS"] = environment.get("F1TENTH_SSH_PASSWORD", DEFAULT_PASSWORD)
+    print(f"Connecting to {destination} …")
+    process = subprocess.Popen(command, env=environment)
+    try:
+        _wait_for_gui(url, process, args.startup_timeout)
+        print(f"Calibration GUI ready: {url}")
+        print("Keep this terminal open. Press Ctrl-C after the test session.")
+        if not args.no_browser:
+            webbrowser.open(url)
+        return process.wait()
+    except KeyboardInterrupt:
+        print("\nClosing SSH tunnel …")
+        return 130
+    except (RuntimeError, TimeoutError) as exc:
+        print(f"Could not open calibration GUI: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

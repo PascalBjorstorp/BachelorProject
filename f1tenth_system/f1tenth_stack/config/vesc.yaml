@@ -37,7 +37,13 @@
     # The tiny c2 below is the best quadratic; remaining ~0.8 deg residual is L/R
     # asymmetry (a symmetric node model cannot remove it), not curvature.
     steering_angle_to_servo_gain: -0.8667
-    steering_angle_to_servo_offset: 0.5321
+    # 2026-06-27 centre re-trim 0.5321 -> 0.5113 (+0.024 rad / ~1.4 deg left bias).
+    # Stage-1 straights drifted right at every speed (imu_gz_mean < 0, scaling with
+    # speed like a fixed steering offset) while the heading-assist trim sat at only
+    # +0.013 rad and never reached its cap -> commanded-0 was not physically straight.
+    # Re-validate against LiDAR/IMU zero-yaw centre; revert toward 0.5321 if it now
+    # drifts left.
+    steering_angle_to_servo_offset: 0.5113
 
     # Servo nonlinearity correction (2026-06-25 best symmetric fit; near-linear).
     # Set c2=0, c1=1, c0=0 to disable correction (pure linear gain).
@@ -77,6 +83,30 @@
     imu_angular_velocity_covariance: 0.01
     imu_linear_acceleration_covariance: 0.1
 
+# Geometry consumed by the standard launch files. This is intentionally a
+# configuration-only section: it keeps sensor/reference transforms in the same
+# promotion transaction as the dynamic-model parameters without inventing a
+# second hardware YAML. These are the authoritative already-measured mounting
+# values; each new calibration session imports and freezes them automatically.
+# Frame convention: each translation is the child sensor origin expressed in
+# base_link, whose origin is the rear-axle centre (+x forward, +y left, +z up).
+# The VESC's integrated IMU is assumed coincident with the calculated CoG:
+# x=lr=0.160 m forward of the rear axle and y=0 on the centreline. The z value
+# is the calculated CoG height used only to complete the TF; none of the planar
+# calibration fits uses IMU z as a measured lever arm.
+vehicle_geometry:
+  ros__parameters:
+    laser_to_base_x_m: 0.265
+    laser_to_base_y_m: 0.0
+    laser_to_base_z_m: 0.05
+    laser_to_base_yaw_rad: 0.0
+    imu_to_base_x_m: 0.160
+    imu_to_base_y_m: 0.0
+    imu_to_base_z_m: 0.0703
+    imu_to_base_yaw_rad: 0.0
+    base_link_to_rear_axle_x_m: 0.0
+    base_link_to_rear_axle_y_m: 0.0
+
 # ===================
 # Odometry Node Config
 # ===================
@@ -87,10 +117,16 @@ vesc_to_odom_node:
     # Odom servo->angle map: kept in sync with the command-path calibration above
     # (2026-06-25 effective LiDAR/IMU map; inverse quadratic uses the same c2/c1/c0).
     steering_angle_to_servo_gain: -0.8667
-    steering_angle_to_servo_offset: 0.5321
+    steering_angle_to_servo_offset: 0.5113  # kept in sync with command path (2026-06-27 centre re-trim)
     # Global odom speed scaling. Reset 1.03 -> 1.0: the true ground-speed correction
     # is now in speed_to_erpm_gain (4750), so no extra scale is needed.
     odom_speed_scale: 1.0
+    # Causal cornering wheel-over-read correction. The unified lateral A/C
+    # stages replace these three values only when fresh trial-bootstrap and
+    # independent hold-out evidence support a non-zero correction.
+    odom_turn_slip_coeff_per_mps2: 0.0
+    odom_turn_slip_clip_fraction: 0.25
+    odom_turn_slip_accepted: false
     # Dynamic-model steering scale (use <1.0 if odom over-rotates, >1.0 if under-rotates).
     # NOTE: 0.86 was tuned against the OLD servo->angle map; re-validate against IMU/LiDAR
     # yaw now that the base map changed (it should move toward 1.0).
@@ -113,6 +149,10 @@ vesc_to_odom_node:
     imu_use_butterworth_filter: true
     imu_butterworth_gyro_cutoff_hz: 18.0
     imu_butterworth_lateral_accel_cutoff_hz: 12.0
+    # Planar orientation of the VESC IMU measurement axes relative to
+    # base_link. The unified physical-metrology stage temporarily replaces this
+    # with the measured session value before every calibration capture.
+    imu_to_base_yaw_rad: 0.0
     imu_yaw_base_weight: 0.40
     imu_history_max_samples: 400
     imu_sync_tolerance_sec: 0.03

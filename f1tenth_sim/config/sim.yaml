@@ -35,18 +35,22 @@ bridge:
     opp_drive_topic: 'opp_drive'
 
     # transform related
-    scan_distance_to_base_link: 0.275
+    # LiDAR origin expressed in base_link. Keep this identical to the physical
+    # vehicle geometry and calibration snapshots.
+    scan_distance_to_base_link: 0.265
     
     # laserscan parameters
     scan_fov: 4.71239         # 270 degrees in radians
-    scan_beams: 270           # 1.0 degree resolution
+    scan_beams: 1080          # native-equivalent 0.25 degree resolution; never downsample by default
     scan_range_max: 10.0      # 10 meters
     scan_noise_std: 0.04      # 4cm stddev
 
     # map parameters
-    # Map name (without extension). The bridge node resolves this to
-    # <package_share>/maps/<map_path>.yaml at runtime.
-    map_path: 'my_track_map'
+    # Default to a purpose-built open calibration room, not a racetrack. It is
+    # 14.0 x 14.0 m overall with a clear central 12 x 12 m test area and
+    # asymmetric wall features so LiDAR registration remains observable.
+    # Racetrack launch files explicitly override this map when needed.
+    map_path: 'calibration_room_map'
     map_img_ext: '.pgm'
 
     # car parameters and scale
@@ -86,10 +90,10 @@ bridge:
     # opponent parameters
     num_agent: 1
 
-    # ego starting pose on map (Spielberg raceline[0] in map frame)
-    sx: -0.79
-    sy: -4.88
-    stheta: 0.641322
+    # Centre of the open room, aligned with the planned diagonal test lane.
+    sx: 0.0
+    sy: 0.0
+    stheta: 0.7853981633974483
 
     # opp starting pose on map
     sx1: -2.0
@@ -102,6 +106,9 @@ bridge:
 
     # simulation timing
     sim_timestep: 0.005 #200Hz
+    # Gym's native renderer requires PyQt6, but ROS/RViz visualization does not.
+    # Keep the physics bridge headless for repeatable calibration and CI runs.
+    headless: True
     
     use_sim_time: False
 

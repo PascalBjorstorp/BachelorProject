@@ -28,6 +28,7 @@ import math
 from pathlib import Path
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 import yaml
 from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
@@ -158,9 +159,12 @@ def main() -> int:
     node = CandidateAccelMap(args.candidate_patch.resolve())
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
     return 0
 
 

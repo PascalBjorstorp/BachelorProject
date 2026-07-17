@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter
-from common import accepted_capture_windows, analysis_dir, dump_yaml, expected_grid_coverage, expected_numeric_coverage, load_yaml, stage_tables, summarize_windows, straight_filter
+from common import accepted_capture_windows, analysis_dir, dump_yaml, expected_grid_coverage, expected_numeric_coverage, load_yaml, motion_windows, stage_tables, summarize_windows, straight_filter
 
 
 def _metrics(measured: np.ndarray, predicted: np.ndarray) -> dict:
@@ -39,7 +39,7 @@ def _accel(frame:pd.DataFrame,start:int,end:int,column:str)->float:
 
 
 def _candidate_pointwise(tables:dict, windows:pd.DataFrame)->pd.DataFrame:
-    out=[]; cand=tables.get('candidate_odom',pd.DataFrame()); lidar=tables['lidar_velocity']; imu=tables['imu']
+    out=[]; cand=tables.get('candidate_odom',pd.DataFrame()); lidar=motion_windows(tables); imu=tables['imu']
     if cand.empty or lidar.empty:return pd.DataFrame()
     c=cand[['bag_ns','vx']].dropna().sort_values('bag_ns')
     if len(c)<2:return pd.DataFrame()
@@ -87,7 +87,7 @@ def main()->int:
     point.to_parquet(out/'candidate_dynamic_speed_samples.parquet',index=False)
     rows=[]
     for _,w in aw.iterrows():
-        rows.append({'trial_id':str(w.trial_id),'condition_id':str(w.condition_id),'initial_speed_mps':float(w.get('initial_speed_mps',math.nan)),'acceleration_command_mps2':float(w.get('acceleration_command_mps2',math.nan)),'lidar_accel_mps2':_accel(acc['lidar_velocity'],int(w.start_ns),int(w.end_ns),'vx'),'candidate_odom_accel_mps2':_accel(acc.get('candidate_odom',pd.DataFrame()),int(w.start_ns),int(w.end_ns),'vx')})
+        rows.append({'trial_id':str(w.trial_id),'condition_id':str(w.condition_id),'initial_speed_mps':float(w.get('initial_speed_mps',math.nan)),'acceleration_command_mps2':float(w.get('acceleration_command_mps2',math.nan)),'lidar_accel_mps2':_accel(motion_windows(acc),int(w.start_ns),int(w.end_ns),'vx'),'candidate_odom_accel_mps2':_accel(acc.get('candidate_odom',pd.DataFrame()),int(w.start_ns),int(w.end_ns),'vx')})
     atrials=pd.DataFrame(rows)
     atrials['measurement_valid']=np.isfinite(atrials.lidar_accel_mps2) if not atrials.empty else []
     atrials.to_parquet(out/'candidate_accel_verification_trials.parquet',index=False)
@@ -127,6 +127,6 @@ def main()->int:
         and abs(accel_odom['bias'])<=float(g['max_candidate_odom_acceleration_bias_mps2'])
     )
     accepted=bool(vel_cov_ok and bool(acov.coverage_ok.all()) and vel_ok and dyn_ok and acc_ok and odom_accel_ok and cross_ok and hold_ok)
-    report={'candidate_velocity_command':vel_cmd,'candidate_velocity_odom':vel_odom,'candidate_velocity_coverage_ok':vel_cov_ok,'candidate_dynamic_odom':dyn_odom,'candidate_dynamic_high_drive':dyn_drive,'candidate_dynamic_high_brake':dyn_brake,'candidate_accel_command':accel_command,'candidate_accel_odom_derivative':accel_odom,'candidate_hold_speed_residual_accel':hold_speed,'candidate_acceleration_coverage_ok':bool(len(acov)) and bool(acov.coverage_ok.all()),'candidate_cross_axis_odom':cross_metric,'candidate_cross_axis_coverage_ok':cross_cov_ok,'velocity_gates_ok':vel_ok,'dynamic_odom_gates_ok':dyn_ok,'accel_interface_gates_ok':acc_ok,'candidate_odom_acceleration_gate_ok':odom_accel_ok,'cross_axis_gate_ok':cross_ok,'hold_speed_gate_ok':hold_ok,'accepted_for_permanent_review':accepted,'note':'Candidate shadow odometry is compared directly with LiDAR velocity during settled, high-demand, hold-speed (a=0) and non-zero-steering candidate hold-outs. Coverage, command tracking, RMSE, signed bias, high-drive/high-brake error and a=0 speed-hold all gate acceptance.'}
+    report={'candidate_velocity_command':vel_cmd,'candidate_velocity_odom':vel_odom,'candidate_velocity_coverage_ok':vel_cov_ok,'candidate_dynamic_odom':dyn_odom,'candidate_dynamic_high_drive':dyn_drive,'candidate_dynamic_high_brake':dyn_brake,'candidate_accel_command':accel_command,'candidate_accel_odom_derivative':accel_odom,'candidate_hold_speed_residual_accel':hold_speed,'candidate_acceleration_coverage_ok':bool(len(acov)) and bool(acov.coverage_ok.all()),'candidate_cross_axis_odom':cross_metric,'candidate_cross_axis_coverage_ok':cross_cov_ok,'velocity_gates_ok':vel_ok,'dynamic_odom_gates_ok':dyn_ok,'accel_interface_gates_ok':acc_ok,'candidate_odom_acceleration_gate_ok':odom_accel_ok,'cross_axis_gate_ok':cross_ok,'hold_speed_gate_ok':hold_ok,'accepted_for_permanent_review':accepted,'measurement_unit':'robust multi-registration LiDAR motion windows; complete held-out trials','note':'Candidate shadow odometry is compared directly with LiDAR velocity during settled, high-demand, hold-speed (a=0) and non-zero-steering candidate hold-outs. Coverage, command tracking, RMSE, signed bias, high-drive/high-brake error and a=0 speed-hold all gate acceptance.'}
     dump_yaml(out/'candidate_deployment_verification_report.yaml',report);print(json.dumps(report,indent=2));return 0
 if __name__=='__main__':raise SystemExit(main())

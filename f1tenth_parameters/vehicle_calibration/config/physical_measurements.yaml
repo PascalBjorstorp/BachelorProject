@@ -1,0 +1,132 @@
+# Physical measurements required for the lateral vehicle model.
+#
+# Copying this file into every new calibration session is intentional: these
+# numbers describe the car, tyre state, battery and test surface on the day of
+# the run.  Do not copy a value from a previous session unless the configuration
+# is genuinely unchanged. Enter measured SI values before running the
+# `physical_metrology` stage. Enter values only; the suite neither requests nor
+# invents standard deviations for direct ruler/scale measurements.
+#
+# Required before the first moving LiDAR capture:
+#   * mass_kg
+#   * wheelbase_m
+#   * front_axle_load_N and rear_axle_load_N
+# Sensor and reference transforms are imported automatically from the deployed
+# f1tenth_stack/config/vesc.yaml vehicle_geometry when a session is created.
+# Do not enter the LiDAR, VESC IMU or rear-axle position again here.
+#
+# Recommended methods:
+#   - mass / axle loads: race-ready car on four scales, level floor, driverless;
+#   - wheelbase / tracks: steel rule or calipers at loaded tyre contact centres;
+#   - loaded wheel radius: roll the car one full wheel revolution under its
+#     normal load and divide travelled distance by 2*pi;
+#   - CG height / yaw inertia: bifilar or pendulum measurement if a dynamic
+#     bicycle model is to be used after the quasi-steady fit.  The optional
+#     bifilar block below lets the suite derive yaw inertia from the measured
+#     oscillation period instead of copying a hand-calculated number.
+
+measurement_context:
+  operator: null
+  measured_utc: null
+  surface: "indoor test surface; describe material, dust and tyre condition"
+  battery_state: "race-ready battery installed; record voltage/SOC if known"
+  notes: >-
+    Existing physical/CAD values are prefilled from
+    f1tenth_parameters/vehicle_params.yaml. Confirm that the race-ready
+    configuration is unchanged, enter the axle-scale readings, and add
+    campaign-specific notes here. Sensor transforms are
+    imported from deployed vehicle_geometry.
+
+required:
+  mass_kg:
+    value: 3.314
+    source_kind: measured_existing
+    method: "existing [MEASURED] race-ready whole-car value from f1tenth_parameters/vehicle_params.yaml; confirm against the race-ready car"
+  wheelbase_m:
+    value: 0.324
+    source_kind: measured_existing
+    method: "existing [MEASURED/VERIFIED] loaded axle contact-centre value from f1tenth_parameters/vehicle_params.yaml; confirm against the race-ready car"
+  front_axle_load_N:
+    value: null
+    method: "sum of left/right front wheel scales; intentionally not inferred from CAD l_f/l_r"
+  rear_axle_load_N:
+    value: null
+    method: "sum of left/right rear wheel scales; intentionally not inferred from CAD l_f/l_r"
+  lidar_to_base_x_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  lidar_to_base_y_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  lidar_to_base_yaw_rad:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  base_link_to_rear_axle_x_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  base_link_to_rear_axle_y_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  imu_to_base_x_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  imu_to_base_y_m:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+  imu_to_base_z_m:
+    value: null
+    method: "automatically imported TF assumption; CoG height only, unused by planar fits"
+  imu_to_base_yaw_rad:
+    value: null
+    method: "automatically imported from deployed vehicle_geometry"
+
+recommended:
+  vehicle_length_m:
+    value: 0.51
+    source_kind: measured_existing
+    method: "existing [MEASURED] bumper-to-bumper value from f1tenth_parameters/vehicle_params.yaml; confirm for current body"
+  vehicle_width_m:
+    value: 0.273
+    source_kind: measured_existing
+    method: "existing [MEASURED] maximum width from f1tenth_parameters/vehicle_params.yaml; confirm for current body/tyres"
+  vehicle_height_m:
+    value: null
+    method: "floor-to-highest-point race-ready height"
+  track_front_m:
+    value: 0.23
+    source_kind: measured_existing
+    method: "existing [MEASURED] shared track_width from f1tenth_parameters/vehicle_params.yaml used as front prior; confirm axle-specific value"
+  track_rear_m:
+    value: 0.23
+    source_kind: measured_existing
+    method: "existing [MEASURED] shared track_width from f1tenth_parameters/vehicle_params.yaml used as rear prior; confirm axle-specific value"
+  loaded_wheel_radius_m:
+    value: 0.051
+    source_kind: measured_existing
+    method: "existing [MEASURED] loaded radius from f1tenth_parameters/vehicle_params.yaml; preferably confirm by one-revolution roll-out / (2*pi)"
+  wheel_width_m:
+    value: null
+    method: "tyre tread/contact width"
+  cg_height_m:
+    value: 0.0703
+    source_kind: cad_prior
+    method: "Inventor [CAD] CoG height from f1tenth_parameters/vehicle_params.yaml; replace with tilt or pendulum measurement if available"
+  yaw_inertia_kg_m2:
+    value: 0.035
+    source_kind: cad_prior
+    method: "Inventor [CAD] yaw inertia from f1tenth_parameters/vehicle_params.yaml; a completed bifilar measurement below supersedes this prior"
+
+# Optional alternative to entering yaw_inertia_kg_m2 directly.  For a bifilar
+# pendulum with rope spacing D, rope length L and small-angle yaw period T:
+#       I_z = m*g*D^2*T^2 / (16*pi^2*L)
+# Use the mean period from repeated oscillations and record the repetition
+# count as provenance. Leave every value null when no bifilar measurement is
+# made; the suite does not invent measurement uncertainty.
+bifilar_yaw_inertia:
+  rope_spacing_m:
+    value: null
+  rope_length_m:
+    value: null
+  period_s:
+    value: null
+  repetitions: null

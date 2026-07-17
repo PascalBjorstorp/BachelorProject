@@ -107,7 +107,8 @@ steering:
                              # = (60 * pi/180) / max_steering_rate
                              # From test_steering_rate.py
   
-  servo_offset: 0.5321       # [CALIBRATED 2026-06-25] steering_angle_to_servo_offset (zero-yaw centre; was 0.5500)
+  servo_offset: 0.5113       # [DEPLOYED PROVISIONAL 2026-06-27] current vesc.yaml seed after observed right drift
+                             # Not accepted as calibrated until the unified centre A/B and fresh straight C pass.
   servo_gain: -0.8667        # [CALIBRATED 2026-06-25] steering_angle_to_servo_gain (effective map; was -0.7284)
   servo_min: 0.1333          # [CALIBRATED 2026-06-25] servo at +0.45 rad (symmetric; was 0.202)
   servo_max: 0.9309          # [CALIBRATED 2026-06-25] servo at -0.45 rad (symmetric; was 0.890)
@@ -227,7 +228,7 @@ vesc_calibration:   # mirror of vesc.yaml (2026-06-25 calibration)
   speed_to_erpm_gain: 4740.0
   speed_to_erpm_offset: 0.0
   steering_angle_to_servo_gain: -0.8667
-  steering_angle_to_servo_offset: 0.5321
+  steering_angle_to_servo_offset: 0.5113  # deployed provisional seed; unified centre C still required
 
 # ============================================================================
 # Conversion Notes

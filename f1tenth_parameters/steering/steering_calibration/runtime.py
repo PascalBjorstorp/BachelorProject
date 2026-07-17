@@ -31,6 +31,7 @@ class Latest:
     imu_ax: float = math.nan
     imu_ay: float = math.nan
     odom_vx: float = math.nan
+    odom_wz: float = math.nan
     battery_v: float = math.nan
     erpm: float = math.nan
     servo_echo: float = math.nan
@@ -83,8 +84,9 @@ class CalibrationNode(Node):
 
     def _odom_cb(self, msg: Odometry) -> None:
         self.latest.odom_vx = float(msg.twist.twist.linear.x)
+        self.latest.odom_wz = float(msg.twist.twist.angular.z)
         self.latest.seen.add("odom")
-        self._record_window(odom_vx=self.latest.odom_vx)
+        self._record_window(odom_vx=self.latest.odom_vx, odom_wz=self.latest.odom_wz)
 
     def _servo_echo_cb(self, msg: Float64) -> None:
         self.latest.servo_echo = float(msg.data)
@@ -202,6 +204,12 @@ class CalibrationNode(Node):
                 raise RuntimeError(
                     f"ERPM odometry exceeded hard speed limit: {self.latest.odom_vx:.2f} m/s"
                 )
+        hard_erpm = float(limits.get("hard_erpm_limit", math.inf))
+        if motion_expected and "vesc" in self.latest.seen:
+            if abs(self.latest.erpm) > hard_erpm:
+                raise RuntimeError(
+                    f"VESC ERPM exceeded independent hard safety limit: {self.latest.erpm:.1f} > {hard_erpm:.1f}"
+                )
 
     # ---- timed state holds ------------------------------------------------
     def hold(
@@ -216,28 +224,70 @@ class CalibrationNode(Node):
         centre_raw_servo: float | None = None,
         begin_window_fields: tuple[str, ...] = (),
         trial_id: str | None = None,
+        target_abs_yaw_change_rad: float | None = None,
+        minimum_duration_s: float = 0.0,
+        maximum_duration_s: float | None = None,
         **event_metadata: Any,
     ) -> dict[str, float]:
         hz = float(self.cfg["session"]["command_publish_hz"])
         period = 1.0 / hz
         phase_payload = {"capture": capture, "speed_mps": speed_mps, "raw_servo_target": raw_servo}
+        target_yaw = (
+            float(target_abs_yaw_change_rad)
+            if target_abs_yaw_change_rad is not None else math.nan
+        )
+        yaw_target_enabled = math.isfinite(target_yaw) and target_yaw > 0.0
+        maximum_s = float(
+            maximum_duration_s
+            if maximum_duration_s is not None
+            else (1.5 * duration_s if yaw_target_enabled else duration_s)
+        )
+        maximum_s = max(float(duration_s), maximum_s) if yaw_target_enabled else float(duration_s)
+        minimum_s = max(0.0, min(float(minimum_duration_s), maximum_s))
+        phase_payload.update({
+            "target_abs_yaw_change_rad": target_yaw if yaw_target_enabled else None,
+            "minimum_duration_s": minimum_s,
+            "maximum_duration_s": maximum_s,
+        })
         phase_payload.update(event_metadata)
         self.event.emit("phase_start", phase=phase, segment_id=segment_id, trial_id=trial_id,
                         **phase_payload)
         if begin_window_fields:
             self.begin_window(*begin_window_fields)
-        deadline = time.monotonic() + duration_s
+        start = time.monotonic()
+        previous = start
+        deadline = start + maximum_s
+        integrated_abs_yaw = 0.0
         try:
             while time.monotonic() < deadline:
                 self.command(speed_mps, raw_servo)
                 self.spin(period)
                 self.check_safety(motion_expected=abs(speed_mps) > 1e-3)
+                now = time.monotonic()
+                dt_s = max(0.0, now - previous)
+                previous = now
+                if math.isfinite(self.latest.imu_gz):
+                    integrated_abs_yaw += abs(float(self.latest.imu_gz)) * dt_s
+                if (
+                    yaw_target_enabled and now - start >= minimum_s
+                    and integrated_abs_yaw >= target_yaw
+                ):
+                    break
         except Exception as exc:
             self.event.emit("safety_abort", phase=phase, segment_id=segment_id,
                             trial_id=trial_id, reason=repr(exc))
             self.neutral_drive(centre_raw_servo)
             raise
         summary = self.end_window() if begin_window_fields else {}
+        elapsed_s = float(time.monotonic() - start)
+        summary.update({
+            "hold_elapsed_s": elapsed_s,
+            "integrated_abs_imu_yaw_rad": float(integrated_abs_yaw),
+            "target_abs_yaw_change_rad": target_yaw if yaw_target_enabled else math.nan,
+            "yaw_target_reached": bool(
+                yaw_target_enabled and integrated_abs_yaw >= target_yaw
+            ),
+        })
         end_payload = {"capture": capture, **summary}
         end_payload.update(event_metadata)
         self.event.emit("phase_end", phase=phase, segment_id=segment_id, trial_id=trial_id, **end_payload)

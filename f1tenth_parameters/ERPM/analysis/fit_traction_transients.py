@@ -234,6 +234,18 @@ def main() -> int:
     }
     pd.DataFrame(all_rows).to_parquet(out / 'traction_transient_trials.parquet', index=False)
     dump_yaml(out / 'traction_transient_report.yaml', report)
+    if not scalar_dynamic_ok:
+        dump_yaml(out / 'dynamic_longitudinal_slip_model_request.yaml', {
+            'required': True,
+            'reason': 'independent traction transients reject a memoryless scalar ACCEL_TO_CURRENT model over the tested envelope',
+            'training': training,
+            'holdout': holdout,
+            'gates': report['gates'],
+            'next_action': (
+                'Implement a bounded dynamic longitudinal slip/traction state in the actuation and prediction path, '
+                'then redo current_training and current_holdout before continuing.'
+            ),
+        })
     print(json.dumps(report, indent=2, default=str))
     return 0
 

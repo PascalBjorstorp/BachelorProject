@@ -1,0 +1,529 @@
+# Canonical room-limited calibration profile.
+#
+# The two legacy suites remain the implementation library for ROS control and
+# offline fitting.  This file is the only campaign profile used by the unified
+# runner.  It deliberately starts from the legacy configs and applies a small,
+# auditable override so existing hardware/topic fixes are not duplicated here.
+
+base_configs:
+  steering: ../../steering/config/steering_calibration.yaml
+  erpm: ../../ERPM/config/erpm_calibration.yaml
+
+site:
+  # Actual measured room. A 1 m exclusion band at every wall leaves a clear
+  # 12 x 12 m operating square. Straight manoeuvres use its 45 degree diagonal
+  # when needed; the preflight rotates the complete vehicle/swept envelope,
+  # rather than pretending the longest safe lane is only 12 m.
+  room_length_m: 14.0
+  room_width_m: 14.0
+  wall_clearance_m: 1.0
+  straight_lane_heading_deg: 45.0
+  vehicle_length_m: 0.55
+  vehicle_width_m: 0.32
+  # Conservative room-planning floor, not a claimed measured performance
+  # value. Stop before driving if the race-ready car cannot repeatedly achieve
+  # at least this deceleration during the low-speed brake check.
+  conservative_braking_mps2: 1.5
+  max_test_speed_mps: 3.0
+  # The room preflight evaluates all static-map/response arcs at this direct
+  # road-wheel-angle bound. The human end-stop survey must not exceed it; make
+  # a reviewed room/profile change rather than silently trusting a wider arc.
+  max_room_steering_angle_rad: 0.50
+  # Long steady captures target this fraction of the already clearance-reduced
+  # 12 x 12 m square.  The remaining 18% absorbs placement error, startup
+  # variation and model mismatch; the separate 1 m wall exclusion still
+  # remains outside this planned envelope.
+  capture_room_utilization: 0.82
+  # Very slow straight conditions could otherwise consume several minutes.
+  # Thirty seconds already provides about 1,200 native LiDAR scans at 40 Hz
+  # and is long enough for precise within-pass statistics.
+  max_useful_straight_capture_s: 30.0
+  # A steady turn that fits the footprint-aware room check records one complete
+  # revolution. Shallow turns that cannot fit a complete circle use the longest
+  # bounded arc allowed by the same 82% envelope.
+  full_circle_revolutions: 1.0
+  # Kept as a high-speed ERPM reference. The runner derives and checks the
+  # actual speed/duration of every stage, including longer low-speed steering
+  # captures, instead of multiplying this value by the global speed cap.
+  max_capture_s: 0.60
+  require_fixed_lidar_features: true
+
+campaign:
+  runs_dir: runs
+  minimum_free_disk_gb: 4.0
+  build_command: [colcon, build, --symlink-install]
+  config_relpath: f1tenth_system/f1tenth_stack/config/vesc.yaml
+  auto_promote: false
+  restore_source_after_each_invocation: true
+
+# These are intentionally modest: the objective is identifiable data inside
+# the room, not an impressive speed number.  Hold-outs are deliberately at
+# different set-points from training data.
+overrides:
+  steering:
+    session:
+      hard_speed_limit_mps: 3.0
+      # Independent high-rate safety guard. ERPM is never calibration truth,
+      # but it is a useful redundant overspeed interlock while odometry itself
+      # is being calibrated. 13.5k ERPM is below the 3 m/s room cap for the
+      # installed approximately 4.7k ERPM/(m/s) drivetrain map.
+      hard_erpm_limit: 13500.0
+      safety_erpm_per_mps: 4500.0
+      min_free_disk_gb: 4.0
+    initial:
+      # The former hard-coded 0.55 was only a stale fallback.  A fresh campaign
+      # resolves the seed from the offset deployed in vesc.yaml and freezes that
+      # value in its session snapshot.  This gives the raw-servo grid the best
+      # available on-board prior without assuming that it is already correct.
+      raw_servo_seed: 0.55
+      raw_servo_seed_source: deployed_vesc_offset
+    endstops:
+      # This is an operator-measured wheel angle, not an inferred servo value.
+      # It documents the real mechanical range before the servo-angle fit.
+      require_observed_wheel_angles: true
+      min_abs_observed_wheel_angle_deg: 5.0
+    centre_trim:
+      speed_mps: 0.7
+      # A short IMU/odometry probe first measures the yaw direction around the
+      # deployed offset.  Its bounded zero-crossing guides a compact LiDAR grid;
+      # it never approves the final value. At the measured local gain (~1.1
+      # rad/servo), one 0.01 increment is about 0.63 degrees of road-wheel angle.
+      acquisition_mode: fixed_lidar_grid
+      onboard_probe_offsets_servo: [-0.03, 0.0, 0.03]
+      onboard_probe_capture_s: 1.6
+      max_onboard_probe_extrapolation_servo: 0.0
+      max_onboard_guided_shift_servo: 0.030
+      # Fine grid around the directional provisional centre. The deployed seed
+      # is included as an extra target if it lies outside these five points.
+      fine_grid_offsets_servo: [-0.02, -0.01, -0.005, 0.0, 0.005, 0.01, 0.02]
+      capture_s: 3.0
+      fit_trim_s: 0.40
+      initial_half_width_servo: 0.03
+      expansion_step_servo: 0.02
+      max_bracket_expansions: 4
+      candidate_repetitions: 3
+      max_refinement_iterations: 10
+      search_tolerance_servo: 0.001
+      max_abs_yaw_rate_for_candidate_rad_s: 0.012
+      confirmation_repetitions: 4
+      max_abs_yaw_rate_for_confirmation_rad_s: 0.025
+      min_training_span_servo: 0.04
+      max_fit_extrapolation_servo: 0.0
+      expected_yaw_rate_slope_sign: -1
+      min_fit_r2: 0.80
+      max_fit_rmse_rad_s: 0.020
+      bootstrap_resamples: 1000
+      bootstrap_seed: 20260717
+      # The IMU and odometry are useful on-board coarse estimators.  They are
+      # both fitted and reported, and a mutually consistent pair can veto an
+      # implausibly different LiDAR candidate.  Neither sensor alone is allowed
+      # to certify the final centre: IMU bias and odometry's deployed steering
+      # map can each have a residual systematic error.
+      min_onboard_fit_r2: 0.50
+      max_onboard_fit_rmse_rad_s: 0.050
+      max_onboard_sensor_spread_servo: 0.020
+      max_lidar_onboard_disagreement_servo: 0.030
+      require_onboard_consensus_when_available: true
+      max_sensor_centre_disagreement_servo: 0.012
+      require_trusted_imu_crosscheck: false
+      max_abs_lidar_lateral_velocity_mps: 0.15
+      min_lidar_forward_speed_mps: 0.20
+      validation_capture_s: 3.0
+      validation_repetitions: 4
+      validation_trim_s: 0.25
+      # These are fresh runs at the same fitted raw centre, but deliberately
+      # differ from the training capture and from one another.  The car must be
+      # turned around between outbound/inbound passes; speed remains positive
+      # in its own body frame.
+      validation_conditions:
+      - lane_direction: outbound
+        speed_mps: 0.5
+        repetitions: 3
+      - lane_direction: inbound
+        speed_mps: 0.8
+        repetitions: 3
+      max_abs_validation_icp_yaw_rate_rad_s: 0.015
+      max_abs_validation_lateral_velocity_mps: 0.05
+      max_abs_validation_heading_change_rad: 0.035
+      max_validation_sensor_yaw_disagreement_rad_s: 0.04
+      require_validation_imu_crosscheck: false
+      min_validation_lidar_valid_fraction: 0.70
+    observability:
+      stationary_s: 12.0
+      straight_speeds_mps: [0.5, 0.8, 1.2]
+      straight_repetitions: 3
+      straight_capture_s: 2.4
+      gentle_turn_fraction_of_safe_span: 0.10
+      turn_repetitions: 3
+      turn_speed_mps: 0.5
+      turn_capture_s: 1.5
+    static_map:
+      speed_mps: 0.7
+      steering_settle_s: 0.25
+      steering_settle_timeout_s: 0.8
+      steering_settle_final_window_s: 0.12
+      capture_s: 2.40
+      training_fractions: [0.10, 0.25, 0.45, 0.65, 0.85, 1.0]
+      training_sweep_repetitions: 3
+      validation_fractions: [0.15, 0.35, 0.55, 0.75, 0.95]
+      validation_repetitions: 3
+      raw_servo_echo_tolerance: 0.004
+    response:
+      conditions:
+      - speed_mps: 0.6
+        target_fractions: [0.30, 0.70]
+        repetitions: 3
+      - speed_mps: 1.0
+        target_fractions: [0.30, 0.60]
+        repetitions: 3
+      validation_conditions:
+      - speed_mps: 0.8
+        target_fractions: [0.45]
+        repetitions: 3
+      - speed_mps: 1.0
+        target_fractions: [0.25, 0.45]
+        repetitions: 3
+      centre_hold_s: 1.0
+      step_hold_s: 3.0
+      return_hold_s: 1.0
+      command_onset_hold_s: 0.02
+      effective_onset_hold_s: 0.05
+      settling_band_fraction: 0.05
+      settling_hold_s: 0.2
+    analysis:
+      # The live odometry bringup owns a fresh startup IMU-bias calibration on
+      # every stack launch.  Retain stationary readings as health diagnostics,
+      # but never subtract an earlier stage's value from a later run.
+      imu_bias:
+        apply_stationary_correction: false
+      icp:
+        # Keep all 1080 beams; robust/range weights and covariance gates reject
+        # weak geometry without feeding a reduced scan to AMCL or normal bringup.
+        huber_delta_scale: 2.5
+        range_weight_reference_m: 4.0
+        minimum_range_weight: 0.20
+        max_pair_translation_std_m: 0.025
+        max_pair_yaw_std_rad: 0.015
+        displacement_baseline:
+          mode: displacement_targeted
+          target_displacement_m: 0.12
+          min_baseline_s: 0.04
+          max_baseline_s: 0.32
+          predicted_speed_floor_mps: 0.30
+        window_aggregation:
+          enabled: true
+          # 40 Hz scan registrations are aggregated before fitting.  These are
+          # not independent samples; one robust window is the measurement unit.
+          window_s: 0.50
+          stride_s: 0.10
+          minimum_window_s: 0.35
+          min_valid_pairs: 5
+          min_valid_fraction: 0.65
+      icp_observability:
+        min_moving_valid_windows: 12
+        min_moving_window_valid_fraction: 0.70
+        min_moving_window_speed_mps: 0.20
+        max_moving_point_to_line_rmse_p95_m: 0.03
+        # Stationary zero-translation registrations are retained as a noise
+        # diagnostic, not a hard gate for moving-window LiDAR odometry.
+        max_stationary_speed_p95_mps: 0.05
+        max_point_to_line_rmse_p95_m: 0.03
+      map:
+        trim_s: 0.20
+        min_training_points: 20
+        min_holdout_points: 10
+        max_lidar_yaw_std_rad_s: 0.08
+        max_holdout_rmse_rad: 0.05
+        max_abs_holdout_bias_rad: 0.025
+        max_hysteresis_median_abs_rad: 0.05
+        max_repeatability_median_std_rad: 0.035
+        expected_servo_gain_sign: -1
+        minimum_linear_patch_holdout_improvement_fraction: 0.15
+      response:
+        min_lidar_speed_mps: 0.2
+        max_lidar_interpolation_gap_s: 0.15
+        min_valid_segments: 24
+        min_validation_segments: 12
+        final_window_s: 0.60
+        min_step_hold_s: 2.5
+        max_validation_settling_s: 3.0
+        max_validation_fopdt_rmse_normalized: 0.35
+        max_validation_training_time_constant_ratio: 3.0
+
+  erpm:
+    site:
+      straight_usable_length_m: 12.0
+      minimum_full_envelope_length_m: 12.0
+      setup_margin_m: 1.5
+      require_full_envelope_track: true
+    session:
+      hard_speed_limit_mps: 3.0
+      # Independent of the ERPM/odometry calibration.  The scale is deliberately
+      # conservative and is used only as an online interlock, never as an
+      # analysis measurement.
+      hard_erpm_limit: 13500.0
+      safety_erpm_per_mps: 4500.0
+      min_free_disk_gb: 4.0
+      cooling_pause_every_accepted_trials: 0
+    hardware:
+      self_scan_filter:
+        enabled: true
+        x_min_m: -0.35
+        x_max_m: 0.45
+        y_min_m: -0.22
+        y_max_m: 0.22
+    operating_envelope:
+      maximum_test_speed_mps: 3.0
+      maximum_test_accel_mps2: 1.5
+      maximum_test_brake_mps2: 2.5
+      # Raw-current pulses are deliberately below the motor controller's
+      # production clamp. They identify the safe room envelope; tyre/motor
+      # saturation beyond it is reported as unidentifiable rather than forced
+      # into a 12 m room.
+      # Keep the drive pulse long enough for four independent 0.5 s LiDAR
+      # motion windows after command-edge trimming.  Lowering the current,
+      # rather than shortening the pulse, preserves acceleration observability
+      # while keeping its conservative 12 m-room peak below 3 m/s.
+      approved_drive_test_current_a: 8.0
+      approved_brake_test_current_a: 15.0
+      max_raw_current_drive_accel_mps2: 1.2
+      high_demand_pulse_duration_s:
+        low_fraction: 0.80
+        medium_fraction: 0.78
+        high_fraction: 0.75
+      dynamic_capture_min_s: 0.50
+    motion_startup:
+      pre_capture_settle_distance_m: 0.35
+      pre_capture_settle_min_s: 0.10
+      pre_capture_settle_max_s: 0.35
+      pre_capture_settle_high_speed_threshold_mps: 2.0
+      pre_capture_settle_high_speed_min_s: 0.15
+      stability_timeout_s: 1.8
+      active_stop_brake_s: 0.30
+      active_stop_min_brake_s: 0.30
+      active_stop_max_brake_s: 0.65
+    observability:
+      stationary_duration_s: 12.0
+      straight_probe_speeds_mps: [0.5, 1.2, 2.2]
+      straight_probe_repetitions: 3
+      straight_probe_capture_s: 1.20
+    low_speed_launch:
+      nominal_speeds_mps: [0.4, 0.6, 0.9]
+      repetitions: 3
+      capture_s: 1.20
+    raw_erpm_map_training:
+      nominal_speeds_mps: [0.45, 0.8, 1.2, 1.7, 2.2, 2.6]
+      repetitions: 3
+      capture_s: 1.00
+    raw_erpm_map_holdout:
+      nominal_speeds_mps: [0.6, 1.0, 1.45, 1.95, 2.4]
+      repetitions: 3
+      capture_s: 1.00
+    vel_to_erpm_pipeline_audit:
+      speed_commands_mps: [0.5, 1.1, 1.8, 2.5]
+      repetitions: 3
+      capture_s: 1.00
+    raw_erpm_response:
+      steps_mps: [[0.4, 0.8], [0.8, 1.3], [1.2, 1.8]]
+      repetitions: 3
+      pre_step_hold_s: 0.60
+      response_capture_s: 1.60
+      validation_steps_mps: [[0.6, 1.0], [1.0, 1.5]]
+      validation_repetitions: 3
+    coastdown:
+      initial_speeds_mps: [0.7, 1.2, 1.7, 2.2]
+      repetitions: 3
+      pre_coast_hold_s: 0.50
+      coast_capture_s: 1.30
+      validation_initial_speeds_mps: [0.9, 1.45, 1.95]
+      validation_repetitions: 3
+      validation_coast_capture_s: 1.30
+      max_abs_motor_current_a: 1.0
+    raw_current_training:
+      drive_conditions:
+      - initial_speed_mps: 0.6
+        current_fractions: [0.15, 0.45, 0.80]
+      - initial_speed_mps: 1.2
+        current_fractions: [0.15, 0.45, 0.80]
+      - initial_speed_mps: 2.0
+        current_fractions: [0.20, 0.55, 0.85]
+      brake_conditions:
+      - initial_speed_mps: 1.0
+        current_fractions: [0.20, 0.55, 0.85]
+      - initial_speed_mps: 1.6
+        current_fractions: [0.20, 0.55, 0.85]
+      repetitions: 3
+      pre_pulse_hold_s: 0.60
+      post_pulse_capture_s: 0.60
+    raw_current_holdout:
+      drive_conditions:
+      - initial_speed_mps: 0.8
+        current_fractions: [0.25, 0.65]
+      - initial_speed_mps: 1.5
+        current_fractions: [0.25, 0.65]
+      - initial_speed_mps: 2.0
+        current_fractions: [0.25, 0.45]
+      brake_conditions:
+      - initial_speed_mps: 1.4
+        current_fractions: [0.25, 0.65]
+      - initial_speed_mps: 2.0
+        current_fractions: [0.25, 0.65]
+      repetitions: 3
+      pre_pulse_hold_s: 0.60
+      post_pulse_capture_s: 0.60
+    candidate_verification:
+      # Fresh C data for the selected command/odometry/current candidate. None
+      # of these conditions are used by model selection.
+      velocity_holdout_commands_mps: [0.65, 1.35, 2.35, 2.8]
+      velocity_repetitions: 3
+      acceleration_initial_speeds_mps: [0.8, 1.5]
+      acceleration_holdout_commands_mps2: [-0.6, 0.0, 0.6]
+      acceleration_repetitions: 3
+      # 1.3 s yields enough 0.5 s / 0.1 s-stride LiDAR windows to validate
+      # acceleration without reverting to noisy scan-to-scan derivatives.
+      capture_s: 1.30
+    accel_to_current_interface:
+      initial_speeds_mps: [0.5, 1.1, 1.6]
+      acceleration_commands_mps2: [-0.8, 0.0, 0.8]
+      repetitions: 3
+      pre_pulse_hold_s: 0.60
+      post_pulse_capture_s: 0.60
+      pulse_capture_s: 0.75
+      validation_initial_speeds_mps: [0.8, 1.4]
+      validation_acceleration_commands_mps2: [-0.6, 0.6]
+      validation_repetitions: 3
+      validation_pulse_capture_s: 0.75
+    lateral_stiffness:
+      # Balanced constant-radius circles rather than a long full-room ramp.
+      # They cover three speeds, three small-to-medium steering magnitudes and
+      # both directions. The 1.4 s values are analysis minima; a new unified
+      # session expands every fitting condition to one complete revolution.
+      nominal_wheelbase_m: 0.324
+      speeds_mps: [1.0, 1.3, 1.6]
+      steering_angles_rad: [0.08, 0.12, 0.16]
+      signs: [-1.0, 1.0]
+      repetitions: 3
+      pre_turn_hold_s: 0.25
+      turn_settle_s: 0.50
+      capture_s: 1.40
+      validation_speeds_mps: [1.15, 1.45]
+      validation_steering_angles_rad: [0.10, 0.14]
+      validation_signs: [-1.0, 1.0]
+      validation_repetitions: 3
+      validation_capture_s: 1.40
+      # This is the exact bounded tyre equation already used by vesc_to_odom.
+      # The safe arcs identify its small-angle slope and validate adequacy, but
+      # do not claim to identify the peak-force shape itself.
+      runtime_pacejka_shape_factor: 1.9
+    cross_axis_validation:
+      enabled: false
+    post_calibration_steering_dynamics:
+      enabled: false
+    analysis:
+      statistics:
+        bootstrap_resamples: 1000
+        bootstrap_seed: 20260717
+      icp:
+        huber_delta_scale: 2.5
+        range_weight_reference_m: 4.0
+        minimum_range_weight: 0.20
+        max_pair_translation_std_m: 0.025
+        max_pair_yaw_std_rad: 0.015
+        displacement_baseline:
+          mode: displacement_targeted
+          target_displacement_m: 0.12
+          min_baseline_s: 0.04
+          max_baseline_s: 0.32
+          predicted_speed_floor_mps: 0.30
+        window_aggregation:
+          enabled: true
+          window_s: 0.50
+          stride_s: 0.10
+          minimum_window_s: 0.35
+          min_valid_pairs: 5
+          min_valid_fraction: 0.65
+      odometry_model_selection:
+        # Three populated speed bands inside the enforced 3 m/s room envelope.
+        speed_regimes_mps: [0.0, 0.8, 1.6, 3.01]
+        acceleration_regimes_mps2: [0.30, 0.70]
+        min_holdout_samples_per_regime: 12
+      # The ERPM straight-hold controller is allowed only as a small safety
+      # aid after the physical steering-centre validation.  Its recorded trim
+      # is checked offline so a longitudinal fit cannot quietly depend on a
+      # large steering correction.
+      max_straight_assist_trim_rad: 0.012
+      min_lidar_speed_mps: 0.25
+      max_lidar_gap_s: 0.10
+      current_pulse:
+        min_window_samples: 4
+        trim_fraction: 0.15
+        min_effective_pulse_s: 0.25
+      response:
+        min_lidar_window_samples: 6
+        final_window_s: 0.60
+      static_map:
+        # Production VEL_TO_ERPM/odometry currently implements the scalar
+        # zero-intercept model.  A material hold-out quadratic win halts
+        # promotion and writes an implementation request rather than silently
+        # flattening it; race control remains ACCEL_TO_CURRENT.
+        minimum_holdout_improvement_fraction: 0.10
+        minimum_abs_quadratic_erpm_per_mps2: 100.0
+      coastdown:
+        min_window_samples: 6
+        trim_fraction: 0.05
+        bootstrap_resamples: 100
+        bootstrap_seed: 20260713
+        max_training_velocity_rmse_mps: 0.15
+        max_validation_velocity_rmse_mps: 0.18
+        max_validation_velocity_bias_mps: 0.10
+        max_jacobian_condition_number: 50000.0
+      accel_interface:
+        max_ground_accel_rmse_mps2: 0.75
+        max_ground_accel_bias_mps2: 0.35
+      lateral_stiffness:
+        min_valid_windows_per_trial: 6
+        min_lidar_window_valid_fraction: 0.70
+        min_speed_mps: 0.45
+        max_speed_std_mps: 0.12
+        min_abs_yaw_rate_rad_s: 0.08
+        max_yaw_rate_std_rad_s: 0.10
+        min_abs_lateral_accel_mps2: 0.20
+        max_lateral_accel_std_mps2: 0.35
+        max_imu_kinematic_ay_disagreement_mps2: 0.45
+        max_lidar_quasi_steady_beta_disagreement_rad: 0.12
+        min_abs_slip_angle_rad: 0.003
+        max_abs_slip_angle_rad: 0.16
+        min_training_linear_r2: 0.20
+        max_design_condition_number: 20000.0
+        # Fit this only from the balanced lateral A data. It converts the
+        # LiDAR-derived static steering map into the dynamic bicycle-model
+        # input; a wildly different value is an identifiability fault, not a
+        # number to silently deploy.
+        min_steering_model_scale: 0.50
+        max_steering_model_scale: 1.50
+        bootstrap_resamples: 200
+        min_validation_trials: 8
+        max_validation_runtime_normalized_force_rmse: 0.55
+        nonlinear_holdout_improvement_fraction: 0.15
+        # Reuse the same balanced A/C arcs to identify driven-wheel over-read
+        # in turns. One aggregate per accepted trial is fitted; a zero
+        # correction is selected when the bootstrap does not support an effect.
+        turn_slip_min_speed_mps: 0.45
+        turn_slip_min_coefficient_per_mps2: 0.002
+        turn_slip_min_training_rmse_improvement_fraction: 0.05
+        turn_slip_clip_fraction: 0.25
+        turn_slip_min_validation_trials: 8
+        turn_slip_max_runtime_equation_rmse_mps: 0.04
+      gates:
+        min_training_repetitions: 3
+        min_holdout_repetitions: 3
+        max_speed_map_training_rmse_mps: 0.12
+        max_speed_map_holdout_rmse_mps: 0.16
+        max_speed_map_holdout_bias_mps: 0.07
+        min_coastdown_r2: 0.50
+        min_current_model_r2: 0.60
+        max_current_model_holdout_rmse_mps2: 1.0
+        max_current_model_holdout_bias_mps2: 0.45
+        max_command_to_erpm_delay_s: 0.20
+        max_command_to_ground_speed_delay_s: 1.0
+        max_accel_interface_current_rmse_a: 4.0

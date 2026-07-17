@@ -2,15 +2,14 @@
 //
 // scan_downsampler_node
 // ─────────────────────
-// Middleman so the racing pipeline can keep consuming a reduced-beam scan while
-// a full-resolution scan is still published (and bagged) for offline analysis
-// (ICP ground-truth velocity/yaw at high speed / high curvature).
+// Relay for the optional /scan_full recording path. The recorder receives all
+// native samples while the normal racing pipeline remains at its validated
+// reduced resolution.
 //
 // The Hokuyo driver clusters in the sensor request, so it can emit only ONE
 // resolution per scan. Run the driver at cluster=1 (1080 beams) on `input_topic`
 // (e.g. /scan_full), and this node republishes every `cluster`-th beam on
-// `output_topic` (e.g. /scan, 270 beams) for AMCL / planner / MPC. Bag
-// /scan_full for analysis; the pipeline is unchanged (still 270 beams).
+// `output_topic` (e.g. /scan) for AMCL / planner / MPC.
 
 #include <algorithm>
 #include <memory>

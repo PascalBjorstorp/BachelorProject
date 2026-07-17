@@ -89,7 +89,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'lidar_cluster',
             default_value='4',
-            description='LiDAR clustering in racing mode: 1=1080, 2=540, 4=270 beams'),
+            description='Racing /scan clustering; 4 keeps AMCL on 270 beams'),
 
         DeclareLaunchArgument(
             'mapping_mode',
@@ -139,7 +139,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'amcl_max_beams',
             default_value='270',
-            description='GPU AMCL max beams sampled from each scan'),
+            description='GPU AMCL max beams sampled from the reduced racing scan'),
 
         DeclareLaunchArgument(
             'amcl_cloud_publish_rate',

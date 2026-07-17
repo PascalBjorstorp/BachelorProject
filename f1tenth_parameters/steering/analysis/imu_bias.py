@@ -45,6 +45,24 @@ _MIN_EPOCH_SAMPLES = 20
 _MIN_DRIFT_SPAN_S = 20.0
 
 
+def correction_enabled(config: dict | None, *, default: bool = True) -> bool:
+    """Read the explicit stationary-bias policy from a calibration profile.
+
+    Older standalone steering sessions retain their historical behaviour unless
+    they opt out.  The unified campaign sets this false because each launched
+    stack already runs its own startup calibration.
+    """
+    if not isinstance(config, dict):
+        return bool(default)
+    analysis = config.get("analysis", {})
+    if not isinstance(analysis, dict):
+        return bool(default)
+    policy = analysis.get("imu_bias", {})
+    if not isinstance(policy, dict):
+        return bool(default)
+    return bool(policy.get("apply_stationary_correction", default))
+
+
 @dataclass
 class ImuBias:
     """Stationary IMU offsets, with an optional clamped linear gz drift model."""
@@ -59,10 +77,20 @@ class ImuBias:
     model: str = "zero"
     n: int = 0
     used_fallback_zero: bool = True
+    # The production bringup independently establishes its own startup bias on
+    # every launch.  A stationary epoch from a different calibration stack can
+    # therefore be valuable evidence about sensor health without being safe to
+    # subtract from later runs.  Unified sessions default to this diagnostic
+    # mode; legacy callers can explicitly opt in to correction.
+    correction_applied: bool = True
     epochs: list[dict] = field(default_factory=list)
 
     def gz_at(self, t_ns):
         """Gyro-z bias at one or many bag timestamps (clamped outside epochs)."""
+        if not self.correction_applied:
+            if np.isscalar(t_ns):
+                return 0.0
+            return np.zeros(np.shape(t_ns), dtype=float)
         if self.gz_slope_per_ns == 0.0:
             if np.isscalar(t_ns):
                 return float(self.gz_intercept)
@@ -83,10 +111,17 @@ class ImuBias:
             "ax_bias_mps2": self.ax_bias,
             "stationary_samples": self.n,
             "used_fallback_zero": self.used_fallback_zero,
+            "correction_applied": self.correction_applied,
             "epochs": self.epochs,
-            "note": ("gz is subtracted from every yaw rate before steering identification; when >=2 "
-                     "stationary epochs disagree beyond their noise it is modelled as a clamped linear "
-                     "drift in time. ay/ax offsets include the resting gravity projection."),
+            "note": (
+                "Stationary values are "
+                + ("subtracted from steering analysis; when >=2 epochs disagree beyond their noise, "
+                   "gz is modelled as a clamped linear drift. ay/ax offsets include resting gravity projection."
+                   if self.correction_applied else
+                   "diagnostic only and are not subtracted. The active bringup performs a fresh startup "
+                   "IMU calibration on every stack launch, so a prior-session/static epoch must not be "
+                   "treated as a persistent calibration constant.")
+            ),
         }
 
 
@@ -126,8 +161,15 @@ def _epoch(frame: pd.DataFrame, stage: str, trim_s: float) -> dict | None:
     return epoch
 
 
-def estimate_imu_bias(session: Path, *, trim_s: float = 1.0) -> ImuBias:
-    """Build an :class:`ImuBias` from a session's stationary captures."""
+def estimate_imu_bias(session: Path, *, trim_s: float = 1.0,
+                      apply_correction: bool = True) -> ImuBias:
+    """Build an :class:`ImuBias` from a session's stationary captures.
+
+    ``apply_correction`` deliberately controls use separately from estimation.
+    When false, the raw stationary values and drift evidence remain in the
+    report, but :meth:`ImuBias.gz_at` returns zero so a previous stack launch
+    cannot inject a stale bias correction into a later one.
+    """
     session = Path(session)
     epoch_frames: list[tuple[str, pd.DataFrame]] = []
 
@@ -152,7 +194,8 @@ def estimate_imu_bias(session: Path, *, trim_s: float = 1.0) -> ImuBias:
 
     epochs = [e for e in (_epoch(frame, stage, trim_s) for stage, frame in epoch_frames) if e is not None]
     if not epochs:
-        return ImuBias(model="zero", used_fallback_zero=True, epochs=[])
+        return ImuBias(model="zero", used_fallback_zero=True,
+                       correction_applied=apply_correction, epochs=[])
 
     epochs.sort(key=lambda e: e["t_ns"])
     total = int(sum(e["samples"] for e in epochs))
@@ -172,11 +215,13 @@ def estimate_imu_bias(session: Path, *, trim_s: float = 1.0) -> ImuBias:
         return ImuBias(
             gz_intercept=float(intercept), gz_slope_per_ns=float(slope), t_ref_ns=float(t[0]),
             t_min_ns=float(t[0]), t_max_ns=float(t[-1]), ay_bias=ay_bias, ax_bias=ax_bias,
-            model="linear_drift", n=total, used_fallback_zero=False, epochs=epochs,
+            model="linear_drift", n=total, used_fallback_zero=False,
+            correction_applied=apply_correction, epochs=epochs,
         )
     constant = float(np.average(gz, weights=weights))
     return ImuBias(
         gz_intercept=constant, gz_slope_per_ns=0.0, t_ref_ns=float(t[0]),
         t_min_ns=float(t[0]), t_max_ns=float(t[-1]), ay_bias=ay_bias, ax_bias=ax_bias,
-        model="constant", n=total, used_fallback_zero=False, epochs=epochs,
+        model="constant", n=total, used_fallback_zero=False,
+        correction_applied=apply_correction, epochs=epochs,
     )

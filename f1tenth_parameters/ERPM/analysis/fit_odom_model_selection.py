@@ -28,6 +28,7 @@ from common import (
     analysis_dir,
     dump_yaml,
     load_yaml,
+    motion_windows,
     stage_tables,
     summarize_windows,
     straight_filter,
@@ -209,14 +210,15 @@ def _stationary_imu_ax_bias(session: Path) -> tuple[float, dict]:
             values.extend(f.ax.to_numpy(float).tolist())
     a = np.asarray(values, float)
     a = a[np.isfinite(a)]
-    if len(a) < 20:
-        return 0.0, {'n': int(len(a)), 'bias_mps2': 0.0, 'used_fallback_zero': True}
-    return float(np.median(a)), {
+    diagnostic = {
         'n': int(len(a)),
-        'bias_mps2': float(np.median(a)),
-        'std_mps2': float(np.std(a)),
-        'used_fallback_zero': False,
+        'observed_median_mps2': float(np.median(a)) if len(a) else math.nan,
+        'observed_std_mps2': float(np.std(a)) if len(a) else math.nan,
+        'applied_bias_mps2': 0.0,
+        'applied_to_candidate': False,
+        'policy': 'bringup calibrates IMU bias on every launch; session-stationary data is diagnostic only',
     }
+    return 0.0, diagnostic
 
 
 def _interp(frame: pd.DataFrame, target_t: np.ndarray, column: str) -> np.ndarray:
@@ -233,9 +235,9 @@ def _dynamic_samples(session: Path, stages: Iterable[tuple[str, Iterable[str]]],
     for stage, phases in stages:
         t = stage_tables(session, stage)
         windows = accepted_capture_windows(t['events'], list(phases))
-        if windows.empty or t['lidar_velocity'].empty:
+        lidar = motion_windows(t).copy()
+        if windows.empty or lidar.empty:
             continue
-        lidar = t['lidar_velocity'].copy()
         if 'valid' in lidar:
             lidar = lidar[lidar.valid.astype(bool)]
         for _, w in windows.iterrows():
@@ -815,6 +817,8 @@ def main() -> int:
             'command_map_and_wheel_observation_are_separate': True,
             'only_deployable_causal_models_were_considered': True,
             'model_selected_on_whole_held_out_trials': True,
+            'fit_measurement_unit': 'robust multi-registration LiDAR motion window',
+            'session_stationary_imu_bias_applied': False,
         },
     }
     dump_yaml(out / 'odometry_model_selection_report.yaml', report)

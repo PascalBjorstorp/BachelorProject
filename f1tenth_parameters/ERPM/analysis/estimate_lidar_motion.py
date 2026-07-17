@@ -49,6 +49,28 @@ def scan_points(msg, downsample: int) -> tuple[np.ndarray, np.ndarray]:
     return points[::step], rel_t[::step]
 
 
+def filter_self_points(points: np.ndarray, rel_t: np.ndarray, hardware: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Drop vehicle-body returns before matching static room geometry."""
+    mask_cfg = hardware.get("self_scan_filter", {}) or {}
+    if not bool(mask_cfg.get("enabled", False)) or points.size == 0:
+        return points, rel_t
+    laser_yaw = float(hardware.get("laser_to_base_yaw_rad", 0.0))
+    c_yaw, s_yaw = math.cos(laser_yaw), math.sin(laser_yaw)
+    rotation = np.array([[c_yaw, -s_yaw], [s_yaw, c_yaw]])
+    offset = np.array([
+        float(hardware.get("laser_to_base_x_m", 0.0)),
+        float(hardware.get("laser_to_base_y_m", 0.0)),
+    ])
+    base_points = points @ rotation.T + offset
+    keep = ~(
+        (base_points[:, 0] >= float(mask_cfg.get("x_min_m", -math.inf)))
+        & (base_points[:, 0] <= float(mask_cfg.get("x_max_m", math.inf)))
+        & (base_points[:, 1] >= float(mask_cfg.get("y_min_m", -math.inf)))
+        & (base_points[:, 1] <= float(mask_cfg.get("y_max_m", math.inf)))
+    )
+    return points[keep], rel_t[keep]
+
+
 def deskew_scan(points: np.ndarray, rel_t: np.ndarray, v_laser: np.ndarray, omega: float) -> np.ndarray:
     """Motion-compensate a scan to its first-beam time under constant velocity.
 
@@ -148,6 +170,9 @@ def robust_point_to_line_icp(
     rotation_tolerance_rad: float,
     relative_cost_tolerance: float,
     translation_seed: np.ndarray | None = None,
+    huber_delta_scale: float = 2.5,
+    range_weight_reference_m: float | None = None,
+    minimum_range_weight: float = 0.20,
 ) -> IcpResult:
     from scipy.spatial import cKDTree
 
@@ -161,10 +186,16 @@ def robust_point_to_line_icp(
     t = np.zeros(2, dtype=float) if translation_seed is None else np.asarray(translation_seed, dtype=float).copy()
     previous_cost = math.inf
     converged = False
-    final_A = None
-    final_w = None
-    final_residual = None
     iterations = 0
+
+    def weights_for(residual: np.ndarray, transformed: np.ndarray) -> np.ndarray:
+        scale = max(float(np.median(np.abs(residual))) * 1.4826, 0.0015)
+        huber = np.minimum(1.0, huber_delta_scale * scale / np.maximum(np.abs(residual), 1e-12))
+        if range_weight_reference_m is None or range_weight_reference_m <= 0.0:
+            return huber
+        ranges = np.linalg.norm(transformed, axis=1)
+        range_weight = 1.0 / np.sqrt(1.0 + np.square(ranges / range_weight_reference_m))
+        return huber * np.clip(range_weight, minimum_range_weight, 1.0)
 
     for iterations in range(1, max_iter + 1):
         transformed, q, n, _, _ = _correspondences(
@@ -175,15 +206,14 @@ def robust_point_to_line_icp(
         A = np.column_stack((np.sum(n * dtheta, axis=1), n[:, 0], n[:, 1]))
         # Robust Huber weights reject static-wall endpoints, scan shadows and
         # transient dynamic objects without discarding the raw underlying scan.
-        scale = max(float(np.median(np.abs(residual))) * 1.4826, 0.0015)
-        weights = np.minimum(1.0, 2.5 * scale / np.maximum(np.abs(residual), 1e-12))
-        step, *_ = np.linalg.lstsq(A * weights[:, None], -residual * weights, rcond=None)
+        weights = weights_for(residual, transformed)
+        root_weights = np.sqrt(weights)
+        step, *_ = np.linalg.lstsq(A * root_weights[:, None], -residual * root_weights, rcond=None)
         d_yaw, dx, dy = map(float, step)
-        cost = float(np.mean((weights * residual) ** 2))
+        cost = float(np.sum(weights * residual * residual) / max(np.sum(weights), 1e-12))
         relative_improvement = abs(previous_cost - cost) / max(previous_cost, 1e-15) if math.isfinite(previous_cost) else math.inf
         R = rot(d_yaw) @ R
         t += np.array([dx, dy], dtype=float)
-        final_A, final_w, final_residual = A, weights, residual
         if (
             abs(d_yaw) <= rotation_tolerance_rad
             and math.hypot(dx, dy) <= translation_tolerance_m
@@ -199,14 +229,13 @@ def robust_point_to_line_icp(
     residual = np.sum(n * (transformed - q), axis=1)
     dtheta = np.column_stack((-transformed[:, 1], transformed[:, 0]))
     A = np.column_stack((np.sum(n * dtheta, axis=1), n[:, 0], n[:, 1]))
-    scale = max(float(np.median(np.abs(residual))) * 1.4826, 0.0015)
-    weights = np.minimum(1.0, 2.5 * scale / np.maximum(np.abs(residual), 1e-12))
+    weights = weights_for(residual, transformed)
     H = A.T @ (weights[:, None] * A)
     try:
         condition = float(np.linalg.cond(H))
     except np.linalg.LinAlgError:
         condition = math.inf
-    dof = max(1, len(residual) - 3)
+    dof = max(1.0, float(np.sum(weights)) - 3.0)
     sigma2 = float(np.sum(weights * residual * residual) / dof)
     covariance = np.linalg.pinv(H) * sigma2
     std = np.sqrt(np.maximum(np.diag(covariance), 0.0))
@@ -218,7 +247,7 @@ def robust_point_to_line_icp(
         inlier_ratio=float(len(residual) / max(len(source), 1)),
         iterations=iterations,
         converged=converged,
-        final_cost=float(np.mean((weights * residual) ** 2)),
+        final_cost=float(np.sum(weights * residual * residual) / max(np.sum(weights), 1e-12)),
         condition_number=condition,
         yaw_std_rad=float(std[0]),
         dx_std_m=float(std[1]),
@@ -285,6 +314,7 @@ def main() -> int:
         scan = deserialize_message(raw, scan_type)
         t_ns = stamp_ns(scan, bag_ns)
         points, rel_t = scan_points(scan, int(icp["downsample"]))
+        points, rel_t = filter_self_points(points, rel_t, hardware)
         omega_now = float(np.interp(t_ns, imu_t, imu_gz, left=np.nan, right=np.nan))
         if not math.isfinite(omega_now):
             omega_now = last_omega
@@ -323,6 +353,9 @@ def main() -> int:
                 rotation_tolerance_rad=float(icp["rotation_update_tolerance_rad"]),
                 relative_cost_tolerance=float(icp["relative_cost_tolerance"]),
                 translation_seed=translation_seed,
+                huber_delta_scale=float(icp.get("huber_delta_scale", 2.5)),
+                range_weight_reference_m=float(icp["range_weight_reference_m"]) if icp.get("range_weight_reference_m") is not None else None,
+                minimum_range_weight=float(icp.get("minimum_range_weight", 0.20)),
             )
         except Exception as exc:
             rows.append({"bag_ns": int(t_ns), "previous_bag_ns": int(previous_ns), "dt_s": dt_s,
@@ -362,6 +395,10 @@ def main() -> int:
             reasons.append("poor_geometry_conditioning")
         if abs(yaw_seed_residual) > float(icp["max_imu_yaw_residual_rad"]):
             reasons.append("imu_yaw_inconsistent")
+        if math.hypot(result.dx_std_m, result.dy_std_m) > float(icp.get("max_pair_translation_std_m", math.inf)):
+            reasons.append("high_translation_uncertainty")
+        if result.yaw_std_rad > float(icp.get("max_pair_yaw_std_rad", math.inf)):
+            reasons.append("high_yaw_uncertainty")
         valid = not reasons
         rows.append({
             "bag_ns": int(t_ns),
@@ -395,6 +432,7 @@ def main() -> int:
         "method": "IMU-yaw-seeded, odometry-unseeded robust point-to-line ICP",
         "motion_deskew_enabled": deskew_enabled,
         "constant_velocity_translation_seed_enabled": seed_enabled,
+        "self_scan_filter": hardware.get("self_scan_filter", {}) or {},
         "solver_tolerances": {
             "max_iterations": int(icp["max_iterations"]),
             "translation_update_tolerance_m": float(icp["translation_update_tolerance_m"]),

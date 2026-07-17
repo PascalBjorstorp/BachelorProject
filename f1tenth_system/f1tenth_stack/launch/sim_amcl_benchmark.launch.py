@@ -187,6 +187,10 @@ def _launch_setup(context, *args, **kwargs):
                     'use_sim_time': _bool_config('use_sim_time'),
                     'use_sim_time_bridge': _bool_config('use_sim_time'),
                     'headless': _bool_config('headless'),
+                    # This launch exercises the complete AMCL/planning stack,
+                    # so keep its input at the validated racing resolution.
+                    # Isolated calibration simulation uses sim.yaml's 1080.
+                    'scan_beams': _int_config('sim_scan_beams'),
                     'tf_frame_id': 'ego_racecar/odom',
                     'odom_frame_id': 'ego_racecar/odom',
                     'publish_odom': sim_odom_source == 'ground_truth',
@@ -713,6 +717,10 @@ def generate_launch_description():
         DeclareLaunchArgument('initial_pose_yaw', default_value='0.0'),
         DeclareLaunchArgument('sim_drive_topic', default_value='ackermann_cmd',
                               description='Topic consumed by simulator bridge'),
+        DeclareLaunchArgument(
+            'sim_scan_beams',
+            default_value='270',
+            description='Reduced scan size for the complete AMCL benchmark stack'),
         DeclareLaunchArgument(
             'sim_drive_input_mode',
             default_value='vesc',

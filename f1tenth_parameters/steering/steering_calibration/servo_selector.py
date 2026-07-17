@@ -15,6 +15,7 @@ from typing import Iterable
 
 import rclpy
 from rcl_interfaces.msg import SetParametersResult
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -121,9 +122,15 @@ def main() -> int:
     node = ServoSelector(args.raw_min, args.raw_max)
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # ROS 2's SIGINT handler may already have shut the default context down
+        # before ``spin`` returns.  Normal stack shutdown must not be reported
+        # as a selector failure.
+        if rclpy.ok():
+            rclpy.shutdown()
     return 0
 
 

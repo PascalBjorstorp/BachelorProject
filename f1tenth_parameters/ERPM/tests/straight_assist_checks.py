@@ -85,6 +85,45 @@ def check_legacy_config_aliases():
     assert abs(sa.max_trim_rate_rad_s - 0.2) < 1e-12
 
 
+def check_pure_p_unchanged_when_ki_zero():
+    """ki=0 must reproduce the original proportional-only output exactly."""
+    p = StraightAssist(kp_heading=0.2, ki_heading=0.0, max_trim_rate_rad_s=1.0, max_trim_step_rad=1.0)
+    p.step(heading=0.0, speed=2.0, dt=0.01)
+    t = p.step(heading=0.1, speed=2.0, dt=0.01)
+    # error 0.1 minus deadband 0.0025 -> 0.0975; trim = -kp*err = -0.0195, capped at -max_trim.
+    assert t < 0.0 and abs(t) <= p.max_trim_rad + 1e-12 and p.integral_rad == 0.0, t
+
+
+def check_integral_nulls_constant_offset():
+    """Under a fixed heading error the integral keeps growing the correction past
+    the pure-P value, then holds (rejecting a constant centre offset)."""
+    sa = StraightAssist(kp_heading=0.05, ki_heading=0.5, max_trim_rad=0.04,
+                        max_integral_rad=0.03, max_trim_rate_rad_s=1.0, max_trim_step_rad=1.0)
+    sa.step(heading=0.0, speed=2.0, dt=0.01)
+    p_only = abs(0.05 * (0.02 - 0.0025))  # kp * (error - deadband)
+    last = 0.0
+    for _ in range(200):
+        last = abs(sa.step(heading=0.02, speed=2.0, dt=0.01))
+    assert last > p_only, (last, p_only)            # integral added correction
+    assert last <= sa.max_trim_rad + 1e-12          # but stayed bounded
+    assert abs(sa.integral_rad) <= sa.max_integral_rad + 1e-12
+
+
+def check_integral_cannot_wind_up_or_steer_wildly():
+    """A large sustained error must never push trim or the integral past their
+    hard caps, no matter how long it persists (anti-windup)."""
+    sa = StraightAssist(kp_heading=0.2, ki_heading=2.0, max_trim_rad=0.04,
+                        max_integral_rad=0.03, max_trim_rate_rad_s=1.0, max_trim_step_rad=1.0)
+    sa.step(heading=0.0, speed=2.0, dt=0.02)
+    for _ in range(500):
+        trim = sa.step(heading=2.0, speed=2.0, dt=0.02)
+        assert abs(trim) <= sa.max_trim_rad + 1e-12, trim
+        assert abs(sa.integral_rad) <= sa.max_integral_rad + 1e-12, sa.integral_rad
+    # Returning to rest clears the accumulated integral.
+    sa.step(heading=2.0, speed=0.0, dt=0.02)
+    assert sa.integral_rad == 0.0 and sa.yaw_ref is None
+
+
 def main():
     check_anchors_then_corrects_drift()
     check_deadband_ignores_tiny_drift()
@@ -95,6 +134,9 @@ def main():
     check_disabled_passthrough()
     check_from_config_defaults()
     check_legacy_config_aliases()
+    check_pure_p_unchanged_when_ki_zero()
+    check_integral_nulls_constant_offset()
+    check_integral_cannot_wind_up_or_steer_wildly()
     print("straight-assist checks passed")
     return 0
 

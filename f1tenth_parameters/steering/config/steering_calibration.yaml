@@ -24,6 +24,12 @@ hardware:
   base_frame_id: ego_racecar/base_link
   laser_frame_id: ego_racecar/laser
   imu_frame_id: ego_racecar/imu
+  # The canonical runner replaces these fallbacks from deployed
+  # vesc.yaml/vehicle_geometry when it creates a session.
+  imu_to_base_x_m: 0.160
+  imu_to_base_y_m: 0.0
+  imu_to_base_z_m: 0.0703
+  imu_to_base_yaw_rad: 0.0
   self_scan_filter:
     enabled: true
     x_min_m: -0.35
@@ -146,6 +152,10 @@ response:
   settling_band_fraction: 0.05
   settling_hold_s: 0.3
 analysis:
+  # Bringup recalibrates IMU bias for each launch. The stationary room sample
+  # remains a health diagnostic and is not carried into later stages.
+  imu_bias:
+    apply_stationary_correction: false
   icp:
     max_iterations: 120
     translation_update_tolerance_m: 1.0e-06
@@ -164,6 +174,13 @@ analysis:
     min_correspondences: 140
     min_inlier_ratio: 0.45
     max_pair_rmse_m: 0.03
+    # Point-to-line WLS uses Huber residual weights plus a modest range weight;
+    # all 1080 beams remain available, but noisy distant returns cannot dominate.
+    huber_delta_scale: 2.5
+    range_weight_reference_m: 4.0
+    minimum_range_weight: 0.20
+    max_pair_translation_std_m: 0.025
+    max_pair_yaw_std_rad: 0.015
     max_hessian_condition_number: 10000.0
     max_imu_yaw_residual_rad: 0.02
   map:

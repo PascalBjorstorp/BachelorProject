@@ -93,8 +93,10 @@ w = clamp(w_high + (w_coast - w_high) exp(-|a_f|/a_transition), w_min, 1)
 v_hat = v_pred + w (v_obs - v_pred)
 ```
 
-Finally, apply the cornering longitudinal-slip correction (Stage 13) as the last
-step, after `v_hat` is formed from the chosen estimator:
+Finally, apply the cornering longitudinal-slip correction as the last step,
+after `v_hat` is formed from the chosen estimator. The unified suite fits and
+validates it in the two lateral A/C arc stages (the legacy ERPM-only suite used
+Stage 13):
 
 ```text
 a_lat = |v_hat| * |yaw_rate|                       # yaw_rate from the IMU
@@ -160,4 +162,3 @@ acceleration of zero (`target = drag(v)`), i.e. the drag feed-forward, so the
 vehicle holds speed. Command zero current only when `|v| <= hold_speed_min_mps`
 so it can come to rest. Stage 12 verifies this: residual ground acceleration at
 `a=0` must satisfy `max_hold_speed_accel_mps2`.
-

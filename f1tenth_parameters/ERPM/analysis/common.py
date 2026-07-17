@@ -10,7 +10,7 @@ import yaml
 ROOT=Path(__file__).resolve().parents[1]
 
 STAGES=[
- '00_command_chain_audit','01_longitudinal_observability','02_low_speed_launch','03_raw_erpm_map_training','04_raw_erpm_map_holdout','05_vel_to_erpm_pipeline_audit','06_raw_erpm_response','07_coastdown','08_raw_current_training','09_raw_current_holdout','10_accel_to_current_interface'
+ '00_command_chain_audit','01_longitudinal_observability','02_low_speed_launch','03_raw_erpm_map_training','04_raw_erpm_map_holdout','05_vel_to_erpm_pipeline_audit','06_raw_erpm_response','06a_raw_erpm_response_validation','07_coastdown','07a_coastdown_validation','08_raw_current_training','09_raw_current_holdout','10_accel_to_current_interface','10a_accel_to_current_interface_validation','12_quasi_steady_lateral_training','12a_quasi_steady_lateral_validation'
 ]
 
 def load_yaml(path:Path)->dict:
@@ -31,7 +31,7 @@ def read_table(path:Path)->pd.DataFrame:
 
 def stage_tables(session:Path,name:str)->dict[str,pd.DataFrame]:
     d=stage_dir(session,name)/'derived'
-    return {key:read_table(d/f'{key}.parquet') for key in ['events','imu','vesc','odom','drive','ackermann','motor_command','motor_raw_speed','motor_raw_current','motor_raw_brake','motor_selected_speed','motor_selected_current','motor_selected_brake','motor_selector_status','lidar_velocity','candidate_odom','candidate_odom_debug','candidate_accel_debug','scan_index','tf_index','parameter_event_index','topic_index']}
+    return {key:read_table(d/f'{key}.parquet') for key in ['events','imu','vesc','odom','drive','ackermann','motor_command','motor_raw_speed','motor_raw_current','motor_raw_brake','motor_selected_speed','motor_selected_current','motor_selected_brake','motor_selector_status','lidar_velocity','lidar_window_motion','candidate_odom','candidate_odom_debug','candidate_accel_debug','scan_index','tf_index','parameter_event_index','topic_index']}
 
 def accepted_trial_ids(events:pd.DataFrame)->set[str]:
     if events.empty or not {'event','trial_id'}.issubset(events.columns): return set()
@@ -55,6 +55,11 @@ def accepted_capture_windows(events:pd.DataFrame, phases:str|Iterable[str]|None=
         if e.empty: continue
         end=e.sort_values('bag_ns').iloc[0]
         row=s.to_dict(); row['start_ns']=int(s.bag_ns); row['end_ns']=int(end.bag_ns); row['duration_s']=(row['end_ns']-row['start_ns'])*1e-9
+        # Window summaries are emitted on phase_end. Preserve the heading-assist
+        # trim so straight-running longitudinal fits can reject evidence that
+        # depended on a large hidden steering correction.
+        for key in ('straight_assist_trim_rad_mean','straight_assist_trim_rad_std','straight_assist_trim_rad_count'):
+            if key in end and pd.notna(end[key]): row[key]=end[key]
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -70,16 +75,27 @@ def _std(frame:pd.DataFrame,column:str)->float:
     if frame.empty or column not in frame: return math.nan
     a=frame[column].to_numpy(dtype=float); return float(np.nanstd(a)) if np.isfinite(a).any() else math.nan
 
+def motion_windows(tables:dict[str,pd.DataFrame])->pd.DataFrame:
+    """Return robust LiDAR motion windows, with pair rows only as legacy fallback.
+
+    Scan-pair registrations are intentionally retained in bags/derived output
+    for diagnosing geometry failures.  They are correlated and must not be
+    counted as independent calibration samples, so all new fits use the
+    multi-registration window product when it is available.
+    """
+    windowed=tables.get('lidar_window_motion',pd.DataFrame())
+    return windowed if not windowed.empty else tables.get('lidar_velocity',pd.DataFrame())
+
 def summarize_windows(windows:pd.DataFrame,tables:dict[str,pd.DataFrame],cfg:dict)->pd.DataFrame:
     rows=[]
     for _,w in windows.iterrows():
-        start,end=int(w.start_ns),int(w.end_ns); li=_sub(tables['lidar_velocity'],start,end); im=_sub(tables['imu'],start,end); ve=_sub(tables['vesc'],start,end); od=_sub(tables['odom'],start,end)
+        start,end=int(w.start_ns),int(w.end_ns); li_all=_sub(motion_windows(tables),start,end); li=li_all.copy(); im=_sub(tables['imu'],start,end); ve=_sub(tables['vesc'],start,end); od=_sub(tables['odom'],start,end)
         selected_speed=_sub(tables['motor_selected_speed'],start,end); selected_current=_sub(tables['motor_selected_current'],start,end); selected_brake=_sub(tables['motor_selected_brake'],start,end)
         if not li.empty and 'valid' in li: li=li[li.valid.astype(bool)]
         row={k:v for k,v in w.to_dict().items() if k not in {'bag_ns','header_ns','type'}}
         row.update({
-          'vx_lidar_mps':_median(li,'vx'),'vx_lidar_std_mps':_std(li,'vx'),'lidar_pairs':int(len(li)),'lidar_valid_fraction':float(len(li))/max(1,len(_sub(tables['lidar_velocity'],start,end))),
-          'erpm_measured':_median(ve,'erpm'),'erpm_std':_std(ve,'erpm'),'motor_current_a':_median(ve,'motor_current'),'input_current_a':_median(ve,'input_current'),'battery_voltage_v':_median(ve,'battery_voltage'),'motor_temp_c':_median(ve,'temp_motor'),'fet_temp_c':_median(ve,'temp_fet'),
+          'vx_lidar_mps':_median(li,'vx'),'vx_lidar_std_mps':_std(li,'vx'),'lidar_pairs':int(len(li)),'lidar_valid_fraction':float(len(li))/max(1,len(li_all)),
+          'erpm_measured':_median(ve,'erpm'),'erpm_std':_std(ve,'erpm'),'motor_current_a':_median(ve,'motor_current'),'input_current_a':_median(ve,'input_current'),'battery_voltage_v':_median(ve,'battery_voltage'),'duty_cycle':_median(ve,'duty_cycle'),'motor_temp_c':_median(ve,'temp_motor'),'fet_temp_c':_median(ve,'temp_fet'),
           'odom_vx_mps':_median(od,'vx'),'odom_vx_std_mps':_std(od,'vx'),'imu_ax_mps2':_median(im,'ax'),'imu_ay_mps2':_median(im,'ay'),'imu_gz_rad_s':_median(im,'gz'),
           'selected_speed_erpm':_median(selected_speed,'value'),'selected_speed_erpm_std':_std(selected_speed,'value'),
           'selected_current_a':_median(selected_current,'value'),'selected_current_a_std':_std(selected_current,'value'),
@@ -91,6 +107,10 @@ def summarize_windows(windows:pd.DataFrame,tables:dict[str,pd.DataFrame],cfg:dic
 def straight_filter(summary:pd.DataFrame,cfg:dict)->pd.DataFrame:
     if summary.empty: return summary
     a=cfg['analysis']; valid=(summary.lidar_valid_fraction>=float(a['gates']['min_valid_lidar_fraction'])) & np.isfinite(summary.vx_lidar_mps) & (np.abs(summary.imu_gz_rad_s)<=float(a['max_straight_yaw_rate_rad_s'])) & (np.abs(summary.imu_ay_mps2)<=float(a['max_abs_lateral_accel_mps2']))
+    max_trim=float(a.get('max_straight_assist_trim_rad', math.inf))
+    if 'straight_assist_trim_rad_mean' in summary:
+        trim=summary.straight_assist_trim_rad_mean.to_numpy(dtype=float)
+        valid &= np.isfinite(trim) & (np.abs(trim)<=max_trim)
     return summary[valid].copy()
 
 def coverage(summary:pd.DataFrame, keys:list[str], expected:int)->pd.DataFrame:

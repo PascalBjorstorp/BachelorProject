@@ -3,6 +3,9 @@
 """
 
 import os
+from pathlib import Path
+
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, TimerAction
@@ -12,6 +15,31 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node, LifecycleNode
 from launch_ros.parameter_descriptions import ParameterValue
 
+
+def _geometry_defaults(vesc_config: str) -> dict[str, str]:
+    """Read the geometry promoted by the calibration campaign.
+
+    A launch-file substitution cannot inspect an arbitrary ``vesc_config``
+    override after launch has started.  The explicit arguments declared below
+    remain available for that case, while the normal stack launch receives the
+    measured defaults stored alongside the VESC calibration values.
+    """
+    defaults = {
+        'laser_to_base_x_m': '0.265', 'laser_to_base_y_m': '0.0',
+        'laser_to_base_z_m': '0.05', 'laser_to_base_yaw_rad': '0.0',
+        'imu_to_base_x_m': '0.160', 'imu_to_base_y_m': '0.0',
+        'imu_to_base_z_m': '0.0703', 'imu_to_base_yaw_rad': '0.0',
+    }
+    try:
+        document = yaml.safe_load(Path(vesc_config).read_text(encoding='utf-8')) or {}
+        geometry = document.get('vehicle_geometry', {}).get('ros__parameters', {})
+        if not isinstance(geometry, dict):
+            return defaults
+        for key, fallback in defaults.items():
+            defaults[key] = str(float(geometry.get(key, fallback)))
+    except (OSError, TypeError, ValueError, yaml.YAMLError):
+        pass
+    return defaults
 
 
 
@@ -30,6 +58,7 @@ def generate_launch_description():
     vesc_config = os.path.join(stack_pkg_dir, 'config', 'vesc.yaml')
     mux_config = os.path.join(stack_pkg_dir, 'config', 'mux.yaml')
     hokuyo_config = os.path.join(lidar_pkg_dir, 'config', 'hokuyo_ust10lx.yaml')
+    geometry = _geometry_defaults(vesc_config)
     # ── Default map path ──
     default_map = os.path.join(planner_pkg_dir, 'maps', 'my_track_map.yaml')
 
@@ -81,6 +110,31 @@ def generate_launch_description():
                                 description='Path to VESC configuration file'),
 
         DeclareLaunchArgument(
+            'laser_to_base_x_m', default_value=geometry['laser_to_base_x_m'],
+            description='base_link-to-LiDAR x [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'laser_to_base_y_m', default_value=geometry['laser_to_base_y_m'],
+            description='base_link-to-LiDAR y [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'laser_to_base_z_m', default_value=geometry['laser_to_base_z_m'],
+            description='base_link-to-LiDAR z [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'laser_to_base_yaw_rad', default_value=geometry['laser_to_base_yaw_rad'],
+            description='base_link-to-LiDAR yaw [rad]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'imu_to_base_x_m', default_value=geometry['imu_to_base_x_m'],
+            description='base_link-to-IMU x [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'imu_to_base_y_m', default_value=geometry['imu_to_base_y_m'],
+            description='base_link-to-IMU y [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'imu_to_base_z_m', default_value=geometry['imu_to_base_z_m'],
+            description='base_link-to-IMU z [m]; default is promoted vehicle_geometry'),
+        DeclareLaunchArgument(
+            'imu_to_base_yaw_rad', default_value=geometry['imu_to_base_yaw_rad'],
+            description='base_link-to-IMU yaw [rad]; default is promoted vehicle_geometry'),
+
+        DeclareLaunchArgument(
             'vesc_priority_prefix',
             default_value='taskset -c 2',
             description=(
@@ -111,11 +165,11 @@ def generate_launch_description():
         
         DeclareLaunchArgument(  'mapping_mode', 
                                 default_value='false',
-                                description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
+                                description='Mapping mode: all 1080 beams @ 40 Hz, no scan splitter or lateral planner'),
 
         DeclareLaunchArgument(  'lidar_cluster',
                                 default_value='4',
-                                description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
+                                description='Racing /scan clustering: 4=270 beams for AMCL; full_scan keeps 1080 on /scan_full'),
 
         DeclareLaunchArgument(  'lidar_ip_address',
                                 default_value='192.168.10.10',
@@ -123,9 +177,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(  'full_scan',
                                 default_value='false',
-                                description='Run LiDAR at 1080 beams on /scan_full and downsample to /scan '
-                                            '(for bagging full-res scans for offline ICP analysis). '
-                                            'Pipeline still consumes the reduced /scan.'),
+                                description='Record all 1080 beams on /scan_full while retaining the reduced racing /scan for AMCL'),
 
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='false',
@@ -165,7 +217,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'amcl_max_beams',
             default_value='270',
-            description='GPU AMCL max beams sampled from each scan'),
+            description='GPU AMCL max beams sampled from the reduced racing scan'),
 
         DeclareLaunchArgument(
             'amcl_cloud_publish_rate',
@@ -411,7 +463,8 @@ def generate_launch_description():
                 # ══════════════════════
                 #  LiDAR — Custom SCIP 2.0 driver
                 # ══════════════════════
-                # Normal mode: 270 beams @ 40 Hz (cluster=4, skip=0)
+                # Normal racing mode: 270 beams @ 40 Hz (cluster=4, skip=0).
+                # Calibration launches bypass this path and request cluster=1.
                 Node(
                     package='f1tenth_lidar',
                     executable='hokuyo_scip_driver_node',
@@ -428,10 +481,8 @@ def generate_launch_description():
                         full_scan_arg, "' != 'true'"
                     ])),
                 ),
-                # Full-scan mode (racing): driver at 1080 beams on /scan_full, then a
-                # downsampler republishes /scan (cluster=4) for the pipeline. Lets a
-                # full-resolution scan be bagged for offline ICP without slowing the
-                # pipeline (it still consumes the reduced /scan).
+                # Full-recording mode: driver publishes all 1080 beams on
+                # /scan_full while the relay keeps /scan reduced for AMCL.
                 Node(
                     package='f1tenth_lidar',
                     executable='hokuyo_scip_driver_node',
@@ -518,38 +569,40 @@ def generate_launch_description():
                 # ══════════════════════
                 #  Static transforms
                 # ══════════════════════
+                # Defaults come from the promoted vehicle_geometry section in
+                # vesc.yaml.  Explicit launch arguments support alternate
+                # configurations without changing the promoted values.
                 # ego_racecar/base_link → ego_racecar/laser
-                # Update x, y, z to match your LiDAR mounting position.
-                # Use update_vehicle_params.py in the workspace root to set all values.
                 Node(
                     package='tf2_ros',
                     executable='static_transform_publisher',
                     name='static_baselink_to_laser',
                     arguments=[
-                        '--x', '0.265',
-                        '--y', '0.0',
-                        '--z', '0.05',
+                        '--x', LaunchConfiguration('laser_to_base_x_m'),
+                        '--y', LaunchConfiguration('laser_to_base_y_m'),
+                        '--z', LaunchConfiguration('laser_to_base_z_m'),
                         '--roll', '0.0',
                         '--pitch', '0.0',
-                        '--yaw', '0.0',
+                        '--yaw', LaunchConfiguration('laser_to_base_yaw_rad'),
                         '--frame-id', 'ego_racecar/base_link',
                         '--child-frame-id', 'ego_racecar/laser',
                     ],
                 ),
 
                 # ego_racecar/base_link → ego_racecar/imu
-                # VESC firmware already compensates for upside-down mounting — identity rotation.
+                # Firmware's upside-down compensation remains separate from the
+                # measured planar mounting transform published here.
                 Node(
                     package='tf2_ros',
                     executable='static_transform_publisher',
                     name='static_baselink_to_imu',
                     arguments=[
-                        '--x', '0.11',
-                        '--y', '0.0',
-                        '--z', '0.0',
+                        '--x', LaunchConfiguration('imu_to_base_x_m'),
+                        '--y', LaunchConfiguration('imu_to_base_y_m'),
+                        '--z', LaunchConfiguration('imu_to_base_z_m'),
                         '--roll', '0.0',
                         '--pitch', '0.0',
-                        '--yaw', '0.0',
+                        '--yaw', LaunchConfiguration('imu_to_base_yaw_rad'),
                         '--frame-id', 'ego_racecar/base_link',
                         '--child-frame-id', 'ego_racecar/imu',
                     ],

@@ -23,6 +23,7 @@ import time
 from typing import Any, Dict, List, Tuple
 
 from ackermann_msgs.msg import AckermannDriveStamped
+from ament_index_python.packages import get_package_share_directory
 import f1tenth_gym  # noqa: F401 - Register environment
 from f1tenth_gym.envs.f110_env import F110Env
 from f1tenth_gym.envs.track import Track
@@ -47,8 +48,6 @@ from tf2_ros import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from transforms3d import euler
 from vesc_msgs.msg import VescStateStamped
-from ament_index_python.packages import get_package_share_directory
-import os
 
 
 def _source_maps_dir() -> pathlib.Path:
@@ -74,6 +73,7 @@ def _resolve_map_yaml_path(map_path: str) -> pathlib.Path:
             return candidate.resolve()
 
     return candidates[0]
+
 
 # Constants for timer periods (in seconds)
 PUBLISH_TIMER_PERIOD: float = 0.005  # 200 Hz for sensor data publishing (matches sim_timestep)
@@ -104,13 +104,13 @@ class GymBridge(Node):
         num_agents = self._validate_num_agents()
         self.vehicle_params = self._get_vehicle_params()
         scale = self.get_parameter('scale').value
-        
+
         # Get noise parameters for realistic simulation
         self._odom_noise_enabled = self.get_parameter('odom_noise_enabled').value
         self._odom_pos_noise_std = self.get_parameter('odom_pos_noise_std').value
         self._odom_vel_noise_std = self.get_parameter('odom_vel_noise_std').value
         self._odom_yaw_noise_std = self.get_parameter('odom_yaw_noise_std').value
-        
+
         # Get TF frame configuration
         self._tf_frame_id = self.get_parameter('tf_frame_id').value
         self._odom_frame_id = self.get_parameter('odom_frame_id').value
@@ -144,6 +144,8 @@ class GymBridge(Node):
             'sim_vesc_motor_accel_limit').value
         self._sim_vesc_command_timeout_sec = self.get_parameter(
             'sim_vesc_command_timeout_sec').value
+        self._sim_vesc_brake_stop_speed = max(
+            0.0, float(self.get_parameter('sim_vesc_brake_stop_speed').value))
         if self._sim_vesc_accel_to_current_gain == 0.0:
             raise ValueError('sim_vesc_accel_to_current_gain must be non-zero')
         if self._sim_vesc_accel_to_brake_gain == 0.0:
@@ -191,30 +193,35 @@ class GymBridge(Node):
         self._sim_vesc_last_time_sec = None
         self._sim_vesc_last_vx = 0.0
         self._sim_vesc_last_vy = 0.0
-        
+
         # Get scan rate limiting configuration
         self._scan_publish_rate = self.get_parameter('scan_publish_rate').value
         self._last_scan_time = 0.0
         if self._scan_publish_rate > 0:
             self._scan_period = 1.0 / self._scan_publish_rate
-            self.get_logger().info(f'Scan publish rate limited to {self._scan_publish_rate:.1f} Hz')
+            self.get_logger().info(
+                f'Scan publish rate limited to {self._scan_publish_rate:.1f} Hz')
         else:
             self._scan_period = 0.0
-        
+
         if self._odom_noise_enabled:
             self.get_logger().info(
                 f'Odometry noise ENABLED: pos_std={self._odom_pos_noise_std:.3f}m, '
-                f'vel_std={self._odom_vel_noise_std:.3f}m/s, yaw_std={self._odom_yaw_noise_std:.4f}rad')
-        
+                f'vel_std={self._odom_vel_noise_std:.3f}m/s, '
+                f'yaw_std={self._odom_yaw_noise_std:.4f}rad')
+
         if self._tf_frame_id != 'map' or self._odom_frame_id != 'map':
             self.get_logger().info(
-                f'TF frames configured: tf_frame={self._tf_frame_id}, odom_frame={self._odom_frame_id}')
+                f'TF frames configured: tf_frame={self._tf_frame_id}, '
+                f'odom_frame={self._odom_frame_id}')
         if self._publish_sim_vesc_sensors:
             self.get_logger().info(
-                'Simulated VESC sensors enabled: publishing wheel speed, IMU yaw-rate, and servo command.')
+                'Simulated VESC sensors enabled: publishing wheel speed, '
+                'IMU yaw-rate, and servo command.')
         if self._drive_input_mode == 'vesc':
             self.get_logger().info(
-                'Simulated VESC command input enabled: consuming current, brake, ERPM, and servo commands.')
+                'Simulated VESC command input enabled: consuming current, '
+                'brake, ERPM, and servo commands.')
 
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
@@ -276,7 +283,7 @@ class GymBridge(Node):
         self.declare_parameter('opp_ego_odom_topic', 'opp_odom')
         self.declare_parameter('opp_scan_topic', 'opp_scan')
         self.declare_parameter('opp_drive_topic', 'opp_drive')
-        self.declare_parameter('scan_distance_to_base_link', 0.275)
+        self.declare_parameter('scan_distance_to_base_link', 0.265)
         self.declare_parameter('scan_fov', 4.7)
         self.declare_parameter('scan_beams', 1080)
         self.declare_parameter('scan_range_max', 30.0)
@@ -298,7 +305,8 @@ class GymBridge(Node):
         self.declare_parameter('use_sim_time_bridge', False)
         self.declare_parameter('scan_noise_std', 0.0)
         self.declare_parameter('headless', False)  # Disable rendering for headless systems
-        self.declare_parameter('real_time_factor', 0.0)  # 0 = unlimited, 1.0 = real-time, 0.5 = half speed
+        # 0 = unlimited, 1.0 = real-time, 0.5 = half speed.
+        self.declare_parameter('real_time_factor', 0.0)
         self.declare_parameter('drive_uses_acceleration_field', False)
         self.declare_parameter('drive_input_mode', 'ackermann')
         self.declare_parameter('sim_vesc_current_topic', 'commands/motor/current')
@@ -312,14 +320,14 @@ class GymBridge(Node):
         self.declare_parameter('sim_vesc_erpm_speed_tau', 0.15)
         self.declare_parameter('sim_vesc_motor_accel_limit', 7.31)
         self.declare_parameter('sim_vesc_command_timeout_sec', 0.20)
+        self.declare_parameter('sim_vesc_brake_stop_speed', 0.05)
 
-        
         # Sensor noise parameters for realistic simulation
         self.declare_parameter('odom_noise_enabled', False)  # Enable odometry noise
         self.declare_parameter('odom_pos_noise_std', 0.01)   # Position noise std dev (m)
         self.declare_parameter('odom_vel_noise_std', 0.05)   # Velocity noise std dev (m/s)
         self.declare_parameter('odom_yaw_noise_std', 0.005)  # Yaw noise std dev (rad)
-        
+
         # TF frame configuration
         self.declare_parameter('tf_frame_id', 'map')         # Parent frame for TF (map or odom)
         self.declare_parameter('odom_frame_id', 'map')       # Parent frame for odom topic
@@ -344,7 +352,7 @@ class GymBridge(Node):
         self.declare_parameter('sim_vesc_steering_correction_c2', 0.589566)
         self.declare_parameter('sim_vesc_steering_correction_c1', 0.918061)
         self.declare_parameter('sim_vesc_steering_correction_c0', 0.001490)
-        
+
         # Scan publish rate limiting (for realistic 40Hz LiDAR simulation)
         self.declare_parameter('scan_publish_rate', 0.0)     # 0 = no limit, >0 = Hz limit
 
@@ -416,7 +424,7 @@ class GymBridge(Node):
         }
         if vehicle_type not in params_map:
             raise ValueError(
-                f"vehicle_params should be one of: {list(params_map.keys())}"
+                f'vehicle_params should be one of: {list(params_map.keys())}'
             )
         params = params_map[vehicle_type]()
 
@@ -473,7 +481,8 @@ class GymBridge(Node):
         params['realistic_plant_enabled'] = bool(realistic_enabled)
         if realistic_enabled:
             params.update({
-                'realistic_actuation_enabled': self.get_parameter('realistic_actuation_enabled').value,
+                'realistic_actuation_enabled': self.get_parameter(
+                    'realistic_actuation_enabled').value,
                 'realistic_drive_enabled': True,
                 'pacejka_tires_enabled': True,
                 'mu_front': self.get_parameter('vehicle_mu_front').value,
@@ -493,7 +502,8 @@ class GymBridge(Node):
                 'pacejka_c': self.get_parameter('vehicle_pacejka_c').value,
                 'pacejka_c_front': self.get_parameter('vehicle_pacejka_c_front').value,
                 'pacejka_c_rear': self.get_parameter('vehicle_pacejka_c_rear').value,
-                'slip_blend_start_front': self.get_parameter('vehicle_slip_blend_start_front').value,
+                'slip_blend_start_front': self.get_parameter(
+                    'vehicle_slip_blend_start_front').value,
                 'slip_blend_end_front': self.get_parameter('vehicle_slip_blend_end_front').value,
                 'slip_blend_start_rear': self.get_parameter('vehicle_slip_blend_start_rear').value,
                 'slip_blend_end_rear': self.get_parameter('vehicle_slip_blend_end_rear').value,
@@ -530,7 +540,7 @@ class GymBridge(Node):
         render_mode = None if headless else 'rgb_array'
         if headless:
             self.get_logger().info('Running in HEADLESS mode (no rendering)')
-        
+
         # Create environment
         sim_timestep = self.get_parameter('sim_timestep').value
         try:
@@ -576,7 +586,9 @@ class GymBridge(Node):
         self._scan_beams = int(scan_beams)
         self.angle_min = -scan_fov / 2.0
         self.angle_max = scan_fov / 2.0
-        self.angle_inc = scan_fov / scan_beams
+        # LaserScan samples include both angular endpoints. Match the gym scan
+        # simulator and preserve angle_max = angle_min + (N-1)*increment.
+        self.angle_inc = scan_fov / max(1, scan_beams - 1)
         self.scan_range_max = self.get_parameter('scan_range_max').value
 
         self.ego_namespace = self.get_parameter('ego_namespace').value
@@ -913,10 +925,14 @@ class GymBridge(Node):
         self._sim_vesc_last_motor_current = float(msg.data)
         self._sim_vesc_last_brake_current = 0.0
         self._sim_vesc_last_input_current = max(float(msg.data), 0.0)
-        self.ego_requested_speed = (
+        requested_accel = (
             float(msg.data) /
             self._sim_vesc_accel_to_current_gain *
             self._sim_vesc_current_accel_scale)
+        self.ego_requested_speed = float(np.clip(
+            requested_accel,
+            -self._sim_vesc_motor_accel_limit,
+            self._sim_vesc_motor_accel_limit))
         self._mark_sim_vesc_command()
 
     def sim_vesc_brake_callback(self, msg: Float64) -> None:
@@ -927,10 +943,23 @@ class GymBridge(Node):
         self._sim_vesc_last_motor_current = 0.0
         self._sim_vesc_last_brake_current = max(float(msg.data), 0.0)
         self._sim_vesc_last_input_current = -self._sim_vesc_last_brake_current
-        self.ego_requested_speed = (
-            -self._sim_vesc_last_brake_current /
+        # A VESC brake-current command dissipates kinetic energy; it must not
+        # become a reverse-throttle command after crossing zero speed. This is
+        # especially important when AckermannToVesc emits its large emergency
+        # brake value for a zero-speed request.
+        brake_accel = (
+            self._sim_vesc_last_brake_current /
             self._sim_vesc_accel_to_brake_gain *
             self._sim_vesc_brake_accel_scale)
+        brake_accel = float(np.clip(
+            brake_accel, 0.0, self._sim_vesc_motor_accel_limit))
+        longitudinal_speed = float(self.ego_speed[0])
+        if longitudinal_speed > self._sim_vesc_brake_stop_speed:
+            self.ego_requested_speed = -brake_accel
+        elif longitudinal_speed < -self._sim_vesc_brake_stop_speed:
+            self.ego_requested_speed = brake_accel
+        else:
+            self.ego_requested_speed = 0.0
         self._mark_sim_vesc_command()
 
     def sim_vesc_motor_speed_callback(self, msg: Float64) -> None:
@@ -1228,9 +1257,12 @@ class GymBridge(Node):
             # But don't let it drift too far behind (max 2 periods behind)
             if current_time - self._last_scan_time > self._scan_period * 2:
                 self._last_scan_time = current_time
-        
+
         # Get noise stddev from parameter (default to 0.0 if not set)
-        scan_noise_std = self.get_parameter('scan_noise_std').value if self.has_parameter('scan_noise_std') else 0.0
+        scan_noise_std = (
+            self.get_parameter('scan_noise_std').value
+            if self.has_parameter('scan_noise_std') else 0.0
+        )
 
         # Ego scan
         ego_scan = np.array(self.ego_scan)
@@ -1307,7 +1339,7 @@ class GymBridge(Node):
                          speed: List[float]) -> None:
         """Update an Odometry message in-place with optional noise injection."""
         odom.header.stamp = ts
-        
+
         # Apply position noise if enabled
         if self._odom_noise_enabled:
             noisy_x = pose[0] + np.random.normal(0, self._odom_pos_noise_std)
@@ -1319,7 +1351,7 @@ class GymBridge(Node):
         else:
             noisy_x, noisy_y, noisy_yaw = pose[0], pose[1], pose[2]
             noisy_vx, noisy_vy, noisy_wz = speed[0], speed[1], speed[2]
-        
+
         odom.pose.pose.position.x = noisy_x
         odom.pose.pose.position.y = noisy_y
 

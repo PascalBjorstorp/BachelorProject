@@ -20,7 +20,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from imu_bias import estimate_imu_bias
+from imu_bias import correction_enabled, estimate_imu_bias
+from lidar_windows import read_motion
 from trials import accepted_trial_ids
 
 
@@ -84,13 +85,52 @@ def add_nominal_condition_keys(rows: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def rear_axle_velocity(vx_base: float, vy_base: float, yaw_rate: float,
+                       rear_axle_x_m: float, rear_axle_y_m: float) -> tuple[float, float]:
+    """Translate a base-link velocity measurement to the rear-axle midpoint.
+
+    The low-speed bicycle relation used by the static map is written at the
+    rear axle: ``tan(delta) = L * r / v_x,rear``.  LiDAR motion is deliberately
+    transformed to ``base_link`` first, so using it directly here silently
+    assumes that ``base_link`` is on the rear axle.  Keeping this small rigid
+    body translation explicit makes the map valid when the base frame is
+    mounted elsewhere on the chassis.
+    """
+    values = (vx_base, vy_base, yaw_rate, rear_axle_x_m, rear_axle_y_m)
+    if not all(np.isfinite(float(value)) for value in values):
+        return float("nan"), float("nan")
+    return (
+        float(vx_base - yaw_rate * rear_axle_y_m),
+        float(vy_base + yaw_rate * rear_axle_x_m),
+    )
+
+
+def rear_axle_geometry(cfg: dict) -> tuple[float, float]:
+    """Read the rear-axle reference from a frozen calibration configuration.
+
+    A legacy standalone steering session may not have the newer direct
+    metrology fields, in which case the historical base-link-at-rear-axle
+    assumption remains explicit. Unified sessions overwrite both fields before
+    this fitter is allowed to run.
+    """
+    hardware = cfg.get("hardware", {}) if isinstance(cfg, dict) else {}
+    try:
+        return (
+            float(hardware.get("base_link_to_rear_axle_x_m", 0.0)),
+            float(hardware.get("base_link_to_rear_axle_y_m", 0.0)),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError("static steering map has invalid base_link-to-rear-axle geometry") from exc
+
+
 def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dict,
-                 bias=None) -> pd.DataFrame:
+                 bias=None, *, rear_axle_x_m: float = 0.0,
+                 rear_axle_y_m: float = 0.0) -> pd.DataFrame:
     d = stage_dir / "derived"
     events = pd.read_parquet(d / "events.parquet")
     imu = pd.read_parquet(d / "imu.parquet")
     echo = pd.read_parquet(d / "servo_echo.parquet")
-    lidar = pd.read_parquet(d / "lidar_velocity.parquet")
+    lidar = read_motion(d)
     rows = []
     for start, end in capture_intervals(events):
         target = latest_target(events, int(start["bag_ns"]), str(start.get("trial_id")))
@@ -105,22 +145,36 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
         if len(im) < 10 or len(ec) < 3 or len(lv_all) < 3 or len(lv) < 3:
             continue
         valid_fraction = float(len(lv) / len(lv_all))
-        # Subtract the stationary gyro-z offset (at this segment's time) before
-        # deriving any curvature; ay offset removes the resting gravity tilt.
+        # A unified session treats the stationary epoch as a diagnostic by
+        # default: bringup recalibrates the IMU for each launched stack.  The
+        # profile can explicitly retain the legacy correction policy, but it is
+        # never silently assumed here.
         gz_bias = bias.gz_at(0.5 * (a + b)) if bias is not None else 0.0
-        ay_bias = bias.ay_bias if bias is not None else 0.0
-        vx, gz = float(lv.vx.median()), float(im.gz.median()) - gz_bias
-        vx_std, gz_std = _mad_std(lv.vx), _mad_std(im.gz)
+        ay_bias = bias.ay_bias if bias is not None and bias.correction_applied else 0.0
+        vx_base = float(lv.vx.median())
+        vy_base = float(lv.vy.median()) if "vy" in lv else float("nan")
+        vx_std = _mad_std(lv.vx)
+        # The robust LiDAR multi-registration window is the independent
+        # vehicle-motion reference.  IMU yaw remains a high-rate diagnostic,
+        # not the source of the raw-servo-to-effective-steering map.
+        lidar_gz = float(lv.yaw_rate_icp.median()) if "yaw_rate_icp" in lv else float("nan")
+        lidar_gz_std = _mad_std(lv.yaw_rate_icp) if "yaw_rate_icp" in lv else float("nan")
+        imu_gz = float(im.gz.median()) - gz_bias
+        imu_gz_std = _mad_std(im.gz)
         ay_mean, ay_std = float(im.ay.median()) - ay_bias, _mad_std(im.ay)
         rmse = float(lv.icp_rmse_m.median())
+        vx_rear, vy_rear = rear_axle_velocity(
+            vx_base, vy_base, lidar_gz, rear_axle_x_m, rear_axle_y_m,
+        )
         accepted = (
             valid_fraction >= float(criteria["min_valid_scan_fraction"]) and
-            abs(vx) >= float(criteria["min_lidar_speed_mps"]) and
+            abs(vx_rear) >= float(criteria["min_lidar_speed_mps"]) and
             vx_std <= float(criteria["max_lidar_speed_std_mps"]) and
-            gz_std <= float(criteria["max_yaw_std_rad_s"]) and
+            np.isfinite(lidar_gz) and
+            lidar_gz_std <= float(criteria.get("max_lidar_yaw_std_rad_s", criteria["max_yaw_std_rad_s"])) and
             rmse <= float(criteria["max_icp_rmse_m"])
         )
-        delta = float(np.arctan(wheelbase * gz / vx))
+        delta = float(np.arctan(wheelbase * lidar_gz / vx_rear)) if np.isfinite(lidar_gz) and np.isfinite(vx_rear) and abs(vx_rear) > 1e-9 else float("nan")
         rows.append({
             "trial_id": start.get("trial_id"),
             "condition_id": target.get("condition_id", start.get("segment_id")),
@@ -131,14 +185,25 @@ def segment_rows(stage_dir: Path, wheelbase: float, trim_s: float, criteria: dic
             "fraction": target.get("fraction"),
             "approach": target.get("approach"),
             "sweep": target.get("sweep"),
-            "vx_lidar": vx,
+            "vx_lidar_base_link": vx_base,
+            "vy_lidar_base_link": vy_base,
+            "vx_lidar": vx_rear,
+            "vy_lidar_rear_axle": vy_rear,
             "vx_lidar_std": vx_std,
-            "yaw_rate": gz,
-            "yaw_rate_std": gz_std,
+            "yaw_rate": lidar_gz,
+            "yaw_rate_std": lidar_gz_std,
+            "yaw_rate_lidar_rad_s": lidar_gz,
+            "yaw_rate_lidar_std_rad_s": lidar_gz_std,
+            "yaw_rate_imu_rad_s": imu_gz,
+            "yaw_rate_imu_std_rad_s": imu_gz_std,
+            "imu_minus_lidar_yaw_rate_rad_s": imu_gz - lidar_gz,
+            "gyro_z_bias_applied_rad_s": gz_bias,
             "imu_ay_mean": ay_mean,
             "imu_ay_std": ay_std,
-            "curvature_inv_m": float(gz / vx),
-            "lateral_accel_kinematic_mps2": float(vx * gz),
+            "curvature_inv_m": float(lidar_gz / vx_rear) if np.isfinite(lidar_gz) and np.isfinite(vx_rear) and abs(vx_rear) > 1e-9 else float("nan"),
+            "lateral_accel_kinematic_mps2": float(vx_rear * lidar_gz) if np.isfinite(vx_rear) and np.isfinite(lidar_gz) else float("nan"),
+            "rear_axle_in_base_link_x_m": float(rear_axle_x_m),
+            "rear_axle_in_base_link_y_m": float(rear_axle_y_m),
             "icp_rmse_m": rmse,
             "valid_scan_fraction": valid_fraction,
             "delta_eq_rad": delta,
@@ -295,9 +360,16 @@ def main() -> int:
     criteria = cfg["analysis"]["map"]
     static_cfg = cfg["static_map"]
     wheelbase = float(cfg["hardware"]["wheelbase_m"])
-    bias = estimate_imu_bias(session)
-    train = segment_rows(session / "04_static_map_training", wheelbase, float(criteria["trim_s"]), criteria, bias)
-    holdout = segment_rows(session / "05_static_map_holdout", wheelbase, float(criteria["trim_s"]), criteria, bias)
+    bias = estimate_imu_bias(session, apply_correction=correction_enabled(cfg))
+    rear_x, rear_y = rear_axle_geometry(cfg)
+    train = segment_rows(
+        session / "04_static_map_training", wheelbase, float(criteria["trim_s"]), criteria, bias,
+        rear_axle_x_m=rear_x, rear_axle_y_m=rear_y,
+    )
+    holdout = segment_rows(
+        session / "05_static_map_holdout", wheelbase, float(criteria["trim_s"]), criteria, bias,
+        rear_axle_x_m=rear_x, rear_axle_y_m=rear_y,
+    )
     if len(train) == 0:
         raise SystemExit("no usable static-map training segments")
     analysis_dir = session / "analysis"
@@ -358,6 +430,7 @@ def main() -> int:
 
     candidate: dict[str, Any] = {
         "centre_servo_raw": float(centre["centre_servo_raw"]),
+        "rear_axle_in_base_link": {"x_m": rear_x, "y_m": rear_y},
         "gyro_z_bias": bias.to_dict(),
         "raw_servo": x.tolist(),
         "delta_eq_rad": y.tolist(),

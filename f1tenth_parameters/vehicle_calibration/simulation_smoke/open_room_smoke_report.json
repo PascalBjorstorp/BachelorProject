@@ -1,0 +1,76 @@
+{
+  "steering": {
+    "map": "calibration_room_map (14 x 14 m; central 12 x 12 m clear; diagonal lane)",
+    "scan_messages": 131,
+    "scan_lengths": [
+      1080
+    ],
+    "scan_rate_hz": 39.39409650124397,
+    "odom_messages": 576,
+    "ground_truth_messages": 576,
+    "imu_messages": 576,
+    "core_messages": 576,
+    "servo_echo_messages": 575,
+    "maximum_abs_position_m": 0.6011709570884705,
+    "maximum_abs_odom_position_m": 0.6704259317067838,
+    "ground_truth_start_xy": [
+      0.0,
+      0.0
+    ],
+    "ground_truth_end_xy": [
+      0.3747050166130066,
+      0.5817262530326843
+    ],
+    "odom_start_xy": [
+      0.0,
+      0.0
+    ],
+    "odom_end_xy": [
+      0.6696901306777474,
+      0.09335088313524172
+    ],
+    "ground_truth_heading_change_rad": 0.2973371148109438,
+    "selected_servo_median": 0.45,
+    "failures": [],
+    "status": "pass",
+    "log": "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/simulation_smoke/steering_open_room_ros.log"
+  },
+  "erpm": {
+    "map": "calibration_room_map (14 x 14 m; central 12 x 12 m clear; diagonal lane)",
+    "scan_messages": 144,
+    "scan_lengths": [
+      1080
+    ],
+    "scan_rate_hz": 39.99992744085496,
+    "odom_messages": 705,
+    "ground_truth_messages": 707,
+    "imu_messages": 706,
+    "core_messages": 706,
+    "servo_echo_messages": 706,
+    "maximum_abs_position_m": 0.7363840341567993,
+    "maximum_abs_odom_position_m": 0.6859800938565733,
+    "ground_truth_start_xy": [
+      0.0,
+      0.0
+    ],
+    "ground_truth_end_xy": [
+      0.3113805651664734,
+      0.7363840341567993
+    ],
+    "odom_start_xy": [
+      0.0,
+      0.0
+    ],
+    "odom_end_xy": [
+      0.6859800938565733,
+      0.21911702654290494
+    ],
+    "ground_truth_heading_change_rad": 0.5530292391777039,
+    "selected_speed_peak_erpm": 1200.0,
+    "selected_brake_peak_a": 1.0,
+    "failures": [],
+    "status": "pass",
+    "log": "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/simulation_smoke/erpm_open_room_ros.log"
+  },
+  "status": "pass"
+}

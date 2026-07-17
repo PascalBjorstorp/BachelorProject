@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 import yaml
 from geometry_msgs.msg import Quaternion
 from nav_msgs.msg import Odometry
@@ -110,7 +111,10 @@ def main()->int:
     parser=argparse.ArgumentParser(); parser.add_argument('--candidate-patch',type=Path,required=True); args=parser.parse_args()
     rclpy.init(); node=AdaptiveOdomShadow(args.candidate_patch.resolve())
     try: rclpy.spin(node)
-    finally: node.destroy_node(); rclpy.shutdown()
+    except (KeyboardInterrupt, ExternalShutdownException): pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok(): rclpy.shutdown()
     return 0
 
 if __name__=='__main__': raise SystemExit(main())

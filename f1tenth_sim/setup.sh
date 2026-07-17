@@ -84,7 +84,7 @@ echo "✓ Package built successfully"
 echo ""
 echo "Configuring map path..."
 SIM_YAML="$SCRIPT_DIR/config/sim.yaml"
-DEFAULT_MAP="my_track_map"
+DEFAULT_MAP="calibration_room_map"
 sed -i "s|map_path:.*|map_path: '$DEFAULT_MAP'|" "$SIM_YAML"
 echo "✓ Map path set to: $DEFAULT_MAP"
 

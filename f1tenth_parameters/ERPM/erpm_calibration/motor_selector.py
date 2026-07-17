@@ -11,6 +11,7 @@ import json
 from typing import Iterable
 import rclpy
 from rcl_interfaces.msg import SetParametersResult
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -122,6 +123,10 @@ class MotorSelector(Node):
 def main() -> int:
     rclpy.init(); node = MotorSelector()
     try: rclpy.spin(node)
-    finally: node.destroy_node(); rclpy.shutdown()
+    except (KeyboardInterrupt, ExternalShutdownException): pass
+    finally:
+        node.destroy_node()
+        # The ROS signal handler can shut the context down before spin exits.
+        if rclpy.ok(): rclpy.shutdown()
     return 0
 if __name__ == '__main__': raise SystemExit(main())

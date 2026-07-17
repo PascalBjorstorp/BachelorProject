@@ -1,0 +1,56 @@
+{
+  "output": "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/preview/real_steering_20260625/01_zero_curvature_centre/derived/lidar_velocity.parquet",
+  "window_output": "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_parameters/vehicle_calibration/preview/real_steering_20260625/01_zero_curvature_centre/derived/lidar_window_motion.parquet",
+  "scan_pairs": 2858,
+  "valid_pairs": 2637,
+  "motion_measurement": "IMU-yaw-seeded, odometry-unseeded point-to-line registrations over displacement-targeted scan baselines; all parameter fitters consume robust multi-registration time windows, not individual pairs",
+  "pairing": {
+    "mode": "displacement_targeted",
+    "target_displacement_m": 0.12,
+    "min_baseline_s": 0.04,
+    "max_baseline_s": 0.32,
+    "predicted_speed_floor_mps": 0.3
+  },
+  "window_aggregation": {
+    "enabled": true,
+    "window_s": 0.5,
+    "stride_s": 0.1,
+    "minimum_window_s": 0.35,
+    "min_valid_pairs": 5.0,
+    "min_valid_fraction": 0.65,
+    "windows_written": 684,
+    "valid_windows": 665
+  },
+  "capture_window_filter": {
+    "enabled": true,
+    "windows": 12,
+    "scope": "accepted trial capture windows only; pairs never cross operator moves"
+  },
+  "motion_deskew_enabled": true,
+  "constant_velocity_translation_seed_enabled": true,
+  "robust_weighting": {
+    "huber_delta_scale": 2.5,
+    "range_weight_reference_m": 4.0,
+    "minimum_range_weight": 0.2,
+    "wls_convention": "square-root weights in solve; identical weights in covariance and cost"
+  },
+  "pair_uncertainty_gates": {
+    "max_translation_std_m": 0.025,
+    "max_yaw_std_rad": 0.015
+  },
+  "self_scan_filter": {
+    "enabled": true,
+    "x_min_m": -0.35,
+    "x_max_m": 0.45,
+    "y_min_m": -0.22,
+    "y_max_m": 0.22
+  },
+  "laser_to_base_geometry_used": {
+    "x_m": 0.265,
+    "y_m": 0.0,
+    "z_m": 0.05,
+    "yaw_rad": 0.0,
+    "base_frame_id": "ego_racecar/base_link",
+    "laser_frame_id": "ego_racecar/laser"
+  }
+}

@@ -1,0 +1,770 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=20mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{float}
+\setlength{\parindent}{0pt}
+\begin{document}
+\begin{titlepage}
+\centering
+{\LARGE Unified vehicle calibration report\par}
+\vspace{1cm}
+{\large Session: \texttt{real\_steering\_20260625}\par}
+\vfill
+This document is regenerated after every completed stage. Each following page records the capture, analysis/update, and independent-validation role of one stage.
+\end{titlepage}
+\tableofcontents
+\clearpage
+\clearpage
+\small
+\section*{Steering command-chain audit}
+\addcontentsline{toc}{section}{Steering command-chain audit}
+\textbf{Stage key:} \texttt{steering\_command\_audit}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific data.
+
+\subsection*{B --- Analysis and candidate update}
+B — Run its quality analysis and preserve the result.
+
+\subsection*{C --- Independent validation}
+C — Use the result as a prerequisite or independent validation for downstream fitted stages.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_command\_audit.png}\\
+\textit{Stage plot: Steering command-chain audit}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../00\_command\_chain\_audit/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_command\_audit.md}
+\clearpage
+\small
+\section*{Direct physical vehicle metrology}
+\addcontentsline{toc}{section}{Direct physical vehicle metrology}
+\textbf{Stage key:} \texttt{physical\_metrology}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Measure the race-ready car using the session-local physical-measurements sheet.
+
+\subsection*{B --- Analysis and candidate update}
+B — Check SI units and mass/axle-load closure; derive l\_f/l\_r, freeze LiDAR/rear-axle/IMU reference geometry, apply the reversible dynamic-model geometry patch, and rebuild.
+
+\subsection*{C --- Independent validation}
+C — This is direct metrology, not a fitted time-series model; later independent motion stages use the rebuilt geometry and it remains an audited prerequisite for lateral identification.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../00a\_physical\_metrology/}\\
+\textbf{Stage report:} \texttt{stage\_reports/physical\_metrology.md}
+\clearpage
+\small
+\section*{LiDAR/IMU observability check}
+\addcontentsline{toc}{section}{LiDAR/IMU observability check}
+\textbf{Stage key:} \texttt{steering\_observability}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific data.
+
+\subsection*{B --- Analysis and candidate update}
+B — Run its quality analysis and preserve the result.
+
+\subsection*{C --- Independent validation}
+C — Use the result as a prerequisite or independent validation for downstream fitted stages.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_observability.png}\\
+\textit{Stage plot: LiDAR/IMU observability check}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../03\_sensor\_observability/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_observability.md}
+\clearpage
+\small
+\section*{Steering offset: training capture and fit}
+\addcontentsline{toc}{section}{Steering offset: training capture and fit}
+\textbf{Stage key:} \texttt{steering\_centre}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record independent training captures.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit, gate, apply the candidate patch, and rebuild inside the reversible transaction.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out/validation stage evaluates the applied candidate on new data.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_centre.png}\\
+\textit{Stage plot: Steering offset: training capture and fit}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../01\_zero\_curvature\_centre/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_centre.md}
+\clearpage
+\small
+\section*{Steering offset: independent straightness validation}
+\addcontentsline{toc}{section}{Steering offset: independent straightness validation}
+\textbf{Stage key:} \texttt{steering\_centre\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../01a\_zero\_curvature\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_centre\_validation.md}
+\clearpage
+\small
+\section*{Human steering-limit survey}
+\addcontentsline{toc}{section}{Human steering-limit survey}
+\textbf{Stage key:} \texttt{steering\_endstops}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Human records the last mechanically free steering limit on each side.
+
+\subsection*{B --- Analysis and candidate update}
+B — The safe raw-servo envelope is stored and checked against the validated centre.
+
+\subsection*{C --- Independent validation}
+C — This is a manual safety prerequisite, not a statistical fitted model.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_endstops.png}\\
+\textit{Stage plot: Human steering-limit survey}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../02\_physical\_endstops/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_endstops.md}
+\clearpage
+\small
+\section*{Servo-to-effective-steering training}
+\addcontentsline{toc}{section}{Servo-to-effective-steering training}
+\textbf{Stage key:} \texttt{steering\_static\_training}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record independent training captures.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit, gate, apply the candidate patch, and rebuild inside the reversible transaction.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out/validation stage evaluates the applied candidate on new data.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_static\_training.png}\\
+\textit{Stage plot: Servo-to-effective-steering training}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../04\_static\_map\_training/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_static\_training.md}
+\clearpage
+\small
+\section*{Servo-to-effective-steering hold-out validation}
+\addcontentsline{toc}{section}{Servo-to-effective-steering hold-out validation}
+\textbf{Stage key:} \texttt{steering\_static\_holdout}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_static\_holdout.png}\\
+\textit{Stage plot: Servo-to-effective-steering hold-out validation}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../05\_static\_map\_holdout/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_static\_holdout.md}
+\clearpage
+\small
+\section*{Steering response: training characterisation}
+\addcontentsline{toc}{section}{Steering response: training characterisation}
+\textbf{Stage key:} \texttt{steering\_response}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific candidate/training command grid.
+
+\subsection*{B --- Analysis and candidate update}
+B — Estimate timing/routing metrics and preserve the candidate evidence; no hidden refit is made on later C data.
+
+\subsection*{C --- Independent validation}
+C — The following explicitly named hold-out stage records different commands and evaluates the frozen result.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.78\textwidth,height=0.32\textheight,keepaspectratio]{../plots/stages/steering\_response.png}\\
+\textit{Stage plot: Steering response: training characterisation}
+\end{center}
+
+\vfill
+\textbf{Raw data:} \texttt{../06\_command\_to\_curvature\_response/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_response.md}
+\clearpage
+\small
+\section*{Steering response: independent hold-out}
+\addcontentsline{toc}{section}{Steering response: independent hold-out}
+\textbf{Stage key:} \texttt{steering\_response\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../06a\_command\_to\_curvature\_response\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/steering\_response\_validation.md}
+\clearpage
+\small
+\section*{Motor command-chain audit}
+\addcontentsline{toc}{section}{Motor command-chain audit}
+\textbf{Stage key:} \texttt{motor\_command\_audit}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific data.
+
+\subsection*{B --- Analysis and candidate update}
+B — Run its quality analysis and preserve the result.
+
+\subsection*{C --- Independent validation}
+C — Use the result as a prerequisite or independent validation for downstream fitted stages.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../00b\_motor\_command\_chain\_audit/}\\
+\textbf{Stage report:} \texttt{stage\_reports/motor\_command\_audit.md}
+\clearpage
+\small
+\section*{Longitudinal sensor observability}
+\addcontentsline{toc}{section}{Longitudinal sensor observability}
+\textbf{Stage key:} \texttt{longitudinal\_observability}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Capture a stationary diagnostic and repeated low/medium/high-speed straight passes.
+
+\subsection*{B --- Analysis and candidate update}
+B — Gate the robust moving LiDAR-window measurement quality and write the stationary noise diagnostic.
+
+\subsection*{C --- Independent validation}
+C — Later ERPM training is blocked unless this independent moving-sensor preflight passed.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../01\_longitudinal\_observability/}\\
+\textbf{Stage report:} \texttt{stage\_reports/longitudinal\_observability.md}
+\clearpage
+\small
+\section*{Low-speed launch characterisation}
+\addcontentsline{toc}{section}{Low-speed launch characterisation}
+\textbf{Stage key:} \texttt{low\_speed\_launch}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Capture repeated raw-ERPM launches at the low-speed grid.
+
+\subsection*{B --- Analysis and candidate update}
+B — Report condition coverage and the first repeatable LiDAR ground-motion threshold; do not prematurely fit the full speed map.
+
+\subsection*{C --- Independent validation}
+C — The later rebuilt VEL\_TO\_ERPM pipeline audit checks the resulting slow-start setting on new commands.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../02\_low\_speed\_launch/}\\
+\textbf{Stage report:} \texttt{stage\_reports/low\_speed\_launch.md}
+\clearpage
+\small
+\section*{ERPM-to-ground-speed training}
+\addcontentsline{toc}{section}{ERPM-to-ground-speed training}
+\textbf{Stage key:} \texttt{erpm\_map\_training}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record independent training captures.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit, gate, apply the candidate patch, and rebuild inside the reversible transaction.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out/validation stage evaluates the applied candidate on new data.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../03\_raw\_erpm\_map\_training/}\\
+\textbf{Stage report:} \texttt{stage\_reports/erpm\_map\_training.md}
+\clearpage
+\small
+\section*{ERPM-to-ground-speed hold-out validation}
+\addcontentsline{toc}{section}{ERPM-to-ground-speed hold-out validation}
+\textbf{Stage key:} \texttt{erpm\_map\_holdout}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../04\_raw\_erpm\_map\_holdout/}\\
+\textbf{Stage report:} \texttt{stage\_reports/erpm\_map\_holdout.md}
+\clearpage
+\small
+\section*{Velocity-to-ERPM command-path validation}
+\addcontentsline{toc}{section}{Velocity-to-ERPM command-path validation}
+\textbf{Stage key:} \texttt{vel\_to\_erpm\_audit}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific data.
+
+\subsection*{B --- Analysis and candidate update}
+B — Run its quality analysis and preserve the result.
+
+\subsection*{C --- Independent validation}
+C — Use the result as a prerequisite or independent validation for downstream fitted stages.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../05\_vel\_to\_erpm\_pipeline\_audit/}\\
+\textbf{Stage report:} \texttt{stage\_reports/vel\_to\_erpm\_audit.md}
+\clearpage
+\small
+\section*{ERPM response characterisation}
+\addcontentsline{toc}{section}{ERPM response characterisation}
+\textbf{Stage key:} \texttt{erpm\_response}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific candidate/training command grid.
+
+\subsection*{B --- Analysis and candidate update}
+B — Estimate timing/routing metrics and preserve the candidate evidence; no hidden refit is made on later C data.
+
+\subsection*{C --- Independent validation}
+C — The following explicitly named hold-out stage records different commands and evaluates the frozen result.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../06\_raw\_erpm\_response/}\\
+\textbf{Stage report:} \texttt{stage\_reports/erpm\_response.md}
+\clearpage
+\small
+\section*{ERPM response independent hold-out}
+\addcontentsline{toc}{section}{ERPM response independent hold-out}
+\textbf{Stage key:} \texttt{erpm\_response\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../06a\_raw\_erpm\_response\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/erpm\_response\_validation.md}
+\clearpage
+\small
+\section*{Coast-down drag fit}
+\addcontentsline{toc}{section}{Coast-down drag fit}
+\textbf{Stage key:} \texttt{coastdown}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record independent training captures.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit, gate, apply the candidate patch, and rebuild inside the reversible transaction.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out/validation stage evaluates the applied candidate on new data.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../07\_coastdown/}\\
+\textbf{Stage report:} \texttt{stage\_reports/coastdown.md}
+\clearpage
+\small
+\section*{Coast-down drag independent hold-out}
+\addcontentsline{toc}{section}{Coast-down drag independent hold-out}
+\textbf{Stage key:} \texttt{coastdown\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../07a\_coastdown\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/coastdown\_validation.md}
+\clearpage
+\small
+\section*{Current-to-acceleration training}
+\addcontentsline{toc}{section}{Current-to-acceleration training}
+\textbf{Stage key:} \texttt{current\_training}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record independent training captures.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit, gate, apply the candidate patch, and rebuild inside the reversible transaction.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out/validation stage evaluates the applied candidate on new data.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../08\_raw\_current\_training/}\\
+\textbf{Stage report:} \texttt{stage\_reports/current\_training.md}
+\clearpage
+\small
+\section*{Current-to-acceleration hold-out validation}
+\addcontentsline{toc}{section}{Current-to-acceleration hold-out validation}
+\textbf{Stage key:} \texttt{current\_holdout}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../09\_raw\_current\_holdout/}\\
+\textbf{Stage report:} \texttt{stage\_reports/current\_holdout.md}
+\clearpage
+\small
+\section*{Acceleration-command interface training audit}
+\addcontentsline{toc}{section}{Acceleration-command interface training audit}
+\textbf{Stage key:} \texttt{accel\_interface}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record the stage-specific candidate/training command grid.
+
+\subsection*{B --- Analysis and candidate update}
+B — Estimate timing/routing metrics and preserve the candidate evidence; no hidden refit is made on later C data.
+
+\subsection*{C --- Independent validation}
+C — The following explicitly named hold-out stage records different commands and evaluates the frozen result.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../10\_accel\_to\_current\_interface/}\\
+\textbf{Stage report:} \texttt{stage\_reports/accel\_interface.md}
+\clearpage
+\small
+\section*{Acceleration-command interface independent hold-out}
+\addcontentsline{toc}{section}{Acceleration-command interface independent hold-out}
+\textbf{Stage key:} \texttt{accel\_interface\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../10a\_accel\_to\_current\_interface\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/accel\_interface\_validation.md}
+\clearpage
+\small
+\section*{Selected odometry model: fresh steady-speed validation}
+\addcontentsline{toc}{section}{Selected odometry model: fresh steady-speed validation}
+\textbf{Stage key:} \texttt{odometry\_candidate\_velocity\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../11\_candidate\_velocity\_verification/}\\
+\textbf{Stage report:} \texttt{stage\_reports/odometry\_candidate\_velocity\_validation.md}
+\clearpage
+\small
+\section*{Selected odometry model: fresh transient validation}
+\addcontentsline{toc}{section}{Selected odometry model: fresh transient validation}
+\textbf{Stage key:} \texttt{odometry\_candidate\_accel\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../12\_candidate\_accel\_verification/}\\
+\textbf{Stage report:} \texttt{stage\_reports/odometry\_candidate\_accel\_validation.md}
+\clearpage
+\small
+\section*{Effective tyre stiffness: quasi-steady training arcs}
+\addcontentsline{toc}{section}{Effective tyre stiffness: quasi-steady training arcs}
+\textbf{Stage key:} \texttt{lateral\_stiffness\_training}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record balanced, quasi-steady left/right speed-and-steering arcs after physical metrology.
+
+\subsection*{B --- Analysis and candidate update}
+B — Fit effective low-slip front/rear stiffness plus the dynamic-model steering scale, apply the reversible bicycle-model patch, and retain a diagnostic nonlinear candidate.
+
+\subsection*{C --- Independent validation}
+C — The following hold-out uses distinct arcs and blocks promotion if the frozen scale/stiffness model fails or a nonlinear tyre model is materially better.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../12\_quasi\_steady\_lateral\_training/}\\
+\textbf{Stage report:} \texttt{stage\_reports/lateral\_stiffness\_training.md}
+\clearpage
+\small
+\section*{Effective tyre stiffness: independent hold-out arcs}
+\addcontentsline{toc}{section}{Effective tyre stiffness: independent hold-out arcs}
+\textbf{Stage key:} \texttt{lateral\_stiffness\_validation}\\
+\textbf{Status:} pending\\
+
+\subsection*{A --- Capture}
+A — Record a fresh validation data set after the preceding candidate was applied.
+
+\subsection*{B --- Analysis and candidate update}
+B — Analyse against the already fitted candidate; do not refit from the hold-out.
+
+\subsection*{C --- Independent validation}
+C — Pass only when the new-data gates and operator acceptance agree.
+
+\subsection*{Measured / fitted values}
+\begin{itemize}\setlength\itemsep{0pt}
+\item \texttt{No scalar result has been written yet.}
+\end{itemize}
+
+\textit{No plot has been generated for this stage yet.}
+
+\vfill
+\textbf{Raw data:} \texttt{../12a\_quasi\_steady\_lateral\_validation/}\\
+\textbf{Stage report:} \texttt{stage\_reports/lateral\_stiffness\_validation.md}
+\clearpage
+\end{document}

@@ -20,7 +20,7 @@ import numpy as np
 
 from .config import dump_json
 from .runtime import CalibrationNode, finish_node, start_node
-from .ui import banner, checklist, pause_for_reposition, require_ready, review_trial
+from .ui import banner, checklist, note, pause_for_reposition, require_ready, review_trial
 
 WINDOW = (
     'imu_ax', 'imu_ay', 'imu_gz', 'odom_vx', 'odom_vy', 'candidate_odom_vx', 'candidate_odom_vy', 'erpm',
@@ -77,6 +77,76 @@ def _pre_capture_settle_s(cfg: dict[str, Any], speed_mps: float) -> float:
         return min(maximum, minimum)
     by_distance = distance / max(speed, 0.05)
     return min(maximum, max(minimum, by_distance))
+
+
+def _capture_for_speed(
+    spec: dict[str, Any], speed_mps: float, *, map_key: str, default_key: str,
+) -> float:
+    """Return the frozen room-derived duration for one configured speed.
+
+    Legacy standalone configurations do not contain a generated map, so they
+    retain their reviewed scalar duration.  Unified-session snapshots contain
+    exact per-condition values and are matched numerically to avoid depending
+    on whether YAML loaded a key as a string or a float.
+    """
+    default = float(spec[default_key])
+    values = spec.get(map_key, {})
+    if not isinstance(values, dict) or not values:
+        return default
+    requested = float(speed_mps)
+    candidates: list[tuple[float, float]] = []
+    for key, value in values.items():
+        try:
+            candidates.append((abs(float(key) - requested), float(value)))
+        except (TypeError, ValueError):
+            continue
+    if not candidates:
+        return default
+    error, duration = min(candidates, key=lambda item: item[0])
+    if error > 1.0e-6 * max(1.0, abs(requested)):
+        return default
+    if not math.isfinite(duration) or duration <= 0.0:
+        raise RuntimeError(f'{map_key} contains an invalid duration for {requested:.3f} m/s')
+    return duration
+
+
+def _full_circle_plan(cfg: dict[str, Any], *, speed_mps: float,
+                      radius_m: float, minimum_capture_s: float) -> dict[str, Any]:
+    """Plan one footprint-aware constant-radius revolution when it fits."""
+    policy = cfg.get('room_capture_policy', {})
+    if not isinstance(policy, dict) or not policy:
+        return {
+            'capture_mode': 'bounded_arc',
+            'capture_s': float(minimum_capture_s),
+            'planned_revolutions': 0.0,
+            'nominal_radius_m': float(radius_m),
+        }
+    speed = abs(float(speed_mps))
+    radius = float(radius_m)
+    body_radius = float(policy['vehicle_circumscribed_radius_m'])
+    braking = float(policy['conservative_braking_mps2'])
+    target_side = float(policy['target_circle_side_m'])
+    stop_extension = speed * speed / (2.0 * braking)
+    max_radius = 0.5 * (target_side - 2.0 * body_radius - stop_extension)
+    revolutions = float(policy.get('full_circle_revolutions', 1.0))
+    if radius <= max_radius + 1.0e-9:
+        duration = max(float(minimum_capture_s), revolutions * 2.0 * math.pi * radius / speed)
+        return {
+            'capture_mode': 'full_circle',
+            'capture_s': duration,
+            'planned_revolutions': revolutions,
+            'nominal_radius_m': radius,
+            'maximum_fitting_radius_m': max_radius,
+            'planned_stop_extension_m': stop_extension,
+        }
+    return {
+        'capture_mode': 'bounded_arc',
+        'capture_s': float(minimum_capture_s),
+        'planned_revolutions': 0.0,
+        'nominal_radius_m': radius,
+        'maximum_fitting_radius_m': max_radius,
+        'planned_stop_extension_m': stop_extension,
+    }
 
 
 def _decision(
@@ -196,8 +266,14 @@ def _require_envelope(cfg: dict[str, Any], *, speed: float | None = None,
     env = cfg['operating_envelope']
     if speed is not None and abs(float(speed)) > float(env['maximum_test_speed_mps']) + 1e-9:
         raise RuntimeError(f'configured command {speed:.3f} m/s exceeds maximum_test_speed_mps')
-    if acceleration is not None and not math.isfinite(float(acceleration)):
-        raise RuntimeError(f'configured acceleration {acceleration!r} is not finite')
+    if acceleration is not None:
+        requested = float(acceleration)
+        if not math.isfinite(requested):
+            raise RuntimeError(f'configured acceleration {acceleration!r} is not finite')
+        limit_key = 'maximum_test_brake_mps2' if brake else 'maximum_test_accel_mps2'
+        limit = float(env.get(limit_key, math.inf))
+        if abs(requested) > limit + 1e-9:
+            raise RuntimeError(f'configured acceleration {requested:.3f} m/s² exceeds {limit_key}={limit:.3f} m/s²')
 
 
 def _pulse_duration(cfg: dict[str, Any], fraction: float) -> float:
@@ -240,7 +316,7 @@ def _run_raw_erpm_plateau(
         node.event.emit(
             'trial_start', stage=stage, condition_id=condition_id,
             trial_id=trial, attempt=attempt, nominal_speed_mps=nominal_speed,
-            raw_erpm_target=raw_erpm,
+            raw_erpm_target=raw_erpm, planned_capture_s=float(capture_s),
         )
         startup = node.establish_raw_erpm(
             target_erpm=raw_erpm, startup_speed_mps=nominal_speed,
@@ -264,6 +340,7 @@ def _run_raw_erpm_plateau(
                 phase=phase, segment_id=condition_id, trial_id=trial,
                 capture=True, window_fields=WINDOW,
                 nominal_speed_mps=nominal_speed, raw_erpm_target=raw_erpm,
+                planned_capture_s=float(capture_s),
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.active_stop()
@@ -278,6 +355,7 @@ def _run_raw_erpm_plateau(
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
             'startup': startup, 'capture': summary,
             'pre_capture_settle_s': settle_s,
+            'planned_capture_s': float(capture_s),
             'raw_erpm_target': raw_erpm, 'nominal_speed_mps': nominal_speed,
         })
         if decision == 'accepted':
@@ -304,6 +382,7 @@ def _run_ackermann_plateau(
         node.event.emit(
             'trial_start', stage=stage, condition_id=condition_id,
             trial_id=trial, attempt=attempt, speed_command_mps=speed,
+            planned_capture_s=float(capture_s),
         )
         startup = node.establish_ackermann_speed(
             speed_mps=speed, segment_id=condition_id, trial_id=trial,
@@ -325,6 +404,7 @@ def _run_ackermann_plateau(
                 kind='ackermann_speed', target=speed, duration_s=capture_s,
                 phase=phase, segment_id=condition_id, trial_id=trial,
                 capture=True, window_fields=WINDOW, speed_command_mps=speed,
+                planned_capture_s=float(capture_s),
             )
         straight = _straight_ok(node, cfg) if summary is not None else False
         node.active_stop()
@@ -346,7 +426,7 @@ def _run_ackermann_plateau(
         records.append({
             'trial_id': trial, 'attempt': attempt, 'decision': decision,
             'startup': startup, 'capture': summary, 'pre_capture_settle_s': settle_s,
-            'speed_command_mps': speed,
+            'speed_command_mps': speed, 'planned_capture_s': float(capture_s),
         })
         if decision == 'accepted':
             counter.count(node)
@@ -437,7 +517,11 @@ def longitudinal_observability(cfg: dict[str, Any], stage_dir: Path,
                     node, cfg=cfg, counter=counter,
                     stage='01_longitudinal_observability', condition_id=cid,
                     speed=float(speed),
-                    capture_s=float(cfg['observability']['straight_probe_capture_s']),
+                    capture_s=_capture_for_speed(
+                        cfg['observability'], float(speed),
+                        map_key='straight_probe_capture_s_by_speed',
+                        default_key='straight_probe_capture_s',
+                    ),
                     phase='straight_observability',
                 )
         result = {'stationary': stationary, 'probes': probes}
@@ -462,7 +546,9 @@ def low_speed_launch(cfg: dict[str, Any], stage_dir: Path, gain: float,
                     node, cfg=cfg, counter=counter, stage='02_low_speed_launch',
                     condition_id=cid,
                     raw_erpm=_raw_erpm(gain, offset, float(speed)),
-                    nominal_speed=float(speed), capture_s=float(spec['capture_s']),
+                    nominal_speed=float(speed), capture_s=_capture_for_speed(
+                        spec, float(speed), map_key='capture_s_by_speed', default_key='capture_s',
+                    ),
                     phase='low_speed_launch',
                 )
         result = {'records': records}
@@ -497,7 +583,9 @@ def raw_erpm_map(cfg: dict[str, Any], stage_dir: Path, gain: float,
                 records += _run_raw_erpm_plateau(
                     node, cfg=cfg, counter=counter, stage=stage,
                     condition_id=cid, raw_erpm=_raw_erpm(gain, offset, speed),
-                    nominal_speed=speed, capture_s=float(spec['capture_s']), phase=phase,
+                    nominal_speed=speed, capture_s=_capture_for_speed(
+                        spec, speed, map_key='capture_s_by_speed', default_key='capture_s',
+                    ), phase=phase,
                 )
         result = {'holdout': holdout, 'records': records}
         dump_json(stage_dir / 'runtime_result.json', result)
@@ -520,7 +608,9 @@ def vel_to_erpm_pipeline_audit(cfg: dict[str, Any], stage_dir: Path,
                     node, cfg=cfg, counter=counter,
                     stage='05_vel_to_erpm_pipeline_audit',
                     condition_id=f'vel_command_{float(speed):.3f}_rep_{rep:02d}',
-                    speed=float(speed), capture_s=float(spec['capture_s']),
+                    speed=float(speed), capture_s=_capture_for_speed(
+                        spec, float(speed), map_key='capture_s_by_speed', default_key='capture_s',
+                    ),
                     phase='vel_to_erpm_pipeline',
                 )
         result = {'records': records}
@@ -532,29 +622,41 @@ def vel_to_erpm_pipeline_audit(cfg: dict[str, Any], stage_dir: Path,
 
 def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
                       offset: float, counter: TrialCounter,
-                      speed_command_patch: dict[str, Any] | None = None) -> dict[str, Any]:
-    banner('STAGE 6 — FULL-ENVELOPE ERPM / GROUND-SPEED STEP RESPONSE',
-           'Identifies command delivery, VESC ERPM tracking, and high-demand ground-speed delay/rate.')
-    node = start_node('erpm_step_response', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
+                      speed_command_patch: dict[str, Any] | None = None,
+                      *, validation: bool = False) -> dict[str, Any]:
+    banner('ERPM / GROUND-SPEED RESPONSE HOLD-OUT' if validation else 'ERPM / GROUND-SPEED STEP RESPONSE TRAINING',
+           'Distinct speed steps validate the response model without refitting it.' if validation
+           else 'Identifies command delivery, VESC ERPM tracking, and ground-speed delay/rate.')
+    node = start_node('erpm_step_response_validation' if validation else 'erpm_step_response', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
     records: list[dict[str, Any]] = []
     try:
         spec = cfg['raw_erpm_response']
-        for baseline_speed, target_speed in spec['steps_mps']:
+        steps = spec.get('validation_steps_mps', []) if validation else spec['steps_mps']
+        repetitions = int(spec.get('validation_repetitions', spec['repetitions'])) if validation else int(spec['repetitions'])
+        if not steps:
+            raise RuntimeError('ERPM response validation has no configured hold-out steps')
+        for baseline_speed, target_speed in steps:
             _require_envelope(cfg, speed=float(baseline_speed))
             _require_envelope(cfg, speed=float(target_speed))
             baseline_erpm = _initial_erpm(float(baseline_speed), gain, offset, speed_command_patch)
             target_erpm = _initial_erpm(float(target_speed), gain, offset, speed_command_patch)
-            for rep in range(1, int(spec['repetitions']) + 1):
-                cid = f'erpm_step_{float(baseline_speed):.3f}_to_{float(target_speed):.3f}_rep_{rep:02d}'
+            response_capture_s = _capture_for_speed(
+                spec, float(target_speed),
+                map_key='response_capture_s_by_target_speed',
+                default_key='response_capture_s',
+            )
+            for rep in range(1, repetitions + 1):
+                cid = f"{'erpm_response_validation' if validation else 'erpm_step'}_{float(baseline_speed):.3f}_to_{float(target_speed):.3f}_rep_{rep:02d}"
                 attempt = 1
                 while True:
                     trial = _id(cid, attempt)
                     pause_for_reposition(f'Position car at straight start for {cid}. Attempt {attempt}.')
                     node.event.emit(
-                        'trial_start', stage='06_raw_erpm_response',
+                        'trial_start', stage='06a_raw_erpm_response_validation' if validation else '06_raw_erpm_response',
                         condition_id=cid, trial_id=trial, attempt=attempt,
                         baseline_erpm=baseline_erpm, target_erpm=target_erpm,
                         baseline_speed_mps=float(baseline_speed), target_speed_mps=float(target_speed),
+                        planned_response_capture_s=response_capture_s,
                     )
                     startup = node.establish_raw_erpm(target_erpm=baseline_erpm, startup_speed_mps=float(baseline_speed), segment_id=cid, trial_id=trial)
                     summary: dict[str, Any] | None = None
@@ -563,32 +665,38 @@ def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
                             kind='raw_erpm', target=baseline_erpm,
                             duration_s=float(spec['pre_step_hold_s']),
                             phase='erpm_step_baseline', segment_id=cid, trial_id=trial,
-                            capture=False, baseline_erpm=baseline_erpm, target_erpm=target_erpm,
+                            capture=True, window_fields=WINDOW,
+                            baseline_erpm=baseline_erpm, target_erpm=target_erpm,
                         )
                         summary = node.hold(
                             kind='raw_erpm', target=target_erpm,
-                            duration_s=float(spec['response_capture_s']),
+                            duration_s=response_capture_s,
                             phase='erpm_step_response', segment_id=cid, trial_id=trial,
                             capture=True, window_fields=WINDOW,
                             baseline_erpm=baseline_erpm, target_erpm=target_erpm,
                             baseline_speed_mps=float(baseline_speed), target_speed_mps=float(target_speed),
+                            planned_capture_s=response_capture_s,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
-                        node, stage='06_raw_erpm_response', condition_id=cid,
+                        node, stage='06a_raw_erpm_response_validation' if validation else '06_raw_erpm_response', condition_id=cid,
                         trial_id=trial, attempt=attempt, auto_ok=auto,
                         summary={'startup': startup, 'straight_runtime_gate': straight, 'capture': summary or {}},
                     )
-                    records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary})
+                    records.append({
+                        'trial_id': trial, 'condition_id': cid, 'decision': decision,
+                        'startup': startup, 'capture': summary,
+                        'planned_capture_s': response_capture_s,
+                    })
                     if decision == 'accepted':
                         counter.count(node)
                         break
                     if decision == 'skipped':
                         break
                     attempt += 1
-        result = {'records': records}
+        result = {'validation': validation, 'records': records}
         dump_json(stage_dir / 'runtime_result.json', result)
         return result
     finally:
@@ -597,26 +705,42 @@ def raw_erpm_response(cfg: dict[str, Any], stage_dir: Path, gain: float,
 
 def coastdown(cfg: dict[str, Any], stage_dir: Path, gain: float,
               offset: float, counter: TrialCounter,
-              speed_command_patch: dict[str, Any] | None = None) -> dict[str, Any]:
-    banner('STAGE 7 — FULL-ENVELOPE COAST-DOWN / DRAG',
-           'Reaches each speed, then selects raw zero motor current. This identifies drag rather than VEL_TO_ERPM braking.')
-    node = start_node('erpm_coastdown', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
+              speed_command_patch: dict[str, Any] | None = None,
+              *, validation: bool = False) -> dict[str, Any]:
+    banner('COAST-DOWN DRAG HOLD-OUT' if validation else 'STAGE 7 — FULL-ENVELOPE COAST-DOWN / DRAG',
+           'Uses distinct initial speeds to validate the frozen drag model.' if validation
+           else 'Reaches each speed, then selects raw zero motor current. This identifies drag rather than VEL_TO_ERPM braking.')
+    node = start_node('erpm_coastdown_validation' if validation else 'erpm_coastdown', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
     records: list[dict[str, Any]] = []
     try:
         spec = cfg['coastdown']
-        for initial_speed in spec['initial_speeds_mps']:
+        speeds = spec.get('validation_initial_speeds_mps', []) if validation else spec['initial_speeds_mps']
+        repetitions = int(spec.get('validation_repetitions', spec['repetitions'])) if validation else int(spec['repetitions'])
+        default_capture_key = 'validation_coast_capture_s' if validation else 'coast_capture_s'
+        if default_capture_key not in spec:
+            default_capture_key = 'coast_capture_s'
+        if not speeds:
+            raise RuntimeError('coast-down validation has no configured hold-out initial speeds')
+        stage = '07a_coastdown_validation' if validation else '07_coastdown'
+        for initial_speed in speeds:
             _require_envelope(cfg, speed=float(initial_speed))
             initial_erpm = _initial_erpm(float(initial_speed), gain, offset, speed_command_patch)
-            for rep in range(1, int(spec['repetitions']) + 1):
-                cid = f'coastdown_{float(initial_speed):.3f}_rep_{rep:02d}'
+            capture_s = _capture_for_speed(
+                spec, float(initial_speed),
+                map_key='coast_capture_s_by_initial_speed',
+                default_key=default_capture_key,
+            )
+            for rep in range(1, repetitions + 1):
+                cid = f'{"coastdown_validation" if validation else "coastdown"}_{float(initial_speed):.3f}_rep_{rep:02d}'
                 attempt = 1
                 while True:
                     trial = _id(cid, attempt)
                     pause_for_reposition(f'Position car at straight start for {cid}. Attempt {attempt}.')
                     node.event.emit(
-                        'trial_start', stage='07_coastdown', condition_id=cid,
+                        'trial_start', stage=stage, condition_id=cid,
                         trial_id=trial, attempt=attempt,
                         initial_speed_mps=float(initial_speed), initial_erpm=initial_erpm,
+                        planned_capture_s=capture_s,
                     )
                     startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
                     summary: dict[str, Any] | None = None
@@ -629,27 +753,32 @@ def coastdown(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         )
                         summary = node.hold(
                             kind='raw_current', target=0.0,
-                            duration_s=float(spec['coast_capture_s']),
+                            duration_s=capture_s,
                             phase='coastdown', segment_id=cid, trial_id=trial,
                             capture=True, window_fields=WINDOW,
                             initial_speed_mps=float(initial_speed), initial_erpm=initial_erpm,
+                            planned_capture_s=capture_s,
                         )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.active_stop()
                     auto = bool(startup.get('stable')) and summary is not None
                     decision = _decision(
-                        node, stage='07_coastdown', condition_id=cid,
+                        node, stage=stage, condition_id=cid,
                         trial_id=trial, attempt=attempt, auto_ok=auto,
                         summary={'startup': startup, 'straight_runtime_gate': straight, 'capture': summary or {}},
                     )
-                    records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary})
+                    records.append({
+                        'trial_id': trial, 'condition_id': cid, 'decision': decision,
+                        'startup': startup, 'capture': summary,
+                        'planned_capture_s': capture_s,
+                    })
                     if decision == 'accepted':
                         counter.count(node)
                         break
                     if decision == 'skipped':
                         break
                     attempt += 1
-        result = {'records': records}
+        result = {'validation': validation, 'records': records}
         dump_json(stage_dir / 'runtime_result.json', result)
         return result
     finally:
@@ -718,13 +847,16 @@ def _current_pulses(cfg: dict[str, Any], stage_dir: Path, gain: float,
                         startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
                         summary: dict[str, Any] | None = None
                         recovery: dict[str, Any] | None = None
-                        high_demand = fraction >= float(cfg['traction_transients']['minimum_current_fraction_for_transient_metrics'])
                         if startup.get('stable'):
-                            node.hold(
+                            # Both zero-current reference windows are captured.
+                            # The offline fitter uses robust LiDAR-window slopes
+                            # during the pulse and these references to reject a
+                            # pulse corrupted by drift or a scene change.
+                            baseline = node.hold(
                                 kind='raw_erpm', target=initial_erpm,
                                 duration_s=float(cfg[section]['pre_pulse_hold_s']),
                                 phase='current_pulse_baseline', segment_id=cid,
-                                trial_id=trial, capture=False, polarity=polarity,
+                                trial_id=trial, capture=True, window_fields=WINDOW, polarity=polarity,
                                 current_command_a=amps, current_fraction=fraction,
                                 initial_speed_mps=initial_speed,
                             )
@@ -737,28 +869,23 @@ def _current_pulses(cfg: dict[str, Any], stage_dir: Path, gain: float,
                                 initial_speed_mps=initial_speed,
                                 pulse_duration_s=pulse_s,
                             )
-                            # High-current data need an explicit post-release
-                            # interval. This lets offline analysis identify
-                            # slip peak, onset and recovery rather than keeping
-                            # only a single pulse-average acceleration value.
-                            if high_demand:
-                                recovery = node.hold(
-                                    kind=kind, target=0.0,
-                                    duration_s=float(cfg['traction_transients']['slip_recovery_capture_s']),
-                                    phase=f'raw_{polarity}_current_recovery',
-                                    segment_id=cid, trial_id=trial, capture=True,
-                                    window_fields=WINDOW, polarity=polarity,
-                                    current_command_a=0.0, current_fraction=fraction,
-                                    initial_speed_mps=initial_speed,
-                                    pulse_duration_s=pulse_s,
-                                )
+                            recovery = node.hold(
+                                kind=kind, target=0.0,
+                                duration_s=float(cfg[section].get('post_pulse_capture_s', 0.60)),
+                                phase=f'raw_{polarity}_current_recovery',
+                                segment_id=cid, trial_id=trial, capture=True,
+                                window_fields=WINDOW, polarity=polarity,
+                                current_command_a=0.0, current_fraction=fraction,
+                                initial_speed_mps=initial_speed,
+                                pulse_duration_s=pulse_s,
+                            )
                         straight = _straight_ok(node, cfg) if summary else False
                         node.active_stop()
-                        auto = bool(startup.get('stable')) and summary is not None and (not high_demand or recovery is not None)
+                        auto = bool(startup.get('stable')) and summary is not None and recovery is not None
                         decision = _decision(
                             node, stage=stage, condition_id=cid, trial_id=trial,
                             attempt=attempt, auto_ok=auto,
-                            summary={'startup': startup, 'straight_runtime_gate': straight, 'pulse_capture': summary or {}, 'recovery_capture': recovery or {}},
+                            summary={'startup': startup, 'straight_runtime_gate': straight, 'baseline_capture': baseline if startup.get('stable') else {}, 'pulse_capture': summary or {}, 'recovery_capture': recovery or {}},
                         )
                         records.append({
                             'trial_id': trial, 'condition_id': cid, 'decision': decision,
@@ -806,13 +933,15 @@ def _run_accel_grid(
                         pulse_duration_s=duration,
                     )
                     startup = node.establish_raw_erpm(target_erpm=initial_erpm, startup_speed_mps=float(initial_speed), segment_id=cid, trial_id=trial)
+                    baseline: dict[str, Any] | None = None
                     summary: dict[str, Any] | None = None
+                    recovery: dict[str, Any] | None = None
                     if startup.get('stable'):
-                        node.hold(
+                        baseline = node.hold(
                             kind='raw_erpm', target=initial_erpm, duration_s=pre_pulse_s,
                             phase='accel_interface_baseline', segment_id=cid, trial_id=trial,
-                            capture=False, acceleration_command_mps2=acceleration,
-                            initial_speed_mps=initial_speed,
+                            capture=True, window_fields=WINDOW,
+                            acceleration_command_mps2=acceleration, initial_speed_mps=initial_speed,
                         )
                         summary = node.hold(
                             kind='ackermann_accel', target=acceleration,
@@ -821,15 +950,29 @@ def _run_accel_grid(
                             window_fields=WINDOW, acceleration_command_mps2=acceleration,
                             initial_speed_mps=initial_speed, pulse_duration_s=duration,
                         )
+                        recovery = node.hold(
+                            kind='ackermann_accel', target=0.0, speed_hint=initial_speed,
+                            duration_s=pre_pulse_s, phase='accel_interface_recovery',
+                            segment_id=cid, trial_id=trial, capture=True, window_fields=WINDOW,
+                            acceleration_command_mps2=0.0, initial_speed_mps=initial_speed,
+                        )
                     straight = _straight_ok(node, cfg) if summary else False
                     node.active_stop()
-                    auto = bool(startup.get('stable')) and summary is not None
+                    auto = bool(startup.get('stable')) and summary is not None and recovery is not None
                     decision = _decision(
                         node, stage=stage, condition_id=cid, trial_id=trial,
                         attempt=attempt, auto_ok=auto,
-                        summary={'startup': startup, 'straight_runtime_gate': straight, 'capture': summary or {}},
+                        summary={
+                            'startup': startup, 'straight_runtime_gate': straight,
+                            'baseline_capture': baseline or {}, 'capture': summary or {},
+                            'recovery_capture': recovery or {},
+                        },
                     )
-                    records.append({'trial_id': trial, 'condition_id': cid, 'decision': decision, 'startup': startup, 'capture': summary})
+                    records.append({
+                        'trial_id': trial, 'condition_id': cid, 'decision': decision,
+                        'startup': startup, 'baseline': baseline, 'capture': summary,
+                        'recovery': recovery,
+                    })
                     if decision == 'accepted':
                         counter.count(node)
                         break
@@ -842,24 +985,226 @@ def _run_accel_grid(
 def accel_to_current_interface(cfg: dict[str, Any], stage_dir: Path,
                                gain: float, offset: float,
                                counter: TrialCounter,
-                               speed_command_patch: dict[str, Any] | None = None) -> dict[str, Any]:
-    banner('STAGE 10 — FULL-ENVELOPE ACCEL_TO_CURRENT INTERFACE AUDIT',
-           'Temporary bootstrap gains are active. This audits desired acceleration → selected current/brake over the full speed and acceleration grid.')
-    node = start_node('erpm_accel_interface', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
+                               speed_command_patch: dict[str, Any] | None = None,
+                               *, validation: bool = False) -> dict[str, Any]:
+    banner('ACCEL_TO_CURRENT INTERFACE HOLD-OUT' if validation else 'STAGE 10 — FULL-ENVELOPE ACCEL_TO_CURRENT INTERFACE AUDIT',
+           'New speed/acceleration points validate both current routing and realised ground acceleration.' if validation
+           else 'Temporary candidate gains are active. This audits desired acceleration → selected current/brake and realised ground acceleration.')
+    node = start_node('erpm_accel_interface_validation' if validation else 'erpm_accel_interface', cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'})
     try:
         spec = cfg['accel_to_current_interface']
+        speeds = spec.get('validation_initial_speeds_mps', []) if validation else spec['initial_speeds_mps']
+        accelerations = spec.get('validation_acceleration_commands_mps2', []) if validation else spec['acceleration_commands_mps2']
+        repetitions = int(spec.get('validation_repetitions', spec['repetitions'])) if validation else int(spec['repetitions'])
+        capture_s = float(spec.get('validation_pulse_capture_s', spec.get('pulse_capture_s', cfg['operating_envelope']['high_demand_pulse_duration_s']['low_fraction']))) if validation else float(spec.get('pulse_capture_s', cfg['operating_envelope']['high_demand_pulse_duration_s']['low_fraction']))
+        if not speeds or not accelerations:
+            raise RuntimeError('ACCEL_TO_CURRENT validation has no configured hold-out grid')
         records = _run_accel_grid(
-            node, cfg=cfg, stage='10_accel_to_current_interface',
+            node, cfg=cfg, stage='10a_accel_to_current_interface_validation' if validation else '10_accel_to_current_interface',
             phase='accel_to_current_pulse',
-            initial_speeds=spec['initial_speeds_mps'],
-            accelerations=spec['acceleration_commands_mps2'],
-            repetitions=int(spec['repetitions']),
+            initial_speeds=speeds, accelerations=accelerations, repetitions=repetitions,
             pre_pulse_s=float(spec['pre_pulse_hold_s']),
-            capture_s=float(cfg['operating_envelope']['high_demand_pulse_duration_s']['low_fraction']),
+            capture_s=capture_s,
             gain=gain, offset=offset, counter=counter,
             initial_erpm_fn=(lambda speed: _candidate_command_erpm(speed, speed_command_patch)) if speed_command_patch is not None else None,
         )
-        result = {'records': records}
+        result = {'validation': validation, 'records': records}
+        dump_json(stage_dir / 'runtime_result.json', result)
+        return result
+    finally:
+        finish_node(node)
+
+
+def _lateral_conditions(cfg: dict[str, Any], *, validation: bool) -> list[dict[str, float | str]]:
+    """Build a balanced quasi-steady steering grid from explicit conditions."""
+    spec = cfg['lateral_stiffness']
+    speeds = spec.get('validation_speeds_mps', []) if validation else spec.get('speeds_mps', [])
+    angles = spec.get('validation_steering_angles_rad', []) if validation else spec.get('steering_angles_rad', [])
+    signs = spec.get('validation_signs', spec.get('signs', [-1.0, 1.0])) if validation else spec.get('signs', [-1.0, 1.0])
+    nominal_wheelbase = float(spec.get('nominal_wheelbase_m', cfg.get('hardware', {}).get('wheelbase_m', 0.324)))
+    if nominal_wheelbase <= 0.0:
+        raise RuntimeError('lateral_stiffness nominal_wheelbase_m must be positive')
+    result: list[dict[str, float | str]] = []
+    for speed in map(float, speeds):
+        _require_envelope(cfg, speed=speed)
+        for magnitude in map(float, angles):
+            if magnitude <= 0.0:
+                raise RuntimeError('lateral_stiffness steering angles must be positive magnitudes')
+            for sign in map(float, signs):
+                if sign == 0.0:
+                    raise RuntimeError('lateral_stiffness signs may not contain zero')
+                angle = math.copysign(magnitude, sign)
+                radius = nominal_wheelbase / abs(math.tan(angle))
+                result.append({
+                    'speed_mps': speed,
+                    'steering_angle_rad': angle,
+                    'turn_direction': 'left' if angle > 0.0 else 'right',
+                    'nominal_radius_m': radius,
+                    'nominal_lateral_accel_mps2': speed * speed / radius,
+                })
+    if not result:
+        raise RuntimeError('lateral_stiffness has no configured quasi-steady conditions')
+    return result
+
+
+def quasi_steady_lateral(cfg: dict[str, Any], stage_dir: Path,
+                         counter: TrialCounter, *, validation: bool = False) -> dict[str, Any]:
+    """Capture a room-safe quasi-steady lateral grid for effective tyre stiffness.
+
+    Every configured condition that fits starts and settles on its constant-
+    radius path, then records one complete circle.  The full revolution gives
+    substantially more independent time windows without requiring a larger
+    room. A bounded-arc fallback is retained for future shallow conditions.
+    """
+    title = 'QUASI-STEADY TYRE-STIFFNESS HOLD-OUT' if validation else 'STAGE 12 — QUASI-STEADY TYRE-STIFFNESS TRAINING'
+    subtitle = (
+        'Distinct speed/steering arcs validate the frozen linear and nonlinear tyre candidates; they are never refitted here.'
+        if validation else
+        'Uses balanced left/right, speed and steering arcs. Heading assist is disabled during every intentional turn.'
+    )
+    banner(title, subtitle)
+    node = start_node(
+        'erpm_lateral_stiffness_validation' if validation else 'erpm_lateral_stiffness',
+        cfg, {'imu', 'odom', 'vesc', 'scan', 'selected_speed', 'selected_current', 'selected_brake'},
+    )
+    records: list[dict[str, Any]] = []
+    try:
+        spec = cfg['lateral_stiffness']
+        repetitions = int(spec.get('validation_repetitions', spec['repetitions'])) if validation else int(spec['repetitions'])
+        pre_turn_s = float(spec.get('pre_turn_hold_s', 0.35))
+        turn_settle_s = float(spec.get('turn_settle_s', 0.70))
+        minimum_capture_s = float(spec.get('validation_capture_s', spec['capture_s'])) if validation else float(spec['capture_s'])
+        stage = '12a_quasi_steady_lateral_validation' if validation else '12_quasi_steady_lateral_training'
+        for condition in _lateral_conditions(cfg, validation=validation):
+            speed = float(condition['speed_mps'])
+            angle = float(condition['steering_angle_rad'])
+            capture_plan = _full_circle_plan(
+                cfg, speed_mps=speed,
+                radius_m=float(condition['nominal_radius_m']),
+                minimum_capture_s=minimum_capture_s,
+            )
+            capture_s = float(capture_plan['capture_s'])
+            for rep in range(1, repetitions + 1):
+                cid = (
+                    f'lateral_{"validation_" if validation else ""}v_{speed:.2f}_'
+                    f'delta_{angle:+.3f}_rep_{rep:02d}'
+                )
+                attempt = 1
+                while True:
+                    trial = _id(cid, attempt)
+                    pause_for_reposition(
+                        f'Place car at the marked circle start for {cid}. '
+                        f'It will turn {condition["turn_direction"]} at {speed:.2f} m/s; '
+                        f'nominal radius {float(condition["nominal_radius_m"]):.2f} m; '
+                        f'{capture_plan["capture_mode"]}, {capture_s:.1f} s recorded. Attempt {attempt}.'
+                    )
+                    node.event.emit(
+                        'trial_start', stage=stage, condition_id=cid, trial_id=trial,
+                        attempt=attempt, speed_command_mps=speed,
+                        steering_angle_rad=angle,
+                        nominal_radius_m=float(condition['nominal_radius_m']),
+                        nominal_lateral_accel_mps2=float(condition['nominal_lateral_accel_mps2']),
+                        turn_direction=str(condition['turn_direction']),
+                        capture_mode=str(capture_plan['capture_mode']),
+                        planned_capture_s=capture_s,
+                        planned_revolutions=float(capture_plan['planned_revolutions']),
+                    )
+                    initial_circle_mode = capture_plan['capture_mode'] == 'full_circle'
+                    startup = node.establish_ackermann_speed(
+                        speed_mps=speed, segment_id=cid, trial_id=trial,
+                        steering_angle_rad=angle if initial_circle_mode else 0.0,
+                    )
+                    active_plan = dict(capture_plan)
+                    summary: dict[str, Any] | None = None
+                    if startup.get('stable'):
+                        if pre_turn_s > 0.0 and not initial_circle_mode:
+                            node.hold(
+                                kind='ackermann_speed', target=speed, duration_s=pre_turn_s,
+                                phase='lateral_straight_baseline', segment_id=cid, trial_id=trial,
+                                capture=False, steering_angle_rad=0.0,
+                                speed_command_mps=speed, steering_angle_target_rad=angle,
+                            )
+                        if turn_settle_s > 0.0:
+                            node.hold(
+                                kind='ackermann_speed', target=speed, duration_s=turn_settle_s,
+                                phase='lateral_turn_settle', segment_id=cid, trial_id=trial,
+                                capture=False, steering_angle_rad=angle,
+                                speed_command_mps=speed, steering_angle_target_rad=angle,
+                            )
+                        if initial_circle_mode and math.isfinite(node.latest.imu_gz) and abs(node.latest.imu_gz) >= 0.02:
+                            onboard_radius = speed / abs(float(node.latest.imu_gz))
+                            active_plan = _full_circle_plan(
+                                cfg, speed_mps=speed, radius_m=onboard_radius,
+                                minimum_capture_s=minimum_capture_s,
+                            )
+                            active_plan['planning_source'] = 'onboard IMU turn-radius estimate after circular settle'
+                            if (
+                                active_plan['capture_mode'] != capture_plan['capture_mode']
+                                or abs(float(active_plan['capture_s']) - capture_s) > 0.05
+                            ):
+                                note(
+                                    'Onboard turn estimate refined this pass to '
+                                    f"{active_plan['capture_mode'].replace('_', ' ')} for "
+                                    f"{float(active_plan['capture_s']):.1f} s."
+                                )
+                        circle_mode = active_plan['capture_mode'] == 'full_circle'
+                        active_capture_s = float(active_plan['capture_s'])
+                        node.event.emit(
+                            'lateral_capture_plan', condition_id=cid, trial_id=trial,
+                            **active_plan,
+                        )
+                        summary = node.hold(
+                            kind='ackermann_speed', target=speed, duration_s=active_capture_s,
+                            phase='lateral_quasi_steady', segment_id=cid, trial_id=trial,
+                            capture=True, steering_angle_rad=angle, window_fields=WINDOW,
+                            speed_command_mps=speed, steering_angle_target_rad=angle,
+                            nominal_radius_m=float(condition['nominal_radius_m']),
+                            nominal_lateral_accel_mps2=float(condition['nominal_lateral_accel_mps2']),
+                            turn_direction=str(condition['turn_direction']),
+                            capture_mode=str(active_plan['capture_mode']),
+                            planned_capture_s=active_capture_s,
+                            planned_revolutions=float(active_plan['planned_revolutions']),
+                            planning_radius_m=float(active_plan['nominal_radius_m']),
+                            planning_source=str(active_plan.get('planning_source', 'nominal kinematic radius')),
+                            target_abs_yaw_change_rad=(
+                                2.0 * math.pi * float(active_plan['planned_revolutions'])
+                                if circle_mode else None
+                            ),
+                            minimum_duration_s=(0.50 * active_capture_s if circle_mode else 0.0),
+                            maximum_duration_s=(1.50 * active_capture_s if circle_mode else None),
+                        )
+                    else:
+                        circle_mode = initial_circle_mode
+                    node.active_stop(steering_angle_rad=angle)
+                    circle_complete = (
+                        not circle_mode
+                        or bool((summary or {}).get('yaw_target_reached', False))
+                    )
+                    auto = bool(startup.get('stable')) and summary is not None and circle_complete
+                    decision = _decision(
+                        node, stage=stage, condition_id=cid, trial_id=trial, attempt=attempt,
+                        auto_ok=auto, summary={
+                            'startup': startup,
+                            'quasi_steady_capture': summary or {},
+                            'circle_complete': circle_complete,
+                        },
+                    )
+                    records.append({
+                        'trial_id': trial, 'condition_id': cid, 'decision': decision,
+                        'startup': startup, 'capture': summary, **condition,
+                        **active_plan,
+                    })
+                    if decision == 'accepted':
+                        counter.count(node)
+                        break
+                    if decision == 'skipped':
+                        break
+                    attempt += 1
+        result = {
+            'validation': validation,
+            'capture_policy': 'one complete circle when the footprint-aware room check permits it',
+            'records': records,
+        }
         dump_json(stage_dir / 'runtime_result.json', result)
         return result
     finally:
@@ -877,10 +1222,15 @@ def run_stage(stage_name: str, cfg: dict[str, Any], stage_dir: Path,
         '04_raw_erpm_map_holdout': lambda: raw_erpm_map(cfg, stage_dir, gain, offset, counter, holdout=True),
         '05_vel_to_erpm_pipeline_audit': lambda: vel_to_erpm_pipeline_audit(cfg, stage_dir, counter),
         '06_raw_erpm_response': lambda: raw_erpm_response(cfg, stage_dir, gain, offset, counter, speed_command_patch),
+        '06a_raw_erpm_response_validation': lambda: raw_erpm_response(cfg, stage_dir, gain, offset, counter, speed_command_patch, validation=True),
         '07_coastdown': lambda: coastdown(cfg, stage_dir, gain, offset, counter, speed_command_patch),
+        '07a_coastdown_validation': lambda: coastdown(cfg, stage_dir, gain, offset, counter, speed_command_patch, validation=True),
         '08_raw_current_training': lambda: _current_pulses(cfg, stage_dir, gain, offset, counter, holdout=False, speed_command_patch=speed_command_patch),
         '09_raw_current_holdout': lambda: _current_pulses(cfg, stage_dir, gain, offset, counter, holdout=True, speed_command_patch=speed_command_patch),
         '10_accel_to_current_interface': lambda: accel_to_current_interface(cfg, stage_dir, gain, offset, counter, speed_command_patch),
+        '10a_accel_to_current_interface_validation': lambda: accel_to_current_interface(cfg, stage_dir, gain, offset, counter, speed_command_patch, validation=True),
+        '12_quasi_steady_lateral_training': lambda: quasi_steady_lateral(cfg, stage_dir, counter, validation=False),
+        '12a_quasi_steady_lateral_validation': lambda: quasi_steady_lateral(cfg, stage_dir, counter, validation=True),
     }
     return table[stage_name]()
 
@@ -899,7 +1249,9 @@ def candidate_velocity_verification(cfg: dict[str, Any], stage_dir: Path,
                     node, cfg=cfg, counter=counter,
                     stage='11_candidate_velocity_verification',
                     condition_id=f'candidate_vel_{float(speed):.3f}_rep_{rep:02d}',
-                    speed=float(speed), capture_s=float(spec['capture_s']),
+                    speed=float(speed), capture_s=_capture_for_speed(
+                        spec, float(speed), map_key='velocity_capture_s_by_speed', default_key='capture_s',
+                    ),
                     phase='candidate_velocity_verification',
                 )
         result = {'records': records}

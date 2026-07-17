@@ -31,8 +31,26 @@ hardware:
   laser_to_base_y_m: 0.0
   laser_to_base_z_m: 0.05
   laser_to_base_yaw_rad: 0.0
+  # The canonical runner replaces these fallbacks from deployed
+  # vesc.yaml/vehicle_geometry when it creates a session.
+  imu_to_base_x_m: 0.160
+  imu_to_base_y_m: 0.0
+  imu_to_base_z_m: 0.0703
+  imu_to_base_yaw_rad: 0.0
+  self_scan_filter:
+    enabled: true
+    x_min_m: -0.35
+    x_max_m: 0.45
+    y_min_m: -0.22
+    y_max_m: 0.22
 operating_envelope:
-  maximum_test_speed_mps: 9.0
+  # 2026-06-27 room-limited campaign cap. The ~20 m straight cannot run steady
+  # straights above ~6 m/s (accel + settle + capture + brake budget), so the whole
+  # speed envelope is capped at 5.5. This is an ENFORCING cap: _require_envelope
+  # raises on any command above it, so a stray high value errors the trial instead
+  # of driving the car into the wall. The high-speed ERPM region (6-9 m/s) is left
+  # to extrapolation; revisit with a longer venue to characterise it directly.
+  maximum_test_speed_mps: 5.5
   maximum_test_accel_mps2: 999.0
   maximum_test_brake_mps2: 999.0
   minimum_test_speed_mps: 0.5
@@ -89,8 +107,15 @@ straight_assist:
   #   - immediately steers wrong way       -> set steer_sign to -1.0
   enabled: true
   kp_heading_rad_per_rad: 0.2
+  # Small bounded integral: nulls the steady-state heading error a pure-P term
+  # leaves under a constant steering-centre offset, so the car self-corrects a
+  # residual bias instead of creeping. Kept gentle and hard-clamped (see
+  # max_integral_rad + max_trim_rad) so it can never wind up or steer wildly.
+  # Set to 0.0 to recover pure-P behaviour.
+  ki_heading_rad_per_rad_s: 0.25
+  max_integral_rad: 0.03        # hard cap on the integral's contribution (< max_trim_rad)
   deadband_rad: 0.002          # ~0.14 deg: small enough for constant nudges
-  max_trim_rad: 0.04           # hard cap on correction (~0.57 deg); raise only if still drifting at cap
+  max_trim_rad: 0.04           # hard cap on TOTAL P+I correction (~2.3 deg); raise only if still drifting at cap
   max_trim_rate_rad_s: 0.07     # reach the cap sooner without increasing max angle
   max_trim_step_rad: 0.0005     # absolute per-command jump cap
   min_speed_mps: 0.15           # keep assist active for low-speed ERPM probes
@@ -104,11 +129,11 @@ motion_startup:
   minimum_startup_s: 0.75
   stability_window_s: 0.6
   stability_timeout_s: 2.2
-  pre_capture_settle_distance_m: 1.5
+  pre_capture_settle_distance_m: 1.0   # 2026-06-27 1.5 -> 1.0 m to save track
   pre_capture_settle_min_s: 0.15
-  pre_capture_settle_max_s: 1.2
+  pre_capture_settle_max_s: 0.8        # 2026-06-27 1.2 -> 0.8 s cap
   pre_capture_settle_high_speed_threshold_mps: 4.0
-  pre_capture_settle_high_speed_min_s: 0.6
+  pre_capture_settle_high_speed_min_s: 0.3   # 2026-06-27 0.6 -> 0.3 s (was 3.3 m at 5.5 m/s)
   max_startup_speed_error_mps: 0.20
   # Post-trial stop (active_stop). failed_attempt_* stays soft for auto-check redos.
   active_stop_brake_current_a: 80.0
@@ -132,10 +157,13 @@ observability:
   straight_probe_speeds_mps:
   - 0.5
   - 2.5
+  - 4.0
   - 5.5
-  - 8.0
   straight_probe_repetitions: 2
-  straight_probe_capture_s: 1.0
+  # 2026-06-27 capture 1.0 -> 0.5 s: at 5.5 m/s a 1.0 s window is 5.5 m of travel.
+  # 0.5 s still yields ~100 samples per channel (200+ Hz odom/vesc) which is ample
+  # for the observability noise/bias estimates, and reclaims ~2.75 m of track.
+  straight_probe_capture_s: 0.5
 low_speed_launch:
   nominal_speeds_mps:
   - 0.5
@@ -146,6 +174,7 @@ low_speed_launch:
   capture_s: 0.6
   minimum_lidar_speed_mps: 0.5
 raw_erpm_map_training:
+  # 2026-06-27 room cap 5.5: dropped 6.2/7.6/9.0, added 5.5 end-point.
   nominal_speeds_mps:
   - 0.5
   - 0.7
@@ -154,54 +183,55 @@ raw_erpm_map_training:
   - 2.5
   - 3.5
   - 4.8
-  - 6.2
-  - 7.6
-  - 9.0
+  - 5.5
   repetitions: 3
   capture_s: 0.6
 raw_erpm_map_holdout:
+  # 2026-06-27 room cap 5.5: dropped 6.9/8.5, added 5.0 mid-point.
   nominal_speeds_mps:
   - 0.95
   - 1.5
   - 2.15
   - 3.0
   - 4.2
+  - 5.0
   - 5.5
-  - 6.9
-  - 8.5
   repetitions: 2
   capture_s: 0.55
 vel_to_erpm_pipeline_audit:
+  # 2026-06-27 room cap 5.5: dropped 6.8/8.6, added 5.5 end-point.
   speed_commands_mps:
   - 0.5
   - 0.8
   - 1.6
   - 2.9
   - 4.8
-  - 6.8
-  - 8.6
+  - 5.5
   repetitions: 2
   capture_s: 0.55
 raw_erpm_response:
+  # 2026-06-27 room cap 5.5: step targets pulled under 5.5 (were 6.5/8.8).
   steps_mps:
   - - 0.5
     - 1.2
   - - 1.0
     - 3.5
   - - 2.5
-    - 6.5
-  - - 4.5
-    - 8.8
+    - 5.0
+  - - 3.5
+    - 5.5
   repetitions: 3
   pre_step_hold_s: 0.35
-  response_capture_s: 0.9
+  response_capture_s: 0.7   # 2026-06-27 0.9 -> 0.7 s to keep the step inside the room
 coastdown:
+  # 2026-06-27 room cap 5.5: dropped 6.5/8.6 (coasting from those overran the room),
+  # added 5.0.
   initial_speeds_mps:
   - 0.6
   - 2.0
   - 4.0
-  - 6.5
-  - 8.6
+  - 5.0
+  - 5.5
   repetitions: 3
   pre_coast_hold_s: 0.35
   coast_capture_s: 1.0
@@ -226,13 +256,18 @@ raw_current_training:
     - 0.25
     - 0.6
     - 1.0
-  - initial_speed_mps: 6.0
+  # 2026-06-27 room cap: drive starts 6.0/8.0 -> 3.8/4.5 so the current pulse has
+  # room to accelerate without overrunning the ~20 m straight. NOTE: a full-current
+  # pulse from 4.5 m/s will still briefly exceed 5.5 m/s mid-pulse (the envelope cap
+  # only guards steady holds); lower these starts or the top current_fractions if it
+  # gets close to the wall.
+  - initial_speed_mps: 3.8
     current_fractions:
     - 0.08
     - 0.25
     - 0.6
     - 1.0
-  - initial_speed_mps: 8.0
+  - initial_speed_mps: 4.5
     current_fractions:
     - 0.15
     - 0.45
@@ -257,13 +292,13 @@ raw_current_training:
     - 0.35
     - 0.7
     - 1.0
-  - initial_speed_mps: 6.5
+  - initial_speed_mps: 5.0
     current_fractions:
     - 0.12
     - 0.35
     - 0.7
     - 1.0
-  - initial_speed_mps: 8.6
+  - initial_speed_mps: 5.5
     current_fractions:
     - 0.12
     - 0.35
@@ -288,12 +323,12 @@ raw_current_holdout:
     - 0.15
     - 0.45
     - 0.85
-  - initial_speed_mps: 6.4
+  - initial_speed_mps: 4.0   # 2026-06-27 room cap: was 6.4 (drive-pulse headroom)
     current_fractions:
     - 0.15
     - 0.45
     - 0.85
-  - initial_speed_mps: 8.4
+  - initial_speed_mps: 4.8   # 2026-06-27 room cap: was 8.4
     current_fractions:
     - 0.15
     - 0.45
@@ -314,12 +349,12 @@ raw_current_holdout:
     - 0.2
     - 0.55
     - 0.9
-  - initial_speed_mps: 6.8
+  - initial_speed_mps: 5.0   # 2026-06-27 room cap: was 6.8 (brake start)
     current_fractions:
     - 0.2
     - 0.55
     - 0.9
-  - initial_speed_mps: 8.7
+  - initial_speed_mps: 5.5   # 2026-06-27 room cap: was 8.7
     current_fractions:
     - 0.2
     - 0.55
@@ -327,11 +362,14 @@ raw_current_holdout:
   repetitions: 2
   pre_pulse_hold_s: 0.35
 accel_to_current_interface:
+  # 2026-06-27 room cap: starts 5.0/7.5 -> 3.0/4.0. This stage fires +/-accel
+  # pulses (up to +12 m/s^2), so a positive pulse will briefly exceed the cruise
+  # cap; keep starts low and watch the room on the high acceleration_commands.
   initial_speeds_mps:
   - 0.6
-  - 2.5
-  - 5.0
-  - 7.5
+  - 2.0
+  - 3.0
+  - 4.0
   acceleration_commands_mps2:
   - -12.0
   - -6.0
@@ -343,20 +381,21 @@ accel_to_current_interface:
   repetitions: 2
   pre_pulse_hold_s: 0.35
 candidate_verification:
+  # 2026-06-27 room cap 5.5: velocity holdouts dropped 6.3/8.2/9.0, added 5.0/5.5.
   velocity_holdout_commands_mps:
   - 0.5
   - 1.0
   - 2.4
   - 4.2
-  - 6.3
-  - 8.2
-  - 9.0
+  - 5.0
+  - 5.5
   velocity_repetitions: 2
+  # Accel-pulse starts lowered (6.0/8.0 -> 3.5/4.5) for room headroom.
   acceleration_initial_speeds_mps:
   - 0.7
-  - 3.0
-  - 6.0
-  - 8.0
+  - 2.5
+  - 3.5
+  - 4.5
   acceleration_holdout_commands_mps2:
   - -10.0
   - -4.0
@@ -450,42 +489,8 @@ cross_axis_validation:
   - speed_mps: 5.5
     steering_angle_rad: -0.080
     expected_lateral_accel_mps2: 7.50
-  - speed_mps: 7.0
-    steering_angle_rad: 0.020
-    expected_lateral_accel_mps2: 3.02
-  - speed_mps: 7.0
-    steering_angle_rad: -0.020
-    expected_lateral_accel_mps2: 3.02
-  - speed_mps: 7.0
-    steering_angle_rad: 0.036
-    expected_lateral_accel_mps2: 5.45
-  - speed_mps: 7.0
-    steering_angle_rad: -0.036
-    expected_lateral_accel_mps2: 5.45
-  - speed_mps: 7.0
-    steering_angle_rad: 0.049
-    expected_lateral_accel_mps2: 7.42
-  - speed_mps: 7.0
-    steering_angle_rad: -0.049
-    expected_lateral_accel_mps2: 7.42
-  - speed_mps: 8.8
-    steering_angle_rad: 0.013
-    expected_lateral_accel_mps2: 3.11
-  - speed_mps: 8.8
-    steering_angle_rad: -0.013
-    expected_lateral_accel_mps2: 3.11
-  - speed_mps: 8.8
-    steering_angle_rad: 0.023
-    expected_lateral_accel_mps2: 5.50
-  - speed_mps: 8.8
-    steering_angle_rad: -0.023
-    expected_lateral_accel_mps2: 5.50
-  - speed_mps: 8.8
-    steering_angle_rad: 0.031
-    expected_lateral_accel_mps2: 7.41
-  - speed_mps: 8.8
-    steering_angle_rad: -0.031
-    expected_lateral_accel_mps2: 7.41
+  # 2026-06-27 room cap 5.5: removed the 7.0 and 8.8 m/s arc conditions (cannot reach
+  # those speeds and corner inside the ~20 m room). Turn-slip is now fit over 2-5.5 m/s.
   repetitions: 2
   capture_s: 0.5
 post_calibration_steering_dynamics:
@@ -524,30 +529,7 @@ post_calibration_steering_dynamics:
   - speed_mps: 5.5
     steering_angle_rad: -0.080
     expected_lateral_accel_mps2: 7.50
-  - speed_mps: 7.0
-    steering_angle_rad: 0.036
-    expected_lateral_accel_mps2: 5.45
-  - speed_mps: 7.0
-    steering_angle_rad: -0.036
-    expected_lateral_accel_mps2: 5.45
-  - speed_mps: 7.0
-    steering_angle_rad: 0.049
-    expected_lateral_accel_mps2: 7.42
-  - speed_mps: 7.0
-    steering_angle_rad: -0.049
-    expected_lateral_accel_mps2: 7.42
-  - speed_mps: 8.8
-    steering_angle_rad: 0.023
-    expected_lateral_accel_mps2: 5.50
-  - speed_mps: 8.8
-    steering_angle_rad: -0.023
-    expected_lateral_accel_mps2: 5.50
-  - speed_mps: 8.8
-    steering_angle_rad: 0.031
-    expected_lateral_accel_mps2: 7.41
-  - speed_mps: 8.8
-    steering_angle_rad: -0.031
-    expected_lateral_accel_mps2: 7.41
+  # 2026-06-27 room cap 5.5: removed the 7.0 and 8.8 m/s steering-dynamics conditions.
 analysis:
   min_lidar_speed_mps: 0.3
   max_lidar_gap_s: 0.075
@@ -585,6 +567,11 @@ analysis:
     rotation_update_tolerance_rad: 1.0e-06
     relative_cost_tolerance: 1.0e-07
     max_pair_rmse_m: 0.06
+    huber_delta_scale: 2.5
+    range_weight_reference_m: 4.0
+    minimum_range_weight: 0.20
+    max_pair_translation_std_m: 0.025
+    max_pair_yaw_std_rad: 0.015
     max_hessian_condition_number: 10000.0
     max_imu_yaw_residual_rad: 0.12
   static_map:

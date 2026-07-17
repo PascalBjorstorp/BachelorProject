@@ -1,5 +1,14 @@
 # Bag-first steering calibration
 
+> The canonical combined workflow is now
+> [`../vehicle_calibration/README.md`](../vehicle_calibration/README.md). This
+> directory supplies the steering runtime stages and offline analysis used by
+> that workflow; do not start this legacy suite for a new full campaign. The
+> historical stand-alone instructions below are retained for implementation
+> context and may describe older scan-pair behaviour. The canonical suite uses
+> displacement-targeted registrations aggregated into robust LiDAR windows and
+> A/B/C validation instead.
+
 Install this directory at:
 
 ```text

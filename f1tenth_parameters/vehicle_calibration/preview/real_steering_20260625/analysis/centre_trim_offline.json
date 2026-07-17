@@ -1,0 +1,127 @@
+{
+  "accepted_training_points": 9,
+  "raw_servo_span": 0.07000000000000017,
+  "raw_servo_min": 0.515,
+  "raw_servo_max": 0.5850000000000002,
+  "yaw_vs_servo_slope_rad_s_per_servo": -2.6594012314464637,
+  "centre_servo_raw": 0.5307650600185982,
+  "fit_r2": 0.9909426982270201,
+  "fit_rmse_rad_s": 0.005687781344416166,
+  "fit_extrapolation_servo": 0.0,
+  "nearest_observed_abs_yaw_rate_rad_s": 0.0021824230741031105,
+  "thresholds": {
+    "min_accepted_training_points": 6,
+    "min_unique_servo_points": 4,
+    "min_training_span_servo": 0.04,
+    "max_fit_extrapolation_servo": 0.0,
+    "expected_yaw_rate_slope_sign": -1,
+    "min_fit_r2": 0.8,
+    "max_fit_rmse_rad_s": 0.012,
+    "max_nearest_observed_abs_yaw_rate_rad_s": 0.01
+  },
+  "failures": [],
+  "accepted_for_update": true,
+  "status": "pass",
+  "primary_sensor": "lidar_icp_fine_fit",
+  "trim_s": 0.25,
+  "gyro_z_bias": {
+    "model": "constant",
+    "gz_bias_intercept_rad_s": -0.0016569241631929283,
+    "gz_bias_slope_rad_s_per_s": 0.0,
+    "gz_bias_at_first_epoch_rad_s": 0.0,
+    "gz_bias_at_last_epoch_rad_s": 0.0,
+    "gz_drift_over_session_rad_s": 0.0,
+    "ay_bias_mps2": -0.12677798470058477,
+    "ax_bias_mps2": -0.031011160403350366,
+    "stationary_samples": 5603,
+    "used_fallback_zero": false,
+    "correction_applied": false,
+    "epochs": [
+      {
+        "stage": "03_sensor_observability",
+        "t_ns": 1.782394916098683e+18,
+        "gz_median_rad_s": -0.001656924163192928,
+        "gz_std_rad_s": 0.0013644347546352598,
+        "samples": 5603,
+        "ay_median_mps2": -0.12677798470058477,
+        "ax_median_mps2": -0.031011160403350366
+      }
+    ],
+    "note": "Stationary values are diagnostic only and are not subtracted. The active bringup performs a fresh startup IMU calibration on every stack launch, so a prior-session/static epoch must not be treated as a persistent calibration constant."
+  },
+  "imu_fit": {
+    "accepted_training_points": 9,
+    "raw_servo_span": 0.07000000000000017,
+    "raw_servo_min": 0.515,
+    "raw_servo_max": 0.5850000000000002,
+    "yaw_vs_servo_slope_rad_s_per_servo": -2.8141908704333964,
+    "centre_servo_raw": 0.5316810184840878,
+    "fit_r2": 0.9960846599746207,
+    "fit_rmse_rad_s": 0.0039470628773716305,
+    "fit_extrapolation_servo": 0.0,
+    "nearest_observed_abs_yaw_rate_rad_s": 0.0019654440745344504,
+    "thresholds": {
+      "min_accepted_training_points": 6,
+      "min_unique_servo_points": 4,
+      "min_training_span_servo": 0.04,
+      "max_fit_extrapolation_servo": 0.0,
+      "expected_yaw_rate_slope_sign": -1,
+      "min_fit_r2": 0.5,
+      "max_fit_rmse_rad_s": 0.05,
+      "max_nearest_observed_abs_yaw_rate_rad_s": 0.1
+    },
+    "failures": [],
+    "accepted_for_update": true,
+    "status": "pass"
+  },
+  "odom_fit": {
+    "accepted_training_points": 9,
+    "raw_servo_span": 0.07000000000000017,
+    "raw_servo_min": 0.515,
+    "raw_servo_max": 0.5850000000000002,
+    "yaw_vs_servo_slope_rad_s_per_servo": -3.181585621906423,
+    "centre_servo_raw": 0.5395078290560756,
+    "fit_r2": 0.9985673532456566,
+    "fit_rmse_rad_s": 0.0026959285176470097,
+    "fit_extrapolation_servo": 0.0,
+    "nearest_observed_abs_yaw_rate_rad_s": 0.025555477441746566,
+    "thresholds": {
+      "min_accepted_training_points": 6,
+      "min_unique_servo_points": 4,
+      "min_training_span_servo": 0.04,
+      "max_fit_extrapolation_servo": 0.0,
+      "expected_yaw_rate_slope_sign": -1,
+      "min_fit_r2": 0.5,
+      "max_fit_rmse_rad_s": 0.05,
+      "max_nearest_observed_abs_yaw_rate_rad_s": 0.1
+    },
+    "failures": [],
+    "accepted_for_update": true,
+    "status": "pass"
+  },
+  "onboard_coarse_estimate": {
+    "centre_servo_raw": 0.5355944237700817,
+    "sensors_used": [
+      "imu",
+      "odom"
+    ],
+    "sensor_centres_servo": {
+      "imu": 0.5316810184840878,
+      "odom": 0.5395078290560756
+    },
+    "sensor_spread_servo": 0.007826810571987863,
+    "max_sensor_spread_servo": 0.02,
+    "reliable_crosscheck": true,
+    "note": "IMU and odometry agree sufficiently for a coarse cross-check."
+  },
+  "all_captured_trials": 9,
+  "fit_eligible_trials": 9,
+  "excluded_nonstraight_trials": [],
+  "max_abs_lidar_lateral_velocity_mps": 0.15,
+  "min_lidar_forward_speed_mps": 0.2,
+  "imu_crosscheck_gated": false,
+  "sensor_centre_disagreement_servo": 0.0009159584654895303,
+  "max_sensor_centre_disagreement_servo": 0.012,
+  "lidar_onboard_centre_disagreement_servo": 0.004829363751483462,
+  "max_lidar_onboard_disagreement_servo": 0.03
+}

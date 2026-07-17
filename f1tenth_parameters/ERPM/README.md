@@ -1,259 +1,56 @@
-# Full-envelope ERPM / longitudinal odometry model-selection campaign
+# ERPM calibration implementation library
 
-Install this directory at:
+The operator entry point is the unified [vehicle-calibration campaign](../vehicle_calibration/README.md). Do not run the legacy ERPM CLI as a separate campaign in the 14 × 14 m room.
 
-```text
-BachelorProject/f1tenth_parameters/ERPM/
-```
+This directory remains the implementation library used by the unified runner:
 
-This campaign runs **after steering calibration**. Its primary objective is not
-"find an ERPM gain". It is to select the simplest **causal, deployable**
-estimator that best predicts actual longitudinal ground speed from the signals
-available on the car:
+- `erpm_calibration/` provides scoped ROS capture stages, motor-selector safety, straight assist, and bag recording.
+- `analysis/` provides LiDAR-windowed longitudinal, drag, current, acceleration-interface, and lateral-dynamics analysis.
+- `full_stack/` contains candidate adapters and model-port contracts for behaviour that the production stack cannot express.
 
-```text
-VESC measured ERPM + VESC motor current + IMU longitudinal acceleration
-→ estimated vehicle speed
-```
+## Canonical workflow
 
-LiDAR scan matching is the independent ground-speed reference used to train
-and score the models. Existing ERPM odometry is never used as its own truth.
-
-## Critical site requirement
-
-The supplied default configuration is a **full-envelope** campaign:
-
-```text
-maximum speed:                 9.0 m/s
-maximum drive acceleration:    uncapped by this runner
-maximum brake deceleration:    uncapped by this runner
-test-current command scale:    intentionally above expected VESC clipping
-```
-
-It requires a static-featured, controlled straight with at least the configured
-usable length, currently **20 m minimum**, and explicit drive/brake
-test-current command-scale values. The runner checks these developer-set declarations before
-touching `vesc.yaml`.
-
-`operating_envelope.approved_drive_test_current_a` and
-`operating_envelope.approved_brake_test_current_a` are command scales for the
-raw-current grids. They are deliberately set high so the collected data shows
-the VESC/firmware clipping and motor response rather than a software-imposed
-acceleration ceiling.
-
-### Developer one-time setup vs. third-party operator
-
-These are **two separate roles**, and this is by design — not a defect:
-
-- **Developer (you), once, before handing off the car:** the two
-  `approved_*_test_current_a` values in `config/erpm_calibration.yaml` (a config
-  file, *not* code) set the raw-current command scale. The default 20 m campaign
-  uses short pulses up to the full configured scale to capture high-demand
-  acceleration, braking and VESC clipping behavior up to about 9 m/s.
-- **Third-party operator, afterwards:** runs `python3 erpm_config_calibration.py`
-  (and, when a C++ port is being validated, `python3 erpm_candidate_port.py`) and
-  nothing else. They never edit code or YAML.
-
-The check runs at launch (fail-fast), so a forgotten value stops the run in the
-first seconds, not after hours of collection. Once both values are set, every
-stage — including the high-current stages 8–12 — proceeds with no blocking.
-
-A 20 m straight is the configured minimum for this high-speed, high-current
-campaign. The default top-speed evidence is around 9 m/s; use 25-30 m if you
-want repeated 10 m/s settled captures with more recovery room.
-
-## Two-script workflow (split at the C++-edit boundary)
-
-The campaign is split into two scripts so the directly-deployable results are
-not entangled with the ones that need a C++ port:
-
-**Tier 1 — config-deployable (no C++ edits).** Stages 0-10 + offline fit. Emits
-`analysis/config_only_vesc_patch.yaml`: ERPM/odom gain, odom scale, accel/brake
-current gains, the coast-down drag feed-forward (makes `a=0` hold speed instead
-of coasting), and current clamps. Every key is already supported by the
-production C++, so you copy it straight into `vesc.yaml`.
+Start a unified session from the repository root:
 
 ```bash
-cd ~/BachelorProject/f1tenth_parameters/ERPM
-source ~/BachelorProject/install/setup.bash
-python3 erpm_config_calibration.py --workspace ~/BachelorProject
+source install/setup.bash
+python3 f1tenth_parameters/vehicle_calibration/run_suite.py new
+python3 f1tenth_parameters/vehicle_calibration/run_suite.py run \
+  --session f1tenth_parameters/vehicle_calibration/runs/<session> --next
 ```
 
-**Tier 2 — candidate port (needs the C++ port to deploy).** Runs on the Tier-1
-session and validates, in shadow, the features the current parameters cannot
-express: quadratic/LUT command map, fused odometry, traction surface, `a=0`
-hold-speed gate and the cornering turn-slip correction. Deployment still
-requires `full_stack/PRODUCTION_PORT_CONTRACT.md`.
+The canonical campaign owns the order, room preflight, temporary VESC patches, build/recovery transaction, A/B/C validation contract, plots, and LaTex report. It keeps the source `vesc.yaml` unchanged after each command.
+
+## What this library measures
+
+The unified sequence uses this library to distinguish:
+
+| Quantity | Reference / fit | Deployment scope |
+| --- | --- | --- |
+| ERPM ↔ ground speed | LiDAR multi-registration windows, A/B/C hold-out | Wheel odometry and setup speed only; not racing throttle. |
+| Command timing | Raw ERPM response A/C | Diagnostic/model timing. |
+| Drag | Integrated LiDAR coast-down trajectories A/C | `ACCEL_TO_CURRENT` drag feed-forward. |
+| Desired acceleration ↔ selector current/brake | LiDAR pulse acceleration plus selector echo, A/C | Scalar gains only if new-data validation passes. |
+| ACCEL_TO_CURRENT interface | Fresh requested-acceleration grid | Race-control command routing and realised ground acceleration. |
+| Effective tyre stiffness | Quasi-steady, balanced LiDAR/IMU arcs A/C | Dynamic bicycle `C_f`, `C_r`, and steering scale within the measured low-slip envelope. |
+
+No ERPM or odometry estimate is used as its own ground-truth reference. The 40 Hz LiDAR is processed as displacement-targeted registrations followed by robust 0.5 s motion windows; raw scan pairs are diagnostics, not independent observations.
+
+## Safety and model-selection rules
+
+The canonical 12 m profile limits tests to 3.0 m/s, 8 A raw drive current, and 15 A raw brake current. It applies a second ERPM interlock independently of the odometry calibration.
+
+Straight-line stages may use a small, recorded heading assist only after physical steering-centre validation. It is disabled for intentional turns. The longitudinal stages use `ACCEL_TO_CURRENT` for race-control validation; the static ERPM map remains only an odometry/setup aid.
+
+If independent validation materially prefers a model that the production stack cannot represent, the campaign fails closed and writes an implementation request. Examples include a nonlinear ERPM speed map, a non-scalar acceleration/current surface, or a nonlinear lateral tyre model. Implement that bounded model first, then restart fresh A/B data with `redo`.
+
+## Legacy configuration
+
+`config/erpm_calibration.yaml` is retained for the implementation library and its regression checks. Its 20 m reference profile is capped at 5.5 m/s, but it is not the room operator workflow. The unified profile in `vehicle_calibration/config/suite.yaml` uses the 14 × 14 m physical room, a 1 m wall band, the clear-area diagonal, and staged A/B/C grids.
+
+For recovery from an interrupted unified temporary configuration transaction:
 
 ```bash
-python3 erpm_candidate_port.py --session runs/<session-id> --workspace ~/BachelorProject
+python3 f1tenth_parameters/vehicle_calibration/run_suite.py recover \
+  --workspace /home/akselmo/Documents/GitHub/BachelorProject
 ```
-
-Optional no-drive preflight before handing the car to a third party:
-
-```bash
-python3 erpm_config_calibration.py --workspace ~/BachelorProject --preflight-only
-```
-
-The third-party operator does not edit `vesc.yaml`, run `colcon`, launch ROS,
-start normal bringup, or start bag recording. The runner:
-
-1. creates a byte-exact `vesc.yaml` backup and a recovery lock;
-2. applies temporary controller profiles and rebuilds automatically;
-3. launches a dedicated calibration graph and records the stage-required ROS
-   topics plus a small shared debug bundle into stage-level MCAP bags;
-4. runs a strict offline model-selection analysis;
-5. validates the selected candidate **inside the live ROS command graph** in
-   shadow mode; and
-6. restores the exact original VESC configuration and rebuilds, regardless of
-   pass, rejection, abort, or ordinary exception.
-
-Two internal checkpoints are automatic. After Stage 5 the runner exports and
-fits the settled-speed evidence, then relaunches with an interim speed/odometry
-patch so Stages 6-9 use better setup-speed targets and runtime odometry.
-After Stage 9 it fits drag and bootstrap acceleration/current terms, then
-relaunches Stage 10 with that learned forward-motion patch instead of a blind
-fallback gain.
-
-Recovery after power loss or forced termination (either script):
-
-```bash
-python3 erpm_config_calibration.py --recover --workspace ~/BachelorProject
-```
-
-## What is selected
-
-The campaign deliberately separates three different mappings:
-
-| Mapping | Selection rule | Zero condition |
-|---|---|---|
-| Desired speed → ERPM command | Stage 3/4 command hold-outs | `ERPM_cmd(0) = 0` exactly |
-| Measured ERPM → wheel-speed observation | Stage 3/4 + dynamic hold-outs | `v_wheel(ERPM=0) = 0` exactly |
-| Wheel/IMU/current → estimated ground speed | Complete high-demand Stage 9 trajectories | Causal, bounded, no future samples |
-
-The command map candidates are:
-
-```text
-linear:       ERPM = k1 v
-quadratic:    ERPM = k1 v + k2 v |v|
-monotone LUT: zero-anchored piecewise-linear interpolation
-```
-
-The odometry candidates are compared on the same independent ground-truth
-hold-outs:
-
-```text
-legacy_scalar  installed scalar wheel model, as baseline
-static_linear  measured ERPM static linear observation
-static_quadratic
-static_lut
-adaptive_wheel static observation + bounded IMU/current correction
-fused_adaptive causal IMU prediction + acceleration-weighted wheel observation
-```
-
-The selected model is not the one with the lowest training error. It must meet
-coverage, RMSE, signed-bias, 95th-percentile error, high-drive, high-brake,
-and non-zero-steering hold-out gates.
-
-On top of the chosen straight-line estimator, Stage 13 fits a **cornering
-longitudinal-slip correction**: the driven wheels over-read ground speed in
-turns (grows with lateral acceleration; negligible sideslip; no time lag), so
-the deployable odometry applies `v_odom = v_wheel * (1 - clip(c1*v_wheel*|yaw|))`.
-It is zero on straights by construction, so it never disturbs the validated
-straight-line gain. The configured Stage 13 cells now use straight run-up plus
-short turn segments, sweeping low-speed/high-curvature and high-speed/low-steer
-conditions up to a 7.5 m/s² expected lateral-acceleration budget without needing
-full circles. See `docs/PARAMETER_OUTPUTS.md`.
-
-## Experimental stages
-
-| Stage | State / experiment | Purpose |
-|---:|---|---|
-| 0 | Stand-only motor command audit | Proves raw ERPM/current/brake request → selector → VESC command ownership. |
-| 1 | Stationary + straight observability | Measures LiDAR velocity noise and verifies scan/IMU/VESC/odom capture. |
-| 2 | Low-speed launch ladder | Identifies practical motion threshold, deadband and sensorless start evidence. |
-| 3 | Full settled-speed training grid | Fits zero-intercept command and wheel-observation candidates across the speed envelope. |
-| 4 | Independent settled-speed hold-out | Rejects static maps that do not generalise. |
-| 5 | Existing `VEL_TO_ERPM` audit | Characterises the installed speed path before candidate deployment. |
-| 6 | Full-envelope raw-ERPM steps | Measures command/VESC/ground-speed delay and high-speed transient response. |
-| 7 | Current-zero coast-down ladder | Identifies Coulomb, viscous and quadratic drag. |
-| 8 | Full drive/brake current training schedule | Covers low/mid/high entry speed and fractions up to the configured command scale; short fixed durations record high-demand acceleration, braking, VESC clipping and slip onset/recovery. |
-| 9 | Independent current hold-out schedule | Selects the odometry estimator on unseen high-acceleration and braking trajectories. |
-| 10 | Learned `ACCEL_TO_CURRENT` routing audit | Audits requested acceleration → current/brake routing using the drag/current patch learned from Stages 6-9. |
-| offline | Model selection | Compares every causal estimator family using whole held-out trajectories. |
-| 11 | Candidate `VEL_TO_ERPM` shadow validation | Candidate command map and candidate odom feed the live speed loop; plateau hold-outs. |
-| 12 | Candidate `ACCEL_TO_CURRENT` shadow validation | Candidate odom feeds the live acceleration loop; dynamic hold-outs. |
-| 13 | Cornering slip arcs + non-zero-steering hold-out | Explicit short-turn cells span 2.0-8.8 m/s and up to 7.5 m/s² expected lateral acceleration. Fits the causal turn-induced longitudinal-slip correction (`fit_turn_slip.py`) on a training subset of cells and validates it on held-out cells, so odometry is trustworthy while turning and not only on straights. |
-| 14 | Post-calibration steering dynamics | Runs only after candidate ERPM/current verification. Straight setup at speed, then short steering-step captures up to 7.5 m/s² expected lateral acceleration for later steering delay, yaw-rate gain and understeer fitting. Not used to fit ERPM/current. |
-
-Each requested physical trial can be `ACCEPT`, `REDO`, `SKIP`, or `ABORT`.
-`REDO` is unlimited. Rejected attempts are retained in MCAP; only accepted
-attempts enter fit/validation. Missing accepted repetitions are an explicit
-coverage failure, never a silent `NaN` metric.
-
-## Straight-line self-alignment
-
-The straight-running stages do not just abort on drift — they **actively hold a
-straight line**. A bounded closed-loop heading-hold (`straight_assist` in the
-config) trims the steering each command tick to null measured yaw rate and
-lateral motion. Its integral term converges to the steady trim that overcomes
-the mechanical steering slack / centre offset, so the car goes straight instead
-of relying on a perfectly calibrated centre or on the operator re-running and
-hoping. The trim is bounded (`max_trim_rad`, default 0.07 rad) so it can never
-command a real turn, is slew-rate limited, and is **automatically disabled when
-an intentional non-zero steering angle is commanded** (the cornering arcs), so
-it never fights a commanded turn. The applied trim is recorded per window
-(`straight_assist_trim_rad`) so the residual slack is visible. Gains are a sane
-starting point; tune them on the car if it under- or over-corrects.
-
-The gains assume the standard convention that a positive `steering_angle`
-produces a positive (left) yaw rate. Verify this on the first low-speed run: if
-the car *diverges* faster instead of straightening, the steering→yaw sign is
-inverted for your vehicle — negate `kp_yaw`, `ki_heading` and `kvy`. The
-`max_trim_rad` bound limits how far a wrong sign can push before you catch it.
-
-## Full-stack candidate validation
-
-The existing C++ stack uses a common scalar `speed_to_erpm_gain`/offset for
-both command conversion and ERPM odometry. That architecture cannot represent
-an independently selected command map and acceleration-aware wheel observation
-cleanly.
-
-During Stages 11–13 the suite therefore launches:
-
-```text
-candidate_command_map.py
-adaptive_odom_shadow.py
-candidate_accel_map.py
-```
-
-`AckermannToVesc` consumes the candidate odometry stream in the real command
-path. For velocity verification, the candidate zero-intercept command map is
-the sole ERPM motor-speed source. For acceleration verification, the core C++
-node remains responsible for steering while `candidate_accel_map.py` becomes
-the sole motor source, applying either the scalar low-slip map or a bounded
-full-envelope traction-surface inverse. This validates timing and closed-loop
-behaviour without permanently changing the production C++ code.
-
-A candidate can be *accepted for permanent review* only after the shadow model
-passes every final hold-out. Permanent installation still requires the C++ port
-specified in `full_stack/PRODUCTION_PORT_CONTRACT.md`, replay agreement with
-the shadow reference, and a final re-run of Stages 11–13 using the C++ node.
-
-## Evidence and stage-targeted recording
-
-Every stage invokes:
-
-```bash
-ros2 bag record -s mcap --compression-mode file --compression-format zstd <required stage topics...>
-```
-
-Required-topic checks are still enforced. The bags retain raw `/scan`, `/tf`,
-`/tf_static`, parameter events, ROS graph snapshots, VESC telemetry, command
-mirrors, raw and selected motor paths, IMU, production odom, candidate
-odom/debug signals when active, `/drive`, `/ackermann_cmd`, and structured
-trial events without recording unrelated ROS traffic. Keep READY/review prompts
-moving: the stage bag stays open while waiting, so idle prompt time still records
-the LiDAR stream.
-
-Key model-selection outputs are listed in `docs/PARAMETER_OUTPUTS.md`. `docs/SOURCE_PARAMETER_AUDIT.md` identifies active parameters, safety-only limits, and longitudinal fields that are currently unused by the production source.
